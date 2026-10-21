@@ -113,7 +113,19 @@ Settled analyses:
 
 - *Be* plus a participle keeps both the adjectival (state) and the verbal
   passive (action) Reading. Both are attested.
-- A multiword game term that a plugin or catalog declares as one term is atomic.
+- A multiword game term that a plugin or catalog declares as one term is one
+  leaf. It does not suppress the single-word analyses of its parts when those
+  parts are ordinary lexicon words that straddle a constituent boundary: in *if it's the first time counters have
+  been put on that creature*, *time* ends the Nominal *first time* and
+  *counters* begins the clause after it, so the plural of the catalog counter
+  *time counter* [CR#122.1] does not hold them together. The parts straddle a
+  boundary only when, in the smallest constituent containing the term, the
+  part holding its first word begins before the term and the part holding its
+  last word ends after it. Otherwise the parts rebuild the term's own
+  analysis, alone (*[first] [strike]*) or with a dependent of one part
+  (*mana [cost for permanent spells]*), which is a second tree beside the term.
+  A core multiword term (*mana value*) never splits, nor does a term with a
+  part that is not an ordinary word (the measure in *+1/+1 counter*).
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
 - A locative or temporal Preposition Phrase right after an existential's
   Displaced Subject is its Extension, a Complement of *be* (CGEL, Ch. 16

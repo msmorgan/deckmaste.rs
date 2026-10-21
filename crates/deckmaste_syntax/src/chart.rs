@@ -18,6 +18,10 @@ use crate::step::Symbol;
 
 type ChartMap<K> = HashMap<K, usize, BuildHasherDefault<ChartHasher>>;
 
+/// An item's identity among those ending at one position: (Production, dot,
+/// start, state, seam bits).
+type ItemKey = (usize, usize, usize, State, u64);
+
 /// Sizes of one parse, for measurement only.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Metrics {
@@ -55,6 +59,9 @@ pub(crate) struct Item {
     pub start: usize,
     pub end: usize,
     pub state: State,
+    /// For each multiword noun whose words `end` falls between, whether this
+    /// item's children have a boundary at its start: see [`Seams`].
+    pub seam: u64,
     /// (previous item, last child) alternatives.
     pub families: Vec<(Option<usize>, ChildRef)>,
 }
@@ -115,6 +122,88 @@ impl<'g> Parse<'g> {
     }
 }
 
+/// The spans of the multiword nouns of one input whose words also reach the
+/// chart as leaves of their own.
+///
+/// The separate words stand apart only where they straddle a constituent
+/// boundary: in the smallest Constituent spanning the term, the child holding
+/// its first word begins before the term and the child holding its last word
+/// ends after it (*the [first time] [counters have been put ...]*). Where
+/// either child begins or ends with the term, its words rebuild the term's
+/// own analysis, alone (*[first] [strike]*) or with a dependent of one part
+/// (*mana [cost for ...]*, *[red or haste] counter*), beside the term itself.
+///
+/// The rule is checked where a Production that began at or before the term
+/// takes the child that reaches the term's end from inside it: an item
+/// records, for each term whose words its end falls between, whether one of
+/// its children begins where that term begins.
+struct Seams {
+    spans: Vec<Range<usize>>,
+    /// For each position, the spans strictly containing it.
+    inside: Vec<Vec<usize>>,
+}
+
+impl Seams {
+    fn new(mut spans: Vec<Range<usize>>, n: usize) -> Self {
+        spans.sort_by_key(|span| (span.start, span.end));
+        spans.dedup();
+        let mut inside = vec![Vec::new(); n + 1];
+        for (index, span) in spans.iter().enumerate() {
+            for at in &mut inside[span.start + 1..span.end] {
+                at.push(index);
+            }
+        }
+        Self { spans, inside }
+    }
+
+    /// Whether an item ending at `end` has a boundary at the start of span
+    /// `span`, given its seam bits.
+    fn bit(&self, end: usize, seam: u64, span: usize) -> bool {
+        self.inside[end]
+            .iter()
+            .position(|&s| s == span)
+            .is_some_and(|bit| seam >> bit & 1 == 1)
+    }
+
+    /// The seam bits of an item whose first word is at `first` and that ends
+    /// at `end`, after a child whose first word is at `child`, following
+    /// `previous` (its end and seam bits); or `None` when that child leaves
+    /// a term's words not straddling a constituent boundary.
+    fn after(
+        &self,
+        first: usize,
+        previous: Option<(usize, u64)>,
+        child: usize,
+        end: usize,
+    ) -> Option<u64> {
+        if self.spans.is_empty() {
+            return Some(0);
+        }
+        let had_start = |span: usize| {
+            let start = self.spans[span].start;
+            child == start
+                || (child > start && previous.is_some_and(|(at, seam)| self.bit(at, seam, span)))
+        };
+        let rebuilt = self.spans.iter().enumerate().any(|(index, span)| {
+            first <= span.start
+                && span.start < child
+                && child < span.end
+                && span.end <= end
+                && (span.end == end || had_start(index))
+        });
+        if rebuilt {
+            return None;
+        }
+        Some(
+            self.inside[end]
+                .iter()
+                .enumerate()
+                .filter(|&(_, &span)| had_start(span))
+                .fold(0, |seam, (bit, _)| seam | 1 << bit),
+        )
+    }
+}
+
 impl CompiledGrammar {
     /// Parses `text` as the grammar's root Category.
     #[must_use]
@@ -141,7 +230,11 @@ impl CompiledGrammar {
         Some(self.run(analyzed, root))
     }
 
-    pub(crate) fn atomic_spans(&self, analyzed: &AnalyzedText) -> Vec<std::ops::Range<usize>> {
+    /// The spans of the multiword nouns of `analyzed`, each with whether its
+    /// words may stand apart where they straddle a constituent boundary:
+    /// those of a term declared outside the core lexicon may
+    /// (`docs/decisions/english-lexical-analysis.md` §2).
+    pub(crate) fn atomic_spans(&self, analyzed: &AnalyzedText) -> Vec<(Range<usize>, bool)> {
         analyzed
             .matches
             .iter()
@@ -151,7 +244,10 @@ impl CompiledGrammar {
                 (m.start == 0 || !analyzed.tokens[m.start - 1].is_alphanumeric()).then_some(())?;
                 (facts.category == deckmaste_lexical::Category::Noun
                     && analyzed.tokens[m.start..m.end].contains(&' '))
-                .then_some(m.start..m.end)
+                .then_some((
+                    m.start..m.end,
+                    facts.source != deckmaste_lexical::SourceKind::Core,
+                ))
             })
             .collect()
     }
@@ -175,9 +271,13 @@ impl CompiledGrammar {
         let mut by_start: Vec<Vec<usize>> = vec![Vec::new(); n + 1];
         let atomic = self.atomic_spans(analyzed);
         for found in &analyzed.matches {
-            if atomic.iter().any(|span| {
-                (span.start < found.start && found.start < span.end)
-                    || (span.start < found.end && found.end < span.end)
+            // Inside a multiword noun, only an ordinary word of a term whose
+            // words may stand apart reaches the chart.
+            let word = matches!(found.reading, LexicalReading::Word(_));
+            if atomic.iter().any(|(span, splits)| {
+                ((span.start < found.start && found.start < span.end)
+                    || (span.start < found.end && found.end < span.end))
+                    && !(*splits && word)
             }) {
                 continue;
             }
@@ -191,9 +291,15 @@ impl CompiledGrammar {
                 });
             }
         }
+        let seams = Seams::new(
+            atomic
+                .into_iter()
+                .filter_map(|(span, splits)| splits.then_some(span))
+                .collect(),
+            n,
+        );
         let mut sets: Vec<Vec<usize>> = vec![Vec::new(); n + 1];
-        let mut item_index: Vec<ChartMap<(usize, usize, usize, State)>> =
-            (0..=n).map(|_| ChartMap::default()).collect();
+        let mut item_index: Vec<ChartMap<ItemKey>> = (0..=n).map(|_| ChartMap::default()).collect();
         let mut node_index: ChartMap<(usize, usize, usize, Summary)> = ChartMap::default();
         let categories = self.categories.len();
         let mut waiting: Vec<Vec<usize>> = vec![Vec::new(); (n + 1) * categories];
@@ -206,8 +312,9 @@ impl CompiledGrammar {
                        start: usize,
                        end: usize,
                        state: State,
+                       seam: u64,
                        family: Option<(Option<usize>, ChildRef)>| {
-            let key = (production, dot, start, state);
+            let key = (production, dot, start, state, seam);
             let item_index = &mut item_index[end];
             let index = if let Some(&i) = item_index.get(&key) {
                 i
@@ -219,6 +326,7 @@ impl CompiledGrammar {
                     start,
                     end,
                     state: key.3,
+                    seam,
                     families: Vec::new(),
                 });
                 item_index.insert(key, i);
@@ -258,6 +366,7 @@ impl CompiledGrammar {
                             0,
                             0,
                             self.productions[p].start(),
+                            0,
                             None,
                         );
                     }
@@ -308,6 +417,14 @@ impl CompiledGrammar {
                         {
                             let (p, d, s) = (item.production, item.dot, item.start);
                             let prev = (d > 0).then_some(parent);
+                            let Some(seam) = seams.after(
+                                skip(s),
+                                prev.map(|_| (item.end, item.seam)),
+                                skip(start),
+                                position,
+                            ) else {
+                                continue;
+                            };
                             add(
                                 &mut forest,
                                 &mut sets,
@@ -316,6 +433,7 @@ impl CompiledGrammar {
                                 s,
                                 position,
                                 state,
+                                seam,
                                 Some((prev, ChildRef::Node(node))),
                             );
                         }
@@ -342,6 +460,7 @@ impl CompiledGrammar {
                                     position,
                                     position,
                                     self.productions[p].start(),
+                                    0,
                                     None,
                                 );
                             }
@@ -367,6 +486,15 @@ impl CompiledGrammar {
                                 production.accept(self, &forest.items[id].state, dot, &view)
                             {
                                 let end = forest.leaves[leaf].end;
+                                let item = &forest.items[id];
+                                let Some(seam) = seams.after(
+                                    skip(start),
+                                    previous.map(|_| (item.end, item.seam)),
+                                    at,
+                                    end,
+                                ) else {
+                                    continue;
+                                };
                                 add(
                                     &mut forest,
                                     &mut sets,
@@ -375,6 +503,7 @@ impl CompiledGrammar {
                                     start,
                                     end,
                                     state,
+                                    seam,
                                     Some((previous, ChildRef::Leaf(leaf))),
                                 );
                             }
@@ -396,6 +525,12 @@ impl CompiledGrammar {
                                 dot,
                                 &ChildView::Punct,
                             )
+                            && let Some(seam) = seams.after(
+                                skip(start),
+                                previous.map(|_| (forest.items[id].end, forest.items[id].seam)),
+                                at,
+                                at + 1,
+                            )
                         {
                             add(
                                 &mut forest,
@@ -405,6 +540,7 @@ impl CompiledGrammar {
                                 start,
                                 at + 1,
                                 state,
+                                seam,
                                 Some((previous, ChildRef::Punct)),
                             );
                         }

@@ -317,7 +317,7 @@ fn multiword_lexeme_is_atomic_and_needs_its_separator() {
         .collect();
     assert_eq!(found, BTreeSet::from([vec!["n:first-strike".to_owned()],]));
     // Admission rejects the separate-word Reading, whose leaves are values of
-    // this lexicon too: no leaf of it spells the multiword noun.
+    // this lexicon too: its words rebuild the multiword noun.
     let separate = Lexicon::new(words).unwrap();
     let decomposed = bind(source, &separate, NO_FRAMES)
         .unwrap()
@@ -333,6 +333,77 @@ fn multiword_lexeme_is_atomic_and_needs_its_separator() {
     let spaced = grammar.parse(&lexicon, "First  strike.");
     assert_eq!(spaced.readings(), [] as [Reading; 0]);
     assert_eq!(spaced.verify_realization(&lexicon), Ok(()));
+}
+
+/// A catalog's multiword lexeme's words stand apart only where they straddle
+/// a constituent boundary, each in a child that reaches past the lexeme, as
+/// in *[big first] [strike damage]*; never where they rebuild it, alone or
+/// with a dependent of one part, as in *first [strike damage]*. A core
+/// multiword lexeme's never do (`docs/decisions/english-lexical-analysis.md`
+/// §2).
+#[test]
+fn multiword_lexeme_words_straddle_but_never_rebuild_it() {
+    let mut first_strike = word("n:first-strike", "first strike", Category::Noun);
+    first_strike.surface_structure = SurfaceStructure::Multiword;
+    first_strike.forms[0].form = WordForm::Singular;
+    first_strike.forms[0].features = number(Number::Singular);
+    let core_first_strike = first_strike.clone();
+    first_strike.source.kind = SourceKind::Catalog;
+    let others = [
+        word("a:big", "big", Category::Adjective),
+        word("a:first", "first", Category::Adjective),
+        noun("strike"),
+        noun("damage"),
+    ];
+    let lexicon = Lexicon::new([first_strike].into_iter().chain(others.clone())).unwrap();
+    let source = r#"(
+            root: "Sentence",
+            categories: { "Sentence": (), "Nominal": (), "Adjectives": () },
+            productions: [
+                (name: "Sentence", lhs: "Sentence", rhs: [Cat("head", "Nominal"), Punct('.')]),
+                (name: "Split", lhs: "Sentence", rhs: [Cat("modifier", "Adjectives"), Cat("head", "Nominal"), Punct('.')]),
+                (name: "Adjectives", lhs: "Adjectives", rhs: [Lex("first", Adjective), Lex("last", Adjective)]),
+                (name: "Noun", lhs: "Nominal", rhs: [Lex("head", Noun)]),
+                (name: "Premodified", lhs: "Nominal", rhs: [Lex("modifier", Adjective), Cat("head", "Nominal")]),
+                (name: "Compound", lhs: "Nominal", rhs: [Lex("modifier", Noun), Cat("head", "Nominal")]),
+            ],
+        )"#;
+    let grammar = bind(source, &lexicon, NO_FRAMES).unwrap();
+    let found = |text: &str| -> BTreeSet<Vec<String>> {
+        readings(&grammar, &lexicon, text)
+            .iter()
+            .map(lexemes)
+            .collect()
+    };
+    let words = |ids: &[&str]| ids.iter().map(|&id| id.to_owned()).collect::<Vec<_>>();
+    assert_eq!(
+        found("Big first strike damage."),
+        BTreeSet::from([
+            words(&["a:big", "n:first-strike", "n:damage"]),
+            words(&["a:big", "a:first", "n:strike", "n:damage"]),
+        ])
+    );
+    // *First* is a sister of *strike damage*, which rebuilds the noun with a
+    // dependent of *strike*.
+    assert_eq!(
+        found("First strike damage."),
+        BTreeSet::from([words(&["n:first-strike", "n:damage"])])
+    );
+    // *First* and *strike* as the whole of `Premodified` rebuild it.
+    assert_eq!(
+        found("First strike."),
+        BTreeSet::from([words(&["n:first-strike"])])
+    );
+    let core = Lexicon::new([core_first_strike].into_iter().chain(others)).unwrap();
+    let grammar = bind(source, &core, NO_FRAMES).unwrap();
+    let found: BTreeSet<Vec<String>> = readings(&grammar, &core, "Big first strike damage.")
+        .iter()
+        .map(lexemes)
+        .collect();
+    assert_eq!(
+        found,
+        BTreeSet::from([words(&["a:big", "n:first-strike", "n:damage"])])
+    );
 }
 
 /// Obligations 3 and 4, discharged by construction: no Category is nullable.

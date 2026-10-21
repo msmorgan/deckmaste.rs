@@ -93,5 +93,8 @@ over all 92,934 units:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`oumuxzss`): faces read 28,705 → 28,706 (Stalwart Successor);
+   Readings 243,154 → 243,166, Surplus 106,258 → 106,269; the only unit that
+   changed is Stalwart Successor (0 → 12); lost faces: none.
+2. **Judgment set** (`oumuxzss`): all 3,210 entries pass, including 2 new ones
+   in `multiword_term_split.txt` (Stalwart Successor; Tourach's Gate, `readings 1`).

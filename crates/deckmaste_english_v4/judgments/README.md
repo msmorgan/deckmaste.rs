@@ -143,8 +143,9 @@ Each was settled while adjudicating the migrated judgments.
   token*) is the name plus a supplement anchored to it: the name bears the
   function, and the supplement is a constituent with no function of its own
   (CGEL Ch. 15 §5, pp. 1350–1351).
-- A multiword term declared as one lexeme is atomic and is named by its
-  quoted lemma (`as Modifier of "combat damage"`).
+- A multiword term declared as one lexeme is one leaf, named by its quoted
+  lemma (`as Modifier of "combat damage"`), except where its words straddle a
+  constituent boundary (*the first time [counters have been put ...]*).
 - Full card names are in scope everywhere; `<card=...>` is needed only for a
   Shortened Name or a self-reference by name.
 - `*` holds when the text has no Reading for any reason, an undeclared word

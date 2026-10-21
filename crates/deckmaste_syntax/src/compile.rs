@@ -66,6 +66,8 @@ pub(crate) struct LexemeFacts {
     /// has no passive participle (*cost*, lexical *have*).
     pub active_only: bool,
     pub preposition_frames: BTreeSet<usize>,
+    /// The kind of source that declares it.
+    pub source: deckmaste_lexical::SourceKind,
 }
 
 /// A grammar bound to a lexical environment, ready to parse, admit and realize.
@@ -415,6 +417,7 @@ impl<'a> Binder<'a> {
                     optional_complement: true,
                     active_only: false,
                     preposition_frames: BTreeSet::new(),
+                    source: lexeme.source.kind,
                 },
             );
         }

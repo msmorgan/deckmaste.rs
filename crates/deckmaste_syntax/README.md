@@ -299,7 +299,11 @@ separate internal production domains. Declared lexical features participate in
 the same equations as inflectional features. `Require` values an unvalued
 feature; `Carry` requires the child to carry the value itself; `ExcludeTogether`
 rejects only a combination of child values, every one of them carried. Multiword noun terms, measured compounds
-(`+1/+1 counter`) among them, remain atomic in both parsing and Admission.
+(`+1/+1 counter`) among them, are one leaf in both parsing and Admission.
+The ordinary words of one declared outside the core lexicon also reach the
+chart as separate leaves, but only to straddle a constituent boundary, where
+the smallest Constituent spanning the term has its first word in a child that
+begins before the term and its last word in a child that ends after it.
 Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and

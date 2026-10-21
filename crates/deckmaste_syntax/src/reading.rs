@@ -302,31 +302,37 @@ impl CompiledGrammar {
         let (text, offsets) = join(&atoms);
         let analyzed = lexicon.analyze(&text);
         let atomic = self.atomic_spans(&analyzed);
-        if offsets.iter().any(|offset| {
+        let split = offsets.iter().any(|offset| {
             let start = text[..offset.start].chars().count();
             let end = text[..offset.end].chars().count();
-            atomic.iter().any(|span| {
+            atomic.iter().any(|(span, _)| {
                 (span.start < start && start < span.end) || (span.start < end && end < span.end)
             })
-        }) {
-            return Err(AdmissionError::Rejected {
+        });
+        let closed = self.chart_closed_production(reading);
+        if !split && closed.is_none() {
+            return Ok(());
+        }
+        // The chart decides both: a multiword noun's words stand apart only
+        // where they straddle a constituent boundary, and a chart closure
+        // needs the words that follow.
+        let kept = match parse {
+            Some(parse) if parse.text() == text => parse.contains(reading),
+            _ => self.run(&analyzed, root).contains(reading),
+        };
+        if kept {
+            return Ok(());
+        }
+        Err(match closed {
+            Some(production) if !split => AdmissionError::Rejected {
+                production: production.to_string(),
+                reason: "a longer analysis of the words that follow closes it".into(),
+            },
+            _ => AdmissionError::Rejected {
                 production: "lexical atomicity".into(),
-                reason: "a declared multiword noun is decomposed".into(),
-            });
-        }
-        if let Some(production) = self.chart_closed_production(reading) {
-            let kept = match parse {
-                Some(parse) if parse.text() == text => parse.contains(reading),
-                _ => self.run(&analyzed, root).contains(reading),
-            };
-            if !kept {
-                return Err(AdmissionError::Rejected {
-                    production: production.to_string(),
-                    reason: "a longer analysis of the words that follow closes it".into(),
-                });
-            }
-        }
-        Ok(())
+                reason: "a declared multiword noun's words rebuild it".into(),
+            },
+        })
     }
 
     /// The first Production of `reading` that a chart closure can rule out.
