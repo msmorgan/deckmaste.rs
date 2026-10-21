@@ -130,3 +130,4 @@ Cyclopean Tomb | When this artifact is put into a graveyard from the battlefield
 # english-v4-except-clause-coordination
 Astral Dragon | Project Image — When this creature enters, create two tokens that are copies of target noncreature permanent, except they're 3/3 Dragon creatures in addition to their other types, and they have flying.
 Hulking Metamorph | You may have this creature enter as a copy of an artifact or creature you control, except it's an artifact creature in addition to its other types, and its power and toughness are equal to this creature's power and toughness.
+Aspect of Wolf | Enchanted creature gets +X/+Y, where X is half the number of Forests you control, rounded down, and Y is half the number of Forests you control, rounded up.

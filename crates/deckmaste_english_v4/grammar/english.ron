@@ -115,6 +115,10 @@
         "SubjectGapClause": (category: Some("Clause"), features: ["Number", "Person", "VerbForm", "Inflection"], gap: true),
         // A finite clause with an extracted Adjunct.
         "AdjunctGapClause": (category: Some("Clause"), features: ["VerbForm"], gap: true),
+        // A finite clause that opens with its Subject, as a bare relative's
+        // does: no preposed adjunct comes before it (CGEL, Ch. 12 §3.5.5,
+        // p. 1055).
+        "SubjectInitialClause": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
         // A participle premodifying a nominal (*attacking creature*).
         "Participle": (category: Some("VerbPhrase"), features: ["Inflection"]),
         "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive"], gap: true),
@@ -1160,14 +1164,29 @@
         // Relative clauses (CGEL, Ch. 12 §3). A bare relative is a finite
         // clause with an object Gap; *that* or a relative pronoun may also
         // introduce a subject Gap, which agrees with the antecedent.
-        (name: "BareRelative", lhs: "RelativeClause", rhs: [Cat("clause", "Clause")],
+        (name: "BareRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialClause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite")]),
         // A bare relative whose Gap is a subjective predicative (*the
         // permanent it becomes*, *a color the other isn't*, *the number of
         // colors that spell is*; CGEL, Ch. 12 §3.3(c), p. 1045; §3.5.4(g),
         // p. 1054), of an ordinary head.
-        (name: "BarePredicativeRelative", lhs: "RelativeClause", rhs: [Cat("clause", "Clause")],
+        (name: "BarePredicativeRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialClause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("$.NounKind", "Ordinary"), Require("clause.Gap", "Pred"), Require("clause.VerbForm", "Finite")], cost: 3),
+        // A bare relative's Clause is a Subject and its Predicate, as a
+        // declarative's that can pass up a Gap (*SubjectPredicate*,
+        // *CliticSubjectPredicate*, *FloatedEach*, *FloatedAll*), never one
+        // with a preposed adjunct: "Bare relatives always have the subject in
+        // initial position" (CGEL, Ch. 12 §3.5.5, p. 1055).
+        (name: "RelativeSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
+            equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Exclude("subject.Case", "Accusative"), Exclude("subject.Case", "Genitive"), Exclude("subject.NounKind", "Manner")],
+            transparent: ["head"]),
+        (name: "RelativeCliticSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Attached("head", "VerbPhrase", Suffix)],
+            equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("subject.Case", "Nominative")],
+            transparent: ["head"]),
+        (name: "RelativeFloatedEach", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
+            equations: [Require("subject.Number", "Plural"), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")], transparent: ["head"]),
+        (name: "RelativeFloatedAll", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "All"), Cat("head", "VerbPhrase")],
+            equations: [Require("subject.Number", "Plural"), Require("subject.Case", "Nominative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")], transparent: ["head"]),
         (name: "MarkedRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "Clause")],
             equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite"), Exclude("marker.Case", "Nominative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "SubjectGapClause")],
@@ -1198,8 +1217,13 @@
             equations: [Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // An adverbial relative: its Gap is a temporal Adjunct (*the next time
         // you cast a spell*; CGEL, Ch. 12 §3.3(e), p. 1045).
-        (name: "AdverbialRelative", lhs: "RelativeClause", rhs: [Cat("clause", "AdjunctGapClause")],
+        // It is bare, so its Clause too opens with its Subject: *the first
+        // time [each turn, those coins come up heads]* is no adverbial
+        // relative.
+        (name: "AdverbialRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialClause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "Adjunct"), Require("$.NounKind", "Temporal")]),
+        (name: "RelativeAdjunctGap", lhs: "SubjectInitialClause", rhs: [Cat("head", "SubjectInitialClause")],
+            equations: [Require("$.Gap", "Adjunct")]),
         (name: "AdjunctGap", lhs: "AdjunctGapClause", rhs: [Cat("head", "Clause")],
             equations: [Require("head.VerbForm", "Finite"), Require("$.Gap", "Adjunct")]),
         // A marked relative clause postposed past a predicate adjunct, at the

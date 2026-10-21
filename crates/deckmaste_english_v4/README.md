@@ -160,12 +160,13 @@ Stratum 7, like pro-form *do*.
 Stratum 3 adds Relative Clauses as Postmodifiers of a nominal, a quantified
 nominal (*the next 3 damage that would be dealt*) or, when marked, a fused head
 (*one that hasn't been chosen*). A bare relative has an object, predicative or
-stranded-preposition Gap; *that* or a relative pronoun also introduces a subject
-Gap, which agrees in number with the antecedent; a *whose* Relative Phrase is
-Subject or fills an object or predicative Gap (*the player whose turn it is*); a
-Preposition Phrase may be fronted with its relative pronoun (*for which*); an
-adverbial relative of a temporal nominal has an Adjunct Gap (*the next time you
-cast a spell*). Fused relatives (*whichever comes first*) are Noun Phrases.
+stranded-preposition Gap, and its Clause opens with its Subject, never with a
+preposed adjunct (CGEL, Ch. 12 §3.5.5, p. 1055); *that* or a relative pronoun
+also introduces a subject Gap, which agrees in number with the antecedent; a
+*whose* Relative Phrase is Subject or fills an object or predicative Gap (*the
+player whose turn it is*); a Preposition Phrase may be fronted with its
+relative pronoun (*for which*); an adverbial relative of a temporal nominal has
+an Adjunct Gap (*the next time you cast a spell*). Fused relatives (*whichever comes first*) are Noun Phrases.
 Gerund-participial and passive past-participial clauses postmodify the same
 hosts and a gerund-participial clause is also a depictive Adjunct (*onto the
 battlefield attacking*). A temporal Noun Phrase may be preposed (*This turn,

@@ -58,5 +58,12 @@ Treefolk 4. No unit is emptied.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`lxzvuwqu`, full corpus, on the line after
+   `english-v4-omitted-idiom-complement-split`): faces read 28,705 → 28,702;
+   total Readings (product) 218,665 → 218,493 and Surplus 91,446 → 91,278
+   (37 units fewer, none more; Spark Double already had none after
+   `english-v4-comma-adjunct-island`). Lost faces, each previously read only
+   through wrong Readings (owner-approved): Aspect of Wolf (deferred to
+   `english-v4-except-clause-coordination`), Eye for an Eye and Ring of
+   Ma'rûf (Stratum 7, `english-v4-next-time-replacement-clause`).
+2. **Judgment set** (`lxzvuwqu`): 3,002 enforced, 200 pending; all hold.
