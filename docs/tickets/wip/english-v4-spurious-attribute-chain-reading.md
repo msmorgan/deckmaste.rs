@@ -61,5 +61,5 @@ in the grammar. If it cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `nqpprzws` → this landing, `mtlpovxn`): faces read 28,706 → 28,706, total Readings 218,547 → 218,063, Surplus 91,328 → 91,191; lost faces none.
+Judgment set: all hold (`cargo test -p deckmaste_english_v4`), including the two new witness entries in `asyndetic_premodifier_coordination.txt`, which fail without the change (`mtlpovxn`).

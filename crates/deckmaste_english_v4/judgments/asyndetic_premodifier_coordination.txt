@@ -8,3 +8,6 @@
 +Nominal non-Vampire, non-Werewolf, non-Zombie creature => Nominal "non-Vampire, non-Werewolf, non-Zombie creature"; readings 1
 +Nominal nonartifact and nonblack creature
 +NounPhrase a Swamp, Mountain, black permanent, or red permanent => Nominal "black permanent"; Nominal "red permanent"
+# A comma before a bare word premodifier is a serial coordination's, never an asyndetic chain's (`docs/oracle-style-guide.md` §3, §6)
++ <card=Lupinflower Village> You may reveal a Bat, Bird, Mouse, or Rabbit card from among them and put it into your hand. => Nominal "Bat, Bird, Mouse, or Rabbit" as Modifier of card; !Attributes "Bat, Bird, Mouse, or Rabbit"
++ <card=Royal Decree> Whenever a Swamp, Mountain, black permanent, or red permanent becomes tapped, this enchantment deals 1 damage to that permanent's controller. => Nominal "Swamp, Mountain, black permanent, or red permanent"; Nominal "black permanent"; Nominal "red permanent"; !Attributes "Mountain, black"

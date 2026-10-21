@@ -233,6 +233,12 @@
         "PostmodifierCoordination": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
         "AttributeChain": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
+        // A premodifier in an asyndetic chain, and the negative premodifier
+        // that fills it.
+        "NegativeAttribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
+        "NegativeNounPremodifier": (category: Some("Nominal")),
+        "NegativeParticiple": (category: Some("VerbPhrase"), features: ["Inflection"]),
+        "NegativeAdjectivePhrase": (category: Some("AdjectivePhrase"), features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Conversion"]),
         "AdjunctCoordination": (category: Some("PredicateAdjunct"), function: true, features: ["ComplementKind"]),
         // An adverbial Complement: an Adverb Phrase or a Noun Phrase of
         // frequency (*more than twice*, *more than three times*).
@@ -997,14 +1003,27 @@
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
         (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
-        // A gerund-participle in an asyndetic premodifier chain (*nonattacking,
-        // nonblocking creature*); like an adjective, it is no unlike conjunct
-        // of one.
+        // A gerund-participle in a coordination of premodifiers; like an
+        // adjective, it is no unlike conjunct of one.
         (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
-        (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
-        (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
-        (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "Attribute")]),
+        // Oracle sets off with commas only independent negative modifiers of
+        // one head (`docs/oracle-style-guide.md` §6, Determiners and modifier
+        // order): each premodifier of an asyndetic chain is a *non-* one. A
+        // comma before a bare premodifier is a serial coordination's (§3,
+        // Commas and the serial comma): *a Swamp, Mountain, black permanent,
+        // or red permanent*, *a Bat, Bird, Mouse, or Rabbit card*.
+        (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "NegativeAttribute"), Punct(','), Cat("rest", "AttributeChain")]),
+        (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "NegativeAttribute"), Punct(','), Cat("rest", "AttributeChain")]),
+        (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "NegativeAttribute")]),
+        (name: "NegativeNounAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeNounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
+        // A gerund-participle in a chain (*nonattacking, nonblocking
+        // creature*).
+        (name: "NegativeParticipialAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeParticiple")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "AdjP")]),
+        (name: "NegativeAdjectivalAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeAdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
+        (name: "NegativeNounPremodifier", lhs: "NegativeNounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
+        (name: "NegativeParticiple", lhs: "NegativeParticiple", rhs: [Lex("prefix", Affix), Cat("head", "Participle")]),
+        (name: "NegativeAdjectivePhrase", lhs: "NegativeAdjectivePhrase", rhs: [Lex("prefix", Affix), Cat("head", "AdjectivePhrase")]),
         (name: "AttributedNominal", lhs: "BareNominal", rhs: [Cat("modifier", "Attributes"), Cat("head", "BareNominal")], equations: []),
         (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
