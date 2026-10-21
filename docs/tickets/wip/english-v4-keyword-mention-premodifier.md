@@ -49,5 +49,8 @@ premodifier only through a keyword with supplied parameters.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`ootnsomu`): faces read 28,709 → 28,709; Readings
+   (product) 295,697 → 295,696, Surplus 149,101 → 149,100; lost faces: none.
+   Only Unblinking Observer's unit changes (5 → 4); no unit rises.
+2. **Judgment set** (`ootnsomu`): all entries hold, including the new
+   Unblinking Observer entry in `keyword_mention_without_parameter.txt`.

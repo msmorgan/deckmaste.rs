@@ -382,8 +382,10 @@
         (name: "IndexedCostHeader", lhs: "Header", rhs: [Cat("cost", "Cost"), Punct(':'), Cat("head", "IndexedNominal")], equations: [Require("head.Number", "Singular")]),
         // An em-dash ability runs to the end of its keyword line, so a
         // keyword with one never premodifies a nominal in a sentence (style
-        // guide §14 "Keyword abilities").
-        (name: "KeywordPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility")]),
+        // guide §14 "Keyword abilities"). A keyword that ends in its Cost
+        // premodifies only as a Keyword Mention, without that Cost (*a
+        // disturb cost*, *the flashback cost*).
+        (name: "KeywordPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility"), Exclude("modifier.FinalParameter", "Cost")]),
 
         (name: "TextSymbols", lhs: "Document", rhs: [Cat("head", "Symbols")]),
         // A symbol sequence is also a noun under a determiner (*each {B} in a

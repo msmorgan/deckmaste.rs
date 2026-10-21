@@ -9,6 +9,7 @@
 +Nominal flashback cost => KeywordPhrase "flashback" as Modifier of cost; readings 1
 +Nominal morph ability => KeywordPhrase "morph" as Modifier of ability; readings 1
 +Nominal equip abilities => KeywordPhrase "equip" as Modifier of ability; readings 1
++ <card=Unblinking Observer> Spend this mana only to pay a disturb cost or cast an instant or sorcery spell. => Nominal "disturb cost"; KeywordPhrase "disturb" as Modifier of cost; !KeywordPhrase "disturb cost or cast an instant or sorcery"
 +KeywordPhrase flashback
 +KeywordPhrase toxic
 +KeywordPhrase suspend
