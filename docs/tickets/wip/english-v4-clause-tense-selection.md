@@ -38,3 +38,20 @@ there is a wrong Reading:
 - No face is lost.
 
 Standard constraints apply.
+
+## Record
+
+The corpus narrowed the environments. *Whenever*, *while*, *until* and
+supplementary *where* select a present-tense Clause (`PresentClause` frame,
+`PresentComplementClause`). The others take genuine preterites and are
+ticketed instead: *as long as* and *as* (*as long as it entered this turn*,
+*the life paid as it entered*), a non-trigger *when* (*the life you lost when
+it entered*) in `english-v4-temporal-adjunct-tense-harmony`, and the matrix
+`Declarative` (*To solve — Three or more creatures attacked this turn.*) in
+`english-v4-case-solve-condition`, after `english-v4-next-time-replacement-clause`.
+`ChoiceHeader` has no preterite Reading on any card, so it gets no constraint.
+Coordinated conjuncts in a present-only Complement remain free:
+`english-v4-coordinated-clause-tense`.
+
+Census delta (measured on orrqzqyv): faces read 28,709 → 28,709; total Readings 344,330 → 337,377; lost faces: none.
+Judgment set: 2,924 enforced at `COMPLETED_STRATUM` 6, all hold; 192 pending.

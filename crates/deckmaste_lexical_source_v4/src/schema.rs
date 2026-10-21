@@ -83,6 +83,8 @@ pub enum FillSpec {
     /// Phrase (*skips that turn*).
     PeriodNP,
     FiniteClause,
+    /// A finite Clause in the present tense (*whenever you cast a spell*).
+    PresentClause,
     VerblessClause,
     ToInf,
     /// A *to*-infinitival with an object Gap the Subject fills.

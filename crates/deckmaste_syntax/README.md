@@ -157,9 +157,9 @@ Gaps pass from a child to its mother only through children the Production marks
 extraction works across finite, plain, progressive, perfect and passive forms with
 no per-form Productions.
 
-A clause Frame Slot is finite (*when this creature enters*), verbless (*if
-able*) or interrogative (*choose which creatures attack*), each filled by its
-own Category.
+A clause Frame Slot is finite (*when this creature enters*), present-tense
+finite (*whenever you cast a spell*), verbless (*if able*) or interrogative
+(*choose which creatures attack*), each filled by its own Category.
 
 A Gap is an `NP` (an extracted Object or Complement of a preposition), a `Pred`
 (an extracted predicative Complement, *whose turn it is*) or an `Adjunct` (*the

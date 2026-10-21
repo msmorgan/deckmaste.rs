@@ -51,6 +51,8 @@ pub enum SlotRelation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum ClauseKind {
     Finite,
+    /// A finite Clause in the present tense (*whenever you cast a spell*).
+    Present,
     Verbless,
     /// An interrogative content clause (*whether ...*, *which creatures
     /// attack*, *how each player votes*).
@@ -112,6 +114,7 @@ pub enum SlotKind {
     MeasureNP,
     PeriodNP,
     FiniteClause,
+    PresentClause,
     VerblessClause,
     InterrogativeClause,
     ToInf,
@@ -139,6 +142,7 @@ impl SlotFill {
             Self::MeasureNP => SlotKind::MeasureNP,
             Self::PeriodNP => SlotKind::PeriodNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
+            Self::Clause(ClauseKind::Present) => SlotKind::PresentClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
             Self::ToInf => SlotKind::ToInf,

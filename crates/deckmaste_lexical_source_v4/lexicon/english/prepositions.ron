@@ -10,6 +10,14 @@
 // A Nominal complement is a bare singular count nominal: *until end of turn*,
 // *in addition to*, *on top of*. A Pred complement is CGEL's preposition +
 // adjective idiom: *at random*, *in common* (p. 626).
+//
+// A PresentClause complement is a finite Clause in the present tense: Oracle
+// states a repeated trigger event, a state or an endpoint in the simple
+// present (oracle-style-guide §1, "Voice and tense"; CGEL Ch. 3 §4.2.1,
+// p. 128; §4.2.5, pp. 134-135). A FiniteClause complement keeps the
+// preterite, which a condition on past events needs: *if an opponent cast a
+// spell this turn*, *as long as it entered this turn*, *the life paid as it
+// entered*, *the life you lost when it entered*.
 [
     // *a creature card directly above it*
     (lemma: "above", frames: [(complement: NP, hosts: Nominal)]),
@@ -203,7 +211,7 @@
     (lemma: "until", frames: [
         (complement: NP, hosts: Predicate),
         (complement: Nominal, hosts: Predicate),
-        (complement: FiniteClause, hosts: Predicate),
+        (complement: PresentClause, hosts: Predicate),
     ]),
     // *rounded up*; *up to two target creatures* is a determiner-function PP
     // (CGEL p. 357), not a modifier.
@@ -212,12 +220,12 @@
         (complement: PP(["to"]), hosts: ComplementOnly),
     ]),
     (lemma: "when", frames: [(complement: FiniteClause, hosts: Predicate)]),
-    (lemma: "whenever", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    (lemma: "whenever", frames: [(complement: PresentClause, hosts: Predicate)]),
     // *, where X is the number of ...* (CGEL p. 971)
-    (lemma: "where", frames: [(complement: FiniteClause, hosts: Supplement)]),
+    (lemma: "where", frames: [(complement: PresentClause, hosts: Supplement)]),
     // *while you control*; *attacks while saddled*; *while scrying*
     (lemma: "while", frames: [
-        (complement: FiniteClause, hosts: Predicate),
+        (complement: PresentClause, hosts: Predicate),
         (complement: VerblessClause, hosts: Predicate),
         (complement: Gerund, hosts: Predicate),
     ]),

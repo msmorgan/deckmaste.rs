@@ -509,6 +509,18 @@ separated from it by other material (*Choose a card at random [that was exiled
 with ...]*) (CGEL, Ch. 12 §4, p. 1066).
 _Avoid_: extraposed relative
 
+**Present Clause** (project term):
+A finite Clause in the present tense that a Preposition selects as its
+Complement where Oracle English never refers to past time: a repeated trigger
+event (*whenever you cast a spell*), a state (*while you control an
+artifact*), an endpoint (*until a player casts a creature spell*) or a
+supplementary definition (*, where X is its power*). The present there is the
+serial-state or pragmatically unrestricted present of a subordinate clause
+(CGEL, Ch. 3 §4.2.1, p. 128; §4.2.5, pp. 134–135). Other clausal
+Prepositions take any finite Clause, since a condition can be on past events
+(*if an opponent cast a spell this turn*, *as long as it entered this turn*).
+_Avoid_: tensed clause for this term (a preterite Clause is tensed too)
+
 **Verbless Clause**:
 A Clause whose Predicate contains no verb; a reducible Clause Complement of a
 Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).

@@ -32,9 +32,9 @@
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
-        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Valued", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // An Amount bounded by a comparative (*3 or less*), only a noun's value.
@@ -231,6 +231,10 @@
         "SignedAmount": (),
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
+        // A finite Clause in the present tense, which a Preposition selects
+        // where Oracle English never refers to past time (*whenever you cast
+        // a spell*, *while you control an artifact*).
+        "PresentClause": (category: Some("Clause")),
         "VerblessClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
         // a bare infinitival or gerund-participial its Verb Phrase.
@@ -327,6 +331,7 @@
         Amount: "Amount",
         Cost: "Cost",
         FiniteClause: "FiniteClause",
+        PresentClause: "PresentClause",
         VerblessClause: "VerblessClause",
         InterrogativeClause: "InterrogativeClause",
         ToInf: "ToInf",
@@ -1154,6 +1159,12 @@
         // verbless Clause without its Subject (*if able*; Ch. 14 §10(b), p. 1267).
         (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")], undelimited: ["head"],
             equations: [Require("head.VerbForm", "Finite")]),
+        // A present-tense Clause Complement: the serial-state present of a
+        // repeated trigger event, a state or an endpoint (*whenever*, *while*,
+        // *until*, supplementary *where*; CGEL, Ch. 3 §4.2.1, p. 128; §4.2.5,
+        // pp. 134–135).
+        (name: "PresentComplementClause", lhs: "PresentClause", rhs: [Cat("head", "Clause")], undelimited: ["head"],
+            equations: [Require("head.VerbForm", "Finite"), Require("head.Inflection", "Present")]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
 
         // Interrogative content clauses: closed (*whether ...*), with an
