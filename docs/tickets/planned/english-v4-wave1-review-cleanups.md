@@ -19,6 +19,27 @@ Three small follow-ups from the review of the pre-Stratum-7 ambiguity tickets:
    retires the split Reading without affecting genuine `ExistentialBe` +
    locative `LocatedExistentialBe` (*there are seven or more cards in your
    graveyard*).
+
+   The Production Cost audit found the same defect in more places. Owner ruling
+   (defect #7): it is folded in here, not ticketed separately.
+   - The Displaced Subject can also end in the `among` phrase itself:
+     *[four or more card types among cards (in your graveyard)]*, with no
+     Extension or with *in your graveyard* as the Extension.
+   - That reading contradicts the settled analysis in
+     `docs/decisions/english-lexical-analysis.md` §2. A locative Preposition
+     Phrase right after the Displaced Subject is its Extension, never also its
+     postmodifier (CGEL, Ch. 16 §6.2.1, p. 1394).
+   - The same `unextended: ["displaced_subject"]` closure covers it.
+   - Evidence, measured on `loxuknun`:
+     - Delirium: *Whenever this creature enters or attacks, if there are four
+       or more card types among cards in your graveyard, …*. 15 of its 60
+       Readings make *among cards* a Modifier of *card types*.
+     - *Then if there are six or more card types among cards in your
+       graveyard, double the number of +1/+1 counters on those creatures.*
+       2 of its 6 Readings do the same.
+     - Judgment set: 3 entries, 6 of 14 Readings.
+     - The intended Reading has *among cards in your graveyard* as the
+       Extension and *in your graveyard* as a Modifier of *cards*.
 2. **Production/Category name collision (`english-v4-zero-plural-determiner-number`):**
    Rename the Production `TargetingMarker` (`english.ron:1066`) to
    `BareTargetingMarker` so it does not collide with the Category name
@@ -38,6 +59,9 @@ Three small follow-ups from the review of the pre-Stratum-7 ambiguity tickets:
 
 - Omnivorous Flytrap has no split `[card types among cards] [in your graveyard]`
   Reading, covered by a `+` Judgment on real text.
+- No existential Displaced Subject ends in an `among` or `in` phrase that
+  `LocatedExistentialBe` would take as its Extension. The Delirium text above
+  is pinned by a `+` Judgment.
 - Production `TargetingMarker` is renamed to `BareTargetingMarker`.
 - `of`, `after`, `before` and `during` do not duplicate `NP` and `PeriodNP`
   frames in `prepositions.ron`.
