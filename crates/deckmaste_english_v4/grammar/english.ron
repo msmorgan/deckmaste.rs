@@ -1076,7 +1076,7 @@
         // than Mirko's*; CGEL, Ch. 5 §16.3, pp. 467–468). A nominal right
         // after it is its head, not an antecedent (CGEL, Ch. 17 §6.1,
         // pp. 1516–1517): *during [its controller's next untap step]*.
-        (name: "IndependentGenitivePhrase", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")], fused_head: true,
+        (name: "FusedSubjectDeterminerHead", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")], fused_head: true,
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("possessor.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "GenitiveDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("determiner.Case", "Genitive"), Require("$.Person", "Third")]),
