@@ -58,7 +58,7 @@
 +NounPhrase each suspended card => VerbPhrase "suspended"
 +Nominal suspended card => VerbPhrase "suspended"
 +NounPhrase a warped creature card you own in exile => VerbPhrase "warped"
-+Clause a spell was warped this turn => AdjectivePhrase "warped"
++Clause a spell was warped this turn => AdjectivePhrase "warped" as PredicativeComplement of be || VerbPhrase "warped this turn" as Complement of be
 +NounPhrase colored mana => AdjectivePhrase "colored"
 +NounPhrase your commander's color identity => Nominal "color identity"
 +NounPhrase green mana symbols => Nominal "mana symbols"
