@@ -182,6 +182,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   dependent scopes over the whole coordination. Nor is it the host of a
   comma-set post-dependent (a head followed by a comma and its dependent): the
   fronted dependent attaches outermost, *Pre, [Clause, Post]*.
+  A Production's `undelimited` child is a coordination delimited before its
+  coordinator (*A, and B*) only inside a comma-set post-dependent: the fact is
+  carried up through each phrase it is the Complement of and admitted only as
+  the last child of a Production whose head comes first, followed by a comma
+  (*…, except [A, and B]*).
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so

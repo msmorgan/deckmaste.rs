@@ -208,7 +208,9 @@ Subject or filling a Gap, or *how* with a Clause. *, where X is ...* is a
 Supplement to a Clause, a keyword or an indexed instruction, never a Predicate
 Adjunct. A comma-set post-adjunct (*, except it has flying*, *, unless …*) or
 Supplement attaches to a finite Clause, never to a Verb Phrase, a
-*to*-infinitival or a relative's Clause. A front adverbial is set off by a comma (*Once each turn, ...*). A
+*to*-infinitival or a relative's Clause. Only such a comma-set Preposition Phrase takes a
+comma-delimited Clause coordination as its Complement (*, except it's an
+artifact, and it has flying*). A front adverbial is set off by a comma (*Once each turn, ...*). A
 gerund-participial Clause may be Subject; a bare relative may relativize a
 subjective predicative Complement for an ordinary noun, under a lexical verb or
 a negative auxiliary (*the permanent it becomes*, *a color the other isn't*),

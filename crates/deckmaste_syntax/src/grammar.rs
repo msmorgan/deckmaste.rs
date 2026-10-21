@@ -133,8 +133,10 @@ pub struct ProductionDecl {
     /// one level up is the same analysis (a chain of bare imperatives).
     #[serde(default)]
     pub uncoordinated: Vec<Ident>,
-    /// Children that are not a coordination delimited by punctuation before
-    /// its coordinator (two independent clauses joined by *, and*).
+    /// Children that are a coordination delimited by punctuation before its
+    /// coordinator (two independent clauses joined by *, and*) only within a
+    /// comma-set post-dependent (*, except [A, and B]*): the mother carries
+    /// it up through the phrases it is the Complement of to that dependent.
     #[serde(default)]
     pub undelimited: Vec<Ident>,
 }

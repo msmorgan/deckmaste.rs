@@ -220,7 +220,8 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
-    /// Children that may not be a delimited coordination.
+    /// Children that may be a delimited coordination only within a comma-set
+    /// post-dependent (`Summary::delimited_complement`).
     pub undelimited: Vec<usize>,
     /// It is a coordination delimited before its coordinator.
     pub delimits: bool,
@@ -448,6 +449,7 @@ pub(crate) fn resolve(
             joint_hits: 0,
             host_extensions: 0,
             adjunct_extension: None,
+            delimited_complement: false,
         },
     })
 }
@@ -511,6 +513,12 @@ pub(crate) struct Summary {
     /// no comma-set post-dependent, which attaches inside the fronted one
     /// (`english-lexical-analysis.md` §2).
     pub fronted: bool,
+    /// It is, or selects as its Complement, a Clause coordination delimited
+    /// before its coordinator (*except [it's an artifact, and it has
+    /// flying]*). Only a comma-set post-dependent, which runs to the end of
+    /// its sentence, takes one (`docs/oracle-style-guide.md` §3, Commas and
+    /// the serial comma; §12, Copies).
+    pub delimited_complement: bool,
     /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
@@ -585,6 +593,8 @@ pub(crate) struct State {
     joint_hits: u8,
     host_extensions: u16,
     adjunct_extension: Option<Extension>,
+    /// A child so far carries `Summary::delimited_complement` up.
+    delimited_complement: bool,
 }
 
 impl Production {
@@ -966,6 +976,15 @@ impl Production {
         (summary.set_off && first_conjunct) || (summary.fronted && post_host)
     }
 
+    /// Whether child `position` is a comma-set post-dependent: the last child
+    /// of a Production whose head comes first, followed by a comma.
+    fn comma_set_dependent(&self, position: usize) -> bool {
+        self.head == Some(0)
+            && position + 1 == self.rhs.len()
+            && position > 1
+            && matches!(self.rhs[1], Symbol::Punct(',', _))
+    }
+
     /// Whether child `position` is the head of a Production of its own
     /// Category whose every later child is an Adjunct: a post-verbal Adjunct's
     /// host, which an auxiliary Verb Phrase never is (`Summary::auxiliary`).
@@ -1101,7 +1120,14 @@ impl Production {
                     return None;
                 }
                 if self.undelimited.contains(&position) && summary.delimited {
-                    return None;
+                    next.delimited_complement = true;
+                }
+                if summary.delimited_complement {
+                    if self.names[position] == "complement" {
+                        next.delimited_complement = true;
+                    } else if !self.comma_set_dependent(position) {
+                        return None;
+                    }
                 }
                 if self.comma_scope_excludes(position, summary) {
                     return None;
@@ -1240,6 +1266,7 @@ impl Production {
                 && self.rhs.len() > 2
                 && self.head == Some(self.rhs.len() - 1)
                 && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)),
+            delimited_complement: state.delimited_complement,
             auxiliary: self
                 .auxiliary
                 .is_some_and(|(at, value)| values[at].get() == Some(value)),

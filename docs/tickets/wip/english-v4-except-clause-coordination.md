@@ -3,6 +3,15 @@ needs: [english-v4-comma-adjunct-island]
 ---
 # A comma-delimited Clause coordination after *except*, and a Supplement-final first conjunct
 
+## Scope (owner ruling)
+
+This ticket narrows `undelimited` only: a comma-delimited Clause coordination
+([A, and B]) is the Complement only of a Preposition Phrase that is itself
+comma-set (*, except …*, *, where …*; `docs/oracle-style-guide.md` §3 and
+§12). `set_off` stays as it is. Aspect of Wolf and the *Search … where X is
+…, and exile them.* entry moved to `english-v4-set-off-first-conjunct`; their
+witnesses, causes and the known trap below are recorded there.
+
 ## Witnesses
 
 - **Astral Dragon:** *When this creature enters, create two tokens that are
@@ -88,18 +97,16 @@ alone.
   coordination as the Complement of *except*, for example
   `Clause "they're 3/3 Dragon creatures in addition to their other types, and
   they have flying" as Complement of except`.
-- The *Search … where X is …, and exile them.* entry holds.
-- Aspect of Wolf reads, and every Reading has the intended analysis: the
-  coordination [X is …, rounded down, and Y is …, rounded up] is inside the
-  *where* phrase. Its deferral is removed. Its pending judgment holds, and a `+`
-  judgment asserts `Clause "X is half the number of Forests you control,
-  rounded down, and Y is half the number of Forests you control, rounded up"`
-  inside the *where* phrase.
+- (Moved to `english-v4-set-off-first-conjunct`: the *Search* entry and Aspect
+  of Wolf.)
 - No new feature in `english.ron`. If the fix needs one, STOP and return to
   the owner.
 - No face is lost, and no unit other than the witnesses gains a Reading.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`oukkopyu`, full corpus): faces read 28,702 → 28,704;
+   total Readings (product) 218,493 → 218,503 and Surplus 91,278 → 91,286.
+   Only the witnesses rose: Astral Dragon 0 → 1, Hulking Metamorph 0 → 9, each
+   Reading with *except* [A, and B]; no other unit changed. Lost faces: none.
+2. **Judgment set** (`oukkopyu`): 3,005 enforced, 200 pending; all hold.
