@@ -90,6 +90,32 @@ Then:
 If no witness exists on current text, record that here, with the texts
 checked, and close the item.
 
+**Witness: none found; item closed.** A witness is two Readings that have the
+same Constituents (Category, span, function and mother) but use two different
+Noun Phrase *and* coordinations (`Coordination:NounPhrase#And`, `#And2` or
+`#And3`). The probe enumerated every Reading of these texts and found none:
+
+- the 3,942 distinct corpus Line units that contain *and* and have 2 to 4,096
+  Derivations. This covers all 117 ambiguous units with *each*/*every* …
+  *and each*/*every*. No unit of that shape has more than 4,096 Derivations;
+- the 299 `+` judgment texts that contain *and*, each parsed as its entry's
+  Category.
+
+The ten nouns with dual countability (*combat*, *order*, *power*, *time*,
+*toughness*, *mana value*, *death*, *fortune*, *profit*, *war*) occur under
+*each*/*every*/*another* in no *and* coordination in the corpus. The equations
+are already disjoint on the conjunct's distribution. The plural *and* has
+`Exclude("first.DeterminativeDistribution", "Distributive")`. The singular
+*and* has `Carry` of `Distributive` on both conjuncts, which an unvalued
+feature does not satisfy. So no change was made to `english.ron`.
+
+The wrong scope in *your devotion to each color and each combination of
+colors* stays. The plural *and* builds it over a non-distributive first conjunct
+and a distributive last one. That pairing is genuine elsewhere: *this creature
+and each creature it's blocking* (Gomazoa), *you and each creature you control*
+(Splintering Wind). Neither Countability nor DeterminativeDistribution can
+separate the cases without naming words.
+
 ## Done when
 
 - Both Judgments assert the intended analysis and hold.
@@ -107,5 +133,5 @@ cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `tvqkvmwu` → `qpztlqrt`): faces read 28,709 → 28,709, total Readings 295,697 → 295,697, Surplus 149,101 → 149,101; no unit rose; lost faces: none.
+Judgment set: 2,984 enforced at `COMPLETED_STRATUM` 6, all hold; 195 pending. `clause_final_predicative_as.txt:9` and `coordination.txt:34` hold with the intended analysis.
