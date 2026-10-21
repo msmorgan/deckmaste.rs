@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-comma-adjunct-island, english-v4-relational-noun-of-complement, english-v4-fronted-temporal-pp-clause, english-v4-bare-relative-fronted-adjunct, english-v4-cost-not-passivizable, english-v4-keyword-phrase-adjunct-island, english-v4-auxiliary-adjunct-canonicalisation]
+needs: [english-v4-comma-adjunct-island, english-v4-omitted-idiom-complement-split, english-v4-fronted-temporal-pp-clause, english-v4-bare-relative-fronted-adjunct, english-v4-cost-not-passivizable, english-v4-keyword-phrase-adjunct-island, english-v4-auxiliary-adjunct-canonicalisation, english-v4-in-addition-to-predicate-host]
 ---
 # Rank Readings by a lexicographic Ranking Key
 
@@ -7,11 +7,12 @@ needs: [english-v4-comma-adjunct-island, english-v4-relational-noun-of-complemen
 Production Cost with the **Ranking Key**, compared lexicographically, lower
 first:
 
-AttachmentClass → CatalogPreference → RightAssociationWords → ProductionCost → FinalTiebreak
+AttachmentClass → RightAssociationWords → ProductionCost → FinalTiebreak
 
 This ticket builds the tuple and its extraction. Its components are filled in
-by `english-v4-right-association-key`, `english-v4-attachment-classes`
-and `english-v4-catalog-attachment-preferences`.
+by `english-v4-right-association-key` and
+`english-v4-attachment-classes`. The key is purely structural: no component is
+declared on lexemes or catalogs (§4.3, owner's round-2 ruling).
 
 ## Why now, and why after the defects
 
@@ -38,7 +39,7 @@ Today's sum leaves most alternatives tied. The cost study measured:
 - **ProductionCost**: today's per-Production `cost`, unchanged.
 - **FinalTiebreak**: a deterministic total order on Readings, so that the
   cheapest is a single Reading. The existing `Reading` order will do.
-- The three middle components exist and are zero until their tickets land.
+- The two upper components exist and are zero until their tickets land.
 - The census reports, per unit:
   - the size of the cheapest tier before the FinalTiebreak;
   - the number of units whose cheapest tier is a singleton.
@@ -49,7 +50,7 @@ Today's sum leaves most alternatives tied. The cost study measured:
 
 ## Done when
 
-- With the middle components zero, the ranking equals today's order, broken
+- With the upper components zero, the ranking equals today's order, broken
   by the FinalTiebreak.
 - Total Readings and Surplus are unchanged, and no face is lost.
 - A seed-lexicon test shows that a higher component outranks any amount of a

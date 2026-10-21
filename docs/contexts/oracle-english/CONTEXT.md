@@ -92,8 +92,8 @@ _Avoid_: Construction Cost; cost for the whole Ranking Key
 
 **Ranking Key** (project term):
 The Preference by which admitted Readings are ordered: a tuple of Attachment
-Class, Catalog Preference, Right Association, Production Cost and a final
-tie-break, compared lexicographically, lower first.
+Class, Right Association, Production Cost and a final tie-break, compared
+lexicographically, lower first. It is purely structural.
 _Avoid_: total cost, score
 
 **Attachment Class** (project term):
@@ -101,12 +101,7 @@ A structural preference on where a kind of unselected dependent attaches,
 stated by host kind and grammatical function, such as a Supplement anchoring to
 its clause or a dependent after a coordination attaching to the whole
 coordination.
-
-**Catalog Preference** (project term):
-A preferred or dispreferred host for an unselected dependent, declared by a
-lexeme or frame in the lexicon or a catalog, such as a zone noun [CR#400.1] as a
-dispreferred host of a relative clause.
-_Avoid_: policing flag
+_Avoid_: catalog preference, lexical preference
 
 **Right Association** (project term):
 The preference for attaching an unselected dependent to the nearest eligible

@@ -90,6 +90,14 @@ All figures are from the cost-audit evaluation data and the census, measured on
 - Any unit outside the 43-unit family that gains Readings is listed and
   justified.
 
+## Constraint: no new features in `english.ron`
+
+Owner's ruling (round 2): this defect comes from a rule that is too broad, and
+it is fixed by tightening or deleting that rule. The fix adds **zero new
+features to `english.ron`**. It uses existing features, lexicon or catalog
+frames, or an engine mechanism, and names no word in the grammar. If it
+cannot be done that way, STOP and return to the owner.
+
 Standard constraints apply.
 
 Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".

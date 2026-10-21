@@ -67,4 +67,11 @@ Three small follow-ups from the review of the pre-Stratum-7 ambiguity tickets:
   frames in `prepositions.ron`.
 - No face is lost, and no unit gains a Reading.
 
+## Constraint on item 1 (cost-audit defect #7): no new features in `english.ron`
+
+Owner's ruling (round 2): defects 1–8 are fixed by tightening or deleting the
+rule that admits them, with zero new features in `english.ron`. Item 1 uses
+the existing `unextended` mechanism; if it cannot, STOP and return to the
+owner.
+
 Standard constraints apply.

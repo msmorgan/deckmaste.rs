@@ -39,39 +39,48 @@ Authority:
   ability". The Keyword Phrase names an ability. It is not a description that
   takes restrictive modifiers.
 
-## What the open schemas carry today, and where it must go
+## Owner's ruling (round 2)
 
-The schemas also carry real Oracle text. The fix moves each of those uses onto
-the structure that the ruling allows.
+#6 just deletes the `Adjunct` Schema on `KeywordPhrase`. There are two such
+Schemas, the Nominal postmodifier and the comma-set Supplement; delete both.
+
+**No new features in `english.ron`.** The fix also adds no new Schema or
+Production for the rehoming below. If the fix cannot be done that way, STOP
+and return to the owner.
+
+## What the deleted Schemas carry today, and where it goes
+
+The Schemas also carry real Oracle text. Rehome each use only through catalog
+frames or existing productions.
 
 - **A parameter of a bare mention.**
   - *Enchanted creature has landwalk of the chosen type.* (Traveler's Cloak,
-    and Judgment `core_composition.txt:6`.) It reads only through the open
-    Nominal Schema today.
+    and Judgment `core_composition.txt:6`) reads only through the Nominal
+    Schema today.
   - Landwalk's catalog entry ([CR#702.14a,702.14c]) declares only a bound
     stem.
   - Declare the *of* + Noun Phrase quality of the mention as a Keyword
-    Parameter frame in `catalogs/keyword_abilities.ron`.
-- **A *where* definition of a Keyword Parameter X on a Keyword Line.**
-  - Examples:
-    - *Mobilize X, where X is …* (Avenger of the Fallen; Infantry Shield,
-      inside a sentence);
+    Parameter frame in `catalogs/keyword_abilities.ron`, which the existing
+    keyword-parameter schemas read.
+- **A *where* definition of a Keyword Parameter X.**
+  - On a Keyword Line:
+    - *Mobilize X, where X is …* (Avenger of the Fallen);
     - *Firebending X, where X is …* (Firebending Student, Sun Warriors, Fire
       Lord Zuko, Zuko, Firebending Master);
     - *Annihilator X, where X is …* (That Which Was Compleated).
-  - The Supplement belongs to the Keyword Line item (`KeywordLineItem`). It
-    does not belong to the Keyword Phrase.
-  - Inside a sentence it belongs to the Clause (the existing Clause Supplement
-    Schema), as in *Equipped creature has menace and mobilize X, where X is
-    its power*.
+  - Inside a sentence: *Equipped creature has menace and mobilize X, where X
+    is its power* (Infantry Shield), which the existing Clause Supplement
+    Schema already hosts.
+  - For a Keyword Line, find an existing production that hosts the Supplement
+    on the line or its item, or a catalog parameter frame that takes it
+    ([CR#702.86a,702.181a,702.189a] define those parameters as N).
+  - If no existing production or catalog frame can carry it, STOP. Do not add
+    a Schema.
 
 ## Change
 
-- Remove both `KeywordPhrase` Adjunct Schemas.
-- Add the landwalk quality frame to the catalog.
-- Add a *where* Supplement on `KeywordLineItem`. It is limited to an item
-  whose final parameter is a variable amount, so that it defines X
-  ([CR#702.86a,702.181a,702.189a] define those parameters as N).
+- Delete both `KeywordPhrase` Adjunct Schemas.
+- Rehome the uses above as stated, with no new feature, Schema or Production.
 
 ## Acceptance set
 
@@ -104,6 +113,7 @@ All figures are from the cost-audit evaluation data, measured on `loxuknun`.
   - Zuko, Firebending Master;
   - That Which Was Compleated;
   - Infantry Shield.
+- No new feature in `english.ron`.
 - No face is lost, and no unit gains a Reading.
 
 Standard constraints apply.

@@ -87,6 +87,19 @@ All figures are from the cost-audit evaluation data, measured on `loxuknun`.
 - Each has a `+` Judgment.
 - No face is lost, and no unit gains a Reading.
 
+## Constraint: no new features in `english.ron`
+
+Owner's ruling (round 2): this defect comes from a rule that is too broad, and
+it is fixed by tightening or deleting that rule. The fix adds **zero new
+features to `english.ron`**. It uses existing features, lexicon or catalog
+frames, or an engine mechanism, and names no word in the grammar. If it
+cannot be done that way, STOP and return to the owner.
+
+Caveat 5 (owner-approved): this ticket needs a structural fix or goes back to
+the owner. The candidate licence is declared in `verbs.ron` and the catalogs.
+If licensing `Premodification` from it needs a new feature in `english.ron`,
+STOP.
+
 Standard constraints apply.
 
 Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".

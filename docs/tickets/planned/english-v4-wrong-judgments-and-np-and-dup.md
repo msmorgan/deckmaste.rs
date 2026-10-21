@@ -68,7 +68,7 @@ have dual countability. My evaluation data does not reproduce it:
     combination of colors*. It uses the plural *and*. This is a wrong scope,
     not a duplicate.
   - One Reading strands *of colors* onto *devotion*. That is
-    `english-v4-relational-noun-of-complement`.
+    `english-v4-omitted-idiom-complement-split`.
 - Across the judgment set and the 172-Segment corpus sample, no two Readings
   share every Constituent and Production while using two different Noun Phrase
   *and* coordinations.
@@ -96,6 +96,14 @@ checked, and close the item.
 - The duplicate coordination has a witness Judgment that holds with one
   analysis, or this ticket records that none exists.
 - No face is lost, and no unit gains a Reading.
+
+## Constraint: no new features in `english.ron`
+
+Owner's ruling (round 2): this defect comes from a rule that is too broad, and
+it is fixed by tightening or deleting that rule. The fix adds **zero new
+features to `english.ron`**. It uses existing features, lexicon or catalog
+frames, or an engine mechanism, and names no word in the grammar. If it
+cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 

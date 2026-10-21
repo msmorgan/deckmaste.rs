@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-ranking-key-engine, english-v4-comma-adjunct-island, english-v4-relational-noun-of-complement, english-v4-fronted-temporal-pp-clause, english-v4-bare-relative-fronted-adjunct, english-v4-cost-not-passivizable, english-v4-keyword-phrase-adjunct-island, english-v4-auxiliary-adjunct-canonicalisation]
+needs: [english-v4-ranking-key-engine, english-v4-comma-adjunct-island, english-v4-omitted-idiom-complement-split, english-v4-fronted-temporal-pp-clause, english-v4-bare-relative-fronted-adjunct, english-v4-cost-not-passivizable, english-v4-keyword-phrase-adjunct-island, english-v4-auxiliary-adjunct-canonicalisation, english-v4-in-addition-to-predicate-host]
 ---
 # RightAssociationWords: dependency length to the host
 
@@ -18,9 +18,8 @@ Fill the Ranking Key's **RightAssociationWords** component
   conjunct-balance preference; CGEL, Ch. 15 §3.1, pp. 1323–1324, likeness of
   function).
 - No charge when the host is itself a coordination.
-- Dependents whose class or frame attaches high count their length reversed.
-  The class is set by `english-v4-attachment-classes`, the frame by
-  `english-v4-catalog-attachment-preferences`.
+- Dependents whose class attaches high count their length reversed. The
+  class is set by `english-v4-attachment-classes`.
 
 ## Evidence from the cost study
 

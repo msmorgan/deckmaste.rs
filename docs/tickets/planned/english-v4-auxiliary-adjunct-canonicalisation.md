@@ -67,6 +67,15 @@ In `clitic_have_object_relative.txt`:
 - The two judgments are updated and hold.
 - 0 faces lost.
 
+## Constraint: no new features in `english.ron`
+
+Owner's ruling (round 2): the canonicalisation uses the existing
+`VerbKind: Auxiliary` feature on `Progressive`, `Perfect`, `PassivePerfect`
+and `Passive`. It adds **zero new
+features to `english.ron`**. It uses existing features, lexicon or catalog
+frames, or an engine mechanism, and names no word in the grammar. If it
+cannot be done that way, STOP and return to the owner.
+
 Standard constraints apply.
 
 1. **Census delta**: measured at landing.
