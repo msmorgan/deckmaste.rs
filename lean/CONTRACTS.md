@@ -266,7 +266,11 @@ permanent's last known characteristics stay readable). A bare pronoun (`.bare`,
 `.atSlot _`) then follows `D′`: in a direct argument slot it excludes the current
 clause's mentions (`J2`, `DRS.isClauseMate` over `pendingRoles`), keeps the nearest
 clause and the highest grammatical role (`GramRole.rank`: subject, object, other), and
-resolves only to a unique winner; none or a tie is refused `anaphor`. A demonstrative
+resolves only to a unique winner; none or a tie is refused `anaphor`. A referent
+re-mentioned in a direct argument slot of the current clause ranks there, by the best of its
+buffered slot roles, before `nextClause` commits it (`DRS.rankingClause`, `DRS.rankingRole`; owner ruling
+2026-10-21). So "that creature deals damage equal to its power" reads "its" as that
+creature. An argument-slot pronoun has already excluded such a referent under `J2`. A demonstrative
 (`.word _`, `.unionHalf _`) follows `AC>R1`: it also excludes clause-mates
 in an argument slot and any referent a bare pronoun already resolved to in this clause
 (`pronounResolved`), then takes the most recently introduced candidate. Neither
@@ -359,6 +363,13 @@ player or an object; anything else is refused `handoffPerformer`. Where the obje
 drops the frame (`dropActorFrame`): a handoff publishes the referents its subject and
 body introduced, so a handed-to target stays available, and a handoff to `this`
 publishes only the body's.
+
+"<this> deals …" on any card, a spell's as a permanent's, is a handoff to the source,
+`instruct this_ (dealDamage …)`: an object that deals damage is the source of that damage
+[CR#120.1], and a bare `dealDamage` would have the controller, a player, as its performer.
+Where one sentence names the source once for several recipients, one handoff wraps them all.
+"<X> deals damage equal to its power to <Y>" is the `dealDamageOwnPower` Template, whose tree
+is the pronoun form `instruct X (dealDamage (powerOf it) Y)` (owner ruling 2026-10-21).
 
 No action writes its performer: the agent fields are gone
 (`semantics-v2-drop-agent-fields`), and with them `choose`'s chooser and an added

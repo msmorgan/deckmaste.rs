@@ -1015,10 +1015,26 @@ def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
 def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
   drs.pendingRoles.any fun (pid, _) => pid == id
 
+/-- `D′`'s clause for `ref`: the current clause when `ref` is re-mentioned in a direct argument
+slot of it (buffered in `pendingRoles`), otherwise the clause it was introduced or last
+foregrounded in (`semantics-v3.md` §1.5, owner ruling 2026-10-21). -/
+def DRS.rankingClause (drs : DRS) (ref : Referent) : Nat :=
+  if drs.isClauseMate ref.id then drs.currentClause else ref.clause
+
+/-- `D′`'s role rank for `ref`: its best direct-argument slot in the current clause when it is
+re-mentioned there, otherwise the role it was introduced or last foregrounded in. -/
+def DRS.rankingRole (drs : DRS) (ref : Referent) : Nat :=
+  match drs.pendingRoles.filter (·.1 == ref.id) with
+  | [] => ref.role.rank
+  | slots => slots.foldl (fun acc (_, role) => Nat.min acc role.rank) 2
+
 /-- Two-stage anaphor candidate resolution (`semantics-v3.md` §1.5):
 - Bare pronouns (`.bare`, `.atSlot _`) use `D′`: filter by `J1` and exclude `J2` clause-mates
-  (when `inArgSlot`), then select the nearest clause (highest `clause`) and highest grammatical
-  role (`subj < obj < other`); a unique winner resolves, while `0` or `≥ 2` winners refuse.
+  (when `inArgSlot`), then select the nearest clause (highest `rankingClause`) and highest
+  grammatical role (`rankingRole`, `subj < obj < other`); a unique winner resolves, while `0` or
+  `≥ 2` winners refuse. A referent re-mentioned in a direct argument slot of the current clause
+  ranks there, so "That creature deals damage equal to its power …" reads "its" as that
+  creature; in an argument slot such a referent is a `J2` clause-mate and is already excluded.
 - Demonstratives / definite NPs (`.word _`, `.unionHalf _`) use `AC>R1`: filter by
   `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), exclude any referent already resolved
   by a bare pronoun in the current clause (`C`, `pronounResolved == true`), and pick the most
@@ -1037,10 +1053,10 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
       match cands with
       | [] => []
       | _ =>
-          let maxClause := cands.foldl (fun acc b => Nat.max acc b.clause) 0
-          let inClause := cands.filter (·.clause == maxClause)
-          let minRank := inClause.foldl (fun acc b => Nat.min acc b.role.rank) 2
-          inClause.filter (·.role.rank == minRank)
+          let maxClause := cands.foldl (fun acc b => Nat.max acc (drs.rankingClause b)) 0
+          let inClause := cands.filter (drs.rankingClause · == maxClause)
+          let minRank := inClause.foldl (fun acc b => Nat.min acc (drs.rankingRole b)) 2
+          inClause.filter (drs.rankingRole · == minRank)
   | .word _ | .unionHalf _ =>
       let afterA := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
       let afterC := afterA.filter (fun b => !b.pronounResolved)

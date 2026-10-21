@@ -755,11 +755,21 @@ theorem badSharedSubjectTwoInDelta :
         none) = [.anaphor .bare .one 2] := by
   decide
 
+/-- "Both target creatures deal damage equal to its power to any target": the singular "its"
+has two equally ranked antecedents, so it is refused as an anaphor. -/
 theorem badOwnTwoInDelta :
-    Action.check (DRS.ofList [])
-      (dealDamageOwnPower (both (target isCreature) (target isCreature)) (target isAnyTarget))
-      = [.singular] := by
+    (Action.check (DRS.ofList [])
+      (dealDamageOwnPower (both (target isCreature) (target isCreature)) (target isAnyTarget))).any
+        (fun refusal => match refusal with
+          | .anaphor .bare .one 2 => true
+          | _ => false) = true := by
   decide
+
+/-- "<X> deals damage equal to its power to <Y>" has the pronoun form's tree: the Template keeps
+the wording, and "its" is the ordinary possessive pronoun. -/
+theorem dealDamageOwnPowerIsThePronounForm (source recipient : NounPhrase) :
+    dealDamageOwnPower source recipient = instruct source (dealDamage (powerOf it) recipient) :=
+  rfl
 
 theorem distributedDeedReadsBackPlural :
     Action.check (DRS.ofList [])

@@ -112,6 +112,7 @@ structure DRS where
     - If a previously introduced creature `r` is re-mentioned as the `.subj` of a new clause (`"It deals 2 damage to itself"` / `"It deals 2 damage to it"`), evaluating `"It"` in the `.subj` slot records `(r.id, .subj)` in `drs.pendingRoles`. When the `.obj` slot is evaluated in the same clause, `r` is recognized via `drs.pendingRoles` as the current clause's `.subj`—so `"itself"` succeeds (`Principle A`) and `"it"` excludes `r` as a clause-mate (`J2`).
     - Conversely, in `"Target creature's controller sacrifices it"`, `"Target creature"` is introduced inside a possessor NP (not a direct verb argument slot, so `(r_creature.id, _)` is not in `drs.pendingRoles`, whereas `(r_controller.id, .subj)` is), so `"it"` in the `.obj` slot does not treat `r_creature` as a clause-mate and resolves to `r_creature`.
   - At the end of the clause (`nextClause`), buffered `pendingRoles` updates are committed to `drs.referents` (`r.clause := drs.currentClause`, `r.role := slotRole`), `drs.pendingRoles` is cleared, `drs.currentClause` is incremented, and `pronounResolved := false` is reset on all referents.
+  - Until then, `D′` already ranks a buffered referent at `drs.currentClause`, by the best of its buffered slot roles (`DRS.rankingClause`, `DRS.rankingRole`; owner ruling 2026-10-21). A pronoun in a direct argument slot never sees the difference, because `J2` excludes that referent as a clause-mate first. A possessor or amount pronoun does: in *Karplusan Yeti*'s "That creature deals damage equal to its power to this creature", "its" reads the re-mentioned subject "that creature", not the earlier clause's subject.
 - **Zone-Change Identity Clearing (`moveIntro`, `[CR#400.7,400.7j]`):** When an object referent changes zone (`moveIntro`), the post-move referent receives a fresh `ReferentId` with `r.idents := []` (and `r.idents` is cleared on the departed referent), so any illegal post-move `laterMention` of the pre-move parameter `BindingId` is deterministically refused by the checker.
 - **Decidability contract and `by decide` reduction budget:** `DRS` uses `List` and decidable equality throughout (`no` `Std.HashMap`), preserving `by decide` across all Lean proofs and `cargo xtask lean check`. Before re-spelling the full proof and card bench in `lean-v3-proofs-and-cards`, `lean-v3-drt-checker` measures kernel `by decide` reduction on a representative multi-clause card and multi-step definition (`airbend`, `connive`, `explore`) to verify fast per-declaration reduction with zero `maxRecDepth` or `maxHeartbeats` increases.
 
@@ -211,8 +212,8 @@ counters on it. This does not impose a battlefield-only restriction on counters.
   - Exact complement of `J2`: requires an accessible clause-mate subject (`(r.id, .subj) ∈ drs.pendingRoles`) agreeing with `pl` (covering both newly introduced subjects like `"Target creature deals 2 damage to itself"` and re-mentioned subjects like `"It deals 2 damage to itself"`). Refuses with `.anaphor` if no clause-mate `.subj` matches.
 - **Rule `D′` — Bare Non-Reflexive Pronouns (`it`, `them`, `they`):**
   1. Exclude clause-mates (`J2`, i.e., any `r` with `(r.id, _) ∈ drs.pendingRoles` when the pronoun is in a direct verb argument slot).
-  2. Among remaining accessible referents, select those in the **nearest clause** (maximizing `r.clause`).
-  3. Within that clause, rank by `GramRole`: `.subj` beats `.obj`, which beats `.other`.
+  2. Among remaining accessible referents, select those in the **nearest clause** (maximizing `r.clause`, except that a referent re-mentioned in a direct argument slot of the current clause, `(r.id, slotRole) ∈ drs.pendingRoles`, counts as in `drs.currentClause`; owner ruling 2026-10-21).
+  3. Within that clause, rank by `GramRole`: `.subj` beats `.obj`, which beats `.other`. A re-mentioned referent ranks by its best buffered slot role. Steps 2 and 3 change nothing for a pronoun in a direct argument slot, since step 1 has already excluded every buffered referent. They foreground a re-mentioned subject for possessor and amount pronouns: "That creature deals damage equal to its power …" reads "its" as that creature (`Proofs/Damage.lean`, `karplusanYetiItsReadsThatCreature`).
   4. If a single referent strictly wins (`winners.length == 1`), resolve to `r`, mark `r.pronounResolved := true` in `drs.currentClause`, and buffer `(r.id, slotRole)` in `drs.pendingRoles` if in a direct argument slot.
   5. Otherwise (`winners.length == 0` when no accessible candidate exists, or `winners.length ≥ 2` on a true tie under `D′`), **refuse** with `Refusal.anaphor reach plur winners.length`.
 - **Rule `AC>R1` — Demonstratives (`that <noun>`, `those <nouns>`):**
@@ -268,7 +269,7 @@ Every Vintage-playable CR §701 keyword action—whether its body is a single at
 ### 2.2 Multi-Mention `Template`s
 
 A `Template` is a transparent phrasing helper in the caller's DRS scope, but any `Template` that mentions a `NounPhrase` parameter more than once before a zone change **must** bind `firstMention` on its first syntactic occurrence and `laterMention` on subsequent occurrences so targets and indefinites are not duplicated (`[CR#115.1,608.2c]`):
-- Examples: `duringNextTurnOf`, `discardThenForEachNonland` (or re-spelled via `"discarded this way"` per `[CR#701.50a]`), `lookAndSortSlice`, `controllerSacrifices`, `dealDamageOwnPower`, `comparesOwnStat`.
+- Examples: `duringNextTurnOf`, `discardThenForEachNonland` (or re-spelled via `"discarded this way"` per `[CR#701.50a]`), `lookAndSortSlice`, `controllerSacrifices`, `comparesOwnStat`.
 
 ---
 

@@ -1,5 +1,7 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Damage
+import Semantics.Cards.Faces
 
 /-!
 # Semantics.Proofs.Damage
@@ -515,13 +517,78 @@ theorem badThatMuchAfterDeath :
         (Action.instruct thisCreature (.dealDamage .thatMuch (target isAnyTarget)))) = [.quantOutcomeInScope 0] := by
   decide
 
-/-- "… That creature deals damage equal to its power to this creature." -/
+/-- The context in which a handoff's body reads "its", and what the handoff's subject resolved
+to: `subject` stepped as the subject of the clause after `before`, under its performer frame,
+while a characteristic is read (the steps `Action.instruct` and `Amount.statOf` take). -/
+private def possessiveContext (before : DRS) (subject : NounPhrase) : DRS × List ReferentId :=
+  let (after, ids, _) := stepNounPhrase 64 (nextClause before) .subj true subject
+  let shape : ActorShape := { kind := .object, isYou := false, ascribable := false, refIds := ids }
+  ({ after.push { det := .the, plur := .one, payload := .actor shape } .other false with
+      characteristicRead := true }, ids)
+
+/-- After "This creature deals damage equal to its power to target creature.": this creature is 0,
+the target creature 2. -/
+private def yetiFirst : DRS :=
+  (stepAction 64 .postEvent .obj (DRS.ofList [])
+    (dealDamageOwnPower thisCreature (target isCreature))).1
+
+/-- "… That creature deals damage equal to its power to this creature.": "that creature" reads the
+creature just dealt damage (2), not this creature (0). -/
 theorem okThatCreatureAfterDamage :
     Action.check (DRS.ofList [])
       (.sequentially
         [ dealDamageOwnPower thisCreature (target isCreature),
-          instruct (that (.type .creature)) (.dealDamage (powerOf it) thisCreature) ]) = [] := by
+          dealDamageOwnPower (that (.type .creature)) thisCreature ]) = [] ∧
+      (possessiveContext yetiFirst (that (.type .creature))).2 = [2] ∧
+      (yetiFirst.findById? 2).map (·.det) = some .target := by
   decide
+
+/-- Karplusan Yeti: "This creature deals damage equal to its power to target creature. That
+creature deals damage equal to its power to this creature." In the second sentence "its" reads
+the re-mentioned subject, that creature (2), not the first sentence's subject, this creature (0),
+though this creature is still visible: `D′` ranks a referent re-mentioned in a direct argument
+slot of the current clause there. -/
+theorem karplusanYetiItsReadsThatCreature :
+    Cards.karplusanYeti =
+        sequentially
+          [ dealDamageOwnPower thisCreature (target isCreature),
+            dealDamageOwnPower (that creature) thisCreature ] ∧
+      (possessiveContext yetiFirst (that creature)).2 = [2] ∧
+      (firstReach .bare .one (possessiveContext yetiFirst (that creature)).1).map (·.id) =
+        some 2 ∧
+      (possessiveContext yetiFirst (that creature)).1.visibleReferents.any (·.id == 0) = true ∧
+      (yetiFirst.findById? 0).map (·.det) = some .the :=
+  ⟨rfl, by decide⟩
+
+/-- After "Garruk Relentless deals 3 damage to target creature.": Garruk is 0, the creature 2. -/
+private def garrukFirst : DRS :=
+  (stepAction 64 .postEvent .obj (DRS.ofList [])
+    (instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature)))).1
+
+/-- Garruk Relentless: "Garruk Relentless deals 3 damage to target creature. That creature deals
+damage equal to its power to him." "Its" reads that creature (2), not Garruk (0). -/
+theorem garrukRelentlessItsReadsThatCreature :
+    Cards.garrukRelentlessFight =
+        sequentially
+          [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature)),
+            dealDamageOwnPower (that creature) thisPlaneswalker ] ∧
+      (possessiveContext garrukFirst (that creature)).2 = [2] ∧
+      (firstReach .bare .one (possessiveContext garrukFirst (that creature)).1).map (·.id) =
+        some 2 ∧
+      (possessiveContext garrukFirst (that creature)).1.visibleReferents.any (·.id == 0) = true :=
+  ⟨rfl, by decide⟩
+
+/-- Lightning Bolt: "Lightning Bolt deals 3 damage to any target." The spell is the Source of the
+damage [CR#120.1], so the damage is handed to it, and inside that Handoff the Actor of
+`dealDamage` is the spell: an Object, with a controller. A bare `dealDamage`'s Actor is the
+controller, a Player, which has none. -/
+theorem boltSourceIsTheActor :
+    Cards.bolt = instruct this_ (dealDamage (.lit 3) (target isAnyTarget)) ∧
+      Action.check (DRS.ofList [])
+          (instruct this_ (dealDamage (.lit 3) (controllerOf theActor))) = [] ∧
+      Action.check (DRS.ofList []) (dealDamage (.lit 3) (controllerOf theActor)) =
+        [.possessorKind .controller .player] :=
+  ⟨rfl, by decide⟩
 
 /-- "When this creature dies, it deals 1 damage to target creature. That creature's controller
 loses 1 life." -/

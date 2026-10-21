@@ -25,11 +25,17 @@ damage-source performer handoffs across `Cards/*.lean`" from
 2. `dealDamageOwnPower` and the pronoun form ("<X> deals damage equal to its power to <Y>") get
    one tree. The rules meaning decides the tree, and the Template keeps the wording.
 3. Align *Karplusan Yeti*, which uses both forms.
+4. (2026-10-21, on this ticket's STOP) Fix `D′` here. In a bare pronoun's ranking, a referent
+   re-mentioned in a direct argument slot of the current clause (in `drs.pendingRoles`) ranks at
+   `currentClause`, by the best of its buffered slot roles. Before the fix, "That creature deals
+   damage equal to its power to this creature" read "its" as the earlier clause's subject,
+   *Karplusan Yeti*. ADR §1.2 and §1.5 are amended to match.
 
 ## Design (ruling 2)
 
 - "Its power" is an ordinary possessive pronoun. D′ resolves it to the clause subject, because a
-  possessor is not a clause-mate and the subject ranks first.
+  possessor is not a clause-mate and the subject ranks first. A re-mentioned subject ("that
+  creature", "it") ranks first too, once ruling 4 is applied.
 - The tree is the pronoun form, `instruct X (dealDamage (powerOf it) Y)`. The Binding Identity
   `dealDamageOwnPower.source` cannot be reproduced from printed text, and the pronoun reading
   already checks (`possessiveItReadsCurrentSubject`, `Proofs/Anaphora.lean:706-713`).

@@ -57,6 +57,12 @@ private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
       exact older r (by simp [h])
     simp [Nat.ne_of_lt hr, ih ht]
 
+/-- With no direct-argument mention buffered in the current clause, `D′` ranks every referent by
+the clause and role it was introduced or last foregrounded in. -/
+private theorem rankingWithoutPending (drs : DRS) (h : drs.pendingRoles = []) :
+    drs.rankingClause = (·.clause) ∧ drs.rankingRole = (·.role.rank) := by
+  constructor <;> funext ref <;> simp [DRS.rankingClause, DRS.rankingRole, DRS.isClauseMate, h]
+
 private def candidate (clause id : Nat) : Referent := {
   det := .the, plur := .one, clause, id, role := .other,
   payload := .object [.creature] (some .battlefield) none none none }
@@ -79,6 +85,9 @@ private theorem candidateWins (rs : List Referent) (clause id : Nat)
   unfold resolveCandidates
   dsimp only
   rw [visible]
+  obtain ⟨byClause, byRole⟩ := rankingWithoutPending
+    { referents := candidate clause id :: rs, characteristicRead := true } rfl
+  simp only [byClause, byRole]
   simp only [Bool.false_eq_true, ↓reduceIte,
     show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show (candidate clause id).linked = false from rfl,

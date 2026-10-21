@@ -17,50 +17,48 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 /-- Lightning Bolt -/
-def bolt : Action := dealDamage (.lit 3) (target isAnyTarget)
+def bolt : Action := instruct this_ (dealDamage (.lit 3) (target isAnyTarget))
 theorem okBolt : Action.check (DRS.ofList []) bolt = [] := by decide
-def barrageOfBoulders : Action := dealDamage (.lit 1) (each (and [isCreature, youDontControl]))
+def barrageOfBoulders : Action :=
+  instruct this_ (dealDamage (.lit 1) (each (and [isCreature, youDontControl])))
 theorem okBarrageOfBoulders : Action.check (DRS.ofList []) barrageOfBoulders = [] := by decide
 def rabidBite : Action :=
-  instruct (target (and [isCreature, youControl])) (dealDamage (powerOf it)
-                                                      (target
-                                                         (and
-                                                            [isCreature,
-                                                             youDontControl])))
+  dealDamageOwnPower (target (and [isCreature, youControl]))
+    (target (and [isCreature, youDontControl]))
 theorem okRabidBite : Action.check (DRS.ofList []) rabidBite = [] := by decide
 def preyUpon : Action := instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, youDontControl])))
 theorem okPreyUpon : Action.check (DRS.ofList []) preyUpon = [] := by decide
 def arcTrail : Action :=
-  sequentially
-    [ dealDamage (.lit 2) (target isAnyTarget), dealDamage (.lit 1) (target isAnyOtherTarget) ]
+  instruct this_ (sequentially
+    [ dealDamage (.lit 2) (target isAnyTarget), dealDamage (.lit 1) (target isAnyOtherTarget) ])
 theorem okArcTrail : Action.check (DRS.ofList []) arcTrail = [] := by decide
 def deadshot : Action :=
   sequentially
     [ tap (target isCreature),
-      instruct it (dealDamage (powerOf it) (target (and [isCreature, isOther]))) ]
+      dealDamageOwnPower it (target (and [isCreature, isOther])) ]
 theorem okDeadshot : Action.check (DRS.ofList []) deadshot = [] := by decide
 def immersturmSkullcairn : Ability :=
   activatedOnlyDuring
     (compound [mana [generic 1, pip .black, pip .red, pip .red], tapSymbol,
       perform (sacrifice thisLand)])
     (sequentially
-      [ dealDamage (.lit 3) (target isPlayer), discard (a (cardIn (handOf (that
+      [ instruct this_ (dealDamage (.lit 3) (target isPlayer)), discard (a (cardIn (handOf (that
           .player)))) ])
     asSorcery
 theorem okImmersturmSkullcairn : Ability.check (DRS.ofList []) immersturmSkullcairn = [] := by decide
 def pyriteSpellbomb : Ability :=
   activated (compound [mana [pip .red], perform (sacrifice thisArtifact)])
-    (dealDamage (.lit 2) (target isAnyTarget))
+    (instruct this_ (dealDamage (.lit 2) (target isAnyTarget)))
 theorem okPyriteSpellbomb : Ability.check (DRS.ofList []) pyriteSpellbomb = [] := by decide
 def karplusanYeti : Action :=
   sequentially
     [ dealDamageOwnPower thisCreature (target isCreature),
-      instruct (that creature) (dealDamage (powerOf it) thisCreature) ]
+      dealDamageOwnPower (that creature) thisCreature ]
 theorem okKarplusanYeti : Action.check (DRS.ofList []) karplusanYeti = [] := by decide
 def suddenDemise : Action :=
   sequentially
     [ choose (a (quality .color)),
-      dealDamage (letter .x) (each (and [isCreature, ofChosen .color])) ]
+      instruct this_ (dealDamage (letter .x) (each (and [isCreature, ofChosen .color]))) ]
 theorem okSuddenDemise : Action.check (DRS.ofList []) suddenDemise = [] := by decide
 def caseOfTheGatewayExpress : Action :=
   sequentially
@@ -69,13 +67,14 @@ def caseOfTheGatewayExpress : Action :=
           (dealDamage (.lit 1) (that creature)) ]
 theorem okCaseOfTheGatewayExpress : Action.check (DRS.ofList []) caseOfTheGatewayExpress = [] := by decide
 def arrowsOfJustice : Action :=
-  dealDamage (.lit 4) (target (and [isCreature, or [isAttacking, isBlocking]]))
+  instruct this_ (dealDamage (.lit 4) (target (and [isCreature, or [isAttacking, isBlocking]])))
 theorem okArrowsOfJustice : Action.check (DRS.ofList []) arrowsOfJustice = [] := by decide
 def flamesOfTheRazeBoar : Action :=
   sequentially
-    [ dealDamage (.lit 4) (target (and [isCreature, anOpponentControls])),
+    [ instruct this_ (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls]))),
       doOnlyIf
-        (dealDamage (.lit 2) (each (and [isCreature, isOther, controlledBy (that player)])))
+        (instruct this_
+          (dealDamage (.lit 2) (each (and [isCreature, isOther, controlledBy (that player)]))))
         (exists_ (and [isCreature, youControl, hasPower .atLeast (.lit 4)])) ]
 theorem okFlamesOfTheRazeBoar : Action.check (DRS.ofList []) flamesOfTheRazeBoar = [] := by decide
 def yawgmothDemon : Action :=
@@ -85,15 +84,17 @@ def yawgmothDemon : Action :=
 theorem okYawgmothDemon : Action.check (DRS.ofList []) yawgmothDemon = [] := by decide
 def arcBlade : Action :=
   sequentially
-    [ dealDamage (.lit 2) (target isAnyTarget), exileWithCounters this_ (.lit 3) timeCounter ]
+    [ instruct this_ (dealDamage (.lit 2) (target isAnyTarget)),
+      exileWithCounters this_ (.lit 3) timeCounter ]
 theorem okArcBlade : Action.check (DRS.ofList []) arcBlade = [] := by decide
 def abrade : Action :=
-  chooseOne (dealDamage (.lit 3) (target isCreature)) (destroy (target isArtifact))
+  chooseOne (instruct this_ (dealDamage (.lit 3) (target isCreature)))
+    (destroy (target isArtifact))
 theorem okAbrade : Action.check (DRS.ofList []) abrade = [] := by decide
 def nibelheimAflame : Action :=
   sequentially
     [ choose (target (and [isCreature, youControl])),
-      instruct it (dealDamage (powerOf it) (each (and [isCreature, otherThan it]))) ]
+      dealDamageOwnPower it (each (and [isCreature, otherThan it])) ]
 theorem okNibelheimAflame : Action.check (DRS.ofList []) nibelheimAflame = [] := by decide
 def brashTaunter : Action := instruct thisCreature
     (fight (target (and [isCreature, otherThan thisCreature])))
@@ -104,7 +105,7 @@ theorem okUlvenwaldTracker : Action.check (DRS.ofList []) ulvenwaldTracker = [] 
 
 def botBashingTime : Action :=
   sequentially
-    [ dealDamage (.lit 6) (target isCreature),
+    [ instruct this_ (dealDamage (.lit 6) (target isCreature)),
       replaceEvent (would (that creature) die)
           (instead (exile it)) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
@@ -121,13 +122,15 @@ def thunderwave : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ rollDice (.lit 1) (.sides 20),
               applyResultsTable
-                [ rollRow (oneThrough 9) (dealDamage (.lit 3) (each isCreature)),
+                [ rollRow (oneThrough 9) (instruct this_ (dealDamage (.lit 3) (each isCreature))),
                   rollRow (fromTo 10 19)
                     (sequentially
                       [ may (choose (a isCreature)),
-                        dealDamage (.lit 3) (each (and [isCreature, notChosen])) ]),
+                        instruct this_
+                          (dealDamage (.lit 3) (each (and [isCreature, notChosen]))) ]),
                   rollRow (exactly 20)
-                    (dealDamage (.lit 6) (each (and [isCreature, opponentsControl]))) ] ]) ] } }
+                    (instruct this_
+                      (dealDamage (.lit 6) (each (and [isCreature, opponentsControl])))) ] ]) ] } }
 
 /-- Fog, Holy Day, Darkness, Root Snare -/
 def fog : Action := preventAll everywhere (some thisTurn) (some .combat)
@@ -165,7 +168,7 @@ def aladdinsRing : Spelled := spelled <| .singleFaced
 
 def chandrasRevolution : Action :=
   sequentially
-    [ dealDamage (.lit 4) (target isCreature), tap (target isLand),
+    [ instruct this_ (dealDamage (.lit 4) (target isCreature)), tap (target isLand),
       skipUntap (that land) (.lit 1) ]
 theorem okChandrasRevolution : Action.check (DRS.ofList []) chandrasRevolution = [] := by decide
 def arbalestElite : Ability :=
@@ -175,8 +178,8 @@ def arbalestElite : Ability :=
         skipUntap thisCreature (.lit 1) ])
 theorem okArbalestElite : Ability.check (DRS.ofList []) arbalestElite = [] := by decide
 def sizzlingBarrage : Action :=
-  dealDamage (.lit 4) (target
-    (and [isCreature, did which block soFarThisTurn]))
+  instruct this_ (dealDamage (.lit 4) (target
+    (and [isCreature, did which block soFarThisTurn])))
 theorem okSizzlingBarrage : Action.check (DRS.ofList []) sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
   whenever (does (a (and [isCreature, hasDesignation goaded])) attack)
@@ -197,7 +200,8 @@ def chainReaction : Spelled := spelled <| .singleFaced
     { name := "Chain Reaction", cost := some [generic 2, pip .red, pip .red], types := [.sorcery],
       text :=
         [ spell (sequentially
-            [ dealDamage (letter .x) (each isCreature), define .x (countOf isCreature) ]) ] } }
+            [ instruct this_ (dealDamage (letter .x) (each isCreature)),
+              define .x (countOf isCreature) ]) ] } }
 
 /-- Black Vise -/
 def blackVise : Spelled := spelled <| .singleFaced
@@ -215,7 +219,7 @@ def harshSustenance : Spelled := spelled <| .singleFaced
     { name := "Harsh Sustenance", cost := some [generic 1, pip .white, pip .black], types := [.instant],
       text :=
         [ spell (sequentially
-            [ dealDamage (letter .x) (target isAnyTarget),
+            [ instruct this_ (dealDamage (letter .x) (target isAnyTarget)),
               gainLife (letter .x),
               define .x (countOf (and [isCreature, youControl])) ]) ] } }
 
@@ -274,7 +278,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Psychic Purge", cost := some [pip .blue], types := [.sorcery],
       text :=
-        [ spell (dealDamage (.lit 1) (target isAnyTarget)),
+        [ spell (instruct this_ (dealDamage (.lit 1) (target isAnyTarget))),
           when
             (causes
               (bySource (a (and [or [isSpell, abilityHead .anyOnStack],
@@ -536,14 +540,14 @@ def lavaAxe : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Lava Axe", cost := some [generic 4, pip .red], types := [.sorcery],
       text :=
-        [ spell (dealDamage (.lit 5) (target (or [isPlaneswalker, isPlayer]))) ] } }
+        [ spell (instruct this_ (dealDamage (.lit 5) (target (or [isPlaneswalker, isPlayer])))) ] } }
 
 def searingFlesh : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Searing Flesh", cost := some [generic 6, pip .red], types := [.sorcery],
       text :=
-        [ spell (dealDamage (.lit 7) (target (or [isPlaneswalker, isOpponent])))
-            ] } }
+        [ spell (instruct this_
+            (dealDamage (.lit 7) (target (or [isPlaneswalker, isOpponent])))) ] } }
 
 def onakkeJavelineerBolt : Ability :=
   activated tapSymbol
@@ -843,7 +847,7 @@ def incinerate : Spelled := spelled <| .singleFaced
     { name := "Incinerate", cost := some [generic 1, pip .red], types := [.instant],
       text :=
         [ spell (sequentially
-            [ dealDamage (.lit 3) (target isAnyTarget),
+            [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget)),
               establishThroughout (cant any
                                      (regeneration
                                         (a (and
@@ -864,13 +868,13 @@ def ashZealot : Spelled := spelled <| .singleFaced
       power := stat 2, toughness := stat 2 } }
 
 def galvanicBlastLine : Action :=
-  replace (dealDamage (.lit 2) (target isAnyTarget))
+  replace (instruct this_ (dealDamage (.lit 2) (target isAnyTarget)))
     (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
-      (instead (dealDamage (.lit 4) thatJoin)))
+      (instead (instruct this_ (dealDamage (.lit 4) thatJoin))))
 theorem okGalvanicBlastLine : Action.check (DRS.ofList []) galvanicBlastLine = [] := by decide
 /-- Furious Reprisal -/
 def furiousReprisal : Action :=
-  dealDamage (.lit 2) (eachOf (targets (exactly 2) isAnyTarget))
+  instruct this_ (dealDamage (.lit 2) (eachOf (targets (exactly 2) isAnyTarget)))
 theorem okFuriousReprisal : Action.check (DRS.ofList []) furiousReprisal = [] := by decide
 /-- Bullseye, Death Dealer -/
 def bullseyeModalCost : Ability :=
@@ -923,15 +927,15 @@ def brazenDwarf : Spelled := spelled <| .singleFaced
 
 /-- Lavalanche -/
 def lavalanche : Action :=
-  simultaneously
+  instruct this_ (simultaneously
     [ dealDamage (letter .x) targetPlayerOrPlaneswalker,
-      dealDamage (letter .x) eachCreatureThatSplitControls ]
+      dealDamage (letter .x) eachCreatureThatSplitControls ])
 theorem okLavalanche : Action.check (DRS.ofList []) lavalanche = [] := by decide
 /-- Flame Wave -/
 def flameWave : Action :=
-  simultaneously
+  instruct this_ (simultaneously
     [ dealDamage (.lit 4) targetPlayerOrPlaneswalker,
-      dealDamage (.lit 4) eachCreatureThatSplitControls ]
+      dealDamage (.lit 4) eachCreatureThatSplitControls ])
 theorem okFlameWave : Action.check (DRS.ofList []) flameWave = [] := by decide
 /-- Chandra Nalaar's ultimate -/
 def chandraNalaarUltimate : Action :=
@@ -947,21 +951,21 @@ def chandraPyrogeniusUltimate : Action :=
 theorem okChandraPyrogeniusUltimate : Action.check (DRS.ofList []) chandraPyrogeniusUltimate = [] := by decide
 /-- Bonfire of the Damned -/
 def bonfireOfTheDamned : Action :=
-  simultaneously
+  instruct this_ (simultaneously
     [ dealDamage (letter .x) targetPlayerOrPlaneswalker,
-      dealDamage (letter .x) eachCreatureThatSplitControls ]
+      dealDamage (letter .x) eachCreatureThatSplitControls ])
 theorem okBonfireOfTheDamned : Action.check (DRS.ofList []) bonfireOfTheDamned = [] := by decide
 /-- Chandra's Fury -/
 def chandrasFury : Action :=
-  simultaneously
+  instruct this_ (simultaneously
     [ dealDamage (.lit 4) targetPlayerOrPlaneswalker,
-      dealDamage (.lit 1) eachCreatureThatSplitControls ]
+      dealDamage (.lit 1) eachCreatureThatSplitControls ])
 theorem okChandrasFury : Action.check (DRS.ofList []) chandrasFury = [] := by decide
 /-- Angrath, Minotaur Pirate's plus -/
 def angrathMinotaurPirateBolt : Action :=
-  simultaneously
-    [ instruct this_ (dealDamage (.lit 1) targetOpponentOrPlaneswalker),
-      instruct this_ (dealDamage (.lit 1) eachCreatureThatSplitControls) ]
+  instruct this_ (simultaneously
+    [ dealDamage (.lit 1) targetOpponentOrPlaneswalker,
+      dealDamage (.lit 1) eachCreatureThatSplitControls ])
 theorem okAngrathMinotaurPirateBolt : Action.check (DRS.ofList []) angrathMinotaurPirateBolt = [] := by decide
 def whichOfYouBurnsBrightestBody : Action :=
   simultaneously
@@ -1011,13 +1015,13 @@ theorem okSoulOfShandalarGraveyardBolt :
 /-- Blightning -/
 def blightning : Action :=
   sequentially
-    [ dealDamage (.lit 3) targetPlayerOrPlaneswalker,
+    [ instruct this_ (dealDamage (.lit 3) targetPlayerOrPlaneswalker),
       discard (counted (exactly 2) (cardIn (handOf splitOverPlaneswalker))) ]
 theorem okBlightning : Action.check (DRS.ofList []) blightning = [] := by decide
 /-- Rakdos's Return -/
 def rakdossReturn : Action :=
   sequentially
-    [ dealDamage (letter .x) targetOpponentOrPlaneswalker,
+    [ instruct this_ (dealDamage (letter .x) targetOpponentOrPlaneswalker),
       discard (counted (exactlyOf (letter .x)) (cardIn (handOf splitOverPlaneswalker))) ]
 theorem okRakdossReturn : Action.check (DRS.ofList []) rakdossReturn = [] := by decide
 /-- Nicol Bolas, Planeswalker's ultimate -/
@@ -1030,7 +1034,7 @@ theorem okNicolBolasUltimate : Action.check (DRS.ofList []) nicolBolasUltimate =
 /-- Pulse of the Forge -/
 def pulseOfTheForge : Action :=
   sequentially
-    [ dealDamage (.lit 4) targetPlayerOrPlaneswalker,
+    [ instruct this_ (dealDamage (.lit 4) targetPlayerOrPlaneswalker),
       doIf (compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf you))
         (returnToHand this_) ]
 theorem okPulseOfTheForge : Action.check (DRS.ofList []) pulseOfTheForge = [] := by decide
@@ -1055,17 +1059,17 @@ theorem okQuenchableFire : Action.check (DRS.ofList []) quenchableFire = [] := b
 def searingBlaze : Ability :=
   landfall
     (spell (replace
-        (simultaneously
+        (instruct this_ (simultaneously
           [ dealDamage (.lit 1) targetPlayerOrPlaneswalker,
             dealDamage (.lit 1) (target
                                    (and
                                       [isCreature, controlledBy
-                                         splitOverPlaneswalker])) ])
+                                         splitOverPlaneswalker])) ]))
         (doIf (did (a (and [isLand, youControl])) enter soFarThisTurn)
           (instead
-            (simultaneously
+            (instruct this_ (simultaneously
               [ dealDamage (.lit 3) thatJoin,
-                dealDamage (.lit 3) (that creature) ])))))
+                dealDamage (.lit 3) (that creature) ]))))))
 theorem okSearingBlaze : Ability.check (DRS.ofList []) searingBlaze = [] := by decide
 
 /-- Heart of Bogardan -/
@@ -1092,7 +1096,7 @@ def burnAtTheStake : Spelled := spelled <| .singleFaced
         [ static (addedCost
             (perform (tap (counted anyNumber (and [isCreature, youControl, isUntapped]))))
             false),
-          spell (dealDamage (times (.lit 3) groupSize) (target isAnyTarget)) ] } }
+          spell (instruct this_ (dealDamage (times (.lit 3) groupSize) (target isAnyTarget))) ] } }
 
 /-- Explosive Singularity -/
 def explosiveSingularity : Spelled := spelled <| .singleFaced
@@ -1103,7 +1107,7 @@ def explosiveSingularity : Spelled := spelled <| .singleFaced
             (perform (tap (counted anyNumber (and [isCreature, youControl, isUntapped]))))
             true),
           static (costShift this_ (less (times (.lit 1) groupSize))),
-          spell (dealDamage (.lit 10) (target isAnyTarget)) ] } }
+          spell (instruct this_ (dealDamage (.lit 10) (target isAnyTarget))) ] } }
 
 /-- Tyrant of Valakut -/
 def tyrantOfValakut : Spelled := spelled <| .singleFaced
@@ -1124,7 +1128,8 @@ def fallOfTheTitansCard : Spelled := spelled <| .singleFaced
     { name := "Fall of the Titans", cost := some [.variable, .variable, pip .red], types := [.instant],
       text :=
         [ surge (mana [.variable, pip .red]),
-          spell (dealDamage (letter .x) (eachOf (targets (upTo 2) isAnyTarget))) ] } }
+          spell (instruct this_
+            (dealDamage (letter .x) (eachOf (targets (upTo 2) isAnyTarget)))) ] } }
 
 /-- Tribal Flames -/
 def tribalFlames : Spelled := spelled <| .singleFaced
@@ -1133,7 +1138,7 @@ def tribalFlames : Spelled := spelled <| .singleFaced
       text :=
         [ domain
             (spell (sequentially
-              [ dealDamage (letter .x) (target isAnyTarget),
+              [ instruct this_ (dealDamage (letter .x) (target isAnyTarget)),
                 define .x (distinctCount (.subtype .land .basicOnly)
                   (allOf (and [isLand, youControl]))) ])) ] } }
 
@@ -1197,7 +1202,7 @@ def destructiveRevelry : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ destroy (target (or [isArtifact, isEnchantment])),
-              dealDamage (.lit 2) (controllerOf (that permanent)) ]) ] } }
+              instruct this_ (dealDamage (.lit 2) (controllerOf (that permanent))) ]) ] } }
 
 /-- Fuming Effigy -/
 def fumingEffigy : Spelled := spelled <| .singleFaced
@@ -1268,7 +1273,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
 /-- Crackling Doom -/
 def cracklingDoom : Action :=
   sequentially
-    [ dealDamage (.lit 2) eachOpponent,
+    [ instruct this_ (dealDamage (.lit 2) eachOpponent),
       instruct eachOpponent (sacrifice
         (a (and [isCreature,
                   superlative .max (.stat .power)
@@ -1375,11 +1380,11 @@ def fry : Spelled := spelled <| .singleFaced
     { name := "Fry", cost := some [generic 1, pip .red], types := [.instant],
       text :=
         [ static (cant any (counter thisSpell)),
-          spell (dealDamage (.lit 5)
+          spell (instruct this_ (dealDamage (.lit 5)
                    (target
                       (and
                          [or [isCreature, isPlaneswalker], or
-                            [hasColor .white, hasColor .blue]]))) ] } }
+                            [hasColor .white, hasColor .blue]])))) ] } }
 
 /-- Termination Facilitator -/
 def terminationFacilitator : Spelled := spelled <| .singleFaced

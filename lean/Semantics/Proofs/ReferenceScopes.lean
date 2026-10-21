@@ -46,6 +46,12 @@ private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
       exact older r (by simp [h])
     simp [Nat.ne_of_lt hr, ih ht]
 
+/-- With no direct-argument mention buffered in the current clause, `D′` ranks every referent by
+the clause and role it was introduced or last foregrounded in. -/
+private theorem rankingWithoutPending (drs : DRS) (h : drs.pendingRoles = []) :
+    drs.rankingClause = (·.clause) ∧ drs.rankingRole = (·.role.rank) := by
+  constructor <;> funext ref <;> simp [DRS.rankingClause, DRS.rankingRole, DRS.isClauseMate, h]
+
 /-- A newly introduced subject wins over every referent from an earlier clause. -/
 theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
@@ -64,6 +70,8 @@ theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause i
   unfold resolveCandidates
   dsimp only
   rw [visible]
+  obtain ⟨byClause, byRole⟩ := rankingWithoutPending { referents := subject :: rs } rfl
+  simp only [byClause, byRole]
   simp only [Bool.false_eq_true, ↓reduceIte,
     show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
@@ -273,16 +281,66 @@ private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
       (introducedLetters .x selected).foldl
         (fun d ref => d.push ref .other false) selected := by rfl
 
-private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
+private theorem rankedOlderMaximum (f : Referent → Nat) (rs : List Referent) (clause : Nat)
+    (older : ∀ r ∈ rs, f r < clause) :
+    rs.foldl (fun acc r => Nat.max acc (f r)) clause = clause := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    have hr := older r (by simp)
+    have ht : ∀ r ∈ rs, f r < clause := by
+      intro r h
+      exact older r (by simp [h])
+    simp only [List.foldl_cons, Nat.max_eq_left (Nat.le_of_lt hr)]
+    exact ih ht
+
+private theorem rankedOlderFilter (f : Referent → Nat) (rs : List Referent) (clause : Nat)
+    (older : ∀ r ∈ rs, f r < clause) :
+    rs.filter (fun r => f r == clause) = [] := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    have hr := older r (by simp)
+    have ht : ∀ r ∈ rs, f r < clause := by
+      intro r h
+      exact older r (by simp [h])
+    simp [Nat.ne_of_lt hr, ih ht]
+
+/-- The subject the modification pipeline selects, still buffered as the current clause's subject:
+`D′` ranks it there (`DRS.rankingClause`), and every older referent ranks in its own earlier
+clause. -/
+private theorem pendingPowerSubjectWins (rs : List Referent) (clause id : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) (fresh : ∀ r ∈ rs, r.id ≠ id) :
     let subject := { powerSubject with clause := clause, role := .subj, id := id }
-    resolveCandidates .bare .one { referents := subject :: rs } = [subject] := by
-  have filteredOlder : ∀ (p : Referent → Bool), ∀ r ∈ rs.filter p, r.clause < clause := by
+    resolveCandidates .bare .one
+      { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] } =
+        [subject] := by
+  intro subject
+  have clauseOf : ∀ r ∈ rs,
+      DRS.rankingClause
+        { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] } r =
+        r.clause := by
+    intro r hr
+    simp [DRS.rankingClause, DRS.isClauseMate, (fresh r hr).symm]
+  have filteredOlder : ∀ (p : Referent → Bool), ∀ r ∈ rs.filter p,
+      DRS.rankingClause
+        { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] } r <
+        clause := by
     intro p r h
-    exact older r (List.mem_filter.mp h).1
-  let subject := { powerSubject with clause := clause, role := .subj, id := id }
-  change resolveCandidates .bare .one { referents := subject :: rs } = [subject]
-  have visible : (DRS.visibleReferents { referents := subject :: rs }) = subject :: rs := by
+    have hr := (List.mem_filter.mp h).1
+    rw [clauseOf r hr]
+    exact older r hr
+  have subjectClause : DRS.rankingClause
+      { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] }
+      subject = clause := by
+    simp [DRS.rankingClause, DRS.isClauseMate, subject]
+  have subjectRole : DRS.rankingRole
+      { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] }
+      subject = 0 := by
+    simp [DRS.rankingRole, subject, GramRole.rank]
+  have visible : (DRS.visibleReferents
+      { referents := subject :: rs, currentClause := clause, pendingRoles := [(id, .subj)] }) =
+      subject :: rs := by
     apply List.filter_eq_self.mpr
     intro r _
     rfl
@@ -294,16 +352,17 @@ private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
     show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
     Bool.true_and, List.filter_cons, eligible]
-  simp only [List.foldl_cons, show subject.clause = clause from rfl, Nat.zero_max,
-    olderClauseMaximum _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
-    olderClauseFilter _ _ (filteredOlder _), List.foldl_nil]
-  rfl
-
+  simp only [List.foldl_cons, subjectClause, Nat.zero_max,
+    rankedOlderMaximum _ _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
+    rankedOlderFilter _ _ _ (filteredOlder _), List.foldl_nil]
+  simp [subjectRole]
 
 /-- The actual modification pipeline selects its own fresh target in every earlier outer
-context, whether X was already bound or introduces a same-clause letter. -/
+context, whether X was already bound or introduces a same-clause letter. No older referent
+shares the context's `nextId` (`fresh`): one that did would share the subject's buffered subject
+slot. -/
 theorem ownStatActionIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
+    (older : ∀ r ∈ rs, r.clause < clause) (fresh : ∀ r ∈ rs, r.id ≠ id) :
     resolveCandidates .bare .one
       (powerAfter { referents := rs, currentClause := clause, nextId := id }) =
       [{ powerSubject with clause := clause, role := .subj, id := id }] := by
@@ -315,13 +374,14 @@ theorem ownStatActionIdentityStableForEveryOuterContext (rs : List Referent) (cl
   dsimp only
   unfold introducedLetters
   split <;> change resolveCandidates .bare .one
-    { referents := { powerSubject with clause := clause, role := .subj, id := id } :: rs } = _
-  all_goals exact powerSubjectWins rs clause id older
+    { referents := { powerSubject with clause := clause, role := .subj, id := id } :: rs,
+      currentClause := clause, pendingRoles := [(id, .subj)] } = _
+  all_goals exact pendingPowerSubjectWins rs clause id older fresh
 
 /-- The ordinary pronoun checker accepts the result of the actual modification pipeline,
 not merely a manually constructed subject context. -/
 theorem ownStatActionStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
+    (older : ∀ r ∈ rs, r.clause < clause) (fresh : ∀ r ∈ rs, r.id ≠ id) :
     NounPhrase.checkAt (some .object)
       (powerAfter { referents := rs, currentClause := clause, nextId := id }) it = [] := by
   let after := powerAfter { referents := rs, currentClause := clause, nextId := id }
@@ -329,7 +389,7 @@ theorem ownStatActionStableForEveryOuterContext (rs : List Referent) (clause id 
     (match winners with
     | [w] => (after.recordMention w.id .other false true, [w.id], ([] : List Refusal))
     | _ => (after, [], [Refusal.anaphor .bare .one winners.length])).2.2) ++ [] = []
-  rw [ownStatActionIdentityStableForEveryOuterContext rs clause id older]
+  rw [ownStatActionIdentityStableForEveryOuterContext rs clause id older fresh]
   rfl
 
 end Semantics.Proofs.ReferenceScopes

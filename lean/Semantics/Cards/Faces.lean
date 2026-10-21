@@ -187,6 +187,14 @@ def garrukRelentlessFlip : Ability :=
       (is thisPlaneswalker (compare .atMost (.lit 2) (axes := [.counter loyaltyCounter]))))
     (transform thisPlaneswalker)
 theorem okGarrukRelentlessFlip : Ability.check (DRS.ofList []) garrukRelentlessFlip = [] := by decide
+/-- Garruk Relentless's first 0: "Garruk Relentless deals 3 damage to target creature. That
+creature deals damage equal to its power to him." -/
+def garrukRelentlessFight : Action :=
+  sequentially
+    [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature)),
+      dealDamageOwnPower (that creature) thisPlaneswalker ]
+theorem okGarrukRelentlessFight : Action.check (DRS.ofList []) garrukRelentlessFight = [] := by
+  decide
 
 /-- Mana Clash -/
 def manaClashFlip : Action :=
@@ -318,8 +326,7 @@ def arlinnKord : Spelled := spelled <| .transforming
               [ static (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) haste,
                     abilityGrant them
                       (activated tapSymbol
-                        (instruct thisCreature
-                           (dealDamage (powerOf thisCreature) (target isAnyTarget)))) ]) ]) ] } }
+                        (dealDamageOwnPower thisCreature (target isAnyTarget))) ]) ]) ] } }
 
 /-- Neglected Heirloom // Ashmouth Blade -/
 def neglectedHeirloom : Spelled := spelled <| .transforming
@@ -527,11 +534,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
       subtypes := [garruk],
       text :=
         [ garrukRelentlessFlip,
-          activated (loyaltySymbol (up (.lit 0)))
-            (sequentially
-              [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature)),
-                instruct (that creature) (dealDamage (powerOf (that creature))
-                                                     thisPlaneswalker) ]),
+          activated (loyaltySymbol (up (.lit 0))) garrukRelentlessFight,
           activated (loyaltySymbol (up (.lit 0)))
             (createToken (creatureToken 2 2 [.green] [wolf])) ],
       loyalty := stat 3 } }

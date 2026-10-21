@@ -1191,13 +1191,12 @@ semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
-/-- "<source> deals damage equal to its power to <recipient>" (`Template`; `firstMention` /
-`laterMention` so `source` is not duplicated). -/
+/-- "<source> deals damage equal to its power to <recipient>": a Handoff of the damage to
+`source` [CR#120.1], whose "its" is an ordinary possessive pronoun that `D′` resolves to the
+clause subject, `source`. -/
 semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Action :=
-  .instruct (.firstMention "dealDamageOwnPower.source" source)
-    (.dealDamage (.statOf (.stat .power) (.laterMention "dealDamageOwnPower.source" source))
-      recipient)
+  .instruct source (.dealDamage (powerOf it) recipient)
 /-- A token's characteristics from the parts a creature token names, with the abilities it is
 created with ("… with flying") [CR#111.3]. -/
 semantic_template creatureTokenOf (power toughness : Amount) (colors : List Color)
