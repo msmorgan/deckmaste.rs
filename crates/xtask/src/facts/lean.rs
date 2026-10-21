@@ -631,8 +631,8 @@ fn keyword_rows(
 /// (`conniveN` writes `deed: connive`, one event for both forms
 /// [CR#701.50f]), which is then listed once, under that name. A declaration
 /// that names no deed (`deed: None`) or has no body is still named by its
-/// declaration name where a deed is written (`theVerbed(search, One)`), so it
-/// keeps its own label.
+/// declaration name where a deed is written (`.action "search"`), so it keeps
+/// its own label.
 ///
 /// The columns themselves are the checker's own data, hand-written as
 /// `actFacts` in `Check/Words.lean`; this list is what `Proofs/Tables.lean`

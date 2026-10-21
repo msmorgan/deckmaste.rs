@@ -162,14 +162,14 @@ or rules role.
 
 ### 1.5 Anaphor Resolution Rules (`J1`, `J2`, `D′`, `AC>R1`, and Reflexives)
 
-Every anaphoric `NounPhrase` (`it`, `them`, `they`, `itself`, `themselves`, `yourself`, `that <noun>`, `those <nouns>`, `the <verbed> <noun>`) resolves against the visible `referents` in the current `DRS` in two stages:
+Every anaphoric `NounPhrase` (`it`, `them`, `they`, `itself`, `themselves`, `yourself`, `that <noun>`, `those <nouns>`) resolves against the visible `referents` in the current `DRS` in two stages. A Participial Description (`the <verbed> <noun>`, §3.8) instead requires the unique referent its deed stamped, and is the only reference that reaches an object a linked ability published (`Referent.linked`):
 
 #### Stage 1: Accessibility Filter (`J1`)
 
 A referent `r ∈ drs.referents` is **accessible** to an anaphor in a consuming verb slot iff:
 1. `r.id` is not masked by any active `OwnScopeFrame` on `drs.scopeStack` (`∀ f ∈ drs.scopeStack, r.id ∉ f.maskedIds`);
 2. `r.plur` agrees with the anaphor's grammatical number (`.one` for `it` / `itself` / `that <noun>`, `.many` for `them` / `they` / `themselves` / `those <nouns>`, or unfixed when reading a number-neutral description);
-3. `r.payload` matches the anaphor's sort, carrier-word zone (`[CR#109.2,109.2a..109.2c,110.1]`: e.g., a bare permanent type requires `.battlefield`, `spell` requires `.stack`, `card` requires a non-battlefield/non-stack zone or zone-transition readback), and `<noun>` / `<verbed>` filter; and
+3. `r.payload` matches the anaphor's sort, carrier-word zone (`[CR#109.2,109.2a..109.2c,110.1]`: e.g., a bare permanent type requires `.battlefield`, `spell` requires `.stack`, `card` requires a non-battlefield/non-stack zone or zone-transition readback), and `<noun>` filter; and
 4. **Consuming-verb applicability (`[CR#109.2,701.21a]`):** The consuming verb or prepositional slot can apply to `r` in `r.payload.zone` and `r.payload.kind` (e.g., a creature that died is in `.graveyard` and cannot have counters put on it as a battlefield permanent or be sacrificed; this settles *Vampiric Embrace* by `J1` before ranking runs).
 
 **Characteristic reads and Last Known Information ([CR#608.2h]):** The carrier-word zone
@@ -476,9 +476,17 @@ inductive LookbackSpan where
 structure DidClause where
   subj   : Subject
   action : Instruction
-  within : LookbackSpan
+  within : Option LookbackSpan
   deriving DecidableEq, Repr
 ```
+
+The templates mirror `does` and `would`, subject first: `did(subj, action, within)` and its
+agentless passive `was(action, within)` (`Subject.any`), each dispatched on the expected type to
+`Predicate` or `Condition`. A bare `Duration` coerces to its span. `Condition.did`, `Condition.was`
+and the tally templates take a non-optional `LookbackSpan`; only `Predicate.did`/`Predicate.was`
+may leave it unwritten (`within = none`), and the checker refuses that
+(`Refusal.unanchoredLookback`) anywhere but a Participial Description (below). `happened`,
+`happenedThisWay`, `happenedTo` and `wasCast` are retired.
 
 Used uniformly across all three lookback sites:
 1. **`Condition.did (clause : DidClause)`** (replaces `Condition.happened`, dropping the unused `gap : Option Duration` parameter):
@@ -486,10 +494,25 @@ Used uniformly across all three lookback sites:
    - `"if a creature died this turn"` → `did(any, die(a(creature)), thisTurn)` (where the `die(subject)` template `[CR#700.4]` expands to `Instruction.move(subject, .zones [.battlefield], .graveyard, .departure, none)`, matching `does(any, die(a(creature)))` in §3.6)
 2. **`Predicate.did (clause : DidClause)`** (replaces `Predicate.happenedTo`, using `NounPhrase.which` in the relativized argument slot):
    - `"creatures that attacked this turn"` → `and([creature, did(which, attack(any), thisTurn)])`
-   - `"each card exiled this way"` → `and([card, did(any, exile(which), thisWay)])`
+   - `"each card exiled this way"` → `and([card, was(exile(which), thisWay)])`
 3. **`Amount.tally (clause : DidClause) (mode : TallyMode)`** (replaces `Amount.eventTally`):
    - `TallyMode.events` (`"the number of times..."`): `tally(did(you, cast(yourCommander), thisGame), .events)`
    - `TallyMode.quantity` (`"the number of cards..."` / `"the amount of life..."`): `tally(did(you, draw(a(card)), thisTurn), .quantity)`, `tally(did(you, gainLife(any), thisTurn), .quantity)`
+
+**Participial Descriptions** (`lean-v3-typed-verbed-deeds`). A `NounPhrase.described` with
+determiner `the` (`DetPhrase.the (plur := .one)`, `.many` for "the exiled cards"), `all`, `each`
+or the bare plural, whose predicate has a conjunct `Predicate.did` with no span or `thisWay`,
+`which` relativizing what the deed acted on, introduces no referent: it resolves to the one
+referent in scope that deed stamped, filtered by the other conjuncts' Head Noun read as the object
+was when acted on (`card`, a battlefield location as "permanent", Card Types `[CR#608.2h]`), and
+refuses with `Refusal.participialDescription deed n` when `n ≠ 1`. `thisWay` reads only referents
+the current ability stamped `[CR#607.1c]`; no span also reads those a linked ability published
+`[CR#607.2a]`, where a singular `the` reads a published group `[CR#607.3]`. `Reach.verbed`,
+`VerbedMarking` and `theVerbed` are retired; "it"/"them"/"that card" are ordinary pronouns.
+Linked and self-linked abilities share one authored AST (`deckmaste_spelling` needs one AST per
+printed wording); lowering finds the link from the same resolution, and game-time zone filtering
+(a card leaving exile before champion's return resolves) belongs to the lowering/core rewrite
+`[CR#607.2a]`.
 
 ---
 
@@ -538,8 +561,9 @@ Because `docs/archive/` is excluded from agent search, the domain mechanisms and
   - `StaticSpec.asEvent (event) (does)` models `"as [event], do"` (dash, blitz, warp, Aura mandatory entry attachment `[CR#303.4f]`); "As [this] enters" text (entry choices, devour, riot, tribute, unleash, amplify) instead replaces the entering with `also` (`replace(would(this, enter), also(...))`), and "enters tapped / with / as / transformed" with `withRiders(...)` (`[CR#603.6d,614.1c,614.12]`), and `StaticSpec.whileHolds (condition) (does)` models state statics (ascend, storied, daybound/nightbound `[CR#702.131b,702.145b,702.195a]`).
 - **Characteristic Sharing & Group Agreement (`Predicate.shares`, `NounPhrase.agree`, `[CR#201.2a,201.2c,105.2,205.3m]`):**
   - `Predicate.shares (axis) (agreement : share | differ) (with)` checks whether an object shares at least one value (`share`) or none (`differ`) on `axis` with `with`. `NounPhrase.agree (axis) (agreement) (group)` constrains a group selection to mutually share or differ on `axis`.
-- **Linked-Ability Readback & Declared Relations (`LinkedFacet`, `LinkSource`, `[CR#607.2a,607.2d,607.2i,702.33e,702.55b,702.95b,702.99b]`):**
-  - `LinkSource` identifies linked costs/abilities (including `byDeed (verb)` `[CR#607.2a]` and multi-part keyword regimes like gift `[CR#702.174a,702.174b]`), and `LinkedFacet` reads back `paid`, `timesPaid`, `chosenPlayer`, `objects (verb)`, and `taken`. Named object-to-object links (haunt, soulbond, cipher) use `Definition.relation` with `relate`, `related`, and `counterpart`.
+- **Linked-Ability Readback & Declared Relations (`LinkedFacet`, `LinkSource`, `Ability.textContext`, `[CR#607.2a,607.2d,607.2i,702.33e,702.55b,702.95b,702.99b]`):**
+  - `LinkSource` names a linked cost (`byKeyword`, `byNthKeyword`, `theAlternative`, `theAdditional`), and `LinkedFacet` reads back its payment: `colorsSpent`, `manaValueSpent`, `timesPaid`, `readback`, and `taken`. Named object-to-object links (haunt, soulbond, cipher) use `Definition.relation` with `relate`, `related`, and `counterpart`.
+  - The objects a linked ability acted on and the player its cost chose are read as the ability would read its own: a Participial Description (§3.8) and `the isChosenPlayer` (exactly one player choice in scope). `Ability.textContext` publishes, to the abilities after it (a card's text, and a keyword's `body`): choices, additional- and alternative-cost results (`.can _ (.procedure .cast _ (.payingInstead cost) ..) _`, emerge and harmonize `[CR#702.119a,702.180a]`), the target `addsTarget` adds, stamped by targeting (mutate `[CR#702.140a]`), and the objects a printed triggered or activated ability acted on in a public zone, along every branch (champion `[CR#702.72a,607.2k]`). Published objects are `linked`: no pronoun or demonstrative reaches them. `LinkSource.byDeed`, `LinkedFacet.objects`/`chosenPlayer`, `NounPhrase.paid`, `linkedObject(s)` and `chosenAsPaid` are retired (`lean-v3-typed-verbed-deeds`).
 - **Spell Copies, Text-Changing Effects, and Ability Qualifiers (`[CR#707.10c,702.40a,702.56a,612.1,613.1c,113.10a,702.165c,702.169b]`):**
   - Spell-copy keywords write `may(chooseNewTargets(...))` (`[CR#707.10c]`), guarded by `matches_ thisSpell (targeting any .someTarget)` where the keyword's CR definition specifies `"If the spell has any targets"` (`storm` `[CR#702.40a]`, `replicate` `[CR#702.56a]`).
   - Text-changing effects (cleave, overload, splice, word replacements `[CR#612.1,613.1c,702.47a,702.96a,702.148a]`) use `StaticSpec.textChange (subject) (change)` (`removeBracketed`, `targetToEach`, `appendTextOf`, `replaceWord`) over `Predicate.bracketed` and `Instruction.bracketed`.

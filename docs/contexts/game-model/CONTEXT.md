@@ -280,9 +280,9 @@ no declaration gives is refused when the card loads.
 **Deed**:
 Something a card's text says is done, from one of exactly three sources: the
 core rules (a Core Deed), a Keyword Action ([CR#701.1]), or the verb a Keyword
-Ability defines for itself — crewing, saddling, phasing in
-([CR#702.122b,702.171c,702.26a]). Deed is what a rule about "what is done"
-ranges over ("can't attack or block"); Action is the wider notion that also
+Ability defines for itself — crewing, saddling, phasing in, cycling
+([CR#702.122b,702.171c,702.26a,702.29c]). Deed is what a rule about "what is
+done" ranges over ("can't attack or block"); Action is the wider notion that also
 covers what the game does with no text naming it.
 _Avoid_: verb for the whole union — a verb is the word, a Deed is what it names
 
@@ -393,21 +393,31 @@ ability that hands its effect to the chosen Player ([CR#702.174a,702.174b]).
 _Avoid_: reading "the chosen player" as any Choice in scope
 
 **Linked Facet** (project term):
-What a Linked Ability reads back about its Link Source: the colors or amount
-of mana spent, the number of times a cost was paid, whether it was paid
-([CR#702.33d,702.44a,601.2h]), the Player chosen as it was paid
-([CR#702.174a,607.2d]), the Objects its deed acted on ("the exiled cards",
-"creatures it devoured", [CR#607.2a,702.82b]), or whether an offered choice
-was taken ("if tribute wasn't paid", [CR#702.104b]).
-_Avoid_: paid-cost facet, since not every source is a cost; payment record
-(the engine's store, not the reference)
+What a Linked Ability reads back about the payment of its Link Source: the
+colors or amount of mana spent, the number of times a cost was paid, whether
+it was paid ([CR#702.33d,702.44a,601.2h]), or whether an offered choice was
+taken ("if tribute wasn't paid", [CR#702.104b]). The Objects a linked ability
+acted on and the Player its cost chose are read back as the same ability would
+read its own: by a Participial Description and by "the chosen player"
+([CR#607.2a,607.2d]).
+_Avoid_: paid-cost facet; payment record (the engine's store, not the
+reference)
 
 **Link Source** (project term):
-The printed ability or cost a Linked Facet reads back: a cost named by its
-Keyword Ability, "the additional" or "the alternative" cost, or a printed
-ability named by what it does ("the exiled card" names the ability that
-exiled it, [CR#607.2a]).
+The cost a Linked Facet reads back: a cost named by its Keyword Ability, or
+"the additional" or "the alternative" cost ([CR#607.2i]).
 _Avoid_: paid cost name
+
+**Participial Description** (project term):
+A definite or group description whose Predicate says what a Deed did to its
+members, with no span or "this way" written ("the exiled card", "the
+sacrificed creature", "each creature destroyed this way"). It introduces no
+Object: it denotes the one Object or group in scope that Deed acted on, read
+by what the Object was when it was acted on ([CR#608.2h]). With "this way" it
+reads only its own ability's deeds ([CR#607.1c]); with no span written it also
+reads those of an ability linked to it, where a singular "the" reads each of
+a group ([CR#607.2a,607.3]).
+_Avoid_: stamped participle; verbed phrase
 
 **Target**:
 An Object or Player a Spell or Ability has identified to affect as a Target.
@@ -667,9 +677,10 @@ set, a bare pronoun excludes clause-mates and selects the antecedent in the
 nearest clause, breaking ties by grammatical role (subject over object over
 other) and refusing a remaining tie; a demonstrative noun phrase excludes
 clause-mates and what a bare pronoun in the same clause resolved to, then
-selects the most recent compatible antecedent; a stamped participle phrase
-requires a unique compatible antecedent. A Definition body establishes its own
-Reference Scope over its bound parameters and active Actor; a historical-event
+selects the most recent compatible antecedent; a Participial Description
+requires a unique compatible antecedent, and is the only Reference that
+reaches an Object a linked ability acted on. A Definition body establishes its
+own Reference Scope over its bound parameters and active Actor; a historical-event
 predicate binds the entity it describes (`which`) locally.
 _Avoid_: author-chosen numeric stack depth
 

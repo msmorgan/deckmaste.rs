@@ -212,12 +212,16 @@ remains Rust's responsibility. The fold does not claim an execution proof.
 
 ## Historical events
 
-A lookback is a `DidClause`: a `Subject`, an `Action` and a `LookbackSpan`, either a
-`duration` (with an optional `Timing` the action happened under) or an occurrence
-(`thisWay`, the event the enclosing action caused; `triggering`, the event that
+A lookback is a `DidClause`: a `Subject`, an `Action` and an optional `LookbackSpan`,
+either a `duration` (with an optional `Timing` the action happened under) or an
+occurrence (`thisWay`, the event the enclosing action caused; `triggering`, the event that
 triggered the ability), which names no span. `Condition.did`, `Predicate.did` and
-`Amount.tally` carry one. `stepDidClauseWith` steps the action as an event pattern
-(`actionPattern`) after the clause's subject, so it publishes its participants without
+`Amount.tally` carry one; the `did` and `was` (agentless) templates write it, and only
+`Predicate.did`/`Predicate.was` may leave the span unwritten. An unwritten span is refused
+`unanchoredLookback` everywhere but a Participial Description (below). With no agent
+written, or one written with "by", the clause hides the enclosing handoff's performer
+while it steps: the deed looked back at is not the performer's. `stepDidClauseWith`
+steps the action as an event pattern (`actionPattern`) after the clause's subject, so it publishes its participants without
 moving current referents or manufacturing an outcome. `Predicate.did` is a relative
 clause: it opens a new clause with one `which` referent (`relativeBinder`) and leaves
 through `leaveRelative`, which closes everything the clause introduced except a definite
@@ -255,12 +259,26 @@ clause and the highest grammatical role (`GramRole.rank`: subject, object, other
 resolves only to a unique winner; none or a tie is refused `anaphor`. A demonstrative
 (`.word _`, `.unionHalf _`) follows `AC>R1`: it also excludes clause-mates
 in an argument slot and any referent a bare pronoun already resolved to in this clause
-(`pronounResolved`), then takes the most recently introduced candidate. A stamped
-participle (`.verbed …`) must match exactly one referent. A reflexive
-(`NounPhrase.refl`) resolves to the current clause's subject (`resolveReflexive`).
+(`pronounResolved`), then takes the most recently introduced candidate. Neither
+reaches a referent a linked ability published (`Referent.linked`); only a Participial
+Description (below) does. A reflexive (`NounPhrase.refl`) resolves to the current clause's subject (`resolveReflexive`).
 Possessors and other nested mentions record no direct-argument role, so "target
 creature's controller sacrifices it" reads the creature. `nextClause` commits the
 pending roles, advances `currentClause` and clears `pronounResolved`.
+
+A Participial Description is a `NounPhrase.described` with determiner `the` (one, or
+`many`: "the exiled cards"), `all`, `each` or the bare plural, one of whose conjuncts is a
+`Predicate.did` with no span or `thisWay`, whose `which` is what the deed acted on
+(`Predicate.participialAnchor?`). It introduces no referent: `participialCandidates`
+selects the referents its deed stamped (`Referent.stampedBy`), of its number (a group
+determiner reads any, and a whole group rather than a part drawn from it), named by the
+other conjuncts' Head Noun as the object was when acted on (`card`, a battlefield
+location as "permanent", Card Types: `stampedWordOk` [CR#608.2h]). `thisWay` reads only
+referents the current ability stamped [CR#607.1c]; no span written also reads those a
+linked ability published, and a singular `the` reads a published group [CR#607.3]. One
+candidate resolves (and, if published, is mentioned from then on); none or several are
+refused `participialDescription`. `Proofs/Lookback.lean`, `Proofs/LinkedReadback.lean`
+and `Proofs/NounWords.lean` pin it.
 
 `NounPhrase.pro` and `NounPhrase.which` are expansion carriers (`internal_expansion`):
 cards write the templates (`it`, `that`, …) that expand to them. No template reads a
@@ -481,7 +499,7 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
 | Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause that keeps only the cost's public mentions (`publicOnly`). Timing and guard clauses read the body's output. |
 | Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `choiceContext`: only chosen qualities and chosen players carry in, so its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
-| Card text versus nested lists | `Ability.checkText` threads line-level choices and public additional-cost results (`Ability.textContext`); `Ability.checkAll` checks sibling abilities in one supplied context. |
+| Card text versus nested lists | `Ability.checkText` threads line-level choices, public additional- and alternative-cost results, added targets and the public objects a printed triggered or activated ability acted on (`Ability.textContext`); a keyword's `body` is threaded the same way (`checkTextWith`); `Ability.checkAll` checks sibling abilities in one supplied context. |
 | Printed boxes | Literal-only; they do not read discourse. Effect-written stat slots instead step their Amount expressions. |
 | Named-card choice domain | The card-description predicate is stepped in its own Reference Scope (`enterOwnScope`) at object kind and publishes nothing. Other choice-domain payloads use the consumer's context. |
 
@@ -510,15 +528,15 @@ The remaining heads each supply an independent read requirement:
 
 `wordReaches` applies refinements to the same referent. `halfReaches` applies
 the whole refined word within each join half; it cannot take a type from one
-half and copy origin from another. `verbedWordOk` retains the deed stamp and
-event-carrier checks, and now receives origin so a copied refinement can
-compose with that read. Ordinary self exclusion, plurality,
-uniqueness counting, `Reach.tracksObject`, and re-stamping policy are unchanged.
+half and copy origin from another. `stampedWordOk`, a Participial Description's
+Head Noun read, retains the deed stamp and event-carrier checks, and receives
+origin so a copied refinement can compose with that read. Ordinary self
+exclusion, plurality, uniqueness counting, and re-stamping policy are unchanged.
 
 [Proofs/NounWords](Semantics/Proofs/NounWords.lean) pins matching identities,
 incompatible types/carriers, original versus copied abilities, ambiguity,
 join-half isolation, and provenance. Its three general commutativity theorems
-cover type/copy refinement order in direct, half, and verbed matchers.
+cover type/copy refinement order in direct, half, and stamped matchers.
 These refinements have no referent effects; this does not assert commutativity
 of arbitrary Predicate modifiers.
 
@@ -664,7 +682,7 @@ expected child kinds in the incoming `DRS`.
 | `ComplementAnchor` | `NounPhrase.anchorPhrase` and singularity in the `otherThan` predicate case (`complementAnchor`). |
 | `LinkSource` | `NounPhrase.linkSource` in the `exiledWith` location case (`linkSource`). |
 | `PileMention` | `NounPhrase.pileMention` plus noun stepping in the `pile` location case (`pileMention`). |
-| `PaidSubject` | Object-kind checking in the `paid` amount and noun cases. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
+| `PaidSubject` | Object-kind checking in the `paid` amount case. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
 | `DestOk` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a move's destination shape is not checked. |
 | `FlipScope` | `stepFlipScopeWith` steps it. |
 | `IgnoredOutcomes` | `stepIgnoredOutcomesWith` steps it. |
@@ -834,49 +852,37 @@ share one mechanism"); there is no selector device.
 Gift's first ability is a cost, "As an additional cost to cast this spell, you
 may choose an opponent" [CR#702.174a], and its second hands the effect to the
 chosen player [CR#702.174b,702.174d..702.174i]. The two are linked
-[CR#607.2d,607.2i], as kicker's cost and its "was kicked" readback are
-[CR#702.33e], and the second
-reads the first through the same paid-cost facets: `LinkedFacet.chosenPlayer
-which`, "the player chosen as [which] was paid", keyed by `LinkSource` and
-written `.byKeyword (.named "gift")` (`semantics-v2.md` §7, ruling 2026-10-06,
-"Gift and the additional-cost keywords share one mechanism"). There is no
-general linked-ability reference.
+[CR#607.2d,607.2i], and the second reads the choice as "the chosen player"
+(`the isChosenPlayer`, `.chosenPlayer .theChoice`), the words a choice in its own
+ability is read by: `Ability.textContext` publishes the cost's choice to the
+abilities after it, across gift's body as across a card's text. It requires exactly
+one player choice in scope (`countChoice .player`), refused
+`choiceRef theChoice player n` otherwise; in gift's body the cost is the only one.
 
-- The facet is a player, so it is read by `NounPhrase.paid facet subject`
-  (`chosenAsPaid`); `Amount.paid` reads the amount facets. Each refuses the
-  other's facet (`linkedFacetKind`): a term-shape check.
-- It resolves as kicker's readback does: the cost is named in the registry
-  (`linkedFacetNamed`); where the subject is (the `paidSubject` stack demand) is
-  no longer checked (`lean-checker-sweep-zone`). It adds one reference check: paying the named cost chooses
-  a player, the row's `costChoosesPlayer` column (gift's alone), else
-  `linkedChoiceInScope which`, since the linked ability has no choice to read
-  [CR#607.2d]. "The additional cost" and "the alternative cost" declare no
-  choice. Neither check asserts a game rule (§7, "The checker's charter").
-- A bare "the chosen player" (`chosenPlayer`, `.chosenPlayer .theChoice`) still
-  reads only a choice in its own ability, and is refused with
-  `choiceRef theChoice player 0` where there is none.
-- Pins: `Semantics/Proofs/LinkedChoiceReadback.lean`, including both
-  class-guarded halves of a gift-shaped definition.
+- Pins: `Semantics/Proofs/LinkedChoiceReadback.lean` (one, none and two choices,
+  both class-guarded halves, the keyword body) and `Semantics/Proofs/GiftVariants.lean`.
 
-
-### Linked Facets of a Link Source, and declared Relations
+### Linked Facets of a Link Source, linked objects, and declared Relations
 
 `PaidFacet` and `PaidCostName` are `LinkedFacet` and `LinkSource`
 (`semantics-v2.md` §7, ruling 2026-10-09, "A linked ability reads back a
-Linked Facet of a Link Source"). A Link Source is also a printed ability named
-by its deed, `LinkSource.byDeed deed` ("the exiled card" [CR#607.2a]), and two
-facets join the five:
+Linked Facet of a Link Source"). A Link Source names a cost; the facets read its
+payment, among them `LinkedFacet.taken which`, whether the choice `which` offered
+was taken ("if tribute wasn't paid" [CR#702.104b]), an amount facet named when its
+source is (`linkedFacetNamed`).
 
-- `LinkedFacet.objects which deed plurality`, the objects `deed` acted on
-  ("the sacrificed creature", "creatures it devoured" [CR#702.82b]), read by
-  `NounPhrase.paid` at object kind and the written number. It is named when
-  its source is (`linkedFacetNamed`), the deed is declared and acts on
-  objects, and the source performs that deed (`LinkSource.performs`): a
-  `byDeed` source performs only its own deed, and a keyword ability's own deed
-  is performed only by that keyword's source. Anything else is refused
-  `linkedFacetNamed`: there is nothing to read back.
-- `LinkedFacet.taken which`, whether the choice `which` offered was taken
-  ("if tribute wasn't paid" [CR#702.104b]), an amount facet.
+The objects a linked ability acted on are read by a Participial Description, written
+as the same ability would write it of its own deed ("the exiled card", "the
+sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AST.
+`Ability.textContext` publishes them `linked`: an additional or alternative cost's
+public results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
+by targeting so mutate's "the target" is its own spell's [CR#702.140a], and the
+objects a printed triggered or activated ability acted on in a public zone, along
+every branch it may take (champion [CR#702.72a]). Resolution refuses a description
+whose deed or Head Noun no published object fits ("the exiled creature" when a card
+left a graveyard) and one two abilities could supply [CR#607.2a]. Where the object is
+when the linked ability resolves (a card that left exile) is the engine's, not the
+checker's.
 
 A Relation (`RelationLabel`) is declared as a designation is, under
 `plugins_v2/builtin/macros/relations/`, as `Definition.relation label left
