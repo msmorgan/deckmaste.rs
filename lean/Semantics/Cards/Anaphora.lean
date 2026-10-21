@@ -384,7 +384,7 @@ theorem sequencedRiderOneExiled :
   decide
 
 /-- Engulfing Flames -/
-def engulfingFlamesBody : Action := instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly)
+def engulfingFlamesBody : Action := instruct this_ (dealDamage (.lit 1) (target isCreature))
 theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :

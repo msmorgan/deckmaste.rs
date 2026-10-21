@@ -81,7 +81,7 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
   `onlyAuthored` authoring boundary and fuel-based termination; fix the dangling
   cross-reference in `Proofs/Numbers.lean:14`.
 - **`docs/decisions/semantics-v3.md` (§7.3):** Update §2 and §3 code listings and
-  CR numbers (`Action`, `can`, `DeonticMods`, `combatOnly`, cast `[CR#701.5]`,
+  CR numbers (`Action`, `can`, `DeonticMods`, cast `[CR#701.5]`,
   create `[CR#701.7]`) to match the current workbench.
 - **Glossary (`docs/contexts/game-model/CONTEXT.md`, §7.5):** Reconcile Lean's
   `Definition` (`Rules.lean`) vs the glossary's **Registry Definition** and

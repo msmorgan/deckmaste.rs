@@ -85,7 +85,7 @@ theorem badEmptySimultaneousComposition :
     Action.check (DRS.ofList []) (.simultaneously []) = [.nonEmpty] := by decide
 
 theorem okThreeDamageRecipientAlternatives :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.or [thisCreature, .you, thisCreature]) .any)) =
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.or [thisCreature, .you, thisCreature]))) =
       [] := by decide
 
 end Semantics.Proofs.Composition

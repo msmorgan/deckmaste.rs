@@ -711,7 +711,7 @@ theorem okUnlockRoomDoor :
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/
 def doorDamage (amount : Nat) : Ability :=
   when (.does (.actor .you) (.unlock .thisDoor))
-    (Action.instruct thisRoom (.dealDamage (.lit amount) (each (.isOpponentOf .you)) .any))
+    (Action.instruct thisRoom (.dealDamage (.lit amount) (each (.isOpponentOf .you))))
 
 /-- "When you unlock this door, this Room deals 1 damage to each opponent.": a door header
 belongs to a Room's shared line. -/

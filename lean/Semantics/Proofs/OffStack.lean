@@ -148,7 +148,7 @@ theorem okGoblinsItDevoured :
       [ devour (.lit 1),
         when (does thisCreature enter)
           (dealDamage (times (.lit 2) (countOf (and [hasSubtype goblin, did it (devour which)])))
-            (target isAnyTarget) .noncombatOnly) ] = [] := by
+            (target isAnyTarget)) ] = [] := by
   decide
 
 /-- Without devour, it devoured nothing; and a creature another ability sacrificed was not

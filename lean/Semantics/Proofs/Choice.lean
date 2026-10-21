@@ -373,13 +373,13 @@ theorem okNotChosenAfterOneChoice :
     Action.check (DRS.ofList [])
       (.sequentially
         [ choose (a isCreature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any)) ]) = [] := by
+          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])))) ]) = [] := by
   decide
 
 /-- "This deals 3 damage to each creature not chosen this way." Nothing was chosen, so "this
 way" reads back no choice (`okNotChosenAfterOneChoice` is the same read with one standing). -/
 theorem badNotChosenWithoutAChoice :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any))
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen]))))
       = [.choiceInScope .object] := by
   decide
 
@@ -391,7 +391,7 @@ theorem okNotChosenAfterTwoChoices :
       (.sequentially
         [ choose (a isCreature),
           choose (a isCreature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any)) ]) = [] := by
+          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])))) ]) = [] := by
   decide
 
 /-- "Choose a creature you control, then each opponent chooses a creature they control.

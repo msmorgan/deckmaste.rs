@@ -201,10 +201,10 @@ semantic_definition fight (other : NounPhrase) : Action :=
         is (.firstMention "fight.source" .actor) isCreature])
         (.simultaneously [
           .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
-            (.laterMention "fight.other" (.inCaller other)) .any,
+            (.laterMention "fight.other" (.inCaller other)),
           instruct (.laterMention "fight.other" (.inCaller other))
             (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (.inCaller other)))
-              (.laterMention "fight.source" .actor) .any)])
+              (.laterMention "fight.source" .actor))])
         none))
 /-- "reveal <cards>" (`Definition`, [CR#701.20]). -/
 semantic_definition reveal (cards : NounPhrase) : Action :=
@@ -771,7 +771,7 @@ semantic_definition theRingTemptsYou : Action :=
                     (abilityGrant this_
                       (triggered
                         (does (a ringBearers)
-                          (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+                          (dealDamage (to := a isPlayer) (kind := some .combat)))
                         (instruct eachOpponent (loseLife (.lit 3)))))
                     (compareAmt timesTempted .atLeast (.lit 4))) ])
             :: tempting)))

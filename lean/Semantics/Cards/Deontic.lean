@@ -20,7 +20,7 @@ def changeOfHeart : Action := establishThroughout (cant (target isCreature) atta
 theorem okChangeOfHeart : Action.check (DRS.ofList []) changeOfHeart = [] := by decide
 def blindblast : Action :=
   sequentially
-    [instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
+    [instruct this_ (dealDamage (.lit 1) (target isCreature)), establishThroughout
        (cant (that creature) block) thisTurn]
 theorem okBlindblast : Action.check (DRS.ofList []) blindblast = [] := by decide
 def blindingFlare : Action :=
@@ -43,14 +43,14 @@ theorem okAuriokSiegeSledDenial : Ability.check (DRS.ofList []) auriokSiegeSledD
 /-- Blindblast -/
 def blindblastWhole : Action :=
   sequentially
-    [ instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
+    [ instruct this_ (dealDamage (.lit 1) (target isCreature)), establishThroughout
         (cant (that creature) block) thisTurn,
       draw (.lit 1) ]
 theorem okBlindblastWhole : Action.check (DRS.ofList []) blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Action :=
   sequentially
-    [ instruct this_ (dealDamage (.lit 1) (eachOf (targets (upTo 2) isCreature)) .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 1) (eachOf (targets (upTo 2) isCreature))),
       establishThroughout (cant (those creature) block) thisTurn ]
 theorem okSparkmagesGambit : Action.check (DRS.ofList []) sparkmagesGambit = [] := by decide
 
@@ -248,7 +248,7 @@ def excruciator : Spelled := spelled <| .singleFaced
     { name := "Excruciator", cost := some [generic 6, pip .red, pip .red], types := [.creature],
       subtypes := [avatar],
       text :=
-        [ static (preventionBan .any (damageDealt (dealtBy thisCreature) everywhere)
+        [ static (preventionBan (damageDealt (dealtBy thisCreature) everywhere)
             .noPreventionOnly) ],
       power := stat 7, toughness := stat 7 } }
 
@@ -256,7 +256,7 @@ def flaringPain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Flaring Pain", cost := some [generic 1, pip .red], types := [.instant],
       text :=
-        [ spell (establishThroughout (preventionBan .any (damageDealt unattributed everywhere)
+        [ spell (establishThroughout (preventionBan (damageDealt unattributed everywhere)
                 .noPreventionOnly) thisTurn),
           flashback (mana [pip .red]) ] } }
 
@@ -280,7 +280,7 @@ def gideonJura : Spelled := spelled <| .singleFaced
                           subtypes := [human, soldier],
                           power := stat 6, toughness := stat 6 } }
                       (some .planeswalker))) untilEndOfTurn,
-                preventAll .any (toRecipient it) (some thisTurn) ]) ],
+                preventAll (toRecipient it) (some thisTurn) ]) ],
       loyalty := stat 6 } }
 
 def pinpointAvalanche : Spelled := spelled <| .singleFaced
@@ -289,14 +289,13 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (sequentially
-            [ instruct this_ (dealDamage (.lit 4) (target isCreature) .noncombatOnly),
-              establish (preventionBan .any thatDamage .noPreventionOnly) ]) ] } }
+            [ instruct this_ (dealDamage (.lit 4) (target isCreature)),
+              establish (preventionBan thatDamage .noPreventionOnly) ]) ] } }
 
 def whippoorwillImmunity : Action :=
   sequentially
     [ establishThroughout (cant any (regeneration (target isCreature))) thisTurn,
-      establishThroughout (preventionBan .any
-          (damageDealt unattributed
+      establishThroughout (preventionBan (damageDealt unattributed
              (toRecipient (that creature))) .noRedirectEither) thisTurn ]
 theorem okWhippoorwillImmunity : Action.check (DRS.ofList []) whippoorwillImmunity = [] := by decide
 
@@ -306,9 +305,9 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ establishThroughout (cant (bare isPlayer) (gainLife anyAmount)) thisTurn,
-              establishThroughout (preventionBan .any (damageDealt unattributed everywhere)
+              establishThroughout (preventionBan (damageDealt unattributed everywhere)
                                      .noPreventionOnly) thisTurn,
-              instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly) ]) ] } }
+              instruct this_ (dealDamage (.lit 3) (target isAnyTarget)) ]) ] } }
 
 /-- Council of the Absolute -/
 def councilOfTheAbsolute : Spelled := spelled <| .singleFaced
@@ -339,7 +338,7 @@ def gideonsIntervention : Spelled := spelled <| .singleFaced
       text :=
         [ static (entersChoosing thisEnchantment .cardName),
           static (cant yourOpponents (cast (allOf (and [isSpell, named chosenName])))),
-          static (damageRule .any (dealtBy (allOf (and [isSource, named chosenName])))
+          static (damageRule (dealtBy (allOf (and [isSource, named chosenName])))
             (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
             (prevent allDamage) .repeatedly) ] } }
 
@@ -371,7 +370,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           whenever
-            (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+            (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (instruct (that player) (skipPart .combat (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -501,7 +500,7 @@ def glacialChasm : Spelled := spelled <| .singleFaced
         [ cumulativeUpkeep (payLife 2),
           when (does thisLand enter) (sacrifice (a isLand)),
           static (cant (allOf (and [isCreature, youControl])) attack),
-          static (damageRule .any unattributed (toRecipient you) (prevent allDamage)
+          static (damageRule unattributed (toRecipient you) (prevent allDamage)
             .repeatedly) ] } }
 
 /-- Peacekeeper -/
@@ -577,7 +576,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
 /-- Concussive Bolt, both paragraphs -/
 def concussiveBolt : Action :=
   sequentially
-    [ instruct this_ (dealDamage (.lit 4) targetPlayerOrPlaneswalker .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 4) targetPlayerOrPlaneswalker),
       doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit
           3))
         (establishThroughout

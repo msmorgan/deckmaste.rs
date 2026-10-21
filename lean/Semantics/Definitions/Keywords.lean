@@ -68,7 +68,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_definition renown (count : Amount) : Ability :=
   .keyword (.named "renown") [.number (.inCaller count)]
-    [ whenIf (does thisCreature (dealDamage (to := a .anyPlayer) (kind := .combatOnly)))
+    [ whenIf (does thisCreature (dealDamage (to := a .anyPlayer) (kind := some .combat)))
         (not (is thisCreature (hasDesignation renowned)))
         (sequentially
           [ putCounters (.inCaller count) p1p1Counter thisCreature,
@@ -187,7 +187,7 @@ semantic_template willOfTheCouncil (ability : Ability) : Ability :=
 semantic_definition absorb (amount : Amount) : Ability :=
   .keyword (.named "absorb") [.number (.inCaller amount)]
     [ static
-        (.damageRule .any .unattributed (.toRecipient thisCreature)
+        (.damageRule .unattributed (.toRecipient thisCreature)
           (.prevent (.some (.inCaller amount)) none)
           .repeatedly) ]
 semantic_definition affinity (quality : Predicate) : Ability :=
@@ -333,7 +333,7 @@ semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (doIf (did anOpponent (.dealDamage .anyAmount .which .any) soFarThisTurn)
+          (doIf (did anOpponent (.dealDamage .anyAmount .which) soFarThisTurn)
             (withRiders [.withCounters (.inCaller amount) p1p1Counter .fresh]))) ]
 semantic_definition boast (ability : Ability) : Ability :=
   .keyword (.named "boast") [.ability (.inCaller ability)]
@@ -384,7 +384,7 @@ semantic_definition cipher : Ability :=
       static
         (abilityGrant (.counterpart encodedOn this_)
           (triggered
-            (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) .combatOnly))
+            (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
             (may
               (sequentially
                 [ .copy .fromCardZone
@@ -886,7 +886,7 @@ semantic_definition infinity (ability : Ability) : Ability :=
           (is thisPermanent (hasDesignation harnessed))) ]
 semantic_definition ingest : Ability :=
   .keyword (.named "ingest") []
-    [ triggered (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) .combatOnly))
+    [ triggered (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
         (instruct they
           (exile (.slice .top (.lit 1) (libraryOf they)))) ]
 /-- "Intimidate": "This creature can't be blocked except by artifact creatures and/or creatures
@@ -1102,7 +1102,7 @@ semantic_definition plot (cost : Cost) : Ability :=
                 onALaterTurn ])) ]
 semantic_definition poisonous (amount : Amount) : Ability :=
   .keyword (.named "poisonous") [.number (.inCaller amount)]
-    [ triggered (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) .combatOnly))
+    [ triggered (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
         (putCounters (.inCaller amount) poison they) ]
 semantic_definition powerUp (ability : Ability) : Ability :=
   .keyword (.named "powerUp") [.ability (.inCaller ability)]
@@ -1129,7 +1129,7 @@ semantic_definition protection (quality : Predicate) : Ability :=
               (and [or [.hasSubtype equipment, .hasSubtype fortification], .inCaller quality]))
             thisPermanent)),
       static
-        (.damageRule .any (.dealtBy (allOf (and [.isSource, .inCaller quality])))
+        (.damageRule (.dealtBy (allOf (and [.isSource, .inCaller quality])))
           (.toRecipient thisPermanent)
           (.prevent .all none) .repeatedly),
       static (cant (.by (allOf (and [isCreature, .inCaller quality]))) (.block thisCreature)) ]
@@ -1157,7 +1157,7 @@ semantic_definition prowl (cost : Cost) : Ability :=
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
           (did (a (and [.shares (.subtype .creature) .share thisSpell, youControl]))
-            (.dealDamage .anyAmount (a isPlayer) .combatOnly) soFarThisTurn)) ]
+            (.dealDamage .anyAmount (a isPlayer) (some .combat)) soFarThisTurn)) ]
 semantic_definition rampage (amount : Amount) : Ability :=
   .keyword (.named "rampage") [.number (.inCaller amount)]
     [ triggered (does .any (.block thisCreature))

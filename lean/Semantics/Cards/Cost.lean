@@ -297,7 +297,8 @@ def angusMackenzie : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ activatedOnlyDuring (compound [mana [pip .green, pip .white, pip .blue], tapSymbol])
-            (preventAll .combatOnly everywhere (some thisTurn)) (beforePart .combatDamage none) ],
+            (preventAll everywhere (some thisTurn) (some .combat))
+            (beforePart .combatDamage none) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Vampire Hexmage -/

@@ -80,7 +80,7 @@ theorem badConferralScopeKind :
 /-- [CR#120.3c] "Damage dealt to a planeswalker causes that many loyalty counters to be removed
 from that planeswalker." -/
 def planeswalkerLoyaltyDamage : DamageResult :=
-  { kind := .any, source := .any, recipient := .hasType .planeswalker, mode := .intrinsic,
+  { source := .any, recipient := .hasType .planeswalker, mode := .intrinsic,
     does := loseCounters (some (.printed (.named "loyaltyCounter"))) (some .thatMuch) .this }
 theorem okPlaneswalkerLoyaltyDamage :
     damageResultCheck planeswalkerLoyaltyDamage = [] := by decide
@@ -88,7 +88,7 @@ theorem okPlaneswalkerLoyaltyDamage :
 /-- [CR#120.3h] "Damage dealt to a battle causes that many defense counters to be removed from
 that battle." -/
 def battleDefenseDamage : DamageResult :=
-  { kind := .any, source := .any, recipient := .hasType .battle, mode := .intrinsic,
+  { source := .any, recipient := .hasType .battle, mode := .intrinsic,
     does := loseCounters (some (.printed (.named "defenseCounter"))) (some .thatMuch) .this }
 theorem okBattleDefenseDamage : damageResultCheck battleDefenseDamage = [] := by decide
 

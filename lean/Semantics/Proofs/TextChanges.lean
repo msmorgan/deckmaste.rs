@@ -40,8 +40,8 @@ theorem okBracketedAction : Action.check (DRS.ofList []) (.bracketed (draw (.lit
 /-- "[This spell deals 2 damage to target creature.]" read as dealt to a player: refused inside
 the brackets as outside. -/
 theorem bracketedActionMismatchStillRefused :
-    Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)))
-      = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)) := by decide
+    Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature))))
+      = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature))) := by decide
 
 /-- Cleave's Text Change on a spell that prints no brackets removes nothing and still checks. -/
 theorem okRemoveBracketedWithoutBrackets :

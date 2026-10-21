@@ -79,7 +79,7 @@ theorem possibleChoiceHistoryDoesNotExportLoopReferences :
       Ability.checkText (DRS.ofList [])
         [.spell none optionalCreature,
          .spell none (.dealDamage (.lit 1)
-           (.described .each (.and [.hasType .creature, .notChosen])) .noncombatOnly)] =
+           (.described .each (.and [.hasType .creature, .notChosen])))] =
         [.choiceInScope .object] ∧
       let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
         (.doForEach (.described .each .anyPlayer) optionalCreature)).1

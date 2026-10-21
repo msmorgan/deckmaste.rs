@@ -14,30 +14,30 @@ private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 
 theorem unrestrictedDamageEventIsWellFormed :
-    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount .any .any)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount .any)) = [] := by decide
 
 theorem damageSourceIsObject :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.dealDamage .anyAmount .any .any)) =
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.dealDamage .anyAmount .any)) =
       [.kindMismatch .object .player] := by decide
 
 theorem recipientMayBePlayer :
-    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount .you .combatOnly)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount .you (some .combat))) = [] := by decide
 
 theorem sourcePrecedesReflexiveRecipientReference :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (.refl .one) .any)) = [] := by decide
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (.refl .one))) = [] := by decide
 
 theorem bareRecipientCannotReferToCoargumentSource :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor (a isCreature)) (.dealDamage .anyAmount it .any)) =
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount it)) =
       [.anaphor .bare .one 0] := by decide
 
 theorem absentSourceCannotSupplyReference :
-    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount it .any)) =
+    GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount it)) =
       [.anaphor .bare .one 0] := by decide
 
 theorem occurredDamageComposesSourceThenBodyForEveryContext
-    (fuel : Nat) (drs : DRS) (source patient : NounPhrase) (kind : DamageKind) :
+    (fuel : Nat) (drs : DRS) (source patient : NounPhrase) (kind : Option DamageKind) :
     let subjectContext := (stepSubjectBeforeWith (stepOps fuel) drs (.actor source)).1
     let bodyContext := (stepAction fuel .postEvent .obj
       { subjectContext with actionPattern := true } (.dealDamage .anyAmount patient kind)).1
@@ -47,34 +47,34 @@ theorem occurredDamageComposesSourceThenBodyForEveryContext
 
 /-- Every occurred damage event publishes its outcome ahead of participant referents. -/
 theorem damageOutcomePrecedesParticipantsForEveryContext
-    (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
+    (drs : DRS) (kind : Option DamageKind) (source patient : NounPhrase) :
     ((GameEvent.extend drs
       (.does (.actor source) (.dealDamage .anyAmount patient kind))).referents.head?).map
         (·.payload) = some (.outcome .damageDealt) := by rfl
 
 theorem damagePublishesParticipantsAndOutcome :
     let after := GameEvent.extend (DRS.ofList [])
-      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .anyPlayer) .any))
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .anyPlayer)))
     countOutcomes .damageDealt after = 1 ∧
       (after.findById? 0).map (·.role) = some .subj ∧
       (after.findById? 2).map (·.role) = some .obj := by decide
 
 theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
-    (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
+    (drs : DRS) (kind : Option DamageKind) (source patient : NounPhrase) :
     ((stepDidClause 64 drs
       ⟨.actor source, .dealDamage .anyAmount patient kind, some .thisWay⟩).1.referents.head?).map
         (·.payload) = some (.outcome .damageDealt) := by rfl
 
-theorem observedDamageDoesNotExportOrRefineReferents (kind : DamageKind) :
+theorem observedDamageDoesNotExportOrRefineReferents (kind : Option DamageKind) :
     let before := nounResult (DRS.ofList []) (target isArtifact)
     let after := (stepPredicate 64 before (.did ⟨.actor .which,
       .dealDamage .anyAmount .you kind, some .thisWay⟩)).1
     after.referents = before.referents ∧ countOutcomes .damageDealt after = 0 := by
-  cases kind <;> decide
+  rcases kind with _ | _ | _ <;> decide
 
 theorem patientOnlyDoesNotManufactureSource :
     (GameEvent.extend (DRS.ofList [])
-      (.does .any (.dealDamage .anyAmount thisCreature .any))).performer = none := by decide
+      (.does .any (.dealDamage .anyAmount thisCreature))).performer = none := by decide
 
 theorem entryAndAttachmentChoicesRemainDistinct :
     entersChoosing thisCreature .color ≠ attachChoosing thisCreature .color := by

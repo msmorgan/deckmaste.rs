@@ -254,7 +254,7 @@ theorem okActivatedOpensItsOwnLetter :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
         (.sequentially
-          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget) .any)), define .x (.lit 3)])) = [] := by
+          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget))), define .x (.lit 3)])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/

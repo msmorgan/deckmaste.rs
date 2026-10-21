@@ -35,8 +35,8 @@ listed too. -/
 theorem badDelayedOther :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget) .any)),
-          delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget) .any)) ])
+        [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget))),
+          delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))) ])
       = [.anyTargeted (.join .object .player), .otherAnchored] := by
   decide
 
@@ -156,7 +156,7 @@ theorem okReflexiveOnSacrifice :
 /-- "This creature deals 3 damage to any target. When you do, draw a card." -/
 theorem badReflexiveOnSourceDeed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
+      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget)))
         none (draw (.lit 1)))
       = [.reflexEnclosure] := by
   decide
@@ -346,7 +346,7 @@ theorem badIfDoneWithNeitherArm :
 /-- "This creature deals 3 damage to any target. If you do, draw a card." -/
 theorem badIfDoneOverAgentlessBody :
     Action.check (DRS.ofList [])
-      (doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget) .any)) (some (draw (.lit 1)))) = [.reflexEnclosure] := by
+      (doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget))) (some (draw (.lit 1)))) = [.reflexEnclosure] := by
   decide
 
 /-- "Take an extra turn after this one. If you do, draw a card." -/

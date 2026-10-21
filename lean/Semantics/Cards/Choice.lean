@@ -1138,7 +1138,7 @@ def communeWithTheGods : Spelled := spelled <| .singleFaced
 
 /-- Nautiloid Ship -/
 def nautiloidShipTrigger : Ability :=
-  whenever (does thisVehicle (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenever (does thisVehicle (dealDamage (to := a isPlayer) (kind := some .combat)))
     (may (putOntoBattlefieldUnderYourControl (a (and [isCreature, in_ (exiledWith thisVehicle)]))))
 theorem okNautiloidShipTrigger : Ability.check (DRS.ofList []) nautiloidShipTrigger = [] := by decide
 
@@ -1390,11 +1390,10 @@ def caughtInTheCrossfire : Spelled := spelled <| .singleFaced
       text :=
         [ spell (chooseSpree
             [ (some (mana [generic 1]),
-               instruct this_ (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])) .noncombatOnly)),
+               instruct this_ (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])))),
               (some (mana [generic 1]),
                instruct this_
-                   (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw]))
-                      .noncombatOnly)) ]) ] } }
+                   (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw])))) ]) ] } }
 
 /-- Requisition Raid -/
 def requisitionRaid : Spelled := spelled <| .singleFaced

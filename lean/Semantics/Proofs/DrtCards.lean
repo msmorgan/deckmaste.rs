@@ -118,7 +118,7 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
 
 theorem distributedDamagePublishesItsRecipientGroup :
     let out := (stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.dealDamage (.lit 1) (each (.isOpponentOf .you)) .noncombatOnly)).1
+      (.dealDamage (.lit 1) (each (.isOpponentOf .you)))).1
     (resolveCandidates (.word .player) .many (nextClause out)).map (·.id) = [0] := by decide
 
 /-- "Target creature gets +2/+2 if its power is 2. …": the condition reads the target, chosen as
@@ -267,7 +267,7 @@ theorem countersOnItReadsTheStatSubjectInsideTheSmallClause :
 private def weepingAngelRecipientContext : DRS :=
   (stepWouldClauseWith (stepOps 16) (DRS.ofList [])
     (.would (.actor thisCreature)
-      (.dealDamage .anyAmount (.firstMention "weeping.recipient" (a isCreature)) .combatOnly))).1
+      (.dealDamage .anyAmount (.firstMention "weeping.recipient" (a isCreature)) (some .combat)))).1
 
 theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
     let initial := nextClause weepingAngelRecipientContext

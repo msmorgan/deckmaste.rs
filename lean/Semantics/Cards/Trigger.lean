@@ -26,7 +26,8 @@ theorem okPromiseOfTomorrow : Ability.check (DRS.ofList []) promiseOfTomorrow = 
 def libraryLarcenist : Ability := whenever (does thisCreature attack) (draw (.lit 1))
 theorem okLibraryLarcenist : Ability.check (DRS.ofList []) libraryLarcenist = [] := by decide
 def jhessianThief : Ability :=
-  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (draw (.lit 1))
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
+    (draw (.lit 1))
 theorem okJhessianThief : Ability.check (DRS.ofList []) jhessianThief = [] := by decide
 def scholarOfStars : Ability :=
   whenIf (does thisCreature enter)
@@ -138,7 +139,7 @@ def lichsMasteryLoss : Ability :=
   when (does thisEnchantment leave) loseGame
 theorem okLichsMasteryLoss : Ability.check (DRS.ofList []) lichsMasteryLoss = [] := by decide
 def phageTheUntouchable : Ability :=
-  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
       (instruct (that player) loseGame)
 theorem okPhageTheUntouchable : Ability.check (DRS.ofList []) phageTheUntouchable = [] := by decide
 def elderscaleWurm : Ability :=
@@ -179,7 +180,7 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
       power := stat 2, toughness := stat 1 } }
 
 def archivistOfGondor : Ability :=
-  whenIf (does yourCommander (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenIf (does yourCommander (dealDamage (to := a isPlayer) (kind := some .combat)))
       (thereIsNo monarch)
     (gainDesignation you monarch)
 theorem okArchivistOfGondor : Ability.check (DRS.ofList []) archivistOfGondor = [] := by decide
@@ -304,7 +305,9 @@ def piousWarrior : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Pious Warrior", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [human, rebel, warrior],
-      text := [whenever (does any (dealDamage (to := thisCreature) (kind := .combatOnly))) (gainLife thatMuch)],
+      text :=
+        [ whenever (does any (dealDamage (to := thisCreature) (kind := some .combat)))
+            (gainLife thatMuch) ],
       power := stat 2, toughness := stat 3 } }
 
 def sanguineBond : Spelled := spelled <| .singleFaced
@@ -358,7 +361,7 @@ def fiendBinder : Spelled := spelled <| .singleFaced
 
 /-- Souls of the Faultless -/
 def soulsOfTheFaultlessDrain : Ability :=
-  whenever (does any (dealDamage (to := thisCreature) (kind := .combatOnly)))
+  whenever (does any (dealDamage (to := thisCreature) (kind := some .combat)))
     (instruct (combatPlayer .attacking) (loseLife thatMuch))
 theorem okSoulsOfTheFaultlessDrain : Ability.check (DRS.ofList []) soulsOfTheFaultlessDrain = [] := by decide
 
@@ -932,7 +935,7 @@ def dread : Spelled := spelled <| .singleFaced
 private semantic_template creatureDamagedByAttachedHostThisTurn (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
     .did ⟨.actor (.attachHost attachment creature),
-      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩])
+      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩])
 
 /-- Vampiric Embrace. -/
 def vampiricEmbrace : Spelled := spelled <| .singleFaced

@@ -112,7 +112,7 @@ theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (.triggered (does thisCreature attack)
         [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)] none [] none none none
-        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)) .any)))
+        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)))))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
         (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature attack)))).map (·.id) = some 0 := by
@@ -209,7 +209,7 @@ theorem okThatMuchAfterOutcome :
 /-- "This deals 2 damage to target creature and you gain that much life." -/
 theorem badSimultaneousReadsOutcome :
     Action.check (DRS.ofList [])
-      (.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any)), gainLife .thatMuch])
+      (.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature))), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
@@ -225,7 +225,7 @@ theorem badSimultaneousReadsMayDeed :
 theorem badSimultaneousReadsMayOutcome :
     Action.check (DRS.ofList [])
       (.simultaneously
-        [may (Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any)), gainLife .thatMuch])
+        [may (Action.instruct .this (.dealDamage (.lit 2) (target isCreature))), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
@@ -243,7 +243,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
-            [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any)), instruct (target (.isOpponentOf .you)) (loseLife (.lit 3))],
+            [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature))), instruct (target (.isOpponentOf .you)) (loseLife (.lit 3))],
           gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
   decide
 
@@ -278,12 +278,12 @@ theorem badBarePluralCounterRecipient :
 /-- "This deals 1 damage to each of up to two target creatures." -/
 theorem okDistributedDamageRecipient :
     Action.check (DRS.ofList [])
-      (Action.instruct .this (.dealDamage (.lit 1) (.eachOf (.described (.target (upTo 2)) isCreature)) .any)) = [] := by
+      (Action.instruct .this (.dealDamage (.lit 1) (.eachOf (.described (.target (upTo 2)) isCreature)))) = [] := by
   decide
 
 /-- "This deals 1 damage to up to two target creatures." -/
 theorem badBarePluralDamageRecipient :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.described (.target (upTo 2)) isCreature) .any))
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.described (.target (upTo 2)) isCreature)))
       = [.perMember] := by
   decide
 

@@ -806,7 +806,7 @@ mutual
 
   /-- A rules- or static-defined damage result [CR#120.3,120.4c,702.15b,702.80a]. -/
   structure DamageResult where
-    kind : DamageKind
+    kind : Option DamageKind := none
     source : Subject
     recipient : Predicate
     mode : ResultMode
@@ -871,9 +871,10 @@ mutual
     /-- A static damage-result modification (lifelink, wither, infect)
     [CR#120.3,120.4c,702.15b,702.80a]. -/
     | damageResult (rule : DamageResult)
-    | damageRule (kind : DamageKind) (source : DamageAgent) (scope : DamageScope) (op : DamageOp)
-        (use : ReplUse)
-    | preventionBan (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan)
+    | damageRule (source : DamageAgent) (scope : DamageScope) (op : DamageOp) (use : ReplUse)
+        (kind : Option DamageKind := none)
+    | preventionBan (damage : Unpreventable) (ban : PreventionBan)
+        (kind : Option DamageKind := none)
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
@@ -1018,8 +1019,8 @@ mutual
     [CR#702.148a]: transparent, it means what `action` means. -/
     | bracketed (action : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
-    clause's subject or performer). -/
-    | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : DamageKind)
+    clause's subject or performer); `kind` is `none` for unqualified "damage". -/
+    | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : Option DamageKind := none)
     /-- Mark `amount` damage on `subject` [CR#120.3e], counterpart to `clearDamage` [CR#120.6]. -/
     | markDamage (subject : NounPhrase) (amount : Amount)
     /-- Remove all damage marked on the permanent [CR#120.6]. -/

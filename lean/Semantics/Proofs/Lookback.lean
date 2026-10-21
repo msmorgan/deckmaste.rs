@@ -71,12 +71,12 @@ theorem innerGapDoesNotSupplyOuterParticipant :
 theorem participantCanOccurMoreThanOnce :
     relativeCheck .object
       ⟨.actor (.headed (.type .creature) .which),
-        .dealDamage .anyAmount (.headed (.type .creature) .which) .any,
+        .dealDamage .anyAmount (.headed (.type .creature) .which),
         some withinThisTurn⟩ = [] := by decide
 
 private def damageHistory : Predicate :=
   .did ⟨.actor (.headed (.type .creature) .which),
-    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)) .any, some withinThisTurn⟩
+    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)), some withinThisTurn⟩
 
 theorem historyDoesNotIntroduceDamageOutcome :
     countOutcomes .damageDealt (stepPredicate 64 (DRS.ofList []) damageHistory).1 = 0 := by decide
@@ -89,7 +89,7 @@ theorem historyNamedParticipantAccessibleLocally :
     relativeCheck .object
       ⟨.actor .which,
         .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) (.isOpponentOf .you)))
-          (.pro (.word .player) .one) .any,
+          (.pro (.word .player) .one),
         some withinThisTurn⟩ = [] := by decide
 
 theorem castCanCarryExcludedOrigins :

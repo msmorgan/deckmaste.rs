@@ -1069,7 +1069,7 @@ semantic_template attackWith (attackers : NounPhrase) (defender : Option NounPhr
 semantic_template Action.target (subject : NounPhrase) : Action := .target subject
 /-- "<subject> deals [<amount>] [<kind>] damage [to <to>]" -/
 semantic_template dealDamage (amount : Amount := anyAmount)
-    (to : NounPhrase := Templates.NounPhrase.any) (kind : DamageKind := .any) : Action :=
+    (to : NounPhrase := Templates.NounPhrase.any) (kind : Option DamageKind := none) : Action :=
   .dealDamage amount to kind
 /-- "<subject> wins the game" -/
 semantic_template winGame : Action := .conclude .winGame
@@ -1192,7 +1192,7 @@ semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhra
     Action :=
   .instruct (.firstMention "dealDamageOwnPower.source" source)
     (.dealDamage (.statOf (.stat .power) (.laterMention "dealDamageOwnPower.source" source))
-      recipient .any)
+      recipient)
 /-- A token's characteristics from the parts a creature token names, with the abilities it is
 created with ("… with flying") [CR#111.3]. -/
 semantic_template creatureTokenOf (power toughness : Amount) (colors : List Color)
@@ -1357,18 +1357,18 @@ semantic_template replaceEvent (clause : WouldClause) (replacement : Replacement
     (duration : Option Duration) : Action :=
   .establish (.replace clause replacement none .repeatedly none) duration
 /-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
-semantic_template preventAll (kind : DamageKind) (scope : DamageScope)
-    (duration : Option Duration) : Action :=
-  .establish (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
+semantic_template preventAll (scope : DamageScope) (duration : Option Duration)
+    (kind : Option DamageKind := none) : Action :=
+  .establish (.damageRule .unattributed scope (.prevent .all none) .repeatedly kind) duration
 /-- "Prevent the next N <kind> damage that would be dealt <scope> [duration]." -/
-semantic_template preventNext (kind : DamageKind) (scope : DamageScope) (amount : Amount)
-    (duration : Option Duration) : Action :=
-  .establish (.damageRule kind .unattributed scope (.prevent (.shield amount) none) .repeatedly)
+semantic_template preventNext (scope : DamageScope) (amount : Amount) (duration : Option Duration)
+    (kind : Option DamageKind := none) : Action :=
+  .establish (.damageRule .unattributed scope (.prevent (.shield amount) none) .repeatedly kind)
     duration
 /-- "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]." -/
-semantic_template preventAllBy (kind : DamageKind) (source : NounPhrase) (scope : DamageScope)
-    (duration : Option Duration) : Action :=
-  .establish (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
+semantic_template preventAllBy (source : NounPhrase) (scope : DamageScope)
+    (duration : Option Duration) (kind : Option DamageKind := none) : Action :=
+  .establish (.damageRule (.dealtBy source) scope (.prevent .all none) .repeatedly kind) duration
 /-- "The next time <clause> would happen, <replacement> instead [duration]." -/
 semantic_template replaceNextEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
@@ -1897,9 +1897,9 @@ semantic_template copyOf (source : NounPhrase) (exceptions : List CopyExcept := 
   .copyOf source exceptions
 semantic_template costShift (subject : NounPhrase) (shift : CostShift) : StaticSpec :=
   .costShift subject shift
-semantic_template damageRule (kind : DamageKind) (source : DamageAgent) (scope : DamageScope)
-    (op : DamageOp) (use : ReplUse) : StaticSpec :=
-  .damageRule kind source scope op use
+semantic_template damageRule (source : DamageAgent) (scope : DamageScope) (op : DamageOp)
+    (use : ReplUse) (kind : Option DamageKind := none) : StaticSpec :=
+  .damageRule source scope op use kind
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
 /-- "If <event> would …, <replacement> instead", "<subject> enters tapped", "As <subject> enters,
 …": a replacement effect, `event` modified by `replacement` [CR#614.1a,614.1c,614.1d]. -/
@@ -1953,9 +1953,9 @@ semantic_template partSkip (player : NounPhrase) (part : TurnPart) : StaticSpec 
 semantic_template paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute) : StaticSpec :=
   .paySubstitute subject substitute
 semantic_template perform (action : Action) : Cost := .perform action
-semantic_template preventionBan (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan) :
-    StaticSpec :=
-  .preventionBan kind damage ban
+semantic_template preventionBan (damage : Unpreventable) (ban : PreventionBan)
+    (kind : Option DamageKind := none) : StaticSpec :=
+  .preventionBan damage ban kind
 /-- "<subject>'s power [and toughness] [are each] [is] equal to <amount>": a
 Characteristic-Defining Ability setting each stat `slots` names [CR#604.3a,613.4a]. -/
 semantic_template ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount) :

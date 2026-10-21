@@ -20,13 +20,13 @@ def boshIronGolem : Ability :=
     (instruct this_
        (dealDamage
           (statOf (.stat .manaValue) (the (and [was (sacrifice which), isArtifact])))
-        (target isAnyTarget) .noncombatOnly))
+        (target isAnyTarget)))
 theorem okBoshIronGolem : Ability.check (DRS.ofList []) boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (compound [mana [generic 3], perform (discard (aAtRandom (cardIn yourHand)))])
     (instruct thisEnchantment
       (dealDamage (statOf (.stat .manaValue) (the (and [was (discard which), isCard])))
-        (target isAnyTarget) .noncombatOnly))
+        (target isAnyTarget)))
 theorem okPyromancy : Ability.check (DRS.ofList []) pyromancy = [] := by decide
 def luckyOffering : Action :=
   sequentially
@@ -98,7 +98,7 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
       text :=
         [ deathtouch,
           ascend,
-          wheneverIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          wheneverIf (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (is you (hasDesignation citysBlessing))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
@@ -365,7 +365,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
               discard (a (cardIn yourHand)),
               instruct this_
                 (dealDamage (statOf (.stat .manaValue) (the (and [was (discard which), isCard])))
-                  thatJoin .noncombatOnly) ]) ] } }
+                  thatJoin) ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -376,8 +376,7 @@ def riddleOfLightning : Spelled := spelled <| .singleFaced
               scry (.lit 3),
               reveal (topSlice (.lit 1)),
               instruct this_
-                  (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin
-                     .noncombatOnly) ]) ] } }
+                  (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin) ]) ] } }
 
 def unstableFrontier : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -418,8 +417,7 @@ def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
       text :=
         [ when (chapterMark [1])
             (instruct this_
-               (dealDamage (.lit 6) (target (and [isCreature, anOpponentControls]))
-                  .noncombatOnly)),
+               (dealDamage (.lit 6) (target (and [isCreature, anOpponentControls])))),
           when (chapterMark [2])
             (destroy (target (and [isArtifact, anOpponentControls]))),
           when (chapterMark [3, 4]) (addMana (.lit 1) (manaOf [[.of .red]])) ] }
@@ -432,8 +430,7 @@ def theFlux : Spelled := spelled <| .singleFaced
       text :=
         [ when (chapterMark [1])
             (instruct this_
-               (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls]))
-                  .noncombatOnly)),
+               (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls])))),
           when (chapterMark [2, 3, 4, 5])
             (sequentially
               [ exile (topSlice (.lit 1)),
@@ -486,7 +483,7 @@ def shiningShoal : Spelled := spelled <| .singleFaced
             (some (perform (exile
               (a (and [hasColor .white, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
-          spell (establishThroughout (damageRule .any (dealtBy (aYourChoice isSource))
+          spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
                 (toRecipient (youAnd (allOf (and [isCreature, youControl]))))
                 (redirect (theNext (letter .x)) (target isAnyTarget)) .repeatedly) thisTurn) ] } }
 
@@ -743,7 +740,7 @@ def engineeredExplosives : Spelled := spelled <| .singleFaced
 def radiantFlames : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Radiant Flames", cost := some [generic 2, pip .red], types := [.sorcery],
-      text := [spell (instruct this_ (dealDamage (colorsSpentToCast this_) (each isCreature) .noncombatOnly))] } }
+      text := [spell (instruct this_ (dealDamage (colorsSpentToCast this_) (each isCreature)))] } }
 
 /-- Birthing Pod -/
 def birthingPodSearch : Ability :=

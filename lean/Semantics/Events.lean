@@ -32,12 +32,13 @@ inductive ReplUse where
   | repeatedly | nextTimeOnly
   deriving DecidableEq, Repr
 
+/-- The explicit qualifier on damage: "combat damage" [CR#120.2a] or "noncombat damage"
+[CR#120.2b]. A `kind` slot holds `Option DamageKind`, and `none` is unqualified "damage": in an
+instruction it is the effect's own damage, noncombat by rule [CR#120.2b,701.14d]; in an event,
+replacement, deontic, lookback or static damage rule it matches all damage. -/
 inductive DamageKind where
-  | any | combatOnly | noncombatOnly
+  | combat | noncombat
   deriving DecidableEq, Repr
-
-instance : AnyValue DamageKind where
-  any := .any
 
 /-- How a damage result combines with the other results of damage [CR#120.3d]. -/
 inductive ResultMode where

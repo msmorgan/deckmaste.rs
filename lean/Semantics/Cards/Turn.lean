@@ -252,7 +252,7 @@ def obekaSplitterOfSeconds : Spelled := spelled <| .singleFaced
       subtypes := [ogre, warlock],
       text :=
         [ menace,
-          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (additionalStep .upkeep none thatMuch) ],
       power := stat 2, toughness := stat 5 } }
 

@@ -201,7 +201,7 @@ private theorem damageSourceRetainsItsIdentityOutsideTheBattlefield :
     let context := nextClause (DRS.ofList [{ det := .the, plur := .one, payload, id := 17 }])
     let source := NounPhrase.pro .bare .one
     let result := stepAction 8 .postEvent .obj context
-      (.instruct source (.dealDamage (.lit 2) .you .noncombatOnly))
+      (.instruct source (.dealDamage (.lit 2) .you))
     result.2 = [] ∧ (result.1.findById? 17).map (·.payload) = some payload ∧
       (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .tapped .any))).2 = [] ∧
       (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .untapped .any))).2 = [] := by decide

@@ -70,8 +70,8 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
   Bind `target isCreature` once and reference `it` across the granted ability and
   P/T modification instead of repeating `target isCreature` three times (and drop
   *Berserk*'s no-op `+0` toughness edit).
-- **Inkshield (`Cards/Damage.lean:451-454`, §1.5):** Prevent `.combatOnly` damage
-  (not `.any`), and give the created 2/1 white and black token the `inkling`
+- **Inkshield (`Cards/Damage.lean:451-454`, §1.5):** Prevent `some .combat` damage
+  (not `none`), and give the created 2/1 white and black token the `inkling`
   subtype and `flying`.
 - **Mishra's Factory (`Cards/Mana.lean:141,145`, `[CR#205.3m]`, §1.6):** Use the
   catalog `assemblyWorker` (`"Assembly-Worker"`) subtype instead of the

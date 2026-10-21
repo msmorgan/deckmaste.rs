@@ -203,8 +203,8 @@ theorem okCoordinatedLandHostBlocks :
 theorem okTheDamageAfterDealing :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any)),
-          .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ]) = [] := by
+        [ (Action.instruct .this (.dealDamage (.lit 4) (target isCreature))),
+          .establish (.preventionBan .thatDamage .noPreventionOnly) none ]) = [] := by
   decide
 
 /-- "You gain 3 life. The damage can't be prevented." -/
@@ -212,22 +212,22 @@ theorem badTheDamageAfterLifeGain :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .changeLife (.up (.lit 3)),
-          .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ])
+          .establish (.preventionBan .thatDamage .noPreventionOnly) none ])
       = [.damageDealtInScope] := by
   decide
 
 def afterDamageDealt : DRS :=
-  actionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any))
+  actionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature)))
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :
-    StaticSpec.check afterDamageDealt (.preventionBan .any .thatDamage .noPreventionOnly)
+    StaticSpec.check afterDamageDealt (.preventionBan .thatDamage .noPreventionOnly)
       = [] := by
   decide
 
 /-- "The damage can't be prevented." -/
 theorem badTheDamageUnannounced :
-    StaticSpec.check (DRS.ofList []) (.preventionBan .any .thatDamage .noPreventionOnly)
+    StaticSpec.check (DRS.ofList []) (.preventionBan .thatDamage .noPreventionOnly)
       = [.damageDealtInScope] := by
   decide
 
@@ -293,7 +293,7 @@ theorem regenerationProhibitionBindsTheDestroyed :
 /-- "... dealt damage, they lose half their life, rounded up." -/
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check (DRS.ofList [])
-      (whenever (.does .any (.dealDamage .anyAmount (.attachHost .enchanted .player) .any))
+      (whenever (.does .any (.dealDamage .anyAmount (.attachHost .enchanted .player)))
         (Templates.instruct they (loseLife (.half .up (lifeTotalOf they))))) = [] := by
   decide
 

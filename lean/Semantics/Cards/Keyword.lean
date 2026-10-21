@@ -481,7 +481,7 @@ def chandrasSpitfire : Spelled := spelled <| .singleFaced
       subtypes := [elemental],
       text :=
         [ flying,
-          whenever (does any (dealDamage (to := anOpponent) (kind := .noncombatOnly)))
+          whenever (does any (dealDamage (to := anOpponent) (kind := some .noncombat)))
             (get thisCreature (up (.lit 3)) (up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -491,7 +491,7 @@ def livingHive : Spelled := spelled <| .singleFaced
       subtypes := [elemental, insect],
       text :=
         [ trample,
-          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (createToken (creatureToken 1 1 [.green] [insect]) (count := thatMuch)) ],
       power := stat 6, toughness := stat 6 } }
 
@@ -1211,7 +1211,7 @@ def darkbladeAgentGrants : Ability :=
   static (onlyWhile (conjunction [ abilityGrant thisCreature deathtouch,
         abilityGrant thisCreature
           (whenever
-             (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (draw
+             (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat))) (draw
                                                                                                   (.lit 1))) ]) (did you (surveil anyAmount) soFarThisTurn))
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
@@ -1246,7 +1246,7 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
           static (onlyWhile (abilityGrant thisCreature (ward (mana [generic
               4])))
             (is it isUntapped)),
-          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (sequentially
               [ draw (.lit 1),
                 doIf (compareAmt (countOf (cardIn yourHand)) .less (.lit 3))
@@ -1563,7 +1563,7 @@ def ayaOfAlexandria : Spelled := spelled <| .singleFaced
         [ menace, lifelink,
           whenever
             (does (a (and [isHistoric, isCreature, youControl]))
-               (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+               (dealDamage (to := a isPlayer) (kind := some .combat)))
             (createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [assassin],

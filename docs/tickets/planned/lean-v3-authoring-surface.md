@@ -417,11 +417,11 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   ```lean
   semantic_template dealDamage (amount : Amount := any)
       (to : NounPhrase := any)
-      (kind : DamageKind := .any) : Action :=
+      (kind : Option DamageKind := none) : Action :=
     .dealDamage amount to kind
   ```
   - Imperative: `instruct thisCreature (dealDamage 3 (to := target isAnyTarget))`
-  - Active trigger: `whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))`
+  - Active trigger: `whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))`
   - Passive trigger: `whenever (does any (dealDamage (to := thisCreature)))`
 - **`winGame` and `loseGame` (`Action.conclude`):**
   ```lean

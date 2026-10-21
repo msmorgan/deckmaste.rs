@@ -239,7 +239,7 @@ def chainsaw : Spelled := spelled <| .singleFaced
       subtypes := [equipment],
       text :=
         [ when (does thisEquipment enter)
-            (instruct it (dealDamage (.lit 3) (targets (upTo 1) isCreature) .noncombatOnly)),
+            (instruct it (dealDamage (.lit 3) (targets (upTo 1) isCreature))),
           whenever (does (counted (atLeast 1) isCreature) die)
             (putCounters (.lit 1) revCounter thisEquipment .many),
           static (conjunction [ getsPt (equipped creature) (up (letter .x)) (up (.lit 0)),
@@ -488,7 +488,7 @@ def shalaiAndHallar : Spelled := spelled <| .singleFaced
       text :=
         [ flying, vigilance,
           whenever (countersPut p1p1Counter .many (a (and [isCreature, youControl])))
-            (instruct thisCreature (dealDamage thatMuch (target isOpponent) .noncombatOnly)) ],
+            (instruct thisCreature (dealDamage thatMuch (target isOpponent))) ],
       power := stat 3, toughness := stat 3 } }
 
 def primalVigor : Spelled := spelled <| .singleFaced
@@ -550,17 +550,17 @@ def stormwildCapridor : Spelled := spelled <| .singleFaced
       subtypes := [bird, goat],
       text :=
         [ flying,
-          static (damageRule .noncombatOnly unattributed (toRecipient thisCreature)
+          static (damageRule unattributed (toRecipient thisCreature)
             (prevent allDamage
               (some (putCounters preventedThisWay p1p1Counter thisCreature .many)))
-            .repeatedly) ],
+            .repeatedly (some .noncombat)) ],
       power := stat 1, toughness := stat 3 } }
 
 def testOfFaith : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Test of Faith", cost := some [generic 1, pip .white], types := [.instant],
       text :=
-        [ spell (establishThroughout (damageRule .any unattributed (toRecipient (target isCreature))
+        [ spell (establishThroughout (damageRule unattributed (toRecipient (target isCreature))
               (prevent (theNext (.lit 3))
                 (some
                    (putCounters preventedThisWay p1p1Counter (that creature) .many)))
@@ -570,7 +570,7 @@ def temper : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Temper", cost := some [.variable, generic 1, pip .white], types := [.instant],
       text :=
-        [ spell (establishThroughout (damageRule .any unattributed (toRecipient (target isCreature))
+        [ spell (establishThroughout (damageRule unattributed (toRecipient (target isCreature))
               (prevent (theNext (letter .x))
                 (some
                    (putCounters preventedThisWay p1p1Counter (that creature) .many)))
@@ -602,7 +602,7 @@ def chromaticArmor : Spelled := spelled <| .singleFaced
         [ enchant isCreature,
           static (entersChoosing thisAura .color),
           static (entersWithCounters thisAura (.lit 1) sleightCounter),
-          static (damageRule .any (dealtBy (allOf (and [isSource, ofTheLastChosen .color])))
+          static (damageRule (dealtBy (allOf (and [isSource, ofTheLastChosen .color])))
             (toRecipient (enchanted creature)) (prevent allDamage) .repeatedly),
           activated (mana [.variable])
             (sequentially
@@ -725,7 +725,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
             (.lit 1) p1p1Counter),
           whenever
             (does (a (and [isCreature, youControl, hasCounter (some p1p1Counter)]))
-               (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+               (dealDamage (to := a isPlayer) (kind := some .combat)))
             (discard (a (cardIn (handOf (that player))))) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -900,7 +900,7 @@ def taintedAdversaryOffer : Ability :=
 theorem okTaintedAdversaryOffer : Ability.check (DRS.ofList []) taintedAdversaryOffer = [] := by decide
 /-- Korvold, Gleeful Glutton -/
 def korvoldCombatTrigger : Ability :=
-  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
     (sequentially
       [ putCounters (letter .x) p1p1Counter thisCreature .many,
         draw (letter .x),
@@ -1062,8 +1062,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisEnchantment enter)
             (instruct thisEnchantment
-               (dealDamage (.lit 3) (target (and [isCreature, anOpponentControls]))
-                  .noncombatOnly)),
+               (dealDamage (.lit 3) (target (and [isCreature, anOpponentControls])))),
           whenever (does (counted (atLeast 1) isCreature) die)
             (sequentially
               [ mill (.lit 1),
@@ -1119,7 +1118,7 @@ def chamberSentryDamage : Ability :=
     (compound
       [ mana [.variable], tapSymbol,
         perform (removeCounters (exactlyOf (letter .x)) (some p1p1Counter) thisCreature .many true) ])
-    (instruct this_ (dealDamage (letter .x) (target isAnyTarget) .noncombatOnly))
+    (instruct this_ (dealDamage (letter .x) (target isAnyTarget)))
 theorem okChamberSentryDamage : Ability.check (DRS.ofList []) chamberSentryDamage = [] := by decide
 
 /-- Menacing Ogre -/

@@ -75,7 +75,7 @@ private def runeswordBefore : DRS :=
 private def runeswordVictim : NounPhrase :=
   .firstMention "runesword.victim" (a (.and [isCreature,
     .did ⟨.actor (.laterMention "runesword.source" (target isCreature)),
-      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩]))
+      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩]))
 private def runeswordWould : WouldClause :=
   .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure none [])
 
@@ -89,7 +89,7 @@ private def ramSource : NounPhrase :=
 private def ramRecipient : NounPhrase :=
   .firstMention "ram.recipient" (target (.and [isCreature, .not (.hasPossessor .controller .you)]))
 private def ramDamage : Action :=
-  instruct ramSource (.dealDamage (powerOf it) ramRecipient .any)
+  instruct ramSource (.dealDamage (powerOf it) ramRecipient)
 private def ramAfterDamage : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) ramDamage).1
 private def ramAfterCondition : DRS :=
@@ -103,10 +103,10 @@ private def opponentOrPermanent : NounPhrase :=
   .firstMention "damage.recipient" (a (.or [(.isOpponentOf .you),
     .and [isPermanent, .hasPossessor .controller anOpponent]]))
 private def giselaPattern : WouldClause :=
-  .would (.actor (a .isSource)) (.dealDamage .anyAmount opponentOrPermanent .any)
+  .would (.actor (a .isSource)) (.dealDamage .anyAmount opponentOrPermanent)
 private def solphimPattern : WouldClause :=
   .would (.actor (a (.and [.isSource, .hasPossessor .controller .you])))
-    (.dealDamage .anyAmount opponentOrPermanent .noncombatOnly)
+    (.dealDamage .anyAmount opponentOrPermanent (some .noncombat))
 
 theorem giselaRawJoinedDemonstrativeSelectsRecipient :
     selected .join (stepWouldClause 64 (DRS.ofList []) giselaPattern).1 =
@@ -124,7 +124,7 @@ private def mangaraRecipient : NounPhrase :=
     (a (.and [isCreature, .colorIs .white, .hasPossessor .controller .you]))]
 private def mangaraContext : DRS :=
   (stepGameEvent 64 (DRS.ofList [ChoiceSort.binding (.quality .color)])
-    (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient .any))).1
+    (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient))).1
 
 theorem mangarasEquityRawDemonstrativeSelectsWrongCreature :
     selected (.type .creature) mangaraContext = [["mangara.recipient"]] := by decide
@@ -154,7 +154,7 @@ theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
     .did ⟨.actor (.attachHost attachment (.type .creature)),
-      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩])
+      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩])
 
 private def scytheDeath : GameEvent :=
   does (damagedVictim .equipped) die

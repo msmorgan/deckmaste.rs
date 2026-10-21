@@ -137,9 +137,9 @@ that read; the printed sentence hands it the first fighting creature,
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you)) (.enact (.action "fight") (.simultaneously [
-        instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.other" (target isCreature)) .any),
+        instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.other" (target isCreature))),
         instruct (.laterMention "fight.other" (target isCreature))
-          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor .any)]) none none))
+          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor)]) none none))
       = [.kindMismatch .object .player] := by
   decide
 
@@ -262,7 +262,7 @@ theorem badEmptySimultaneous : Action.check (DRS.ofList []) (.simultaneously [])
 /-- "Deal 2 damage to target creature. Then tap it." -/
 theorem okTapAfterSimultaneousDamage :
     Action.check (DRS.ofList [])
-      (.sequentially [.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any))], tap it])
+      (.sequentially [.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature)))], tap it])
       = [] := by
   decide
 

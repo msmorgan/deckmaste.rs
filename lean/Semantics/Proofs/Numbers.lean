@@ -67,7 +67,7 @@ theorem okDrawClamped :
 /-- "This spell deals X damage to target creature": you can't deal negative damage
 [CR#107.1b]. -/
 theorem okDealDamageClamped :
-    (Action.instruct .this (.dealDamage (.letter .x) (target isCreature) .any)).numberSlots
+    (Action.instruct .this (.dealDamage (.letter .x) (target isCreature))).numberSlots
       = [(.letter .x, .clamped)] := by rfl
 
 /-- "X is the number of creatures you control": the letter X, defined by the text, is a count
@@ -134,13 +134,13 @@ instead": [CR#107.1b] exempts doubling from clamping, but the factor is a `Scale
 not an `Amount`, so the rule declares no number slot. The exemption is visible instead where
 doubling is written as a set, above. -/
 theorem okMultipliedDamageDeclaresNoSlot :
-    (StaticSpec.damageRule .any .unattributed .everywhere
+    (StaticSpec.damageRule .unattributed .everywhere
       (.scale (.multiplied .doubled)) .repeatedly).numberSlots = [] := by rfl
 
 /-- "...it deals that much damage plus 1 instead": the shift is a magnitude with its direction
 for a sign, and damage is never negative [CR#107.1b]. -/
 theorem okShiftedDamageClamped :
-    (StaticSpec.damageRule .any .unattributed .everywhere
+    (StaticSpec.damageRule .unattributed .everywhere
       (.scale (.shifted (.up (.lit 1)))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
 
 /-! ## Printed slots and effect-written expressions -/

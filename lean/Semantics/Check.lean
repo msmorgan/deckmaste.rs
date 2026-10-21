@@ -120,11 +120,11 @@ theorem post_move_later_mention_refused :
 is refused because the only referent in scope is a clause-mate. -/
 theorem reflexive_subject_succeeds :
     (Action.instruct targetCreature
-      (.dealDamage (.lit 2) (.refl .one) .any)).check (DRS.ofList []) = [] := by decide
+      (.dealDamage (.lit 2) (.refl .one))).check (DRS.ofList []) = [] := by decide
 
 theorem clause_mate_pronoun_refused :
     (Action.instruct targetCreature
-      (.dealDamage (.lit 2) (.pro .bare .one) .any)).check (DRS.ofList []) =
+      (.dealDamage (.lit 2) (.pro .bare .one))).check (DRS.ofList []) =
       [.anaphor .bare .one 0] := by decide
 
 /-- Re-mentioned pronoun subject in clause 2 (`"Tap target creature. It deals 2 damage to itself"`):
@@ -133,13 +133,13 @@ object slot. -/
 theorem rementioned_subject_licenses_reflexive :
     (Action.sequentially [
       .setStatus .tapped targetCreature,
-      .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.refl .one) .any)
+      .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.refl .one))
     ]).check (DRS.ofList []) = [] := by decide
 
 theorem rementioned_subject_excludes_clause_mate_pronoun :
     (Action.sequentially [
       .setStatus .tapped targetCreature,
-      .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.pro .bare .one) .any)
+      .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.pro .bare .one))
     ]).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
 
 /-- Rule `D′` + Rule `AC>R1` complementary split in the same clause:
@@ -148,9 +148,9 @@ Clause 1 resolves `"it"` (`.pro .bare .one`) to the subject via `D′` (setting 
 and resolves `"that creature"` (`.pro (.word (.type .creature)) .one`) to the remaining creature via `AC>R1`. -/
 theorem pronoun_and_demonstrative_split :
     (Action.sequentially [
-      .instruct targetCreature (.dealDamage (.lit 1) anotherTargetCreature .any),
+      .instruct targetCreature (.dealDamage (.lit 1) anotherTargetCreature),
       .instruct (.pro .bare .one)
-        (.dealDamage (.lit 2) (.pro (.word (.type .creature)) .one) .any)
+        (.dealDamage (.lit 2) (.pro (.word (.type .creature)) .one))
     ]).check (DRS.ofList []) = [] := by decide
 
 /-- Pre-event (`would`) stepping (*Kalitas* replacement):
@@ -273,7 +273,7 @@ def sliceECopyAndPreventPin : Ability :=
         (.lit 1) [],
       .chooseNewTargets (.pro (.word .copy) .one),
       .establish
-        (.damageRule .any .unattributed .everywhere
+        (.damageRule .unattributed .everywhere
           (.prevent (.shield (.lit 3)) (some (.draw (.exactlyOf (.theOutcome .damagePrevented)))))
           .nextTimeOnly)
         (some (.between none (some (.endOf .turn none .current))))

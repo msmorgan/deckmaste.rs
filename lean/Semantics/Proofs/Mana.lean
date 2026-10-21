@@ -28,14 +28,14 @@ theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
-          (the (and [was (discard which), isCard]))) (target isAnyTarget) .any))) = [] := by
+          (the (and [was (discard which), isCard]))) (target isAnyTarget)))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
-            (the (and [was (discard which), isCreature]))) (target isAnyTarget) .any)))
+            (the (and [was (discard which), isCreature]))) (target isAnyTarget))))
       = [.participialDescription (.action "discard") 0] := by
   decide
 

@@ -182,7 +182,7 @@ theorem nounCoordinationPreservesContextUpdates :
 
 theorem eventParametersPublishTheirOutcome :
     countOutcomes .damageDealt (GameEvent.extend (DRS.ofList [])
-      (.does (.actor thisCreature) (.dealDamage .anyAmount .you .any))) = 1 := by decide
+      (.does (.actor thisCreature) (.dealDamage .anyAmount .you))) = 1 := by decide
 theorem templateUseRemainsInsideCondition :
     Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target isCreature)) none =
       .doIf (.compareAmt (.lit 1) .eq (.lit 1))
@@ -219,7 +219,7 @@ theorem independentValueSubjectsRemainIndependent :
     (Action.exchange (.values (subjectPower (target isCreature))
       (subjectPower (target isCreature)))).check (DRS.ofList []) = [] := by decide
 private semantic_template rereadDamage (amount : Amount) : Action :=
-  .sequentially [instruct .this (.dealDamage amount .you .any), instruct .this (.dealDamage amount .you .any)]
+  .sequentially [instruct .this (.dealDamage amount .you), instruct .this (.dealDamage amount .you)]
 theorem expressionAmountObservesNewOutcomes :
     (rereadDamage .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [.quantOutcomeInScope 2] := by decide
 
@@ -353,7 +353,7 @@ private semantic_template amountBodyInCaller (_subject : NounPhrase)
 private semantic_template predicateBodyInCaller (_subject : NounPhrase)
     (body : splice Predicate) : Predicate := body
 private semantic_template eventWithSubject (subject : NounPhrase) : GameEvent :=
-  .does (.actor subject) (.dealDamage .anyAmount .you .any)
+  .does (.actor subject) (.dealDamage .anyAmount .you)
 private semantic_template playerIgnoringSubject (_subject : NounPhrase) : NounPhrase := .you
 private semantic_template nestedRereadDamage (amount : Amount) : Action :=
   .sequentially [rereadDamage amount, rereadDamage amount]

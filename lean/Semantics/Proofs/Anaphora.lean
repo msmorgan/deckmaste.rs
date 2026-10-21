@@ -145,20 +145,20 @@ theorem badChooseDefinite :
 theorem okUnionAnaphorAfterJoin :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any),
-          instruct .this (.dealDamage (.lit 1) (that .join) .any) ]) = [] := by
+        [ instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer]))),
+          instruct .this (.dealDamage (.lit 1) (that .join)) ]) = [] := by
   decide
 
 /-- "This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorNoAntecedent :
-    Action.check (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (that .join) .any))
+    Action.check (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (that .join)))
       = [.anaphor (.word .join) .one 0] := by
   decide
 
 /-- "Destroy target creature. This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorOnObject :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature), instruct .this (.dealDamage (.lit 3) (that .join) .any)])
+      (.sequentially [destroy (target isCreature), instruct .this (.dealDamage (.lit 3) (that .join))])
       = [.anaphor (.word .join) .one 0] := by
   decide
 
@@ -172,7 +172,7 @@ theorem badStackAnaphorAfterCounteringAbility :
   decide
 
 def afterAnyTargetDamage : DRS :=
-  actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
+  actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target isAnyTarget)))
 
 /-- "This deals 3 damage to any target. This deals 1 damage to that permanent or player." -/
 theorem okUnionAnaphorAfterAnyTarget :
@@ -211,7 +211,7 @@ theorem okTokenCreationLookbackComplement :
 /-- "creature that was dealt damage by this creature this turn" -/
 theorem okDamageTakenComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨(.actor thisCreature), (.dealDamage .anyAmount .which .any), some (.duration soFarThisTurn none)⟩) = [] := by
+      (.did ⟨(.actor thisCreature), (.dealDamage .anyAmount .which), some (.duration soFarThisTurn none)⟩) = [] := by
   decide
 
 /-- "if you've cast a creature spell this turn" -/
@@ -420,7 +420,7 @@ theorem abilityIsOnTheStack : Payload.zone (.ability none) = some .stack := by d
 
 theorem joinedCreatureTy :
     tyOfReach (.word .join) .one
-      (actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any)))
+      (actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])))))
       = [.creature] := by
   decide
 
@@ -428,7 +428,7 @@ theorem anyTargetIsPlaceless : NounPhrase.zone (DRS.ofList []) (target isAnyTarg
 
 theorem anyTargetTakesDamage :
     Action.check (DRS.ofList [])
-      (instruct .this (.dealDamage (.lit 1) (target isAnyTarget) .any)) = [] := by decide
+      (instruct .this (.dealDamage (.lit 1) (target isAnyTarget))) = [] := by decide
 
 theorem youAndPublishesBothParticipants :
     (nounResult (DRS.ofList []) (youAnd thisCreature)).referents.map (·.kind) =
@@ -438,7 +438,7 @@ theorem youAndPublishesBothParticipants :
 theorem okDealtThisWayAfterDamage :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any),
+        [ instruct .this (.dealDamage (.lit 3) (target isAnyTarget)),
           .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ]) = [] := by
   decide
 
@@ -616,13 +616,13 @@ theorem okPlayerDrawLookback :
 
 /-- "if you dealt damage to an opponent this turn" -/
 theorem badPlayerDamageDealer :
-    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.dealDamage .anyAmount .any .any), some (.duration soFarThisTurn none)⟩)
+    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.dealDamage .anyAmount .any), some (.duration soFarThisTurn none)⟩)
       = [.kindMismatch .object .player] := by
   decide
 
 theorem joinedDealerDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.actor .which, .dealDamage .anyAmount (a (.or [isCreature, .anyPlayer])) .any, some (.duration soFarThisTurn none)⟩)
+      (.did ⟨.actor .which, .dealDamage .anyAmount (a (.or [isCreature, .anyPlayer])), some (.duration soFarThisTurn none)⟩)
       = [] := by decide
 
 theorem lastChosenPlayerRead :
@@ -634,8 +634,8 @@ theorem lastChosenPlayerRead :
 theorem okDefiniteChosenPlayerRead :
     Action.check [ChoiceSort.binding .player]
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any),
-          instruct .this (.dealDamage (.lit 3) (the isChosenPlayer) .any) ])
+        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer)),
+          instruct .this (.dealDamage (.lit 3) (the isChosenPlayer)) ])
       = [] := by
   decide
 
@@ -643,7 +643,7 @@ theorem okDefiniteChosenPlayerRead :
 theorem chosenPlayerDemonstrativeSelectsNewMention :
     Action.check [ChoiceSort.binding .player]
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any), instruct .this (.dealDamage (.lit 3) they .any) ])
+        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer)), instruct .this (.dealDamage (.lit 3) they) ])
       = [] := by
   decide
 
@@ -707,7 +707,7 @@ theorem possessiveItReadsCurrentSubject :
     Action.check (DRS.ofList [])
       (.sequentially
         [ exile (target isArtifact),
-          instruct (target isCreature) (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any) ])
+          instruct (target isCreature) (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget)) ])
       = [] := by
   decide
 
@@ -849,7 +849,7 @@ theorem singularAbilityReadHasCopyIdentity :
 
 theorem chosenPlayerDemonstrativeHasNewMentionIdentity :
     let before := DRS.ofList [ChoiceSort.binding .player]
-    let after := actionResult before (instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any))
+    let after := actionResult before (instruct .this (.dealDamage (.lit 3) (a isChosenPlayer)))
     (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) =
       [after.nextId - 2] := by decide
 
@@ -857,7 +857,7 @@ theorem possessiveItHasCurrentSubjectIdentity :
     let after := actionResult (DRS.ofList [])
       (.sequentially [exile (target isArtifact),
         instruct (.firstMention "p05.subject" (target isCreature))
-          (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any)])
+          (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget))])
     (after.referents.filter (fun ref => ref.idents.contains "p05.subject")).map
       (·.pronounResolved) = [true] := by decide
 
@@ -878,7 +878,7 @@ permanent" afterwards has no antecedent. -/
 theorem controllerReadDoesNotPermitUntappingDestroyedPermanent :
     Action.check (DRS.ofList [])
       (.sequentially [destroy (target isArtifact),
-        .dealDamage (.lit 2) (controllerOf (that .permanent)) .noncombatOnly,
+        .dealDamage (.lit 2) (controllerOf (that .permanent)),
         untap (that .permanent)]) = [.anaphor (.word .permanent) .one 0] := by decide
 
 end Semantics.Proofs.Anaphora

@@ -3455,16 +3455,16 @@ def stepOps : Nat → StepOps
             let (drs3, e3) := ops.inst .postEvent source.patientRole drs2 does
             let (_, e4) := stepSubjectAfterWith ops drs3 source
             (drs, e1 ++ recipientErrors ++ e2 ++ e3 ++ e4)
-        | .damageRule _ da ds dop _ =>
+        | .damageRule da ds dop _ _ =>
           let (drs1, e1) := stepDamageAgentWith ops drs da
           let (drs2, e2) := stepDamageScopeWith ops drs1 ds
           let (drs3, e3) := stepDamageOpWith ops drs2 dop
           (drs3, e1 ++ e2 ++ e3)
-        | .preventionBan _ (.described da ds) _ =>
+        | .preventionBan (.described da ds) _ _ =>
           let (drs1, e1) := stepDamageAgentWith ops drs da
           let (drs2, e2) := stepDamageScopeWith ops drs1 ds
           (drs2, e1 ++ e2)
-        | .preventionBan _ .thatDamage _ =>
+        | .preventionBan .thatDamage _ _ =>
           (drs, refuse (damageDealtInScope drs) .damageDealtInScope)
         | .additionalTriggers ev q =>
           let (drs1, e1) := ops.ev drs ev

@@ -285,7 +285,7 @@ theorem capturePreservesTheResolvedPermanentView :
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
-    let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage (.lit 3) .you .any))
+    let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage (.lit 3) .you))
     Amount.check context .thatMuch = [] ∧
       Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 

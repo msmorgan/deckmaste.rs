@@ -154,7 +154,7 @@ def truthOrConsequencesVote : Ability :=
         draw (votesFor "truth"),
         choose (aAtRandom isOpponent),
         instruct this_
-          (dealDamage (times (.lit 3) (votesFor "consequences")) (that player) .noncombatOnly) ]))
+          (dealDamage (times (.lit 3) (votesFor "consequences")) (that player)) ]))
 theorem okTruthOrConsequencesVote : Ability.check (DRS.ofList []) truthOrConsequencesVote = [] := by decide
 
 /-- Death or Glory -/

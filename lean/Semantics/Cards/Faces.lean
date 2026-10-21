@@ -113,7 +113,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
 /-- Karplusan Minotaur's win arm -/
 def karplusanMinotaurWinFlip : Ability :=
   whenever (does you (flipCoins anyAmount (some .wins)))
-      (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))
+      (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget)))
 theorem okKarplusanMinotaurWinFlip : Ability.check (DRS.ofList []) karplusanMinotaurWinFlip = [] := by decide
 
 /-- Ral Zarek's ultimate -/
@@ -207,7 +207,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
       subtypes := [goblin, shaman],
       text :=
         [ protection (hasColor .red),
-          static (damageRule .any (dealtBy (a (and [isSource, hasColor .red])))
+          static (damageRule (dealtBy (a (and [isSource, hasColor .red])))
             (toRecipient (a isPlayer)) (scale (shifted (up (.lit 1)))) .repeatedly) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -314,15 +314,14 @@ def arlinnKord : Spelled := spelled <| .transforming
                   abilityGrant them trample ]) untilEndOfTurn),
           activated (loyaltySymbol (down (.lit 1)))
             (sequentially
-              [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), transform thisPlaneswalker ]),
+              [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget)), transform thisPlaneswalker ]),
           activated (loyaltySymbol (down (.lit 6)))
             (getEmblem
               [ static (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) haste,
                     abilityGrant them
                       (activated tapSymbol
                         (instruct thisCreature
-                           (dealDamage (powerOf thisCreature) (target isAnyTarget)
-                              .noncombatOnly))) ]) ]) ] } }
+                           (dealDamage (powerOf thisCreature) (target isAnyTarget)))) ]) ]) ] } }
 
 /-- Neglected Heirloom // Ashmouth Blade -/
 def neglectedHeirloom : Spelled := spelled <| .transforming
@@ -436,12 +435,11 @@ def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
     text :=
       [ when (does you (unlock thisDoor))
           (instruct thisRoom
-             (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls]))
-                .noncombatOnly)) ] }
+             (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls])))) ] }
   { name := "Shattered Yard", cost := some [generic 4, pip .red],
     text :=
       [ at_ (beginningOfYour .endStep)
-          (instruct thisRoom (dealDamage (.lit 1) eachOpponent .noncombatOnly)) ] }
+          (instruct thisRoom (dealDamage (.lit 1) eachOpponent)) ] }
 
 /-- Balemurk Leech -/
 def balemurkLeech : Spelled := spelled <| .singleFaced
@@ -465,7 +463,7 @@ def ghostlyKeybearer : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ flying,
-          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
             (unlock (doorOf (some .locked)
               (targets (upTo 1) (and [hasSubtype room, youControl])))) ],
       power := stat 3, toughness := stat 3 } }
@@ -536,9 +534,9 @@ def garrukRelentless : Spelled := spelled <| .transforming
         [ garrukRelentlessFlip,
           activated (loyaltySymbol (up (.lit 0)))
             (sequentially
-              [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature) .noncombatOnly),
+              [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature)),
                 instruct (that creature) (dealDamage (powerOf (that creature))
-                                                     thisPlaneswalker .noncombatOnly) ]),
+                                                     thisPlaneswalker) ]),
           activated (loyaltySymbol (up (.lit 0)))
             (createToken (creatureToken 2 2 [.green] [wolf])) ],
       loyalty := stat 3 } }
@@ -570,9 +568,9 @@ def brimstoneMage : Spelled := spelled <| .leveler
       subtypes := [human, shaman],
       text := [levelUp (mana [generic 3, pip .red])], power := stat 2, toughness := stat 2 } }
   [ levelBand (.between 1 2) 2 3
-      [activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))],
+      [activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget)))],
     levelBand (.atLeast 3) 2 4
-      [activated tapSymbol (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly))] ]
+      [activated tapSymbol (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget)))] ]
 
 /-- Student of Warfare -/
 def studentOfWarfare : Spelled := spelled <| .leveler
