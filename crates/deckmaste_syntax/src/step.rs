@@ -125,6 +125,9 @@ pub(crate) enum Weight {
 pub(crate) enum Test {
     Lexical(LexicalCategory),
     FreeLexical(LexicalCategory),
+    /// A free lexeme of this Category whose Complement is optional: it
+    /// declares no Subcategorization Frame, or an Intransitive one.
+    FreeOptional(LexicalCategory),
     Numeral(deckmaste_lexical::Numeral),
     Word(LexemeId),
     Class(usize),
@@ -827,7 +830,9 @@ impl Production {
             (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) => {
                 Some((lexeme, Some(*frame)))
             }
-            (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) => Some((lexeme, None)),
+            (Symbol::Leaf(Test::FreeLexical(_) | Test::FreeOptional(_)), Some(lexeme)) => {
+                Some((lexeme, None))
+            }
             _ => None,
         };
         if let Some(key) = key {
@@ -1103,6 +1108,12 @@ impl CompiledGrammar {
             Test::FreeLexical(category) => {
                 leaf.category == *category
                     && facts.is_some_and(|f| f.binding == deckmaste_lexical::Binding::Free)
+            }
+            Test::FreeOptional(category) => {
+                leaf.category == *category
+                    && facts.is_some_and(|f| {
+                        f.binding == deckmaste_lexical::Binding::Free && f.optional_complement
+                    })
             }
             Test::Numeral(notation) => leaf.notation == Some(*notation),
             Test::Word(id) => leaf.lexeme.as_ref() == Some(id),

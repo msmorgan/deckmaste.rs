@@ -195,6 +195,13 @@ expression.
 The declaration or catalog a Lexical Analysis came from. Provenance is part of
 a Word Form's identity and is independent of its position in the source.
 
+**Conversion**:
+The relation between two Lexemes of different Parts of Speech that share a
+Lemma with no affix, as the colour adjective *red* (*becomes red*) and the noun
+*red* that names the colour (*protection from red*) (CGEL, Ch. 19 §3.3,
+p. 1642). Distinct from an adjective used as a fused modifier-head
+(*protection from multicolored*; CGEL, Ch. 5 §9.3, p. 417).
+
 **Feature Bundle**:
 A correlated collection of grammatical feature values describing one analysis.
 
@@ -829,6 +836,14 @@ pp. 1382–1384).
 **Complement**:
 A dependent licensed (subcategorized) by its head (CGEL, Ch. 4 §1.2,
 pp. 219–222).
+
+**Obligatory Complement**:
+A Complement its head cannot omit in a given construction. A noun's Complement
+is optional in an ordinary Noun Phrase (*the excess*), but obligatory when the
+noun stands bare in a fossilised Preposition Phrase, unless that idiom allows
+its omission (*until end of turn*, *in excess of*, but *on top*, *in front*;
+CGEL, Ch. 7 §3.1, pp. 619–620).
+_Avoid_: required argument
 
 **Subcategorization Frame**:
 An ordered lexical schema describing the Complements and fixed markers a head

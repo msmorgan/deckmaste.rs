@@ -68,7 +68,7 @@ checks compare characters without allocating another source string.
 
 Authors write active Subcategorization Frames once; the engine derives the rest.
 
-- `Valence { head, phrase, passive, adjectival }`: for each frame of each head lexeme
+- `Valence { head, phrase, passive, adjectival, obligatory }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant, a predicative-Gap variant of a `Copular` frame only (a
@@ -88,6 +88,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   is `Intransitive`. `agree` pairs make a phrase's feature agree with that
   feature of each Frame Slot child that carries it (a Preposition Phrase takes
   its Complement's Number; a determinative its oblique's).
+  `obligatory: true` keeps the bare phrase to non-verbal heads that declare
+  no frame or an `Intransitive` one, so another head realizes its frame (a
+  noun in a fossilised Preposition Phrase: *until end of turn*, *in excess
+  of*, but *on top*). A non-verbal head's `Intransitive` frame derives no
+  phrase of its own: the bare phrase is it.
   With `clusters`, a verb with two or more Frame Slots also heads a coordination
   of their sequences, its head shared on the left as the mirror of Right Node
   Raising (*put one of them into your hand and the rest into your graveyard*,

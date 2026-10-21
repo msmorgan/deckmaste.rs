@@ -58,6 +58,10 @@ pub(crate) struct LexemeFacts {
     pub category: LexicalCategory,
     pub binding: Binding,
     pub frames: BTreeSet<usize>,
+    /// Whether the lexeme may stand without a Complement where a phrase
+    /// makes Complements obligatory: it declares no Frame, or an
+    /// Intransitive one.
+    pub optional_complement: bool,
     pub preposition_frames: BTreeSet<usize>,
 }
 
@@ -396,6 +400,7 @@ impl<'a> Binder<'a> {
                     category: lexeme.category,
                     binding: lexeme.binding,
                     frames: BTreeSet::new(),
+                    optional_complement: true,
                     preposition_frames: BTreeSet::new(),
                 },
             );
@@ -416,6 +421,8 @@ impl<'a> Binder<'a> {
                 let index = intern(&mut frames, frame);
                 facts.frames.insert(index);
             }
+            facts.optional_complement = list.is_empty()
+                || list.iter().any(|f| f.family == FrameFamily::Intransitive);
         }
         for (id, list) in &catalog.prepositions {
             let facts = lexemes
@@ -1125,6 +1132,7 @@ impl<'a> Binder<'a> {
                 adjectival,
                 interleaved,
                 heavy_shift,
+                obligatory,
                 agree,
                 clusters,
             } => {
@@ -1134,6 +1142,7 @@ impl<'a> Binder<'a> {
                     *cost,
                     passive.as_deref(),
                     adjectival.as_deref(),
+                    *obligatory,
                 )?;
                 self.slot_agreement(phrase, &mut drafts, agree)?;
                 if let Some(coordinators) = clusters {
@@ -1515,6 +1524,7 @@ impl<'a> Binder<'a> {
         cost: u32,
         passive: Option<&str>,
         adjectival: Option<&str>,
+        obligatory: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(phrase)?;
         let gap_capable = self.out.category_gap[lhs] != 0;
@@ -1535,11 +1545,8 @@ impl<'a> Binder<'a> {
             });
         if head != LexicalCategory::Verb {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
-            bare.child(
-                "head",
-                Symbol::Leaf(Test::FreeLexical(head)),
-                GapRule::Closed,
-            );
+            let test = if obligatory { Test::FreeOptional(head) } else { Test::FreeLexical(head) };
+            bare.child("head", Symbol::Leaf(test), GapRule::Closed);
             if let Some(f) = complement_kind {
                 let kind = self.value(f, "Intransitive")?;
                 bare.equations.push((Path::Mother(f), Target::Value(kind)));
@@ -1557,6 +1564,11 @@ impl<'a> Binder<'a> {
         };
         for index in used {
             let frame = &self.out.frames[index];
+            // A non-verbal head's Intransitive frame only makes its
+            // Complement optional: the bare phrase realizes it.
+            if head != LexicalCategory::Verb && frame.family == FrameFamily::Intransitive {
+                continue;
+            }
             let name = frame_name(phrase, frame);
             let slots: Vec<&SlotFill> = frame.slots.iter().map(|s| &s.fill).collect();
             // A verb's NP-like Complements are extracted; a noun's single

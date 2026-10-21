@@ -223,6 +223,11 @@ pub enum SchemaDecl {
         interleaved: Option<Ident>,
         #[serde(default)]
         heavy_shift: bool,
+        /// A non-verbal head that declares a Frame realizes one of them in
+        /// this phrase: only a head declaring none, or an Intransitive one,
+        /// forms its bare phrase.
+        #[serde(default)]
+        obligatory: bool,
         /// `(phrase feature, slot feature)` pairs: the phrase's feature
         /// agrees with that feature of each Frame Slot child that carries it
         /// (a Preposition Phrase takes its Complement's Number).

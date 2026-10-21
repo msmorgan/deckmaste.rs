@@ -1,5 +1,5 @@
 # Coordinated qualities of the protection keyword, each with its marker *from*
 +KeywordPhrase Protection from artifacts or from the color of your choice => NounPhrase "the color of your choice"; PrepositionPhrase "of your choice" as Modifier of color
 +KeywordPhrase Protection from colorless or from the color of your choice => AdjectivePhrase "colorless"; NounPhrase "the color of your choice"; readings 1
-+KeywordPhrase protection from black and from red => AdjectivePhrase "black"; AdjectivePhrase "red"; !PrepositionPhrase "from black and from red"
++KeywordPhrase protection from black and from red => NounPhrase "black"; NounPhrase "red"; !AdjectivePhrase "black"; !AdjectivePhrase "red"; !PrepositionPhrase "from black and from red"
 +KeywordPhrase protection from black => !PrepositionPhrase "from black"

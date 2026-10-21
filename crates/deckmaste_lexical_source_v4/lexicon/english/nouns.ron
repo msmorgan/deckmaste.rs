@@ -8,7 +8,8 @@
     // Game nouns.
     (lemma: "ability", frames: [Complement(PP(["of"]))]),
     "activation",
-    (lemma: "addition", frames: [Complement(PP(["to"]))]),
+    // *in addition to*, or *in addition* alone (CGEL, Ch. 7 §3.1, p. 620).
+    (lemma: "addition", frames: [Complement(PP(["to"])), Intransitive]),
     (lemma: "amount", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "attacker",
     // Pre-head dependent in "base power and toughness"; a noun, so that it
@@ -141,8 +142,10 @@
     "tie",
     (lemma: "time", kind: Temporal, distribution: Serial, countability: [Count, Mass]),
     "token",
-    // *on top of*; prenominal *top* is the adjective.
-    (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
+    // *on top of*; prenominal *top* is the adjective. Bare after a
+    // preposition it may omit *of X*, as *in front* does (*put that card on
+    // top*; CGEL, Ch. 7 §3.1, p. 620), unlike *end* or *excess*.
+    (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"])), Intransitive]),
     (lemma: "toughness", countability: [Count, Mass], distribution: Valued, frames: [Complement(PP(["of"])), Complement(Amount)]),
     (lemma: "turn", kind: Temporal),
     "type",

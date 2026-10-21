@@ -422,7 +422,38 @@ impl Builder {
             }
             catalog.prepositions.insert(*id, frames);
         }
-        Ok((self.lexemes, catalog))
+        let mut lexemes = self.lexemes;
+        mark_conversions(&mut lexemes);
+        Ok((lexemes, catalog))
+    }
+}
+
+/// Marks each free noun and adjective whose lemma is also a free word of the
+/// other Category, a pair related by conversion (*His tie is brown* beside *a dark
+/// shade of brown*; CGEL, Ch. 19 §3.3, p. 1642), with `Conversion:
+/// Converted`.
+fn mark_conversions(lexemes: &mut [Lexeme]) {
+    let lemmas = |category: Category| -> BTreeSet<String> {
+        lexemes
+            .iter()
+            .filter(|l| l.category == category && l.binding == Binding::Free)
+            .map(|l| l.lemma.clone())
+            .collect()
+    };
+    let nouns = lemmas(Category::Noun);
+    let adjectives = lemmas(Category::Adjective);
+    for lexeme in lexemes.iter_mut().filter(|l| l.binding == Binding::Free) {
+        let other = match lexeme.category {
+            Category::Noun => &adjectives,
+            Category::Adjective => &nouns,
+            _ => continue,
+        };
+        if other.contains(&lexeme.lemma) {
+            lexeme
+                .properties
+                .features
+                .insert("Conversion".into(), "Converted".into());
+        }
     }
 }
 
@@ -601,8 +632,12 @@ impl Resolver<'_> {
                 (family, vec![slot(Complement, self.fill(fill, owner)?)])
             }
         };
-        let verb_family = !matches!(spec, FrameSpec::Complement(_));
-        if verb_family != (category == Category::Verb) {
+        // Any head may declare Intransitive: for a non-verb, that its
+        // Complement is optional even where a phrase makes it obligatory.
+        let verb_family = !matches!(spec, FrameSpec::Complement(_) | FrameSpec::Intransitive);
+        if verb_family && category != Category::Verb
+            || matches!(spec, FrameSpec::Complement(_)) && category == Category::Verb
+        {
             return Err(SourceError::Invalid(format!(
                 "`{owner}`: {spec:?} is not a frame of a {category:?}"
             )));

@@ -49,6 +49,9 @@
         // The Determination of a determinative's *than* Complement.
         "ObliqueDetermination": ["Bare", "Overt"],
         "AdjectivePosition": ["Attributive", "Predicative"],
+        // A noun or adjective whose lemma is also the other's, by conversion
+        // (CGEL, Ch. 19 §3.3, p. 1642): the colour words, *top*, *total*.
+        "Conversion": ["Converted"],
         "Sign": ["Negative", "Zero", "Positive"],
         "PronounKind": ["Personal", "Existential", "Relative"],
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
@@ -136,7 +139,7 @@
         // toughness 4/4*): a Noun Phrase never passes up a Measure Gap, or
         // *base power and base toughness 4/4* would have a second, Noun
         // Phrase coordination.
-        "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "Targeting"], gap: true, closed_gaps: ["Measure"]),
+        "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "Targeting", "Conversion"], gap: true, closed_gaps: ["Measure"]),
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
@@ -149,12 +152,12 @@
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
-        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], gap: true),
+        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "Conversion"], gap: true),
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         // A temporal nominal bounded by a relative clause (*next time you cast a spell*).
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
-        "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind"], gap: true),
+        "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "Conversion"], gap: true),
         "NounPremodifier": (category: Some("Nominal")),
         "PrepositionalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounDistribution"]),
         "BareNominalComplement": (category: Some("Nominal")),
@@ -182,7 +185,7 @@
         "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "PrepositionMarking", "NounKind", "Countability"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
-        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"], gap: true),
+        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Conversion"], gap: true),
         "AdverbPhrase": (features: ["AdjunctPosition"]),
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
@@ -453,9 +456,12 @@
         // A singular nominal that is not already a bare Noun Phrase (a count
         // noun's: *legendary creature*); mass and bare-singular nominals are
         // Qualities through their Noun Phrase.
-        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
+        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "NominalPhraseQuality", lhs: "Quality", rhs: [Cat("head", "NounPhrase")]),
-        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")]),
+        // An adjective is a Quality only as a fused head (*protection from
+        // multicolored*): a colour word there names the colour, a noun
+        // (CGEL, Ch. 19 §3.3, p. 1642; Ch. 5 §9.3, p. 417).
+        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.Conversion", "Converted")]),
         (name: "NamedParameter", lhs: "Name", rhs: [Lex("head", Catalog)]),
         (name: "SlashMeasure", lhs: "Measure", rhs: [Cat("first", "SignedAmount"), Mark('/', Bound), Cat("second", "SignedAmount")]),
         (name: "MeasureHeader", lhs: "Header", rhs: [Cat("head", "Measure")]),
@@ -1188,7 +1194,9 @@
         (name: "AdverbialInterrogative", lhs: "InterrogativeClause", rhs: [Class("marker", "InterrogativeAdverb"), Cat("clause", "AdjunctGapClause")],
             equations: [Require("clause.Gap", "Adjunct")]),
 
-        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive")]),
+        // A bare colour word after *be* or *become* is the adjective (*His tie
+        // is brown*; CGEL, Ch. 19 §3.3, p. 1642), never also its noun.
+        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive"), ExcludeTogether([("head.Determination", "Bare"), ("head.Conversion", "Converted")])]),
         // A predicative Preposition Phrase could also modify a nominal.
         (name: "PrepositionalPredicative", lhs: "Predicative", rhs: [Hosted("head", "PrepositionPhrase", Nominal)]),
         (name: "AdjectivalPredicative", lhs: "Predicative", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.AdjectivePosition", "Attributive")]),
@@ -1202,7 +1210,11 @@
         Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, clusters: Some("Coordinator")),
         Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability")]),
         Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
-        Valence(head: Noun, phrase: "PrepositionalNominal"),
+        // A bare noun in a fossilised Preposition Phrase keeps the Complement
+        // it selects (*until end of turn*, *on top of*, *in excess of*; CGEL,
+        // Ch. 7 §3.1, pp. 618–620): a relational noun without it is no bare
+        // count nominal (*the amount of [excess] damage dealt*).
+        Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
         Valence(head: Adjective, phrase: "AdjectivePhrase"),
         Valence(head: Determinative, phrase: "DeterminerPhrase", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
         // A complement costs nothing; a nominal postmodifier ranks before a

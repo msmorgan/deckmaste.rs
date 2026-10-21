@@ -11,7 +11,8 @@
     // *becomes attached to a creature*: the Adjectival Passive of *attach*,
     // with its Complement.
     (lemma: "attached", position: Some(Predicative), frames: [Complement(PP(["to"]))]),
-    "bottom",
+    // Attributive only: *the bottom card*; *on the bottom of* is the noun.
+    (lemma: "bottom", position: Some(Attributive)),
     "colored",
     "common",
     "different",
@@ -19,7 +20,8 @@
     // An equality adjective, graded like *same* (*equal toughness*).
     (lemma: "equal", grade: Some(Equative), frames: [Complement(PP(["to"]))]),
     "even",
-    "excess",
+    // Attributive only: *excess damage*; *in excess of* and *the excess* are the noun.
+    (lemma: "excess", position: Some(Attributive)),
     (lemma: "extra", position: Some(Attributive)),
     "face-down",
     "face-up",
@@ -46,7 +48,8 @@
     "lethal",
     (lemma: "long", comparative: "longer", superlative: "longest"),
     (lemma: "low", comparative: "lower", superlative: "lowest"),
-    "maximum",
+    // Attributive only: *maximum hand size*; *to a maximum of* is the noun.
+    (lemma: "maximum", position: Some(Attributive)),
     "minimum",
     "modal",
     // *a natural 20*
@@ -76,8 +79,10 @@
     "single",
     "six-sided",
     (lemma: "small", comparative: "smaller", superlative: "smallest"),
-    "top",
-    "total",
+    // Attributive only: *the top card*; *on top of* is the noun.
+    (lemma: "top", position: Some(Attributive)),
+    // Attributive only: *total mana value*; *the total of* is the noun.
+    (lemma: "total", position: Some(Attributive)),
     (lemma: "true", frames: [Complement(PP(["for"]))]),
     // [CR#509.1h]; there is no verb `unblock`.
     "unblocked",

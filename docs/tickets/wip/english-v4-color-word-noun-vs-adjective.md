@@ -50,3 +50,6 @@ construction accepts both a bare mass `NounPhrase` (`BareMass`) and an
 - No face is lost.
 
 Standard constraints apply.
+
+Census delta (sqtnrpxr): faces read 28,709 → 28,709; Readings 331,257 → 330,062; lost faces: none.
+Judgment set (sqtnrpxr): `cargo test -p deckmaste_english_v4` passes (2,950 enforced, 194 pending), including the new `color_word_categories.txt` and `amount_of_excess_damage.txt`.
