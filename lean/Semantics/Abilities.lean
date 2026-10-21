@@ -1251,7 +1251,8 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
   Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
   Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
-  Semantics.Replacement.inCaller Semantics.Ability.inCaller
+  Semantics.Replacement.inCaller Semantics.Ability.inCaller Semantics.TokenSpec.inCaller
+  Semantics.MoveRider.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit
 
