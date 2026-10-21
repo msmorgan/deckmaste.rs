@@ -1083,7 +1083,8 @@ impl CompiledGrammar {
                 let f = &value.features;
                 let verb_form = match value.form {
                     WordForm::Plain => Some("Plain"),
-                    WordForm::Present | WordForm::Preterite => Some("Finite"),
+                    // Irrealis *were* is a finite form, like the tensed ones.
+                    WordForm::Present | WordForm::Preterite | WordForm::Irrealis => Some("Finite"),
                     WordForm::GerundParticiple => Some("GerundParticiple"),
                     WordForm::PastParticiple => Some("PastParticiple"),
                     _ => None,
@@ -1095,11 +1096,14 @@ impl CompiledGrammar {
                     verb_form.map(str::to_owned),
                     f.case.map(|c| format!("{c:?}")),
                     Some(format!("{:?}", value.form)),
-                    facts.countability.map(|c| c.as_str().to_owned()).or_else(|| {
-                        (facts.countable_plural
-                            && f.number == Some(deckmaste_lexical::Number::Plural))
-                        .then(|| "Count".to_owned())
-                    }),
+                    facts
+                        .countability
+                        .map(|c| c.as_str().to_owned())
+                        .or_else(|| {
+                            (facts.countable_plural
+                                && f.number == Some(deckmaste_lexical::Number::Plural))
+                            .then(|| "Count".to_owned())
+                        }),
                     None,
                 ];
                 let mut features = [None; MAX_FEATURES];

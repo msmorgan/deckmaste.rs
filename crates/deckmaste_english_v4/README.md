@@ -302,7 +302,9 @@ Up to eight cheapest admitted Readings are shown by default. `--limit 0` prints
 only the summary. Each Reading includes its realized text, Production Cost and
 a constituent table: preorder node index (root 0), parent, Production id,
 Category, byte span and surface in the realized text, grammatical function,
-head lemma and lexeme id, and Gap. Judgment failures and unknown Categories are
+head lemma, lexeme id and Word Form, and Gap. The Word Form tells apart
+Readings that differ only in a syncretic head (*cast* as present or preterite,
+*Merfolk* as singular or plural). Judgment failures and unknown Categories are
 reported without stopping later inputs; malformed entries and operational
 errors fail the command. The dump is diagnostic output, not tracked judgment
 evidence.

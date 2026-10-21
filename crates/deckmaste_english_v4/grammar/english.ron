@@ -460,6 +460,7 @@
                 Agree("subject.Person", "head.Person"),
                 Require("head.VerbForm", "Finite"),
                 Exclude("subject.Case", "Accusative"),
+                Exclude("subject.Case", "Genitive"),
                 Exclude("subject.NounKind", "Manner"),
                 Require("$.ClauseMarking", "Unmarked"),
             ],
@@ -678,7 +679,7 @@
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],
             equations: [Require("head.NounKind", "Temporal")], cost: 2),
         (name: "TemporalAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "TemporalNounPhrase")], transparent: ["head"], cost: 2),
-        (name: "MannerAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "NounPhrase")], equations: [Require("adjunct.NounKind", "Manner")], transparent: ["head"], cost: 2),
+        (name: "MannerAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "NounPhrase")], equations: [Carry("adjunct.NounKind", "Manner")], transparent: ["head"], cost: 2),
         (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal")]),
         (name: "NumericCountPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.QuantityNumber", "head.Number")]),
         (name: "NumericMassPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
@@ -847,11 +848,11 @@
         (name: "MeasuredComparativeStandard", lhs: "NounPhrase", rhs: [Cat("modifier", "NounPhrase"), Class("head", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Carry("modifier.Case", "Plain"), Exclude("complement.ComplementKind", "AdvP"), Require("$.NounKind", "Ordinary"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "MeasuredComparativeDetermined", lhs: "NounPhrase", rhs: [Cat("modifier", "DeterminerPhrase"), Class("determiner", "ComparativeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
-            equations: [Require("modifier.DeterminativeDistribution", "Numerical"), Require("head.Number", "Plural"), Require("head.Countability", "Count"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("modifier.DeterminativeDistribution", "Numerical"), Require("head.Number", "Plural"), Require("head.Countability", "Count"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A measured comparative determinative takes the measure's Number
         // (*one more spell*, *one fewer revival counter*).
         (name: "MeasuredComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "DeterminerPhrase"), Class("quantifier", "ComparativeQuantifier")],
-            equations: [Require("modifier.DeterminativeDistribution", "Numerical"), Agree("$.Number", "modifier.Number"), Require("$.Countability", "Count"), Require("$.DeterminativeDistribution", "Numerical"), Require("$.ComplementKind", "Intransitive")]),
+            equations: [Require("modifier.DeterminativeDistribution", "Numerical"), Agree("$.Number", "modifier.Number"), Require("$.Countability", "Count"), Agree("quantifier.Countability", "$.Countability"), Require("$.DeterminativeDistribution", "Numerical"), Require("$.ComplementKind", "Intransitive")]),
         // Floated *each* before a predicative adjective (*are each equal to
         // ...*, *power and toughness each equal to ...*; CGEL, Ch. 5 §10.1.1,
         // p. 428).
@@ -971,7 +972,7 @@
         // A free-choice quantity of serial *times* is a frequency Adjunct
         // (*pay {1}{G} any number of times*).
         (name: "TemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
-            equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Require("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Carry("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third"), ExcludeTogether([("head.NounDistribution", "Valued"), ("head.ConjunctNumber", "Singular")])]),
         (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)],
@@ -1081,7 +1082,7 @@
         (name: "MarkedRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "Clause")],
             equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite"), Exclude("marker.Case", "Nominative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "SubjectGapClause")],
-            equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Agree("$.Number", "clause.Number"), Exclude("marker.Case", "Accusative"), Exclude("marker.Case", "Genitive")]),
+            equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Agree("$.Number", "clause.Number"), Agree("marker.Number", "clause.Number"), Exclude("marker.Case", "Accusative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectGap", lhs: "SubjectGapClause", rhs: [Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Finite"), Require("head.Person", "Third"), Exclude("head.Inflection", "Irrealis"), Require("$.Gap", "NP")]),
         (name: "FloatedEachSubjectGap", lhs: "SubjectGapClause", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
@@ -1152,7 +1153,7 @@
         (name: "AdverbialInterrogative", lhs: "InterrogativeClause", rhs: [Class("marker", "InterrogativeAdverb"), Cat("clause", "AdjunctGapClause")],
             equations: [Require("clause.Gap", "Adjunct")]),
 
-        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")]),
+        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive")]),
         // A predicative Preposition Phrase could also modify a nominal.
         (name: "PrepositionalPredicative", lhs: "Predicative", rhs: [Hosted("head", "PrepositionPhrase", Nominal)]),
         (name: "AdjectivalPredicative", lhs: "Predicative", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.AdjectivePosition", "Attributive")]),

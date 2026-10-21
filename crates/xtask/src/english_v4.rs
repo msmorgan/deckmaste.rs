@@ -232,22 +232,23 @@ fn dump_reading(
         number,
         grammar.cost(reading)
     )?;
-    let mut productions = Vec::new();
-    node_productions(reading, &mut productions);
+    let mut nodes = Vec::new();
+    preorder_nodes(reading, &mut nodes);
     writeln!(
         output,
-        "node\tparent\tProduction\tCategory\tspan (bytes)\tsurface\tfunction\thead lemma / lexeme\tGap"
+        "node\tparent\tProduction\tCategory\tspan (bytes)\tsurface\tfunction\thead lemma / lexeme / form\tGap"
     )?;
-    for (index, (c, production)) in constituents.iter().zip(productions).enumerate() {
-        let head = c.head.as_ref().map_or_else(
+    for (index, (c, node)) in constituents.iter().zip(nodes).enumerate() {
+        let production = node.node().map_or("", |n| n.production.as_str());
+        let head = grammar.head_word(node).map_or_else(
             || "-".to_owned(),
-            |id| {
+            |word| {
                 let lemma = env
                     .lexicon
                     .lexemes()
-                    .get(id)
+                    .get(&word.lexeme)
                     .map_or("?", |l| l.lemma.as_str());
-                format!("{lemma} / {}", id.as_str())
+                format!("{lemma} / {} / {:?}", word.lexeme.as_str(), word.form)
             },
         );
         writeln!(
@@ -264,11 +265,16 @@ fn dump_reading(
     Ok(())
 }
 
-fn node_productions<'a>(reading: &'a deckmaste_syntax::Reading, out: &mut Vec<&'a str>) {
+/// A Reading's nodes in preorder, as [`CompiledGrammar::constituents`]
+/// lists their Constituents.
+fn preorder_nodes<'a>(
+    reading: &'a deckmaste_syntax::Reading,
+    out: &mut Vec<&'a deckmaste_syntax::Reading>,
+) {
     if let Some(node) = reading.node() {
-        out.push(&node.production);
+        out.push(reading);
         for child in &node.children {
-            node_productions(child, out);
+            preorder_nodes(child, out);
         }
     }
 }
@@ -315,6 +321,10 @@ mod tests {
         assert!(!output.contains("Reading 2 (cost"));
         assert!(output.contains("Production\tCategory\tspan (bytes)"));
         assert!(output.contains("\"target creature\"\tobject\tcreature /"));
+        assert!(
+            output.contains("destroy / action:destroy / Plain"),
+            "{output}"
+        );
     }
 
     #[test]

@@ -8,6 +8,7 @@ use std::ops::Range;
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
 use deckmaste_lexical::Lexicon;
 use dpsi::Ident;
 use serde::Deserialize;
@@ -539,13 +540,22 @@ impl CompiledGrammar {
     /// The lexeme reached by following `head` children down from `reading`.
     #[must_use]
     pub fn head_lexeme(&self, reading: &Reading) -> Option<LexemeId> {
+        self.head_word(reading).map(|value| value.lexeme)
+    }
+
+    /// The word reached by following `head` children down from `reading`:
+    /// its lexeme, Word Form and features. Two Readings that differ only in
+    /// the form of a syncretic head (*cast* as present or preterite) differ
+    /// here.
+    #[must_use]
+    pub fn head_word<'r>(&self, reading: &'r Reading) -> Option<&'r LexicalValue> {
         match reading {
-            Reading::Leaf(LexicalReading::Word(value)) => Some(value.lexeme),
+            Reading::Leaf(LexicalReading::Word(value)) => Some(value),
             Reading::Leaf(_) => None,
             Reading::Node(node) => {
                 let names = self.child_names(node);
                 let at = names.iter().position(|n| n == "head")?;
-                self.head_lexeme(node.children.get(at)?)
+                self.head_word(node.children.get(at)?)
             }
         }
     }
