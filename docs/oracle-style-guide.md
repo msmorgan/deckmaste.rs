@@ -5,14 +5,7 @@ internally at Wizards of the Coast to author and edit Magic card Oracle text.
 
 Provenance: synthesized from the Vintage card corpus and the
 Comprehensive Rules via the mtg-rules skill, with assistance from that skill's
-preexisting CR/corpus-derived grammar reference. It is independent of this
-repository's implementation and project documentation (transcript-audited: no
-code, design docs, or tickets were read; project instructions contributed the
-citation format). The card corpus is authoritative on conflict: amend this
-guide only with corpus evidence, such as a round-trip failure. Corpus evidence
-is read through the project's input normalization (canonical quotes and range
-dashes): a glyph the data channels transcode differently is judged by its
-canonical, print-verified form, not by any one export's bytes.
+preexisting CR/corpus-derived grammar reference.
 
 ## Scope and authority
 
@@ -1205,9 +1198,7 @@ Keep the shortened form before `under your control` in routine triggers.
 Retain the full destination where the approved template requires it:
 
 > Creature cards in graveyards and libraries can't enter the battlefield.  
-> if you had a land enter the battlefield under your control this turn  
-> Whenever a nonland permanent an opponent owns enters the battlefield under
-> your control, ...
+> if you had a land enter the battlefield under your control this turn
 
 Movement instructions still say `put ... onto the battlefield` and
 `return ... to the battlefield`.
