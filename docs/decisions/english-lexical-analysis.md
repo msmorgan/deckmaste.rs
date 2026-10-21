@@ -58,7 +58,7 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Five canonicalizations are approved:
+of the text.** Six canonicalizations are approved:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -77,7 +77,15 @@ of the text.** Five canonicalizations are approved:
   meaning, and k trailing adjuncts would otherwise yield 2^k trees; the host
   head is the lexical verb (*put*, *spend*, *lose*). A coordinated auxiliary
   Verb Phrase still hosts an adjunct shared by its conjuncts. The canonical
-  site is built structurally in the chart, not merged afterwards.
+  site is built structurally in the chart, not merged afterwards;
+- **fronted comma dependent outermost:** when a Clause has both a
+  comma-fronted dependent (*When this creature enters, …*, *Until end of
+  turn, …*) and a comma-set post-adjunct or Supplement (*…, except it has
+  flying*, *…, where X is its power*), the fronted dependent attaches
+  outermost: *Pre, [Clause, Post]*, never *[Pre, Clause], Post*. Both are
+  dependents of the same Clause, and the two trees differ in no meaning. The
+  canonical site is built structurally: the host of a comma-set
+  post-dependent never begins with a comma-fronted dependent.
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

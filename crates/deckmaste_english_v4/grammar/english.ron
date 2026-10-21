@@ -1275,14 +1275,20 @@
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
         Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.ComplementKind", "NP")]),
-        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 2),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),
-        // A comma-set Supplement to a Clause, a keyword line's item or an
-        // indexed instruction (*, where X is its power*). A Supplement anchors
-        // to a Clause or line (Oracle English glossary, "Host Category"),
-        // never to a Keyword Phrase in a sentence, which takes only its
-        // catalog-declared parameters (english-v4.md §4.2).
-        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
+        // A comma-set post-adjunct (*, except it has flying*, *, unless ...*)
+        // or Supplement (*, where X is its power*) is anchored to a finite
+        // Clause, never to a Verb Phrase, a *to*-infinitival or a relative's
+        // Clause, whose Gap it closes (CGEL, Ch. 15 §5.1, p. 1351; Ch. 12 §4,
+        // p. 1058; `docs/oracle-style-guide.md` §3, Commas and the serial
+        // comma; §12, Copies).
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 2, equations: [Require("head.ClauseMarking", "Unmarked")]),
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2, equations: [Require("head.ClauseMarking", "Unmarked")]),
+        // A comma-set Supplement to a keyword line's item or an indexed
+        // instruction. A Supplement anchors to a Clause or line (Oracle
+        // English glossary, "Host Category"), never to a Keyword Phrase in a
+        // sentence, which takes only its catalog-declared parameters
+        // (english-v4.md §4.2).
         Adjunct(host: "KeywordLineItem", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         Adjunct(host: "IndexedNominal", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         // A preposed gerund-participial adjunct (*Starting with you, ...*).

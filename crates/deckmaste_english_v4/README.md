@@ -205,7 +205,9 @@ interrogative content clause, the Complement of *choose*, *guess* or *decide*,
 is *whether* with a finite or *to*-infinitival Clause, a *which* phrase as
 Subject or filling a Gap, or *how* with a Clause. *, where X is ...* is a
 Supplement to a Clause, a keyword or an indexed instruction, never a Predicate
-Adjunct. A front adverbial is set off by a comma (*Once each turn, ...*). A
+Adjunct. A comma-set post-adjunct (*, except it has flying*, *, unless …*) or
+Supplement attaches to a finite Clause, never to a Verb Phrase, a
+*to*-infinitival or a relative's Clause. A front adverbial is set off by a comma (*Once each turn, ...*). A
 gerund-participial Clause may be Subject; a bare relative may relativize a
 subjective predicative Complement for an ordinary noun, under a lexical verb or
 a negative auxiliary (*the permanent it becomes*, *a color the other isn't*),

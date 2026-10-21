@@ -469,6 +469,11 @@ pub(crate) struct Summary {
     /// It begins with a dependent set off by a comma (*When …, …*), which
     /// scopes over a whole coordination, never over its first conjunct.
     pub set_off: bool,
+    /// It begins with a comma-fronted dependent of its head, which is its
+    /// last child (*When …, …*, *Until end of turn, …*): such a Clause hosts
+    /// no comma-set post-dependent, which attaches inside the fronted one
+    /// (`english-lexical-analysis.md` §2).
+    pub fronted: bool,
 }
 
 /// A lexical leaf as a child sees it.
@@ -851,6 +856,19 @@ impl Production {
         }
     }
 
+    /// Whether a comma-fronted dependent's scope rules this child out: it
+    /// scopes over a whole coordination, never its first conjunct, and over a
+    /// comma-set post-dependent of its Clause, never inside the post-dependent's
+    /// host (`english-lexical-analysis.md` §2).
+    fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
+        let first_conjunct = self.coordinator.is_some() && self.names[position] == "first";
+        let post_host = position == 0
+            && self.head == Some(0)
+            && self.rhs.len() > 2
+            && matches!(self.rhs[1], Symbol::Punct(',', _));
+        (summary.set_off && first_conjunct) || (summary.fronted && post_host)
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -965,8 +983,7 @@ impl Production {
                 if self.undelimited.contains(&position) && summary.delimited {
                     return None;
                 }
-                if summary.set_off && self.coordinator.is_some() && self.names[position] == "first"
-                {
+                if self.comma_scope_excludes(position, summary) {
                     return None;
                 }
                 if self.requires_coordination == Some(position)
@@ -1088,6 +1105,10 @@ impl Production {
             set_off: !coordinated
                 && matches!(self.rhs.get(1), Some(Symbol::Punct(',', _)))
                 && self.rhs.len() > 2,
+            fronted: !coordinated
+                && self.rhs.len() > 2
+                && self.head == Some(self.rhs.len() - 1)
+                && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)),
         })
     }
 }

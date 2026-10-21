@@ -1237,7 +1237,14 @@ impl<'a> Binder<'a> {
                     HostKind::Supplement => "supplement",
                 };
                 let (h, a) = if *side == Side::After {
-                    let h = draft.child("head", host_symbol, GapRule::Transparent);
+                    // A comma-set post-adjunct is outside any relative clause
+                    // (CGEL, Ch. 12 §4, p. 1058): its host passes up no Gap.
+                    let host_gap = if delimiter.is_some() {
+                        GapRule::Closed
+                    } else {
+                        GapRule::Transparent
+                    };
+                    let h = draft.child("head", host_symbol, host_gap);
                     if let Some(c) = delimiter {
                         draft.child("", Symbol::Punct(*c, Binding::Suffix), GapRule::Closed);
                     }

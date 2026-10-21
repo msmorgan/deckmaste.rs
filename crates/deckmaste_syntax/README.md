@@ -132,6 +132,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
   (*choose to attack* has no purpose reading).
+  A delimited (comma-set) post-adjunct's host passes up no Gap, so it never
+  closes a relative clause's Clause (CGEL, Ch. 12 §4, p. 1058).
   Likewise a frame's predicative
   Complement is not a Preposition Phrase that a rival frame of the same head
   selects in its place (locative *on the battlefield* after *be*). Optional
@@ -170,7 +172,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   categories coordinated in one function (a depictive *tapped and attacking*),
   binary unless `serial` is set (an *and*-list of an Object with keywords). A constituent that begins with a dependent set off by
   a comma (*When …, …*) is never a conjunct other than the last: the preposed
-  dependent scopes over the whole coordination.
+  dependent scopes over the whole coordination. Nor is it the host of a
+  comma-set post-dependent (a head followed by a comma and its dependent): the
+  fronted dependent attaches outermost, *Pre, [Clause, Post]*.
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so

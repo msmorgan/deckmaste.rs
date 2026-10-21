@@ -124,5 +124,9 @@ From the cost study's gate simulation, converted to Surplus per Segment:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`vqtpoonv`, full corpus): faces read 28,709 → 28,705;
+   total Readings (product) 297,613 → 256,637 and Surplus 150,892 → 115,082
+   (948 units fewer, none more). Lost faces, each previously read only through
+   wrong Readings (owner-approved): Stalwart Successor, Cyclopean Tomb, Astral
+   Dragon, Hulking Metamorph.
+2. **Judgment set** (`vqtpoonv`): 2,984 enforced, 195 pending; all hold.
