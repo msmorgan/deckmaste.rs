@@ -24,3 +24,6 @@ verbless clause: *excess [damage was dealt this way]*.
 - No face is lost, and no unit gains a Reading.
 
 Standard constraints apply.
+
+Census delta (vvqptltk): faces read 28,709 → 28,709; Readings 346,725 → 346,319; lost faces: none.
+Judgment set (vvqptltk): `cargo test -p deckmaste_english_v4` passes, including the new `excess_count_noun.txt`.

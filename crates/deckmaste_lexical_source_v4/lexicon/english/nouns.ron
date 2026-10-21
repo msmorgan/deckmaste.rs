@@ -60,7 +60,11 @@
     "emblem",
     (lemma: "end", frames: [Complement(PP(["of"]))]),
     // "in excess of the number you control"; prenominal *excess* is the adjective.
-    (lemma: "excess", distribution: HeadOnly, countability: [Mass], frames: [Complement(PP(["of"]))]),
+    // The amount over a limit is a count noun (*the excess*). It is bare only as
+    // the noun of the fossilised *in excess of* (CGEL, Ch. 7 §3.1, p. 618; §5.3,
+    // p. 646), a bare count nominal after *in*; it is never a bare Noun Phrase
+    // (Ch. 2 §5, p. 57), so it cannot head one across *excess damage*.
+    (lemma: "excess", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "exchange",
     // The zone; the verb is a keyword action [CR#701.13].
     (lemma: "exile", countability: [Mass]),
