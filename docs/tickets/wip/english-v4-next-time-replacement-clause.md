@@ -69,5 +69,13 @@ comma: *instead [put …]*, *instead [that source deals …]*.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`uqwnoswx`): faces read 28,706 → 28,798; Readings
+   (product) 218,547 → 219,177; Surplus 91,328 → 91,635; cheapest tier
+   singleton in 14,544 of 17,220 → 14,608 of 17,295 ambiguous units. 93
+   Stratum 7 units read, every one *instead* preposed to a Clause (Stratum 7
+   read 2,378 → 2,471); no unit rose; lost faces: none. `strata --check`
+   passes.
+2. **Judgment set** (`uqwnoswx`): `cargo test -p deckmaste_english_v4` and
+   `-p deckmaste_syntax` pass. The six new Stratum 7 entries (Ring of Ma'rûf,
+   Mangara's Tome, Eye for an Eye, Xorn, Hawkeye, The Final Days) and the
+   pending Divine Resilience entry hold through `english-v4 parse`.

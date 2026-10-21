@@ -18,5 +18,10 @@
 +Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; Clause "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
 + <card=Pariah> All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal; PrepositionPhrase "instead"
 + All damage that would be dealt to you is dealt to enchanted creature. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
+# "instead" preposed without a comma to the Clause it modifies, after a fronted conditional
++ <card=Xorn> If you would create one or more Treasure tokens, instead create those tokens plus an additional Treasure token. => PrepositionPhrase "instead" as Adjunct of create; Clause "instead create those tokens plus an additional Treasure token"; readings 1
+# a comma-set Supplement attaches inside the preposed "instead": instead [Clause, where ...]
++ <card=Hawkeye, Young Avenger> If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, instead it deals that much damage plus X, where X is Hawkeye's power. => PrepositionPhrase "instead" as Adjunct of deal; Clause "instead it deals that much damage plus X, where X is Hawkeye's power"; Clause "it deals that much damage plus X, where X is Hawkeye's power"; readings 1
++ <card=The Final Days> If this spell was cast from a graveyard, instead create X of those tokens, where X is the number of creature cards in your graveyard. => Clause "instead create X of those tokens, where X is the number of creature cards in your graveyard"; !Clause "instead create X of those tokens"
 + If you do, draw a card.
 + Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card.

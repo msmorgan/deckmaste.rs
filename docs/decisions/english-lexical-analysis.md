@@ -84,14 +84,15 @@ of the text.** Six canonicalizations are approved:
   head is the lexical verb (*put*, *spend*, *lose*). A coordinated auxiliary
   Verb Phrase still hosts an adjunct shared by its conjuncts. The canonical
   site is built structurally in the chart, not merged afterwards;
-- **fronted comma dependent outermost:** when a Clause has both a
-  comma-fronted dependent (*When this creature enters, …*, *Until end of
-  turn, …*) and a comma-set post-adjunct or Supplement (*…, except it has
-  flying*, *…, where X is its power*), the fronted dependent attaches
-  outermost: *Pre, [Clause, Post]*, never *[Pre, Clause], Post*. Both are
+- **fronted dependent outermost:** when a Clause has both a fronted
+  dependent, set off by a comma (*When this creature enters, …*, *Until end
+  of turn, …*) or preposed without one (*instead create X of those tokens*),
+  and a comma-set post-adjunct or Supplement (*…, except it has flying*,
+  *…, where X is its power*), the fronted dependent attaches outermost:
+  *Pre[,] [Clause, Post]*, never *[Pre[,] Clause], Post*. Both are
   dependents of the same Clause, and the two trees differ in no meaning. The
   canonical site is built structurally: the host of a comma-set
-  post-dependent never begins with a comma-fronted dependent.
+  post-dependent never begins with a fronted dependent.
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

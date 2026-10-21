@@ -508,10 +508,11 @@ pub(crate) struct Summary {
     /// It begins with a dependent set off by a comma (*When …, …*), which
     /// scopes over a whole coordination, never over its first conjunct.
     pub set_off: bool,
-    /// It begins with a comma-fronted dependent of its head, which is its
-    /// last child (*When …, …*, *Until end of turn, …*): such a Clause hosts
-    /// no comma-set post-dependent, which attaches inside the fronted one
-    /// (`english-lexical-analysis.md` §2).
+    /// It begins with a fronted dependent of its head, which is its last
+    /// child: one set off by a comma (*When …, …*, *Until end of turn, …*)
+    /// or a preposed Adjunct without one (*instead put …*). Such a Clause
+    /// hosts no comma-set post-dependent, which attaches inside the fronted
+    /// one (`english-lexical-analysis.md` §2).
     pub fronted: bool,
     /// It is, or selects as its Complement, a Clause coordination delimited
     /// before its coordinator (*except [it's an artifact, and it has
@@ -967,10 +968,10 @@ impl Production {
         }
     }
 
-    /// Whether a comma-fronted dependent's scope rules this child out: it
-    /// scopes over a whole coordination, never its first conjunct, and over a
-    /// comma-set post-dependent of its Clause, never inside the
-    /// post-dependent's host (`english-lexical-analysis.md` §2).
+    /// Whether a fronted dependent's scope rules this child out: one set off
+    /// by a comma scopes over a whole coordination, never its first conjunct,
+    /// and any scopes over a comma-set post-dependent of its Clause, never
+    /// inside the post-dependent's host (`english-lexical-analysis.md` §2).
     fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
         let first_conjunct = self.coordinator.is_some() && self.names[position] == "first";
         let post_host = position == 0
@@ -1267,9 +1268,10 @@ impl Production {
                 && matches!(self.rhs.get(1), Some(Symbol::Punct(',', _)))
                 && self.rhs.len() > 2,
             fronted: !coordinated
-                && self.rhs.len() > 2
                 && self.head == Some(self.rhs.len() - 1)
-                && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)),
+                && ((self.rhs.len() > 2
+                    && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)))
+                    || self.host_check.is_some_and(|(host, adjunct, _)| adjunct < host)),
             delimited_complement: state.delimited_complement,
             auxiliary: self
                 .auxiliary

@@ -1326,6 +1326,15 @@
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1),
         Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1, equations: [Exclude("head.ComplementKind", "NP")]),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 1),
+        // An intransitive Preposition Phrase preposed without a comma, before
+        // an imperative or before a declarative's Subject (*The next time you
+        // would draw a card this turn, instead put ...*; *If this spell was
+        // kicked, instead that creature gets ...*), where Oracle moves
+        // *instead* from the end of a long or coordinated replacement
+        // (`docs/oracle-style-guide.md` §13, Would and instead). Like a
+        // comma-fronted dependent it attaches outermost, outside a comma-set
+        // post-dependent (`english-lexical-analysis.md` §2).
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, cost: 1, equations: [Require("adjunct.ComplementKind", "Intransitive")]),
         // A comma-set post-adjunct (*, except it has flying*, *, unless ...*)
         // or Supplement (*, where X is its power*) is anchored to a finite
         // Clause, never to a Verb Phrase, a *to*-infinitival or a relative's
