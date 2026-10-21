@@ -16,8 +16,21 @@ put a card into your hand.* has none.
 
 ## Change
 
-- Find why the preposed temporal Noun Phrase with an adverbial relative and
-  the Clause-initial *instead* fail together, and fix it in the grammar.
+- Fix the three interacting grammar rules that prevent the preposed temporal
+  Adjunct + imperative Reading and admit the spurious Subject + preterite
+  Reading:
+  1. Add a pre-`VerbPhrase` `Adjunct` schema for intransitive prepositions
+     (`Require("adjunct.ComplementKind", "Intransitive")`) so clause-initial
+     `instead` can modify imperative `put …`.
+  2. Exclude intransitive prepositions (`Exclude("adjunct.ComplementKind",
+     "Intransitive")`) from the comma-delimited post-`VerbPhrase` `Adjunct`
+     schema so `, instead` cannot attach inside the preceding adverbial
+     relative clause (*you would draw a card this turn, instead*).
+  3. Exclude adverbial relative clauses on temporal nominals
+     (`ExcludeTogether([("head.NounKind", "Temporal"), ("modifier.RelativeKind",
+     "Adverbial")])`) on `NominalPostmodifier` so *The next time `<Clause>`*
+     must project through `RelativeTime` (`RelativeTemporalNominal`) rather
+     than `Determined` as an ordinary `NounPhrase` Subject.
 
 ## Done when
 

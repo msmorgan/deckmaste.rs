@@ -18,9 +18,15 @@ cast another spell named …*, Approach of the Second Sun), seven faces in all.
 
 ## Change
 
-- Let a Coordination resolve `Inflection` (its conjuncts' common value, or a
-  value meaning they differ) so a present-only Complement constrains every
-  conjunct, without constraining coordinations elsewhere.
+- Let a Coordination resolve `Inflection` (move `"Inflection"` from `unshared`
+  to `resolve: [("Inflection", "Preterite")]` on the `VerbPhrase` and `Clause`
+  `Coordination` schemas) so any preterite conjunct makes the Coordination
+  `Preterite` and a present-only Complement constrains every conjunct, without
+  constraining mixed-tense coordinations elsewhere.
+- In `deckmaste_syntax`, fold `nonlast` across serial tails rather than
+  requiring pairwise equality between `nonlast` and `last` on non-ending serial
+  tails, so 3+ conjunct coordinations resolve `Inflection` across all conjuncts
+  as well.
 
 ## Done when
 

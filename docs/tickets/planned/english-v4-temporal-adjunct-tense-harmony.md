@@ -26,8 +26,11 @@ host: present; preterite or past-participial host: preterite).
   through features (the Preposition Phrase carrying its Clause's Inflection,
   constrained by the Adjunct Schema), never by naming verbs.
 - *Sengir, the Dark Baron*'s *that player's life total as the turn began*
-  modifies a nominal, which *as* cannot today; decide its analysis first, or
-  it is lost.
+  currently parses only by attaching *as the turn began* to present-tense
+  *gain* (because *as* has `hosts: Predicate` only); allow a preterite *as*
+  temporal PP to postmodify a nominal (as in *that player's life total as the
+  turn began* and *cards in your hand as the turn began* on Jalum Grimoire) so
+  it is not lost when predicate-attached *as* requires tense harmony.
 
 ## Done when
 

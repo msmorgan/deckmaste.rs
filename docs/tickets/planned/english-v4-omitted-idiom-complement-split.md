@@ -21,8 +21,13 @@ which removed the same split for every noun that may not omit its Complement
 - When an idiom noun's selected Complement immediately follows it, the bare
   noun does not also form a Preposition Phrase that leaves that phrase to
   another host: one analysis, as same-head complement priority gives a verb
-  (`english-lexical-analysis.md` §2). Decide whether this is a canonicalization
-  (and amend §2) or a structural restriction; no word named in the grammar.
+  (`english-lexical-analysis.md` §2). Amend `english-lexical-analysis.md` §2
+  and propagate the omitted-complement preposition mask from
+  `Test::FreeOptional(Noun)` along the right edge of ancestor constituents so
+  neither an outer `Nominal+PrepositionPhrase` adjunct (*Starving Revenant*)
+  nor an `Interleaved` complement-cluster PP (*Cream of the Crop*) can attach a
+  PP headed by the omitted preposition immediately after the bare idiom noun;
+  no word named in the grammar.
 
 ## Done when
 
