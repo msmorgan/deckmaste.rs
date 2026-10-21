@@ -1,6 +1,6 @@
 # Nothing gives two Readings of one analysis: subject *who* takes its verb's Number, a measured comparative its head's Countability, and irrealis *were* is finite, never a participle
 + <card=Animar, Soul of Elements> Whenever you cast a creature spell, put a +1/+1 counter on Animar. => Clause "you cast a creature spell"; NounPhrase "a creature spell" as Object of cast
-+ <card=Animar, Soul of Elements> Creature spells you cast cost {1} less to cast for each +1/+1 counter on Animar. => RelativeClause "you cast" gap "Creature spells"; PrepositionPhrase "for each +1/+1 counter on Animar" as Adjunct of cast
++ <card=Animar, Soul of Elements> Creature spells you cast cost {1} less to cast for each +1/+1 counter on Animar. => RelativeClause "you cast" gap "Creature spells"; PrepositionPhrase "for each +1/+1 counter on Animar" as Adjunct of cost
 + <card=Ward of Bones> Each opponent who controls more lands than you can't play lands. => RelativeClause "who controls more lands than you"; readings 1
 + <card=Avatar of Might> If an opponent controls at least four more creatures than you, this spell costs {6} less to cast. => NounPhrase "this spell" as Subject of cost; readings 1
 + <card=Grindstone> {3}, {T}: Target player mills two cards. If two cards that share a color were milled this way, repeat this process. => RelativeClause "that share a color"; !Postmodifier "that share a color were milled this way"

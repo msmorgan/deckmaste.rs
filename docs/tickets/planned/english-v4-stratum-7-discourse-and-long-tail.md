@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-6-coordination-and-rnr, english-v4-retire-adj-target, english-v4-slash-measure-overgeneration, english-v4-noun-phrase-coordination-determination, english-v4-valued-noun-phrases, english-v4-adverb-so-overgeneration, english-v4-mixed-voice-participle-coordination, english-v4-unset-number-and-countability, english-v4-banish-grammar-policing, english-v4-spurious-ambiguity-multipliers]
+needs: [english-v4-stratum-6-coordination-and-rnr, english-v4-retire-adj-target, english-v4-slash-measure-overgeneration, english-v4-noun-phrase-coordination-determination, english-v4-valued-noun-phrases, english-v4-adverb-so-overgeneration, english-v4-mixed-voice-participle-coordination, english-v4-unset-number-and-countability, english-v4-banish-grammar-policing, english-v4-spurious-ambiguity-multipliers, english-v4-clause-tense-selection, english-v4-zero-plural-determiner-number, english-v4-passive-by-agent-vs-by-extent, english-v4-amount-of-excess-bare-nominal, english-v4-color-word-noun-vs-adjective, english-v4-temporal-np-as-direct-object, english-v4-unpunctuated-clause-fragment, english-v4-existential-locative-ambiguity]
 ---
 # Stratum 7: Discourse sequencing, replacement effects, and the corpus long tail
 

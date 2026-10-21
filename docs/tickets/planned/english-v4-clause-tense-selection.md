@@ -15,7 +15,9 @@ attachment of *for each …*.
 In some Oracle environments the clause is always present tense. A preterite
 there is a wrong Reading:
 
-- the finite clause after *whenever*, *while*, *as long as* and *until*;
+- the finite clause after *whenever*, *while*, *as long as*, *until*, plain *as*
+  (*as this creature enters*, *as you cast*; not counterfactual *as though*),
+  and supplementary *where* (*, where X is …*);
 - the clause of a `ChoiceHeader`;
 - a non-modal matrix `Declarative` clause, and the clause after a trigger
   *when*.
