@@ -4,7 +4,7 @@
 + <card=Silverpelt Werewolf> At the beginning of each upkeep, if a player cast two or more spells last turn, transform this creature. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
 + <card=Call of the Full Moon> At the beginning of each upkeep, if a player cast two or more spells last turn, sacrifice this Aura. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
 + <card=Feast on the Fallen> At the beginning of each upkeep, if an opponent lost life last turn, put a +1/+1 counter on target creature you control. => NounPhrase "last turn" as Adjunct of lose; !NounPhrase "last turn" as Object of lose
-+NounPhrase last turn
++VerbPhrase lost life last turn => NounPhrase "last turn" as Adjunct of lose; !NounPhrase "last turn" as Object of lose
 +AdjectivePhrase last
 +NounPhrase the last time
 +NounPhrase your last turn

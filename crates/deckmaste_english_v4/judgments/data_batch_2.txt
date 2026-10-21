@@ -9,7 +9,7 @@
 +VerbPhrase put them back in any order => PrepositionPhrase "back" as Complement of put; PrepositionPhrase "in any order"
 +VerbPhrase put the rest back on top of your library in any order => NounPhrase "the rest" as Object of put; PrepositionPhrase "back on top of your library" as Complement of put; PrepositionPhrase "on top of your library" as Complement of back; PrepositionPhrase "in any order"
 + It was put there. => PrepositionPhrase "there" as Complement of put
-+NounPhrase this game
++VerbPhrase cast your commander from the command zone this game => NounPhrase "this game" as Adjunct of cast
 +NounPhrase any time
 +VerbPhrase transforms => VerbPhrase "transforms" head transform
 +VerbPhrase transforms into a non-Human creature => PrepositionPhrase "into a non-Human creature" as Complement of transform

@@ -79,6 +79,9 @@ pub enum FillSpec {
     LocativeNP,
     /// A slash measure as a Noun Phrase (*gets +2/+2*).
     MeasureNP,
+    /// A period noun with a deictic or distributive determinative as a Noun
+    /// Phrase (*skips that turn*).
+    PeriodNP,
     FiniteClause,
     VerblessClause,
     ToInf,

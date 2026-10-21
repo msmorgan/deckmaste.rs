@@ -32,9 +32,9 @@
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Valued", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // An Amount bounded by a comparative (*3 or less*), only a noun's value.
@@ -140,6 +140,12 @@
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        // A period noun with a deictic or distributive determinative (*this
+        // turn*, *each combat*), which is a Noun Phrase only where a head
+        // selects one (*skips that turn*, *the beginning of each end step*):
+        // never a general Object (*can't block this turn*; CGEL, Ch. 4 §1.2,
+        // p. 224).
+        "PeriodNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
@@ -307,6 +313,7 @@
         AdvP: "Adverbial",
         LocativeNP: "LocativeNounPhrase",
         MeasureNP: "MeasureNounPhrase",
+        PeriodNP: "PeriodNounPhrase",
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
         Amount: "Amount",
@@ -942,7 +949,15 @@
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Agree("$.Targeting", "determiner.Targeting"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
+            equations: [Agree("$.Targeting", "determiner.Targeting"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"),
+                ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Deictic")]),
+                ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Distributive")])]),
+        // A period noun with a deictic or distributive determinative is a
+        // Period Noun Phrase instead (*that turn*, *each end step*).
+        (name: "DeicticPeriod", lhs: "PeriodNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
+            equations: [Carry("head.NounKind", "Temporal"), Carry("head.NounDistribution", "Ordinary"), Carry("determiner.DeterminativeDistribution", "Deictic"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "DistributivePeriod", lhs: "PeriodNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
+            equations: [Carry("head.NounKind", "Temporal"), Carry("head.NounDistribution", "Ordinary"), Carry("determiner.DeterminativeDistribution", "Distributive"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A distributive determiner over an *and*-coordination of singular
         // nominals makes a singular Noun Phrase (*each creature and
         // planeswalker you control gets ...*; CGEL, Ch. 5 §18.4, p. 508).

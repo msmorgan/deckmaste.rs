@@ -16,6 +16,7 @@
     // *an additional combat phase after this phase*; *After this main phase, ...*
     (lemma: "after", frames: [
         (complement: NP, hosts: NominalAndPredicate),
+        (complement: PeriodNP, hosts: NominalAndPredicate),
         (complement: FiniteClause, hosts: Predicate),
     ]),
     // *the greatest power among creatures you control*
@@ -47,6 +48,7 @@
     // *the player's life total before the damage was dealt* (Soul Burn).
     (lemma: "before", frames: [
         (complement: NP, hosts: Predicate),
+        (complement: PeriodNP, hosts: Predicate),
         (complement: FiniteClause, hosts: NominalAndPredicate),
     ]),
     // *the colors below* (Cryptic Spires); *reduce their speed below 1*
@@ -71,7 +73,8 @@
     ]),
     // *rounded down*; *exile it face down*
     (lemma: "down", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
-    (lemma: "during", frames: [(complement: NP, hosts: Predicate)]),
+    // *during that combat phase*
+    (lemma: "during", frames: [(complement: NP, hosts: Predicate), (complement: PeriodNP, hosts: Predicate)]),
     // Postmodifies compound determinatives (CGEL p. 615 n. 5): *anywhere else*.
     (lemma: "else", frames: [(complement: Intransitive, hosts: Nominal)]),
     // *all abilities except mana abilities*; *except it's a 4/4 black Zombie*;
@@ -132,6 +135,8 @@
     // *your choice of flying, first strike, or trample*
     (lemma: "of", marking: Some(Oblique), frames: [
         (complement: NP, hosts: Nominal),
+        // *at the beginning of each end step*
+        (complement: PeriodNP, hosts: Nominal),
         // *the value of X*
         (complement: Amount, hosts: ComplementOnly),
         (complement: Nominal, hosts: ComplementOnly),

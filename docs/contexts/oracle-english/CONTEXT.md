@@ -1013,6 +1013,16 @@ article or genitive it is an ordinary Noun Phrase (*End the turn*). Serial
 *three times*), and either kind does with a Relative Clause (*the next time you
 cast a spell*) (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).
 
+**Period Noun Phrase** (project term):
+A period noun with a Deictic or Distributive Determinative (*that turn*, *each
+end step*) as a Noun Phrase, occurring only where a head selects one: the
+Object of *skip* (*that player skips that turn instead*) or the Complement of
+*of*, *after*, *before* or *during* (*at the beginning of each end step*). It is
+never a general Object: *this turn* in *can't block this turn* is only a
+Temporal Noun Phrase Adjunct, which, unlike an Object, has no personal-pronoun
+or *what* counterpart (CGEL, Ch. 4 §1.2, p. 224).
+_Avoid_: Object for a Temporal Noun Phrase Adjunct
+
 **Duration Phrase**:
 An Adjunct that bounds how long the effect of its Clause lasts, such as *until
 end of turn*.

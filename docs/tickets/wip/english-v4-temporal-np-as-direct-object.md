@@ -41,3 +41,8 @@ combat*) project as `TemporalNounPhrase` through `TemporalLocation`
 - No face is lost.
 
 Standard constraints apply.
+
+1. **Census delta** (measured on `mowpuuyx`): faces read 28,709 → 28,709;
+   total Readings 344,330 → 341,120; lost faces: none.
+2. **Judgment set**: 2,929 enforced at `COMPLETED_STRATUM` 6, all hold; 194
+   pending.

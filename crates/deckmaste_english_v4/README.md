@@ -157,7 +157,11 @@ A temporal Noun Phrase Adjunct is a period noun with a deictic or distributive
 determinative and no postmodifier (*this turn*, *each combat*, *this game*),
 serial *time* with any determinative (*any time*, *an additional time*, *three
 times*), or a temporal nominal with a relative clause (*the next time you cast a
-spell*); *the turn* and *your turn* are ordinary Noun Phrases. A marked relative
+spell*); *the turn* and *your turn* are ordinary Noun Phrases. A period noun
+with a deictic or distributive determinative is otherwise a Period Noun Phrase,
+only where a head's frame selects one (*skips that turn*, *the beginning of each
+end step*, *after this phase*), so it is never a general Object (*can't block
+this turn* has no Object). A marked relative
 clause may be postposed past a predicate adjunct, its Antecedent the Object that
 fills the verb's Gap (*Choose a card at random that was exiled with ...*),
 ranked behind the relative in place. A single postpositive participle ranks

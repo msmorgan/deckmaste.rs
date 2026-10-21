@@ -1,0 +1,14 @@
+# A period noun with a deictic or distributive determinative is a Temporal Noun Phrase Adjunct (*this turn*, *each combat*), and a Noun Phrase only where a head selects one: the Object of *skip*, the Complement of *of*, *after*, *before* or *during*. It is never a general Object (CGEL, Ch. 4 §1.2, p. 224; Ch. 8 §6.3, p. 698).
++ Target creature can't block this turn. => NounPhrase "this turn" as Adjunct of block || NounPhrase "this turn" as Adjunct of can; !NounPhrase "this turn" as Object of block
++ This creature attacks each combat if able. => NounPhrase "each combat" as Adjunct of attack; !NounPhrase "each combat" as Object of attack
++ Prevent all combat damage that would be dealt this turn. => NounPhrase "this turn" as Adjunct of deal; !NounPhrase "this turn" as Object of deal
++ At the beginning of each upkeep, if no spells were cast last turn, transform this creature. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
++ <card=Gerrard's Hourglass Pendant> If a player would begin an extra turn, that player skips that turn instead. => NounPhrase "that turn" as Object of skip
++ If you would begin your draw step, you may skip that step instead. If you do, you gain 2 life. => NounPhrase "that step" as Object of skip
++ You skip your next turn. => NounPhrase "your next turn" as Object of skip
++ Take an extra turn after this one. => NounPhrase "an extra turn" as Object of take
++ At the beginning of each end step, draw a card. => NounPhrase "each end step" as Complement of of
++ After this main phase, there is an additional combat phase followed by an additional main phase. => NounPhrase "this main phase" as Complement of after
++ Only the chosen creatures can attack during that combat phase. => NounPhrase "that combat phase" as Complement of during; !NounPhrase "that combat phase" as Object of attack
++ The player gets another poison counter at the beginning of their next upkeep unless they pay {2} before that step. => NounPhrase "that step" as Complement of before
++VerbPhrase skips that turn => NounPhrase "that turn" as Object of skip

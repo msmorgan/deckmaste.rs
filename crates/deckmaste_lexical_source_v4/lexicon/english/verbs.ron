@@ -125,7 +125,9 @@
     (lemma: "round", frames: [Prepositional(["down", "up"]), TransitiveWithPP(["down", "up"])]),
     (lemma: "separate", frames: [TransitiveWithPP(["into"])]),
     (lemma: "share", frames: [Monotransitive, TransitiveWithPP(["with"])]),
-    (lemma: "skip", past: "skipped", gerund: "skipping", frames: [Monotransitive]),
+    // *skip your next turn*; a Period Noun Phrase only where selected: *that
+    // player skips that turn instead*.
+    (lemma: "skip", past: "skipped", gerund: "skipping", frames: [Monotransitive, Transitive(PeriodNP)]),
     (lemma: "solve", frames: [Monotransitive]),
     (lemma: "spend", past: "spent", frames: [Monotransitive, TransitiveWithPP(["on"])]),
     (lemma: "stand", past: "stood", frames: [Intransitive]),
