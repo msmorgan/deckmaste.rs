@@ -24,8 +24,12 @@ It has no proc macros and no generated code: a grammar is data.
    order, with the Reading's own order as the final tie-break, so the best
    Reading is unique. Every component is a sum over the Reading's Productions,
    so each forest node keeps only its `k` best trees and the walk never builds
-   every attachment tree. Attachment Class and Right Association are zero until
-   they are computed. `best_ranked(k)` returns the keys too,
+   every attachment tree. Right Association is computed from spans for every
+   unselected dependent (a child named `adjunct`, `modifier` or `supplement`
+   after its phrase's `head`): the words of its host, unless the host is a
+   coordination, plus the words between the host and it; the last conjunct of
+   a coordination adds the difference between its length and its first
+   conjunct's. The Attachment Class is zero until it is computed. `best_ranked(k)` returns the keys too,
    `CompiledGrammar::ranking_key` computes a given Reading's key, and
    `cheapest_tier()` counts the Derivations sharing the least key without
    building trees. `derivation_count()` counts trees without building

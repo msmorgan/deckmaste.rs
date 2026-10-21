@@ -255,7 +255,7 @@ fn dump_reading(
         output,
         "Reading {} (ranking key {}): {text:?}",
         number,
-        format_key(grammar.ranking_key(reading))
+        format_key(grammar.ranking_key(reading, &env.lexicon)?)
     )?;
     let mut nodes = Vec::new();
     preorder_nodes(reading, &mut nodes);

@@ -199,8 +199,9 @@ fn ranking_key_ranks_a_higher_component_over_any_amount_of_a_lower_one() {
             }
     );
     assert!(association > cost);
-    // On a seed parse the upper components are zero today, so the key is the
-    // Production Cost and the Reading's own order breaks ties.
+    // On a seed parse the Attachment Class is zero today; the forest's keys
+    // are those computed from each tree, and the Reading's own order breaks
+    // ties.
     let s = seed();
     let parse = s
         .grammar
@@ -212,12 +213,33 @@ fn ranking_key_ranks_a_higher_component_over_any_amount_of_a_lower_one() {
             .len()
     );
     for (key, reading) in &ranked {
-        assert_eq!(*key, s.grammar.ranking_key(reading));
-        assert_eq!((key.attachment_class, key.right_association_words), (0, 0));
+        assert_eq!(*key, s.grammar.ranking_key(reading, &s.lexicon).unwrap());
+        assert_eq!(key.attachment_class, 0);
     }
     assert!(ranked.windows(2).all(|w| w[0] < w[1]));
     let tied = ranked.iter().filter(|(key, _)| *key == ranked[0].0).count();
     assert_eq!(parse.cheapest_tier(), Some((ranked[0].0, tied as u128)));
+}
+
+#[test]
+fn right_association_ranks_the_nearest_host_and_a_coordination_first() {
+    let s = seed();
+    // The nearer host, *creature*, outranks the verb phrase.
+    let readings = s.readings("Exile target creature with a counter on it.");
+    assert_eq!(s.hosts(&readings[0], "with a counter on it"), ["creature"]);
+    // A dependent after a coordination charges no words to it, and the
+    // conjuncts balance, so the relative clause takes the whole coordination.
+    let readings = s.readings("Destroy target creature or permanent you control.");
+    let host = |reading: &Reading| -> Vec<String> {
+        s.constituents(reading)
+            .into_iter()
+            .filter(|c| c.children.len() == 2 && c.children[1] == "you control")
+            .map(|c| c.children[0].clone())
+            .collect()
+    };
+    assert!(readings.len() > 1, "both attachments are retained");
+    assert_eq!(host(&readings[0]), ["creature or permanent"]);
+    assert!(readings[1..].iter().any(|r| host(r) == ["permanent"]));
 }
 
 #[test]

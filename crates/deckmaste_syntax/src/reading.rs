@@ -218,14 +218,104 @@ impl Parse<'_> {
                 ChildRef::Node(n) => self.tier_node(n, memo),
                 ChildRef::Leaf(_) | ChildRef::Punct => Some((RankingKey::default(), 1)),
             };
+            let edge = self.edge_key(item, previous, child);
             if let (Some((k1, n1)), Some((k2, n2))) = (before, here) {
-                best = least(best, Some((k1 + k2, n1.saturating_mul(n2))));
+                best = least(best, Some((k1 + k2 + edge, n1.saturating_mul(n2))));
             }
         }
         if memo.nodes.settle(mark) {
             memo.items.insert(item, best);
         }
         best
+    }
+
+    /// The Ranking Key a child adds where an item takes it after `previous`:
+    /// its Right Association words ([`CompiledGrammar::association_words`]).
+    fn edge_key(&self, item: usize, previous: Option<usize>, child: ChildRef) -> RankingKey {
+        let ChildRef::Node(n) = child else {
+            return RankingKey::default();
+        };
+        let it = &self.forest.items[item];
+        let node = &self.forest.nodes[n];
+        let words = self.words(node.start, node.end);
+        let first_words = || {
+            let production = &self.grammar.productions[it.production];
+            production
+                .names
+                .iter()
+                .position(|name| name.as_str() == "first")
+                .filter(|&first| first + 1 < it.dot)
+                .and_then(|first| {
+                    let previous = previous?;
+                    let start = if first == 0 {
+                        it.start
+                    } else {
+                        self.forest.items[self.item_at_dot(previous, first)].end
+                    };
+                    let end = self.forest.items[self.item_at_dot(previous, first + 1)].end;
+                    Some(self.words(start, end))
+                })
+        };
+        // The words between the end of the head and this child: from the
+        // phrase's start to the child, less the head's own words.
+        let between_words = || {
+            let production = &self.grammar.productions[it.production];
+            production
+                .names
+                .iter()
+                .position(|name| name.as_str() == "head")
+                .filter(|&head| head + 1 < it.dot)
+                .and_then(|head| {
+                    let head_item = &self.forest.items[self.item_at_dot(previous?, head + 1)];
+                    let head_start = match head_item.families.first()?.1 {
+                        ChildRef::Node(n) => self.forest.nodes[n].start,
+                        ChildRef::Leaf(l) => self.forest.leaves[l].start,
+                        ChildRef::Punct => return None,
+                    };
+                    let head_words = self.words(head_start, head_item.end);
+                    Some(self.words(it.start, node.start).saturating_sub(head_words))
+                })
+        };
+        RankingKey {
+            right_association_words: self.grammar.association_words(
+                it.production,
+                it.dot - 1,
+                words,
+                node.summary.coordinator.is_some(),
+                first_words,
+                between_words,
+            ),
+            ..RankingKey::default()
+        }
+    }
+
+    /// The item on `item`'s chain whose dot is `dot`, following each item's
+    /// first recorded family. It serves to find where a coordination's first
+    /// conjunct, or a phrase's head, ends, from the item that took a later
+    /// symbol. Where the Constituents between them could vary in extent, a
+    /// family other than the first could divide the text differently;
+    /// `deckmaste_english_v4`'s `ranking_keys` test checks that the forest's
+    /// keys equal those computed from the trees.
+    fn item_at_dot(&self, mut item: usize, dot: usize) -> usize {
+        while self.forest.items[item].dot > dot {
+            match self.forest.items[item].families.first() {
+                Some(&(Some(previous), _)) => item = previous,
+                _ => break,
+            }
+        }
+        item
+    }
+
+    /// The words of the text between two chart positions: maximal runs of
+    /// characters that are not whitespace.
+    fn words(&self, start: usize, end: usize) -> u64 {
+        let tokens = &self.tokens[start..end];
+        let starts = tokens
+            .iter()
+            .enumerate()
+            .filter(|&(i, c)| !c.is_whitespace() && (i == 0 || tokens[i - 1].is_whitespace()))
+            .count();
+        u64::try_from(starts).unwrap_or(u64::MAX)
     }
 
     fn ranked(&self, limit: Option<usize>) -> Vec<(RankingKey, Reading)> {
@@ -301,11 +391,12 @@ impl Parse<'_> {
                 )],
                 ChildRef::Punct => vec![(RankingKey::default(), None)],
             };
+            let edge = self.edge_key(item, previous, child);
             for (prefix_key, prefix) in &prefixes {
                 for (last_key, last) in &lasts {
                     let mut sequence = prefix.clone();
                     sequence.extend(last.clone());
-                    out.insert((*prefix_key + *last_key, sequence));
+                    out.insert((*prefix_key + *last_key + edge, sequence));
                 }
             }
         }
@@ -318,6 +409,34 @@ impl Parse<'_> {
 }
 
 type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(RankingKey, Vec<Reading>)>>;
+
+/// What computing a Reading's key from its tree reads: its realized text
+/// and Constituents.
+struct KeyContext<'r> {
+    lexicon: &'r Lexicon,
+    text: &'r str,
+    constituents: &'r [Constituent],
+}
+
+impl KeyContext<'_> {
+    /// The words of Constituent `index`.
+    fn words(&self, index: usize) -> u64 {
+        self.text_words(
+            self.constituents[index].span.start,
+            self.constituents[index].span.end,
+        )
+    }
+
+    /// The words of the realized text between two byte offsets.
+    fn text_words(&self, start: usize, end: usize) -> u64 {
+        u64::try_from(
+            self.text
+                .get(start..end)
+                .map_or(0, |text| text.split_whitespace().count()),
+        )
+        .unwrap_or(u64::MAX)
+    }
+}
 
 /// A forest node's or item's cheapest tier: its least key and how many
 /// Derivations have it.
@@ -342,27 +461,147 @@ fn truncate<T: Ord>(set: BTreeSet<(RankingKey, T)>, limit: Option<usize>) -> Vec
 }
 
 impl CompiledGrammar {
-    /// A Reading's Ranking Key: the sum of its Productions' keys. Leaves add
-    /// nothing.
-    #[must_use]
-    pub fn ranking_key(&self, reading: &Reading) -> RankingKey {
-        match reading {
-            Reading::Leaf(_) => RankingKey::default(),
-            Reading::Node(node) => {
-                let own = self
-                    .by_id
-                    .get(&node.production)
-                    .map_or_else(RankingKey::default, |&p| self.production_key(p));
-                node.children
-                    .iter()
-                    .fold(own, |key, child| key + self.ranking_key(child))
+    /// A Reading's Ranking Key, computed from the tree: the sum of its
+    /// Productions' keys and of the Right Association words each of its
+    /// children adds, counted on the Reading's realized text.
+    ///
+    /// # Errors
+    /// The Reading cannot be realized with this lexicon.
+    pub fn ranking_key(
+        &self,
+        reading: &Reading,
+        lexicon: &Lexicon,
+    ) -> Result<RankingKey, AdmissionError> {
+        let (text, constituents) = self.constituents(reading, lexicon)?;
+        let context = KeyContext {
+            lexicon,
+            text: &text,
+            constituents: &constituents,
+        };
+        let mut at = 0;
+        self.key_of(reading, &context, &mut at)
+    }
+
+    /// The key of the Reading whose root is Constituent `*at` in preorder.
+    fn key_of(
+        &self,
+        reading: &Reading,
+        context: &KeyContext<'_>,
+        at: &mut usize,
+    ) -> Result<RankingKey, AdmissionError> {
+        let Reading::Node(node) = reading else {
+            return Ok(RankingKey::default());
+        };
+        let me = *at;
+        *at += 1;
+        let Some(&production) = self.by_id.get(&node.production) else {
+            return Ok(RankingKey::default());
+        };
+        let mut key = self.production_key(production);
+        // Each Node child's preorder index, by its position among the
+        // children.
+        let mut indices = Vec::with_capacity(node.children.len());
+        for child in &node.children {
+            indices.push(child.node().map(|_| *at));
+            key = key + self.key_of(child, context, at)?;
+        }
+        let names = self.child_names(node);
+        let positions: Vec<usize> = self.productions[production]
+            .rhs
+            .iter()
+            .enumerate()
+            .filter(|(_, symbol)| !matches!(symbol, Symbol::Punct(..)))
+            .map(|(i, _)| i)
+            .collect();
+        let first = names
+            .iter()
+            .position(|name| name.as_str() == "first")
+            .and_then(|i| indices[i]);
+        let head_words = match names.iter().position(|name| name.as_str() == "head") {
+            Some(i) => match &node.children[i] {
+                Reading::Node(_) => indices[i].map(|index| context.words(index)),
+                leaf @ Reading::Leaf(_) => Some(self.leaf_words(leaf, context.lexicon)?),
+            },
+            None => None,
+        };
+        let start = context.constituents[me].span.start;
+        for (i, child) in node.children.iter().enumerate() {
+            let (Some(index), Some(child_node)) = (indices[i], child.node()) else {
+                continue;
+            };
+            let coordination = self
+                .by_id
+                .get(&child_node.production)
+                .is_some_and(|&p| self.productions[p].coordinator.is_some());
+            let before = context.text_words(start, context.constituents[index].span.start);
+            key = key
+                + RankingKey {
+                    right_association_words: self.association_words(
+                        production,
+                        positions[i],
+                        context.words(index),
+                        coordination,
+                        || first.map(|first| context.words(first)),
+                        || head_words.map(|head| before.saturating_sub(head)),
+                    ),
+                    ..RankingKey::default()
+                };
+        }
+        Ok(key)
+    }
+
+    /// The words a leaf realizes.
+    fn leaf_words(&self, leaf: &Reading, lexicon: &Lexicon) -> Result<u64, AdmissionError> {
+        let mut atoms = Vec::new();
+        self.atoms(leaf, lexicon, &mut atoms, &mut |_, _| {})?;
+        Ok(u64::try_from(join(&atoms).0.split_whitespace().count()).unwrap_or(u64::MAX))
+    }
+
+    /// The Right Association words (`docs/decisions/english-v4.md` §4.3) a
+    /// child adds at position `index` of a Production, given its length in
+    /// words and whether it is a coordination:
+    /// - the head of a phrase that unselected dependents (`adjunct`,
+    ///   `modifier`, `supplement`) follow is the host they attach to, and each
+    ///   of them adds the host's length, unless the host is a coordination;
+    ///   each also adds the words between the host and itself, such as a
+    ///   selected Object in between (a postposed or interleaved dependent);
+    /// - the last conjunct of a coordination adds the difference between its
+    ///   length and its first conjunct's (conjunct balance).
+    pub(crate) fn association_words(
+        &self,
+        production: usize,
+        index: usize,
+        words: u64,
+        coordination: bool,
+        first_words: impl FnOnce() -> Option<u64>,
+        between_words: impl FnOnce() -> Option<u64>,
+    ) -> i64 {
+        let names = &self.productions[production].names;
+        let words = i64::try_from(words).unwrap_or(i64::MAX);
+        match names[index].as_str() {
+            "adjunct" | "modifier" | "supplement"
+                if names[..index].iter().any(|name| name.as_str() == "head") =>
+            {
+                between_words().map_or(0, |between| i64::try_from(between).unwrap_or(i64::MAX))
             }
+            "head" if !coordination => {
+                let dependents = names[index + 1..]
+                    .iter()
+                    .filter(|name| matches!(name.as_str(), "adjunct" | "modifier" | "supplement"))
+                    .count();
+                words.saturating_mul(i64::try_from(dependents).unwrap_or(i64::MAX))
+            }
+            "last" => first_words().map_or(0, |first| {
+                (i64::try_from(first).unwrap_or(i64::MAX) - words).abs()
+            }),
+            _ => 0,
         }
     }
 
-    /// One occurrence of a Production's contribution to a Ranking Key. The
-    /// Attachment Class and Right Association components are not computed
-    /// yet, and are zero.
+    /// One occurrence of a Production's own contribution to a Ranking Key: its
+    /// Production Cost. Right Association is added per child
+    /// ([`CompiledGrammar::association_words`]); the Attachment Class is not
+    /// computed yet, and is zero.
     pub(crate) fn production_key(&self, production: usize) -> RankingKey {
         RankingKey {
             production_cost: u64::from(self.productions[production].cost),

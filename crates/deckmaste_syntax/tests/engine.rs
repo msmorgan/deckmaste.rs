@@ -162,7 +162,10 @@ fn cheaper_attachment_ranks_first() {
         verb_phrase.production, "Transitive",
         "nominal attachment first"
     );
-    assert!(grammar.ranking_key(&readings[0]) < grammar.ranking_key(&readings[1]));
+    assert!(
+        grammar.ranking_key(&readings[0], &lexicon).unwrap()
+            < grammar.ranking_key(&readings[1], &lexicon).unwrap()
+    );
 }
 
 #[test]
@@ -367,7 +370,7 @@ fn best_ranked_orders_by_key_then_reading() {
     let ranked = parse.best_ranked(usize::MAX);
     assert_eq!(ranked.len(), parse.readings().len());
     for (key, reading) in &ranked {
-        assert_eq!(*key, grammar.ranking_key(reading));
+        assert_eq!(*key, grammar.ranking_key(reading, &lexicon).unwrap());
     }
     assert!(
         ranked.windows(2).all(|w| w[0] < w[1]),
@@ -376,7 +379,7 @@ fn best_ranked_orders_by_key_then_reading() {
 }
 
 #[test]
-fn cheapest_tier_counts_the_ties_without_building_trees() {
+fn cheapest_tier_counts_its_derivations_without_building_trees() {
     let lexicon = lexicon();
     let grammar = bind(GRAMMAR, &lexicon).unwrap();
     let parse = grammar.parse(
@@ -387,7 +390,9 @@ fn cheapest_tier_counts_the_ties_without_building_trees() {
     let least = ranked[0].0;
     let tied = ranked.iter().filter(|(key, _)| *key == least).count();
     assert_eq!(parse.cheapest_tier(), Some((least, tied as u128)));
-    assert!(tied > 1, "this text ties at the cheapest key today");
+    // Right Association separates the PP attachments the Production Cost
+    // ties: each PP on its nearest host is the single cheapest Reading.
+    assert_eq!(tied, 1);
     assert_eq!(grammar.parse(&lexicon, "See see.").cheapest_tier(), None);
 }
 
