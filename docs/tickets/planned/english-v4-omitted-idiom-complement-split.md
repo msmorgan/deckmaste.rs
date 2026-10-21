@@ -4,13 +4,17 @@ needs: []
 # A noun that may stand bare must not shed the Complement that follows it
 
 One right-edge-closure mechanism, in the engine, covers two defects:
-- the idiom nouns that may omit their Complement (*top*, *addition*);
+- the idiom noun that may omit its Complement (*top*);
 - the relational and partitive nouns (cost-audit defect #2: *number, amount,
   top, bottom, beginning, end, rest, choice, pair, pile, total*).
 
 Owner's ruling (round 2, caveat 7): #2 is the same mechanism as this ticket.
 It is merged here, and `english-v4-relational-noun-of-complement` is
-retired. One engine check on the right-edge closure of a bare noun that has a
+retired.
+
+*Addition* is no longer a witness. `english-v4-in-addition-to-predicate-host`
+(`mnpnoqsp`) removed the noun: *in addition* is now a compound preposition in
+`prepositions.ron`. One engine check on the right-edge closure of a bare noun that has a
 PP Complement frame fixes both, with zero grammar features.
 
 ## The defect
@@ -19,13 +23,13 @@ A noun that declares `Complement(PP([p]))` in `nouns.ron` can still head a
 Nominal through the bare valence (`Valence:*/Bare`). `compile.rs` admits the
 noun there as follows:
 - `Test::FreeOptional(Noun)` where the phrase is obligatory, for nouns that
-  also declare `Intransitive` (*top*, *addition*);
+  also declare `Intransitive` (*top*);
 - `Test::FreeLexical(Noun)` elsewhere, which is how *number* and *amount*
   reach it.
 
 The *p*-phrase right after it then attaches to another host:
 
-- **Idiom nouns** (CGEL, Ch. 7 §3.1, p. 620): Starving Revenant (*for each card
+- **Idiom noun** (CGEL, Ch. 7 §3.1, p. 620): Starving Revenant (*for each card
   you put on top of your library*) has 8 Readings, 4 of them *on [top]* with
   *of your library* elsewhere. Candidates: Nael, Avizoa Aeronaut; Cream of the
   Crop (an `Interleaved` complement-cluster PP).
@@ -53,7 +57,7 @@ which removed the same split for nouns that may not stand bare (*the amount of
   *of* is the default preposition.
 - CGEL, Ch. 5 §15, p. 454 [12i]: a light post-head Complement precedes
   post-head Modifiers.
-- CGEL, Ch. 7 §3.1, p. 620: *on top*, *in addition*.
+- CGEL, Ch. 7 §3.1, p. 620: *on top*.
 - `docs/decisions/english-lexical-analysis.md` §2: same-head complement
   priority, and "a newly admitted wrong Reading is a defect".
 - The round-1 ruling cited "CGEL Ch. 5 §10". That section is *Pronouns*
