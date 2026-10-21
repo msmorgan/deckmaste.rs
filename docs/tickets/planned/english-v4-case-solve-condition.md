@@ -20,12 +20,14 @@ loses these three faces. They are conditions, not declarations.
 
 ## Change
 
-- Decide where *To solve* lives (it is a CR-defined label, not a keyword
-  ability [CR#702.1] or an ability word [CR#207.2c]) and give it a
-  `Condition` Complement, as *Companion*'s `DashCondition` has.
-- Then exclude `Inflection` `Preterite` on `Declarative`, and check
-  `english-v4-next-time-replacement-clause`, whose two faces read only by a
-  preterite main clause.
+- Declare *To solve* in `catalogs/keyword_abilities.ron` as a `variants:` entry
+  on `"Solved"` (`phrase: "To solve"`, `form: DashCondition`, citing
+  `[CR#719.3a,719.3b]`), matching how `DashCondition` works on `"Companion"`
+  (`keyword_abilities.ron:501`) and how `variants:` works on other multi-form
+  entries in `keyword_abilities.ron`.
+- Then exclude `Inflection` `Preterite` on `Declarative` (after
+  `english-v4-next-time-replacement-clause` gives Ring of Ma'rûf and Mangara's
+  Tome their imperative Reading).
 
 ## Done when
 
