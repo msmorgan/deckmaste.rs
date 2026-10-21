@@ -1,28 +1,55 @@
 ---
 needs: []
 ---
-# Design shared action provenance descriptions (`semantics-v3` port)
+# Unify action provenance (`castBy`, `castFrom`, `activatedBy`) and `-ThisWay` lookback conditions with the action-clause spine
 
-Parked by the user on 2026-09-06. Investigate sharing descriptors for `castBy`,
-`castFrom`, "was cast this way" (`was (cast which) thisWay`), and corresponding
-activation reads without reducing all of them to `Predicate.did` (`did`/`was`).
+With the `semantics-v3` Unified Action-Clause Spine (`does` / `would` / `did` /
+`was` over `Subject` and `Action`), two families of bespoke action-provenance and
+event-lookback constructors remain in `Semantics/Abilities.lean`:
 
-The required distinctions are a currently proposed action, the action
-associated with the current object incarnation, and a historical occurrence.
-Cost modifiers can inspect a proposed cast; permitted cast provenance can
-remain available after a permanent arrives; copied decisions are not new
-actions. Preserve actor, origin, rank, reference scope, and uniqueness from
-ranked reads. Rank the intended actor's action stream before restricting it
-to the described subject; omitted actor constraints must not introduce
-spurious references.
+1. **Object/spell/ability action-provenance predicates (`Abilities.lean:209-210, 264`):**
+   - `Predicate.castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))`
+   - `Predicate.castFrom (zone : Location)`
+   - `Predicate.activatedBy (activator : NounPhrase)`
+   - Note that `castBy`'s `(rank : Option (Ordinal × Period))` (`"the second spell
+     you cast each turn"`) also duplicates `GameEvent.nthOccurrence (ordinal : Ordinal)
+     (per : Option TurnPart) (event : GameEvent)` (`Abilities.lean:454`, `"Whenever
+     you cast your second spell each turn"`).
+2. **One-off `-ThisWay` and flip-outcome `Condition` constructors (`Abilities.lean:424-428`):**
+   - `Condition.choseThisWay (chooser : NounPhrase) (predicate : Predicate)`
+     (*Sculpted Sunburst*, `Cards/Choice.lean:1494`: `"if you chose a creature
+     this way"`) — directly expressible as
+     `did chooser (choose (a predicate)) thisWay`.
+   - `Condition.dealtThisWay (predicate : Predicate)` (*Screaming Nemesis* and
+     *Sonic Shrieker*, `Cards/Damage.lean:744,758`: `"If a player was dealt damage
+     this way"`) — expressible as `was (dealDamage (to := a predicate)) thisWay`
+     once `Condition.did` publishes the recipient referent for `"that player"`.
+   - `Condition.flipCalled (caller : NounPhrase) (call : FlipCall)` (*Goblin
+     Archaeologist*, `Cards/Faces.lean:97,99`: `"If you win the flip"`) and
+     `Condition.flipFace (face : CoinFace)` — expressible via `did`/`was` over
+     `Action.flipCoins`, which already carries `(call : Option FlipCall)` and
+     `(outcome : Option CoinFace)` (`Abilities.lean:1094`, matching *Chance
+     Encounter* at `Cards/Faces.lean:107`).
+   - `Condition.preventedFromSource (predicate : Predicate)` (*Shadowbane*,
+     `Cards/Damage.lean:524`: `"If damage from a black source is prevented this
+     way"`).
 
-Before implementation, show concrete before/after terms and checker scope
-traces for all three situations. Record an amendment to the
-[DRT and action-clause contract](../../decisions/semantics-v3.md#1-pillar-1-clean-sheet-drt-checker-leansemanticscheck)
-that explains what information is represented, which parts are projections,
-and how the reads are licensed. The amendment must settle the necessary
-distinctions, not assume a new fold-state class or state machine in advance.
+## Design Requirements
 
-Existing provenance constructors remain until the representation and its
-benefit are agreed. The planned event-pattern folds do not depend on this
-work. Standard constraints apply.
+- Distinguish the three temporal regimes of `cast` / `activate` provenance
+  without keeping separate `castBy` / `castFrom` / `activatedBy` constructors if
+  `did` / `was` can carry them cleanly:
+  1. **Proposed action** (e.g. `costShift (allOf (and [isArtifact, isSpell, ...]))`
+     on *Foundry Inspector*, `Cards/Mana.lean:219`).
+  2. **Current object incarnation** (e.g. `"when ~ enters, if you cast it from
+     your hand"` on *Arcane Proxy* / *Mulldrifter*, `Cards/Faces.lean:604`,
+     `Cards/Mana.lean:642`, or `"spend this mana only to cast a spell from your
+     graveyard"`, `Cards/Mana.lean:324`).
+  3. **Historical window** (e.g. `"a spell you cast this turn"`).
+- Unify ordinal-per-period ranking (`"the second spell you cast each turn"` vs
+  `"whenever you cast your second spell each turn"`) across `Predicate` and
+  `GameEvent`.
+- Retire `Condition.choseThisWay`, `Condition.dealtThisWay`,
+  `Condition.flipCalled`, and `Condition.flipFace` in favor of `Condition.did` /
+  `was` over `choose`, `dealDamage`, and `flipCoins`, preserving DRT referent
+  publication and scope checks (`damageDealtInScope`, `coinFlipInScope`).

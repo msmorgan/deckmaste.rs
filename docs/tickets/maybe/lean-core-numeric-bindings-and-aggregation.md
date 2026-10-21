@@ -1,49 +1,34 @@
 ---
 needs: []
 ---
-# Design member binding, aggregation, and numeric anaphora
+# Unify numeric discourse anaphora (`thatMuch`, `theOutcome`, `groupSize`, `theDifference`)
 
-Parked by the user on 2026-09-06. Investigate these two parts independently;
-proximity in the numeric vocabulary does not make either a prerequisite for
-the other. Existing constructors remain until a concrete design is accepted.
+`Amount` in [`Semantics/Abilities.lean:361-368`](../../../lean/Semantics/Abilities.lean)
+currently has five separate constructors that read back a number from prior
+discourse or the enclosing event/comparison:
 
-## Member binding and aggregation
+- `Amount.thatMuch` (`"that much"` / `"that many"`)
+- `Amount.theOutcome (sort : OutcomeSort)` (where `OutcomeSort` in
+  `Semantics/Words.lean` is `rollResult | lifeLost | lifeGained | damagePrevented | damageMarked | excessDamage`)
+- `Amount.groupSize` (`"that many"` reading the count of an event/acted-on object
+  group, e.g. *Woodland Champion* and *Divine Visitation*)
+- `Amount.theDifference` (`"the difference"` from an enclosing comparison, e.g.
+  `Payload.difference`)
+- `Amount.chosenNumber (ref : ChoiceRef)` (`"the chosen number"`)
 
-Explore an explicit collection-member binder for numeric folds. The proposed
-expansions make `countOf` a sum of one per member and projected totals/extrema
-folds over property reads. Keep selection separate from measurement and
-preserve numeric regimes and surrounding references. Authoring macros would
-hide the binder.
+## Design
 
-First establish how this fits the [layer contract](../../decisions/semantics-v3.md#5-standing-domain-mechanisms-carried-forward-from-semantics-v2):
-constructions stay in surface positions, and hoisting/indexing belongs to
-lowering. A locally scoped member binder is not permission for prenex binders
-or positional core reads in the semantics workbench. Show concrete terms,
-their scope threading, and a reduction in shared obligations before choosing
-a representation. Do not reopen the parked Idris segment-indexed telescope
-without its own trigger.
-
-## Numeric anaphora
-
-Separately assess folding `Amount.thatMuch`, `theOutcome`, `groupSize`, and
-`theDifference` through typed binding reads and projections. They are not all
-outcomes: a group can belong to a proposed event and a difference comes from
-a comparison. Preserve category, cardinality, scope, and ambiguity rules.
-Bare "that much" must not mean the most recent number; two eligible numeric
-outcomes remain ambiguous, while an explicit category can disambiguate a read.
-Comparison gaps do not escape negation or alternatives. Group size must work
-for proposed event groups as well as completed results.
-
-Audit which reads are admitted in comparisons without blindly inheriting
-constructor-specific exclusions. This proposal does not require member binding
-or replacement of every `OutcomeSort` value. It needs its own benefit and
-scope evidence.
-
-## Decision evidence
-
-Produce concrete before/after terms, scope traces, and preserved positive and
-negative pins for each part. Include aggregate member reads, ambiguous numeric
-outcomes, comparison gaps, and event-group sizes (Woodland Champion and Divine
-Visitation). Compare outer constructors and total vocabulary separately.
-Record the design decision before implementation; either part may remain
-parked if the payoff is insufficient. Standard constraints apply.
+- Assess unifying numeric discourse readback (`thatMuch`, `theOutcome`,
+  `groupSize`, `theDifference`) into a single typed numeric-anaphor constructor
+  (or parameterizing `thatMuch` / `theOutcome` by an optional `NumericSort`) so
+  unqualified `"that much"` / `"that many"` and sort-qualified `"the life lost
+  this way"` / `"the damage prevented this way"` / `"the difference"` / `"the
+  result"` share one resolution mechanism in `Check/Phrase.lean`.
+- Preserve all existing DRT ambiguity and scope laws:
+  - Bare `"that much"` refuses when two eligible numeric outcomes are in scope,
+    while a sort-qualified read (`lifeLost`, `damagePrevented`, `rollResult`)
+    disambiguates by sort.
+  - `theDifference` remains scoped to the comparison branch and does not leak
+    across negation or disjunction.
+  - `groupSize` continues to resolve both proposed event groups (*Divine
+    Visitation*) and completed action groups (*Woodland Champion*).

@@ -1,22 +1,28 @@
 ---
 needs: []
 ---
-# Assess folding exchange life totals into numeric operands
+# Fold `Exchanged.lifeTotals` into `Exchanged.values` (`[CR#701.12c,701.12g]`)
 
-Parked by the user on 2026-09-06. The narrow candidate is
-`Exchanged.lifeTotals` into numerical operands already admitted by `values`.
-Preserve a selection such as "two target players" as well as two explicit
-values. Mirror Universe and Soul Conduit exercise two life totals; Tree of
-Redemption exercises a life total and toughness.
+In [`Semantics/Abilities.lean:518-525`](../../../lean/Semantics/Abilities.lean),
+`Exchanged` has five constructors:
+- `lifeTotals (parties : NounPhrase)` (`[CR#701.12c]`)
+- `controlOf (left right : NounPhrase)` (`[CR#701.12b]`)
+- `cardsAcross (left right : NounPhrase)`
+- `zones (left right : Location)` (`[CR#701.12d]`)
+- `values (left right : Amount)` (`[CR#701.12g]`: life totals, powers,
+  toughnesses, or rolled results)
 
-Keep Exchange as a labelled macro over a joint semantic body. Do not promise
-an outer-constructor saving, rename the existing family and claim a reduction,
-or add a generic "whole group can occur" expression. Runtime feasibility is
-not the subject of this design. Other exchange payloads remain unless an
-independently useful shared representation demonstrates a smaller equivalent
-body; a general writable-location framework is not pre-authorized.
+Under `[CR#701.12c,701.12g]`, exchanging life totals is exchanging two numerical
+values, and *Tree of Redemption* ("Exchange your life total with Tree of
+Redemption's toughness") already uses `values (lifeOf you) (toughnessOf thisCreature)`.
+Two-party life-total exchanges with distinct NPs (*Mirror Universe*: `"you"` and
+`"target opponent"`) likewise write `values (lifeOf you) (lifeOf (target isOpponent))`
+directly.
 
-Show whether the one-payload fold preserves collection binding and settable
-operand checks without extra machinery before implementing it. The unresolved
-"or base toughness" wording remains with `workbench-last-shapes`.
-Standard constraints apply.
+## Design
+
+- Check whether plural two-party life exchanges (*Soul Conduit*: `"Two target
+  players exchange life totals"`, currently `lifeTotals (targets (exactly 2) isPlayer)`)
+  can be expressed cleanly through `values` (or a pairwise `valuesOf (axis : ProjAxis) (parties : NounPhrase)`)
+  without losing the single plural target group (`targets (exactly 2) isPlayer`),
+  retiring `Exchanged.lifeTotals`.

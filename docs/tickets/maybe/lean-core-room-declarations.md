@@ -1,20 +1,30 @@
 ---
 needs: []
 ---
-# Assess Room operations through designation declarations
+# Complete the Room door designation fold (`[CR#709.5c..709.5j]`)
 
-Parked by the user on 2026-09-06. Leave the current Room operation shape in
-place while assessing whether a shared designation mechanism pays for itself.
-This is not a prerequisite for the planned action folds.
+Rooms (`[CR#709.5]`) are currently split across two half-connected representations
+in `lean/Semantics/`:
 
-The candidate expands unlock/lock through selecting a typed half and granting
-or removing its declared designation. It needs actual selected-half and
-removal vocabulary, not label-specific door guards. Preserve the distinction
-between selecting locked and unlocked halves and the relevant holder,
-uniqueness, and lifetime constraints. Do not build a general designation
-framework solely to remove one constructor without comparing complexity.
+1. [`Definitions/Designations.lean:24-26`](../../../lean/Semantics/Definitions/Designations.lean)
+   and `Check/Facts.lean:499-500` declare `leftHalfUnlocked` and
+   `rightHalfUnlocked` as `DesignationLabel`s (`[CR#709.5c]`), with
+   `Proofs/Rules.lean:266-272` checking their `Definition.designation` rows.
+2. However, [`Semantics/Abilities.lean:402-405, 1059-1061`](../../../lean/Semantics/Abilities.lean)
+   still carries bespoke Room primitives that do not use those designations:
+   - `LockState` (`locked | unlocked` in `Semantics/Words.lean`)
+   - `Door` (`thisDoor | doorOf (state : Option LockState) (room : NounPhrase)`)
+   - `Action.unlock (door : Door)`
+   - `Action.fullyUnlock (room : NounPhrase)` (`[CR#709.5i]`)
 
-Before promotion, give concrete macro bodies, the minimum declaration columns
-and reference support they need, and preserved card/checker witnesses. Keep
-this Lean design separate from the runtime ticket
-`core-getdesignation-scopes-and-eviction`. Standard constraints apply.
+## Design
+
+- Express Room door state and transitions (`[CR#709.5e..709.5j]`) through the
+  existing designation primitives (`gainDesignation`, `loseDesignation`,
+  `hasDesignation` with `leftHalfUnlocked` / `rightHalfUnlocked`) or a typed
+  half selector over them so `Door`, `LockState`, `Action.unlock`, and
+  `Action.fullyUnlock` do not sit alongside unused `leftHalfUnlocked` /
+  `rightHalfUnlocked` designation definitions.
+- Preserve all Room witnesses in [`Semantics/Cards/Faces.lean:430-475`](../../../lean/Semantics/Cards/Faces.lean)
+  (`"When you unlock this door"`, `"Whenever you fully unlock a Room"`, and
+  `"unlock a locked door of target Room you control"`).

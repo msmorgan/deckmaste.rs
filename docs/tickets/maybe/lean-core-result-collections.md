@@ -1,44 +1,46 @@
 ---
 needs: []
 ---
-# Design typed result collections and their operations
+# Consolidate roll, coin-flip, vote, and choice result readbacks
 
-Parked by the user on 2026-09-06. The result-table, dice, coin, vote, and stored
-result proposals belong together because they need shared collection access.
-Existing forms remain until that mechanism earns its complexity. Do not add a
-five-case `resultOp` bucket or assume all `OutcomeSort` uses must be replaced.
+`Semantics/Abilities.lean` currently scatters single-mechanic result and tally
+readbacks across `Predicate`, `Condition`, `Amount`, and `Action`:
 
-## Proposed mechanism and consumers
+- **`Predicate` (`Abilities.lean:240-241, 259`):**
+  - `Predicate.withMostVotes` (`"each permanent with the most votes"`,
+    *Council's Judgment* / *Custodi Squire* in `Cards/Piles.lean:71,130`)
+  - `Predicate.choseExtreme (op : AggregateOp)` (`"each player who secretly chose
+    the highest number"`, *Menacing Ogre* in `Cards/Counters.lean:1135-1136`)
+  - `Predicate.coinCameUp (face : CoinFace)` (`"each player whose coin came up
+    tails"` / `"each creature whose coin came up tails"`, *Goblin Assassin* and
+    *Rakdos, the Showstopper* in `Cards/Faces.lean:134,144`)
+- **`Condition` (`Abilities.lean:429-431`):**
+  - `Condition.voteLead (label : VoteLabel) (orTied : Bool)` (`"if death gets
+    more votes"` / `"if torture gets more votes or the vote is tied"`,
+    *Capital Punishment* / *Plea for Power* in `Cards/Piles.lean:55,57,97,98`)
+  - `Condition.anyResultIs (comparator : Comparator) (bound : Amount)` (`"if any
+    of those results is 10 or more"`, *Farideh, Devil's Chosen* in
+    `Cards/Trigger.lean:484`)
+  - `Condition.rolledDoubles`
+- **`Amount` & `Action` (`Abilities.lean:363, 365-366, 1096, 1101-1102`):**
+  - `Amount.votesFor (label : VoteLabel)`
+  - `Amount.coinsShowing (face : CoinFace)` (*Ral Zarek*, `Cards/Faces.lean:121`)
+  - `Amount.greatestStoredMatch (subject : NounPhrase)`, `Action.storeResults (on : NounPhrase)`,
+    and `Action.rerollStored (quantity : Quantity) (whose : NounPhrase)`
+    (*Centaur of Attention*, `Cards/Turn.lean:360-364`, `[CR#706.8a..706.8c]`)
+  - `Action.applyResultsTable (rows : List RollRow)`
 
-- Represent typed collections with individual results, coin faces, caller
-  outcomes, ballot alternatives, and stored die kinds/values. The current
-  single result marker cannot supply these collection queries.
-- Express `applyResultsTable` as result-based conditional dispatch, preserving
-  range validity, the observed result, and each branch's incoming scope.
-- Express `Condition.anyResultIs` and `rolledDoubles` as queries over results;
-  doubles must compare the two results rather than merely require a roll
-  marker. `flipFace` and `flipCalled` project different information: some
-  flips have no winner [CR#705.2]. Express `voteLead` through tally comparison
-  over ballot alternatives, preserving strict versus tied modes.
-  `coinsShowing`, `greatestStoredMatch`, and `votesFor` are related aggregate
-  consumers. Identify any actual dependency on a general numeric binder;
-  do not impose one just because both proposals involve collections.
-- Keep ignoring selected outcomes as a semantic operation. An ignored roll
-  is treated as never having happened, not merely filtered from a collection
-  [CR#706.6]. Its selection logic can still be shared.
-- Assess `shiftResult` as a numeric update, retaining natural versus modified
-  results and an explicit choice when direction is unspecified.
-- Storage retains die kind and value. A possible `rerollStored` expansion
-  selects stored entries, rolls their recorded die kinds, and replaces those
-  entries. Preserve linkage between storage and readback abilities
-  [CR#706.8a..706.8c]. Storage, rolling, and replacement must actually exist;
-  moving the specialized constructor into a helper type is insufficient.
+## Design Candidates
 
-## Decision evidence
-
-Show the smallest common collection/read/update interface and full expansions
-of representative table, dice, coin, vote, and storage consumers. Preserve
-cardinality, scope, ignored-occurrence meaning, tied votes, callerless flips,
-and mixed stored die kinds. Separate eliminated query forms from retained
-semantic operations and compare total vocabulary. Obtain a design ruling
-before implementation. Standard constraints apply.
+- **`voteLead` and `withMostVotes` (`[CR#701.38a]`):** Express `voteLead` and
+  `withMostVotes` via `votesFor` / `superlative` / `compareOver` instead of
+  bespoke `Condition` and `Predicate` constructors (preserving strict `>` vs
+  tied `≥` modes).
+- **`choseExtreme`:** Express `"each player who chose the highest number"` via
+  `superlative` / `compareOver` over `chosenNumber` rather than a dedicated
+  `Predicate.choseExtreme`.
+- **Die-roll and coin-flip result queries (`[CR#705.2,706.2]`):** Unify
+  `anyResultIs`, `rolledDoubles`, `coinsShowing`, `coinCameUp`, and
+  `applyResultsTable` over a small typed result/outcome read rather than five
+  unrelated constructors, while keeping `ignoreOutcomes` (`[CR#706.6]`) and
+  `shiftResult` (`[CR#706.2]`) as semantic operations on rolls.
