@@ -6,6 +6,12 @@
     features: {
         // A keyword mention may omit parameters; a Keyword Line supplies them.
         "KeywordForm": ["Bare", "Parametric"],
+        // The kind of a keyword form's final Keyword Parameter, from its
+        // catalog parameter frame; `SetOff` kinds follow an em dash. A set-off
+        // cost ends in a period of its own, and an associated instruction may
+        // follow it on the line; a set-off ability runs to the end of the
+        // line (style guide §3 "Periods", §14 "Keyword abilities").
+        "FinalParameter": ["Amount", "Cost", "SetOffCost", "SetOffCondition", "Quality", "Name", "SetOffAbility", "SetOffMeasure", "SetOffKeyword"],
         "Parameterization": ["Supplied", "Omitted"],
         "Number": ["Singular", "Plural"],
         // The Number of a head's *of* oblique.
@@ -236,10 +242,10 @@
         "RelativeNounPhrase": (category: Some("NounPhrase"), features: ["Number"]),
         // A preposition and its relative pronoun, fronted (*for which*).
         "RelativePrepositionPhrase": (category: Some("PrepositionPhrase")),
-        "KeywordPhrase": (features: ["Parameterization", "KeywordForm"]),
-        "KeywordLineItem": (features: ["KeywordForm"]),
-        "KeywordParameters": (features: ["KeywordForm"]),
-        "BoundKeyword": (features: ["KeywordForm"]),
+        "KeywordPhrase": (features: ["Parameterization", "KeywordForm", "FinalParameter"]),
+        "KeywordLineItem": (features: ["KeywordForm", "FinalParameter"]),
+        "KeywordParameters": (features: ["KeywordForm", "FinalParameter"]),
+        "BoundKeyword": (features: ["KeywordForm", "FinalParameter"]),
         // An Amount's QuantityNumber agrees with a counted noun (*two cards*);
         // as a Noun Phrase it is singular (*X can't be 0*).
         "Amount": (features: ["QuantityNumber", "Sign", "AmountKind"]),
@@ -374,7 +380,10 @@
         (name: "SupertypeModifier", lhs: "TypeModifier", rhs: [Class("head", "Supertype")]),
         (name: "NegativeTypeModifier", lhs: "TypeModifier", rhs: [Lex("prefix", Affix), Cat("head", "TypeModifier")]),
         (name: "IndexedCostHeader", lhs: "Header", rhs: [Cat("cost", "Cost"), Punct(':'), Cat("head", "IndexedNominal")], equations: [Require("head.Number", "Singular")]),
-        (name: "KeywordPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "KeywordPhrase"), Cat("head", "BareNominal")]),
+        // An em-dash ability runs to the end of its keyword line, so a
+        // keyword with one never premodifies a nominal in a sentence (style
+        // guide §14 "Keyword abilities").
+        (name: "KeywordPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility")]),
 
         (name: "TextSymbols", lhs: "Document", rhs: [Cat("head", "Symbols")]),
         // A symbol sequence is also a noun under a determiner (*each {B} in a
@@ -451,7 +460,12 @@
         (name: "FlavorLabelledAbility", lhs: "Ability", rhs: [Lex("label", FlavorWord), Cat("head", "Ability")]),
         (name: "NominalMode", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "Nominal"), Punct('.')], equations: []),
         (name: "NounPhraseMode", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "NounPhrase"), Punct('.')]),
-        (name: "KeywordFollowedBySentences", lhs: "Ability", rhs: [Cat("first", "KeywordList"), Cat("rest", "Sentences")]),
+        // A keyword whose em-dash cost ends in its own period, then that
+        // keyword's associated instruction (style guide §3 "Periods": *Equip—
+        // Sacrifice another nonland permanent. Activate only once each turn.*).
+        // No other keyword form is followed by a sentence on its line (§8
+        // "Keyword abilities on a shared line").
+        (name: "KeywordFollowedBySentences", lhs: "Ability", rhs: [Cat("first", "KeywordLineItem"), Cat("rest", "Sentences")], equations: [Carry("first.FinalParameter", "SetOffCost")]),
         (name: "NamePremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Name"), Cat("head", "BareNominal")]),
         (name: "ModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "Ability")]),
         (name: "CostedModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
@@ -1292,7 +1306,7 @@
         Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")], proximate: ["VerbKind", "Voice"]),
         // Contrastive *but* joins predicates (*you control but don't own*).
         Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["Inflection", "AdjectivalPassive"]),
-        Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm"]),
+        Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it
         // doesn't untap ...*).

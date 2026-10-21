@@ -163,5 +163,5 @@ Acceptance set (50 units):
 
 Standard constraints apply.
 
-Census delta: measured at landing.
-Judgment set: run at landing.
+Census delta (measured on onoqokss): faces read 28,709 → 28,709; total Readings 328,186 → 327,935; lost faces: none.
+Judgment set (onoqokss): 2,973 enforced at `COMPLETED_STRATUM` 6, all hold; 195 pending.

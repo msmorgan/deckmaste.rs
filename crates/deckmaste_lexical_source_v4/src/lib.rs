@@ -772,6 +772,24 @@ impl Sources {
                     }
                 }
             }
+            // The kind of the final Keyword Parameter decides what may follow
+            // the keyword on its line: an em-dash cost ends in a period of its
+            // own and may be followed by an associated instruction; an
+            // em-dash ability runs to the end of the line.
+            if let Some(last) = parameters.last() {
+                let kind = match last {
+                    KeywordParameter::Amount => "Amount",
+                    KeywordParameter::Cost => "Cost",
+                    KeywordParameter::DashCost | KeywordParameter::DashNonManaCost => "SetOffCost",
+                    KeywordParameter::DashCondition => "SetOffCondition",
+                    KeywordParameter::Quality(_) | KeywordParameter::QualityBefore => "Quality",
+                    KeywordParameter::Name(_) => "Name",
+                    KeywordParameter::DashAbility => "SetOffAbility",
+                    KeywordParameter::DashPowerToughness => "SetOffMeasure",
+                    KeywordParameter::DashKeyword => "SetOffKeyword",
+                };
+                parts.push(ParameterPart::Feature("FinalParameter".into(), kind.into()));
+            }
             parts
         };
         for ability in &self.keyword_abilities {

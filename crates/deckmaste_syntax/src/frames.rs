@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use deckmaste_lexical::LexemeId;
+use dpsi::Ident;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -295,9 +296,9 @@ impl Hosts {
             HostKind::Supplement,
             HostKind::PredicateConjunct,
         ]
-            .into_iter()
-            .filter(|kind| self.admits(*kind))
-            .fold(0, |mask, kind| mask | host_bit(kind))
+        .into_iter()
+        .filter(|kind| self.admits(*kind))
+        .fold(0, |mask, kind| mask | host_bit(kind))
     }
 
     #[must_use]
@@ -308,13 +309,14 @@ impl Hosts {
             (
                 Self::Nominal | Self::NominalAndPredicate | Self::NominalAndPredicateConjunct,
                 HostKind::Nominal
-            )
+            ) | (
+                Self::Predicate | Self::NominalAndPredicate,
+                HostKind::Predicate
+            ) | (Self::Supplement, HostKind::Supplement)
                 | (
-                    Self::Predicate | Self::NominalAndPredicate,
-                    HostKind::Predicate
+                    Self::NominalAndPredicateConjunct,
+                    HostKind::PredicateConjunct
                 )
-                | (Self::Supplement, HostKind::Supplement)
-                | (Self::NominalAndPredicateConjunct, HostKind::PredicateConjunct)
         )
     }
 }
@@ -380,6 +382,9 @@ pub enum ParameterPart {
     /// A word set with recursive premodification, projected as a constituent.
     ModifiedWords(Vec<LexemeId>, SlotKind, SlotKind),
     Mark(char, deckmaste_lexical::Binding),
+    /// A value the pattern gives a feature of its phrase, as no word: the
+    /// kind of a keyword form's final Keyword Parameter.
+    Feature(Ident, Ident),
 }
 
 fn complement_relation() -> SlotRelation {

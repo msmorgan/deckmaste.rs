@@ -424,8 +424,8 @@ impl<'a> Binder<'a> {
                 let index = intern(&mut frames, frame);
                 facts.frames.insert(index);
             }
-            facts.optional_complement = list.is_empty()
-                || list.iter().any(|f| f.family == FrameFamily::Intransitive);
+            facts.optional_complement =
+                list.is_empty() || list.iter().any(|f| f.family == FrameFamily::Intransitive);
         }
         for (id, list) in &catalog.prepositions {
             let facts = lexemes
@@ -742,7 +742,9 @@ impl<'a> Binder<'a> {
         if closed.is_empty() {
             return Err(context("has no sibling with a trailing selected PP"));
         }
-        self.out.unextended_prepositions.extend(closed.iter().copied());
+        self.out
+            .unextended_prepositions
+            .extend(closed.iter().copied());
         self.out.productions[index].unextended = Some((child, closed));
         Ok(())
     }
@@ -1405,6 +1407,19 @@ impl<'a> Binder<'a> {
                 let mut draft = Draft::new(format!("Parameters:{phrase}/{id}/{index}"), lhs, 0);
                 for part in parts {
                     let (name, symbol) = match part {
+                        ParameterPart::Feature(feature, value) => {
+                            let feature = self.feature(feature)?;
+                            if !self.out.category_features[lhs].contains(&feature) {
+                                return Err(invalid(format!(
+                                    "`{phrase}` does not carry the feature a pattern of `{id}` values"
+                                )));
+                            }
+                            let value = self.value(feature, value)?;
+                            draft
+                                .equations
+                                .push((Path::Mother(feature), Target::Value(value)));
+                            continue;
+                        }
                         ParameterPart::Head => ("head", Symbol::Leaf(Test::Word(*id))),
                         ParameterPart::Slot(kind) => (
                             "complement",
@@ -1485,8 +1500,12 @@ impl<'a> Binder<'a> {
                     };
                     draft.child(name, symbol, GapRule::Closed);
                 }
+                let structural: Vec<&ParameterPart> = parts
+                    .iter()
+                    .filter(|part| !matches!(part, ParameterPart::Feature(..)))
+                    .collect();
                 if let (Some(coordinator), [.., ParameterPart::Word(_), ParameterPart::Slot(_)]) =
-                    (&coordinator, parts.as_slice())
+                    (&coordinator, structural.as_slice())
                 {
                     drafts.extend(self.coordinated_parameter(&draft, coordinator));
                 }
@@ -2282,8 +2301,8 @@ impl<'a> Binder<'a> {
                     *cost,
                 )?);
             }
-            // Serial with the Oxford comma: X , X , Coord X — one tree per chain;
-            // unlike conjuncts differ first to last.
+            // Serial with the Oxford comma: X , X , Coord X — one tree per
+            // chain; unlike conjuncts differ first to last.
             if !serials {
                 continue;
             }
