@@ -298,7 +298,9 @@ Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in
 the same equations as inflectional features. `Require` values an unvalued
 feature; `Carry` requires the child to carry the value itself; `ExcludeTogether`
-rejects only a combination of child values, every one of them carried. Multiword noun terms, measured compounds
+rejects only a combination of child values, every one of them carried. An
+equation on a child name that several children share (two preposed `adjunct`s)
+constrains each of them that carries the feature. Multiword noun terms, measured compounds
 (`+1/+1 counter`) among them, are one leaf in both parsing and Admission.
 The ordinary words of one declared outside the core lexicon also reach the
 chart as separate leaves, but only to straddle a constituent boundary, where

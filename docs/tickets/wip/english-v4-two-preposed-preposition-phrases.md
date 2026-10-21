@@ -65,5 +65,8 @@ options to the owner.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`qrvqvlkn`, full corpus): faces read 28,705 → 28,706;
+   total Readings (product) 243,154 → 243,186 and Surplus 106,258 → 106,289,
+   all from Cyclopean Tomb (0 → 32; no other unit changed). Lost faces: none.
+2. **Judgment set** (`qrvqvlkn`): 2,994 enforced, 195 pending; all hold,
+   including the new `preposed_preposition_pair.txt`.

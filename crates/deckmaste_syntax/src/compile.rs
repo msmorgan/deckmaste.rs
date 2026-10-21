@@ -955,25 +955,25 @@ impl<'a> Binder<'a> {
     }
 
     /// Adds declared equations over a draft's children and mother. A `Gap`
-    /// requirement is a child's Gap Rule, set by the caller.
+    /// requirement is a child's Gap Rule, set by the caller. An equation on a
+    /// child name that several children share constrains each of them that
+    /// carries the feature.
     fn equations(&self, draft: &mut Draft, equations: &[Equation]) -> Result<(), LoadError> {
         for equation in equations {
             match equation {
                 Equation::Exclude(path, value) => {
-                    let Path::Child(child, feature) = self.path(draft, path)? else {
-                        return Err(invalid("Exclude requires a child feature"));
-                    };
-                    draft
-                        .exclusions
-                        .push((child, feature, self.value(feature, value)?));
+                    for (child, feature) in self.child_paths(draft, path, "Exclude")? {
+                        draft
+                            .exclusions
+                            .push((child, feature, self.value(feature, value)?));
+                    }
                 }
                 Equation::Carry(path, value) => {
-                    let Path::Child(child, feature) = self.path(draft, path)? else {
-                        return Err(invalid("Carry requires a child feature"));
-                    };
-                    draft
-                        .carried
-                        .push((child, feature, self.value(feature, value)?));
+                    for (child, feature) in self.child_paths(draft, path, "Carry")? {
+                        draft
+                            .carried
+                            .push((child, feature, self.value(feature, value)?));
+                    }
                 }
                 Equation::ExcludeTogether(conditions) => {
                     if conditions.len() < 2 {
@@ -981,26 +981,35 @@ impl<'a> Binder<'a> {
                     }
                     let mut joint = Vec::new();
                     for (path, value) in conditions {
-                        let Path::Child(child, feature) = self.path(draft, path)? else {
-                            return Err(invalid("ExcludeTogether requires child features"));
+                        let [(child, feature)] =
+                            self.child_paths(draft, path, "ExcludeTogether")?[..]
+                        else {
+                            return Err(invalid(
+                                "ExcludeTogether requires one child per condition",
+                            ));
                         };
                         joint.push((child, feature, self.value(feature, value)?));
                     }
                     draft.joint_exclusions.push(joint);
                 }
                 Equation::Agree(a, b) => {
-                    let a = self.path(draft, a)?;
-                    let b = self.path(draft, b)?;
-                    draft.equations.push((a, Target::Path(b)));
+                    let a = self.paths(draft, a)?;
+                    let b = self.paths(draft, b)?;
+                    for &a in &a {
+                        for &b in &b {
+                            draft.equations.push((a, Target::Path(b)));
+                        }
+                    }
                 }
                 Equation::Require(path, _) if path.ends_with(".Gap") => {}
                 Equation::Require(path, value) => {
-                    let path = self.path(draft, path)?;
-                    let feature = match path {
-                        Path::Mother(f) | Path::Child(_, f) => f,
-                    };
-                    let value = self.value(feature, value)?;
-                    draft.equations.push((path, Target::Value(value)));
+                    for path in self.paths(draft, path)? {
+                        let feature = match path {
+                            Path::Mother(f) | Path::Child(_, f) => f,
+                        };
+                        let value = self.value(feature, value)?;
+                        draft.equations.push((path, Target::Value(value)));
+                    }
                 }
             }
         }
@@ -1086,7 +1095,25 @@ impl<'a> Binder<'a> {
         })
     }
 
-    fn path(&self, draft: &Draft, text: &str) -> Result<Path, LoadError> {
+    /// A child feature path's `(child, feature)` pairs.
+    fn child_paths(
+        &self,
+        draft: &Draft,
+        text: &str,
+        equation: &str,
+    ) -> Result<Vec<(usize, usize)>, LoadError> {
+        self.paths(draft, text)?
+            .into_iter()
+            .map(|path| match path {
+                Path::Child(child, feature) => Ok((child, feature)),
+                Path::Mother(_) => Err(invalid(format!("{equation} requires a child feature"))),
+            })
+            .collect()
+    }
+
+    /// The mother's feature, or that feature on every child of the name that
+    /// carries it.
+    fn paths(&self, draft: &Draft, text: &str) -> Result<Vec<Path>, LoadError> {
         let (owner, feature) = text
             .split_once('.')
             .ok_or_else(|| invalid(format!("path `{text}` is not `owner.Feature`")))?;
@@ -1095,17 +1122,23 @@ impl<'a> Binder<'a> {
             if !self.out.category_features[draft.lhs].contains(&feature) {
                 return Err(invalid(format!("mother does not carry `{text}`")));
             }
-            return Ok(Path::Mother(feature));
+            return Ok(vec![Path::Mother(feature)]);
         }
-        let index = draft
-            .children
-            .iter()
-            .position(|c| c.name == owner)
-            .ok_or_else(|| invalid(format!("unknown child `{owner}`")))?;
-        if !self.carries(&draft.children[index].symbol, feature) {
+        let named: Vec<usize> = (0..draft.children.len())
+            .filter(|&index| draft.children[index].name == owner)
+            .collect();
+        if named.is_empty() {
+            return Err(invalid(format!("unknown child `{owner}`")));
+        }
+        let paths: Vec<Path> = named
+            .into_iter()
+            .filter(|&index| self.carries(&draft.children[index].symbol, feature))
+            .map(|index| Path::Child(index, feature))
+            .collect();
+        if paths.is_empty() {
             return Err(invalid(format!("child `{owner}` does not carry `{text}`")));
         }
-        Ok(Path::Child(index, feature))
+        Ok(paths)
     }
 
     fn carries(&self, symbol: &Symbol, feature: usize) -> bool {

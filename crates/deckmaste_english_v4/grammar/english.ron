@@ -740,6 +740,17 @@
         // [CR#603.1,603.7]) or a relative clause's (*For each creature that
         // entered this turn, ...*), never stranded before the comma.
         (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], unextended: ["adjunct"], cost: 2),
+        // Two preposed Preposition Phrases set off by one comma, a delayed
+        // trigger's timing and its duration (*At the beginning of each of
+        // your upkeeps for the rest of the game, ...*; oracle-style-guide §8,
+        // Delayed and reflexive triggers, and §11, Continuous and bounded
+        // durations; [CR#603.7]). Both have a Noun Phrase Complement: a
+        // Clause Complement keeps what follows it inside it (*If tapped for
+        // mana, ...*; *As many times as you choose, ...*). The first is
+        // unextended: a phrase that can belong inside it does, as in the fixed
+        // phrase *at the beginning of combat on your turn* (oracle-style-guide
+        // §11, Turn-structure names).
+        (name: "PreposedPrepositionPair", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], unextended: ["adjunct"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],
