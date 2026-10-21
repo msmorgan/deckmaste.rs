@@ -93,5 +93,5 @@ the front matter through "The shortest useful checklist"; §3 "Em dashes" and
 
 Standard constraints apply.
 
-Census delta: measured at landing.
-Judgment set: run at landing.
+Census delta (measured on urzkpqqo): faces read 28,709 → 28,709; total Readings 327,935 → 327,929; lost faces: none.
+Judgment set (urzkpqqo): 2,976 enforced at `COMPLETED_STRATUM` 6, all hold; 195 pending.

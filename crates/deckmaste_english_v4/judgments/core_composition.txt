@@ -12,3 +12,6 @@
 
 + <card=Garland, Knight of Cornelia> {3}{B}{B}{R}{R}: Return this card from your graveyard to the battlefield transformed. Activate only as a sorcery. => AdjectivePhrase "transformed" as Adjunct of return
 + <card=Startled Awake> {3}{U}{U}: Put this card from your graveyard onto the battlefield transformed. Activate only as a sorcery. => AdjectivePhrase "transformed" as Adjunct of put
++ <card=Battle Menu> • Attack — Create a 2/2 white Knight creature token. => NounPhrase "a 2/2 white Knight creature token" as Object of create; !Cost "Attack"; readings 1
++ <card=School Daze> • Fight Crime — Counter target spell. Draw a card. => NounPhrase "target spell" as Object of counter; !Cost "Fight Crime"; readings 1
++ <card=You're Ambushed on the Road> • Stand and Fight — Target creature gets +1/+3 until end of turn. => NounPhrase "Target creature" as Subject of get; !Cost "Stand and Fight"; readings 1

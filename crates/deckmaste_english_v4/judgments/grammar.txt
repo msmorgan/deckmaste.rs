@@ -129,7 +129,7 @@
 +PrepositionPhrase whenever you draw a card => Clause "you draw a card" as Complement of whenever
 +PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
 +PrepositionPhrase when you draw cards => Clause "you draw cards" as Complement of when
-+PrepositionPhrase until counter spells => NounPhrase "counter spells" as Complement of until; !Clause "counter spells" as Complement of until
++PrepositionPhrase until draw steps => NounPhrase "draw steps" as Complement of until; !Clause "draw steps" as Complement of until
 + Until you draw cards, draw cards.
 +Nominal creatures that attack => RelativeClause "that attack" gap "creatures"
 + You attack and they attack.

@@ -24,7 +24,6 @@
 + Choose one — => NounPhrase "one" as Object of choose
 + Choose one or both — => NounPhrase "one or both" as Object of choose
 + • Destroy a creature. => NounPhrase "a creature" as Object of destroy
-+ • {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
 + + {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
 + • Thunder — {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
 + {P}{P} — Destroy a creature. => NounPhrase "a creature" as Object of destroy

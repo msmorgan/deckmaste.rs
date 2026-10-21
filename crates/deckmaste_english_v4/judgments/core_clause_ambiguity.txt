@@ -12,6 +12,7 @@
 + • Exile target creature. => NounPhrase "target creature" as Object of exile; readings 1
 + • Return target creature card from your graveyard to your hand. => NounPhrase "target creature card" as Object of return; !Nominal "Return target creature card"
 + • 1/3 Turtle with hexproof. => Nominal "1/3 Turtle with hexproof"
++ • Counter target activated or triggered ability. => NounPhrase "target activated or triggered ability" as Object of counter; !Nominal "Counter target activated"; !Nominal "Counter target"; readings 1
 + Put a -1/-1 counter on target creature. => NounPhrase "target creature" as Complement of on; !Nominal "target creature" as Complement of on
 +Measure -1/-1 => readings 1
 +Measure +1/+1 => readings 1

@@ -39,7 +39,9 @@
     (lemma: "copy", frames: [Complement(PP(["of"]))]),
     // "an additional cost to cast this spell"; "the mana cost for Rune spells".
     (lemma: "cost", frames: [Complement(PP(["for", "of"])), Complement(ToInf)]),
-    "counter",
+    // A counter on an object; Oracle never uses it attributively (*Counter
+    // target spell* is the verb), unlike a counter kind (*+1/+1 counter*).
+    (lemma: "counter", distribution: HeadOnly),
     "crime",
     (lemma: "d4", plural: "d4"),
     (lemma: "d6", plural: "d6"),

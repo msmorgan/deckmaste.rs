@@ -468,7 +468,6 @@
         (name: "KeywordFollowedBySentences", lhs: "Ability", rhs: [Cat("first", "KeywordLineItem"), Cat("rest", "Sentences")], equations: [Carry("first.FinalParameter", "SetOffCost")]),
         (name: "NamePremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Name"), Cat("head", "BareNominal")]),
         (name: "ModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "Ability")]),
-        (name: "CostedModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "PlusCostedMode", lhs: "Mode", rhs: [Mark('+', Free), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "LabelledCostedMode", lhs: "Mode", rhs: [Mark('•', Free), Lex("label", FlavorWord), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "PawprintMode", lhs: "Mode", rhs: [Cat("quantity", "Pawprints"), Mark('—', Free), Cat("head", "ModeEffect")]),
