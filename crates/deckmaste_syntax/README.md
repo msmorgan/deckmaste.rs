@@ -29,7 +29,14 @@ It has no proc macros and no generated code: a grammar is data.
    after its phrase's `head`): the words of its host, unless the host is a
    coordination, plus the words between the host and it; the last conjunct of
    a coordination adds the difference between its length and its first
-   conjunct's. The Attachment Class is zero until it is computed. `best_ranked(k)` returns the keys too,
+   conjunct's. A dependent whose Attachment Class attaches high counts that
+   distance reversed: a Supplement (`supplement`), and a distributive
+   Preposition Phrase, one whose `DeterminativeDistribution` is
+   `Distributive` (*for each …*). The Attachment Class counts a coordination's
+   last conjunct that ends in a dependent its first conjunct, which ends in its
+   head, lacks: that dependent belongs to the whole coordination. The chart
+   carries the first conjunct's `head_final` across the coordinator so that
+   the last conjunct's item records it. `best_ranked(k)` returns the keys too,
    `CompiledGrammar::ranking_key` computes a given Reading's key, and
    `cheapest_tier()` counts the Derivations sharing the least key without
    building trees. `derivation_count()` counts trees without building

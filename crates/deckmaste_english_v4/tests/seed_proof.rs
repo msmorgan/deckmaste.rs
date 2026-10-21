@@ -243,6 +243,20 @@ fn right_association_ranks_the_nearest_host_and_a_coordination_first() {
 }
 
 #[test]
+fn a_dependent_of_the_last_conjunct_alone_violates_the_coordination_class() {
+    let s = seed();
+    // *you control* on *permanent* alone, after *creature*, which ends in its
+    // head, violates the class; on the whole coordination it does not.
+    let parse = s.grammar.parse(
+        &s.lexicon,
+        "Destroy target creature or permanent you control.",
+    );
+    let ranked = parse.best_ranked(usize::MAX);
+    assert_eq!(ranked[0].0.attachment_class, 0);
+    assert!(ranked.iter().any(|(key, _)| key.attachment_class == 1));
+}
+
+#[test]
 fn seedborn_muse_keeps_both_temporal_attachments() {
     let s = seed();
     let text = "Untap all permanents you control during each other player's untap step.";

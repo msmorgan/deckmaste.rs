@@ -103,5 +103,59 @@ Targets:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing (Readings and Surplus unchanged).
-2. **Judgment set**: measured at landing.
+## Landing
+
+What landed:
+- **High-attaching dependents.** A Supplement, and a Preposition Phrase whose
+  `DeterminativeDistribution` is `Distributive` (*for each …*), count their
+  Right Association reversed. The reversal covers the host's words and the
+  words between the host and the dependent.
+- **Coordination class.** The Attachment Class counts a coordination's last
+  conjunct that ends in a dependent while its first conjunct ends in its
+  head. Conjunct balance and the free coordination host are unchanged from
+  `english-v4-right-association-key`, pending the owner's ruling.
+- **Equal base cost.** Every Predicate-hosted PP Adjunct Schema now costs 1,
+  as the Nominal-hosted ones do.
+- **Existing feature carried further (`english.ron`):**
+  - `DeterminativeDistribution` is added to the feature lists of
+    `PrepositionPhrase` and `ComplementNounPhrase`.
+  - It is added to the Preposition valence's `agree` list.
+  - It is unshared in Preposition Phrase coordination, as Noun Phrase
+    coordination already unshares it. Without that, PP coordinations such as
+    *on the battlefield or in the command zone* lost Readings.
+  - It is an existing feature, carried so that a forest node knows whether it
+    is distributive. Reading the complement through one family made the
+    forest's key disagree with the tree's.
+  - Without the unsharing, the census lost 72 Readings in 14 units; with it,
+    nothing changes.
+- **Chart (`deckmaste_syntax`).** A coordinator leaf keeps the first
+  conjunct's `head_final` in the item state, so the last conjunct's item
+  records it for every family. Readings are unchanged.
+- **Agreement check.** `ranking_keys` checks the forest's keys against the
+  trees' over the judgment set. A probe also confirmed agreement on the 8 best
+  Readings of every ambiguous corpus unit.
+
+Judgment-set ranking:
+- Measured over the 301 single-group entries with 2–4,000 Readings and at
+  least one unendorsed Reading.
+- Tags: S, the cheapest tier is one endorsed Reading; A, all endorsed; P,
+  partly endorsed; F, none.
+- Under Right Association alone: S 202, A 17, P 13, F 69 (S+A 219).
+- Now: S 203, A 18, P 13, F 67 (S+A 221), against the target of 222.
+- Changes from Right Association alone:
+  - `kind_of_counter.txt:9` F → S, through the coordination class;
+  - `syncretic_word_forms.txt:3` F → A, through the distributive reversal.
+- No entry moves from S/A to P/F.
+
+Of the 24 entries that Right Association moved from P to F, one is
+recovered (`syncretic_word_forms.txt:3`). The partitive *for each of the
+chosen colors* (`predicative_gap_relatives.txt:5`) is not: its fused
+partitive Noun Phrase does not carry `DeterminativeDistribution`.
+
+1. **Census delta** (measured on `qttprlkr`): faces read 28,706 → 28,706;
+   total Readings (product) 218,547 → 218,547; Surplus 91,328 → 91,328.
+   Every unit's verdict, Derivations and Segments are identical; lost faces:
+   none. Cheapest tier: singleton 14,526 → 14,544 of 17,220 ambiguous units
+   (84.5%); summed 20,674 → 20,646; largest 8 → 8.
+2. **Judgment set** (`qttprlkr`): 3,009 enforced at `COMPLETED_STRATUM` 6,
+   all hold; 200 pending.

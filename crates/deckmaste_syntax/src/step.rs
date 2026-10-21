@@ -559,7 +559,7 @@ pub(crate) struct State {
     /// Lexical leaves so far, counted to two.
     leaves: u8,
     /// The last child so far is in the head line and ends in its head.
-    head_final: bool,
+    pub head_final: bool,
     /// The preposition of the Preposition Phrase dependent the last child
     /// so far ends in (`Summary::final_preposition`).
     final_preposition: Option<LexemeId>,
@@ -678,12 +678,16 @@ impl Production {
     }
 
     /// Whether the phrase so far ends in its head: the last child is in the
-    /// head line and itself ends in its head (a leaf does).
+    /// head line and itself ends in its head (a leaf does). A coordinator
+    /// leaves it as its first conjunct left it, so that the last conjunct's
+    /// item records whether the first ended in its head (the Ranking Key's
+    /// Attachment Class reads it there); the last conjunct then sets it.
     fn track_head_final(&self, next: &mut State, position: usize, child: &ChildView<'_>) {
         match child {
             ChildView::Node(summary) => {
                 next.head_final = self.head_line[position] && summary.head_final;
             }
+            ChildView::Leaf(_) if self.coordinator == Some(position) => {}
             ChildView::Leaf(_) => next.head_final = self.head_line[position],
             ChildView::Punct => {}
         }

@@ -161,7 +161,7 @@
         // never a general Object (*can't block this turn*; CGEL, Ch. 4 §1.2,
         // p. 224).
         "PeriodNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
-        "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"], gap: true),
+        "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
         "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "Conversion"], gap: true),
@@ -204,7 +204,7 @@
         "TargetingMarker": (category: Some("DeterminerPhrase"), features: ["Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "PrepositionMarking", "ObliqueDetermination", "Targeting"]),
         // A Preposition Phrase's Number and Determination are its Complement's
         // (*up to two*, a determiner; *of them*, a partitive oblique).
-        "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "PrepositionMarking", "NounKind", "Countability"], gap: true),
+        "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "PrepositionMarking", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
         "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Conversion"], gap: true),
@@ -1302,7 +1302,7 @@
         // by {2}*, *increased by two*; Ch. 8 §5.2, p. 692); a *by* gerund is
         // a means Adjunct (p. 1428).
         Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")], adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, clusters: Some("Coordinator")),
-        Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability")]),
+        Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
         Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement
         // it selects (*until end of turn*, *on top of*, *in excess of*; CGEL,
@@ -1311,23 +1311,25 @@
         Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
         Valence(head: Adjective, phrase: "AdjectivePhrase"),
         Valence(head: Determinative, phrase: "DeterminerPhrase", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
-        // A complement costs nothing; a nominal postmodifier ranks before a
-        // predicate adjunct.
+        // A complement costs nothing. A Preposition Phrase Adjunct costs the
+        // same whether it postmodifies a Nominal or modifies a Predicate: the
+        // Ranking Key's Right Association, not a Production Cost, prefers one
+        // host to another (`docs/decisions/english-v4.md` §4.3).
         Adjunct(host: "QuantifiedNominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "LocativeHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "PartitiveHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "SymbolHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
-        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
-        Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.ComplementKind", "NP")]),
-        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),
+        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1),
+        Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1, equations: [Exclude("head.ComplementKind", "NP")]),
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 1),
         // A comma-set post-adjunct (*, except it has flying*, *, unless ...*)
         // or Supplement (*, where X is its power*) is anchored to a finite
         // Clause, never to a Verb Phrase, a *to*-infinitival or a relative's
         // Clause, whose Gap it closes (CGEL, Ch. 15 §5.1, p. 1351; Ch. 12 §4,
         // p. 1058; `docs/oracle-style-guide.md` §3, Commas and the serial
         // comma; §12, Copies).
-        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 2, equations: [Require("head.ClauseMarking", "Unmarked")]),
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 1, equations: [Require("head.ClauseMarking", "Unmarked")]),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2, equations: [Require("head.ClauseMarking", "Unmarked")]),
         // A comma-set Supplement to a keyword line's item or an indexed
         // instruction. A Supplement anchors to a Clause or line (Oracle
@@ -1412,7 +1414,7 @@
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
-        Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
+        Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", unshared: ["DeterminativeDistribution"], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),

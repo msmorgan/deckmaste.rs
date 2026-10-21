@@ -237,56 +237,62 @@ impl Parse<'_> {
         };
         let it = &self.forest.items[item];
         let node = &self.forest.nodes[n];
-        let words = self.words(node.start, node.end);
-        let first_words = || {
-            let production = &self.grammar.productions[it.production];
-            production
-                .names
+        let names = &self.grammar.productions[it.production].names;
+        let earlier = |name: &str| {
+            names
                 .iter()
-                .position(|name| name.as_str() == "first")
-                .filter(|&first| first + 1 < it.dot)
-                .and_then(|first| {
-                    let previous = previous?;
-                    let start = if first == 0 {
-                        it.start
-                    } else {
-                        self.forest.items[self.item_at_dot(previous, first)].end
-                    };
-                    let end = self.forest.items[self.item_at_dot(previous, first + 1)].end;
-                    Some(self.words(start, end))
-                })
+                .position(|n| n.as_str() == name)
+                .filter(|&at| at + 1 < it.dot)
+                .and_then(|at| Some((at, self.item_at_dot(previous?, at + 1))))
         };
-        // The words between the end of the head and this child: from the
-        // phrase's start to the child, less the head's own words.
-        let between_words = || {
-            let production = &self.grammar.productions[it.production];
-            production
-                .names
-                .iter()
-                .position(|name| name.as_str() == "head")
-                .filter(|&head| head + 1 < it.dot)
-                .and_then(|head| {
-                    let head_item = &self.forest.items[self.item_at_dot(previous?, head + 1)];
-                    let head_start = match head_item.families.first()?.1 {
-                        ChildRef::Node(n) => self.forest.nodes[n].start,
-                        ChildRef::Leaf(l) => self.forest.leaves[l].start,
-                        ChildRef::Punct => return None,
-                    };
-                    let head_words = self.words(head_start, head_item.end);
-                    Some(self.words(it.start, node.start).saturating_sub(head_words))
-                })
+        let child = ChildFacts {
+            words: self.words(node.start, node.end),
+            coordination: node.summary.coordinator.is_some(),
+            head_final: node.summary.head_final,
+            distributive: self.distributive(n),
         };
-        RankingKey {
-            right_association_words: self.grammar.association_words(
-                it.production,
-                it.dot - 1,
-                words,
-                node.summary.coordinator.is_some(),
-                first_words,
-                between_words,
-            ),
-            ..RankingKey::default()
-        }
+        let head = || {
+            let (at, head_item) = earlier("head")?;
+            let head_item = &self.forest.items[head_item];
+            let start = if at == 0 {
+                it.start
+            } else {
+                match head_item.families.first()?.1 {
+                    ChildRef::Node(h) => self.forest.nodes[h].start,
+                    ChildRef::Leaf(l) => self.forest.leaves[l].start,
+                    ChildRef::Punct => return None,
+                }
+            };
+            Some(self.words(start, head_item.end))
+        };
+        let first = || {
+            let (at, first_item) = earlier("first")?;
+            let start = if at == 0 {
+                it.start
+            } else {
+                self.forest.items[self.item_at_dot(previous?, at)].end
+            };
+            let first_item = &self.forest.items[first_item];
+            // Only punctuation and the coordinator, which keep it, follow the
+            // first conjunct, so the previous item records whether the first
+            // conjunct ends in its head, for this family.
+            let head_final = self.forest.items[previous?].state.head_final;
+            Some((self.words(start, first_item.end), head_final))
+        };
+        self.grammar
+            .attachment_key(it.production, it.dot - 1, child, head, first, || {
+                self.words(it.start, node.start)
+            })
+    }
+
+    /// Whether a forest node is a Preposition Phrase whose Complement has a
+    /// `Distributive` determinative, which the Preposition Phrase carries.
+    fn distributive(&self, node: usize) -> bool {
+        let packed = &self.forest.nodes[node];
+        self.grammar.distributive_phrase(
+            &self.grammar.feature_map(packed.category, &packed.summary),
+            packed.category,
+        )
     }
 
     /// The item on `item`'s chain whose dot is `dot`, following each item's
@@ -410,6 +416,20 @@ impl Parse<'_> {
 
 type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(RankingKey, Vec<Reading>)>>;
 
+/// What the Ranking Key reads of a child Constituent.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ChildFacts {
+    /// Its length in words.
+    pub words: u64,
+    /// It is a coordination.
+    pub coordination: bool,
+    /// It ends in its head, not in a dependent.
+    pub head_final: bool,
+    /// It is a Preposition Phrase whose Complement has a `Distributive`
+    /// determinative.
+    pub distributive: bool,
+}
+
 /// What computing a Reading's key from its tree reads: its realized text
 /// and Constituents.
 struct KeyContext<'r> {
@@ -516,8 +536,8 @@ impl CompiledGrammar {
         let first = names
             .iter()
             .position(|name| name.as_str() == "first")
-            .and_then(|i| indices[i]);
-        let head_words = match names.iter().position(|name| name.as_str() == "head") {
+            .and_then(|i| Some((indices[i]?, &node.children[i])));
+        let head = match names.iter().position(|name| name.as_str() == "head") {
             Some(i) => match &node.children[i] {
                 Reading::Node(_) => indices[i].map(|index| context.words(index)),
                 leaf @ Reading::Leaf(_) => Some(self.leaf_words(leaf, context.lexicon)?),
@@ -526,28 +546,81 @@ impl CompiledGrammar {
         };
         let start = context.constituents[me].span.start;
         for (i, child) in node.children.iter().enumerate() {
-            let (Some(index), Some(child_node)) = (indices[i], child.node()) else {
+            let Some(index) = indices[i] else {
                 continue;
             };
-            let coordination = self
-                .by_id
-                .get(&child_node.production)
-                .is_some_and(|&p| self.productions[p].coordinator.is_some());
-            let before = context.text_words(start, context.constituents[index].span.start);
+            let facts = ChildFacts {
+                words: context.words(index),
+                coordination: self.is_coordination(child),
+                head_final: self.head_final(child),
+                distributive: self.is_distributive(child),
+            };
             key = key
-                + RankingKey {
-                    right_association_words: self.association_words(
-                        production,
-                        positions[i],
-                        context.words(index),
-                        coordination,
-                        || first.map(|first| context.words(first)),
-                        || head_words.map(|head| before.saturating_sub(head)),
-                    ),
-                    ..RankingKey::default()
-                };
+                + self.attachment_key(
+                    production,
+                    positions[i],
+                    facts,
+                    || head,
+                    || first.map(|(index, first)| (context.words(index), self.head_final(first))),
+                    || context.text_words(start, context.constituents[index].span.start),
+                );
         }
         Ok(key)
+    }
+
+    /// Whether a Reading is formed by a coordination.
+    fn is_coordination(&self, reading: &Reading) -> bool {
+        reading.node().is_some_and(|node| {
+            self.by_id
+                .get(&node.production)
+                .is_some_and(|&p| self.productions[p].coordinator.is_some())
+        })
+    }
+
+    /// Whether a Reading ends in its head: its last child is in the head line
+    /// and ends in its head (a leaf does), as the chart tracks it.
+    fn head_final(&self, reading: &Reading) -> bool {
+        let Reading::Node(node) = reading else {
+            return true;
+        };
+        let Some(&p) = self.by_id.get(&node.production) else {
+            return false;
+        };
+        let production = &self.productions[p];
+        let last = production
+            .rhs
+            .iter()
+            .enumerate()
+            .filter(|(_, symbol)| !matches!(symbol, Symbol::Punct(..)))
+            .map(|(i, _)| i)
+            .zip(&node.children)
+            .last();
+        last.is_some_and(|(position, child)| {
+            production.head_line[position] && self.head_final(child)
+        })
+    }
+
+    /// Whether a Reading is a Preposition Phrase whose Complement has a
+    /// `Distributive` determinative.
+    fn is_distributive(&self, reading: &Reading) -> bool {
+        reading.node().is_some_and(|node| {
+            self.category_id(node.category.as_str())
+                .is_some_and(|category| self.distributive_phrase(&node.features, category))
+        })
+    }
+
+    /// Whether a Constituent of `category` with these features is a
+    /// Preposition Phrase whose Complement has a `Distributive` determinative
+    /// (*for each …*), which it carries as its `DeterminativeDistribution`.
+    pub(crate) fn distributive_phrase(
+        &self,
+        features: &BTreeMap<Ident, Ident>,
+        category: usize,
+    ) -> bool {
+        self.categories[category].as_str() == "PrepositionPhrase"
+            && features
+                .get(&Ident::from("DeterminativeDistribution"))
+                .is_some_and(|value| value.as_str() == "Distributive")
     }
 
     /// The words a leaf realizes.
@@ -557,45 +630,72 @@ impl CompiledGrammar {
         Ok(u64::try_from(join(&atoms).0.split_whitespace().count()).unwrap_or(u64::MAX))
     }
 
-    /// The Right Association words (`docs/decisions/english-v4.md` §4.3) a
-    /// child adds at position `index` of a Production, given its length in
-    /// words and whether it is a coordination:
-    /// - the head of a phrase that unselected dependents (`adjunct`,
-    ///   `modifier`, `supplement`) follow is the host they attach to, and each
-    ///   of them adds the host's length, unless the host is a coordination;
-    ///   each also adds the words between the host and itself, such as a
-    ///   selected Object in between (a postposed or interleaved dependent);
-    /// - the last conjunct of a coordination adds the difference between its
-    ///   length and its first conjunct's (conjunct balance).
-    pub(crate) fn association_words(
+    /// The Attachment Class and Right Association words
+    /// (`docs/decisions/english-v4.md` §4.3) a child adds at position `index`
+    /// of a Production. `head` gives the phrase's head's words; `first` a
+    /// coordination's first conjunct's words and whether it ends in its head;
+    /// `before` the words from the phrase's start to the child.
+    /// - The head of a phrase that unselected dependents (`adjunct`,
+    ///   `modifier`) follow is the host they attach to: the head adds its words
+    ///   for each of them, unless it is a coordination, and each adds the words
+    ///   between the host and itself (a selected Object before a postposed or
+    ///   interleaved dependent).
+    /// - A dependent whose class attaches high counts its distance from its
+    ///   host's head reversed instead: a Supplement (`supplement`), and a
+    ///   distributive adjunct, whose Complement has a `Distributive`
+    ///   determinative (*for each …*), which also takes back what the head
+    ///   added for it.
+    /// - The last conjunct of a coordination adds the difference between its
+    ///   length and its first conjunct's (conjunct balance), and violates an
+    ///   Attachment Class when it ends in a dependent its first conjunct, which
+    ///   ends in its head, lacks: that dependent belongs to the whole
+    ///   coordination.
+    pub(crate) fn attachment_key(
         &self,
         production: usize,
         index: usize,
-        words: u64,
-        coordination: bool,
-        first_words: impl FnOnce() -> Option<u64>,
-        between_words: impl FnOnce() -> Option<u64>,
-    ) -> i64 {
+        child: ChildFacts,
+        head: impl FnOnce() -> Option<u64>,
+        first: impl FnOnce() -> Option<(u64, bool)>,
+        before: impl FnOnce() -> u64,
+    ) -> RankingKey {
         let names = &self.productions[production].names;
-        let words = i64::try_from(words).unwrap_or(i64::MAX);
+        let signed = |words: u64| i64::try_from(words).unwrap_or(i64::MAX);
+        let after_head = || names[..index].iter().any(|name| name.as_str() == "head");
+        let mut key = RankingKey::default();
         match names[index].as_str() {
-            "adjunct" | "modifier" | "supplement"
-                if names[..index].iter().any(|name| name.as_str() == "head") =>
-            {
-                between_words().map_or(0, |between| i64::try_from(between).unwrap_or(i64::MAX))
-            }
-            "head" if !coordination => {
+            "head" if !child.coordination => {
                 let dependents = names[index + 1..]
                     .iter()
-                    .filter(|name| matches!(name.as_str(), "adjunct" | "modifier" | "supplement"))
+                    .filter(|name| matches!(name.as_str(), "adjunct" | "modifier"))
                     .count();
-                words.saturating_mul(i64::try_from(dependents).unwrap_or(i64::MAX))
+                key.right_association_words = signed(child.words)
+                    .saturating_mul(i64::try_from(dependents).unwrap_or(i64::MAX));
             }
-            "last" => first_words().map_or(0, |first| {
-                (i64::try_from(first).unwrap_or(i64::MAX) - words).abs()
-            }),
-            _ => 0,
+            name @ ("adjunct" | "modifier" | "supplement") if after_head() => {
+                if let Some(head_words) = head() {
+                    let host = signed(head_words);
+                    let between = signed(before().saturating_sub(head_words));
+                    key.right_association_words = if name == "supplement" {
+                        -host - between
+                    } else if child.distributive {
+                        // The head added the host for it, unless the host is
+                        // a coordination; this does not depend on which.
+                        -2 * host - between
+                    } else {
+                        between
+                    };
+                }
+            }
+            "last" => {
+                if let Some((first_words, first_head_final)) = first() {
+                    key.right_association_words = (signed(first_words) - signed(child.words)).abs();
+                    key.attachment_class = u64::from(first_head_final && !child.head_final);
+                }
+            }
+            _ => {}
         }
+        key
     }
 
     /// One occurrence of a Production's own contribution to a Ranking Key: its
