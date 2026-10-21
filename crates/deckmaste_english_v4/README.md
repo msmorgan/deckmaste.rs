@@ -83,11 +83,12 @@ catalog entries; status adjectives and numerical mass distributions are declared
 in their owning lexical sources. Later constructions remain pending at their
 own Stratum.
 
-The Targeting Marker `det:target` ends a Determiner Phrase: alone
-(*target creature*), after an adjective (*other target creatures*), or after
-an outer determiner, which gives it its Number (*two target creatures*, *each other target creature*, *[one or two] target
+The Targeting Marker `det:target` ends a Determiner Phrase: alone, singular
+(*target creature*, *target Merfolk*); after an adjective (*other target
+creatures*); or after an outer determiner, which gives it its Number (*two target creatures*, *each other target creature*, *[one or two] target
 creatures*), including a maximum Preposition Phrase (*up to one target
-creature*). An ordinary Determined Noun Phrase or possessor then takes it,
+creature*). Alone in the plural oblique of a Number-transparent noun it
+takes that plural (*any number of target Equipment*). An ordinary Determined Noun Phrase or possessor then takes it,
 so every postmodifier attaches inside the Nominal, below the determiner
 (*target [creature you control]*). An
 attributive adjective that needs an overt determiner (*the only creature*,
@@ -210,7 +211,9 @@ quantity takes one too (*two of those cards*, *that many of those tokens*, *up
 to two of them*, *a third of their life*), and a relative clause may follow
 (*each of those cards that has suspend*). A number-transparent noun under *any*
 takes its oblique's Number (*any number of target creatures become ...*); *the
-number of* stays singular. *Up to N* is a Preposition Phrase in Determiner
+number of* stays singular. *All* is two determinatives, as *more* is: one over
+a count plural, one over a non-count singular (*all Equipment* is plural, *all
+damage* singular). *Up to N* is a Preposition Phrase in Determiner
 function or a fused head (*choose up to one*); *at least*, *exactly* and *no*
 modify a quantity (*no more than one creature*). A comparative determinative
 selects *than* (*more than one creature*, *more than twice*) and may postpose

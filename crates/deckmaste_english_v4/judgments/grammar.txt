@@ -103,8 +103,8 @@
 +KeywordPhrase Frenzy
 + Flying, ward {2}{T}
 +KeywordPhrase ward
-+ Spells that target target creatures attack. => RelativeClause "that target target creatures" gap "Spells"; NounPhrase "target creatures" as Object of target
-+ Target creatures attack.
++ Spells that target target creature attack. => RelativeClause "that target target creature" gap "Spells"; NounPhrase "target creature" as Object of target
+* Target creatures attack.
 * Spells that targets creatures attack.
 + Instant
 + Artifact Creature — Golem

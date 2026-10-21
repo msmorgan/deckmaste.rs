@@ -1,0 +1,12 @@
+# A determiner fixes the Number of a noun whose plural is spelled like its singular (style guide §7, "Plurals and agreement"): the Targeting Marker alone determines a singular count noun, an outer determiner or a Number-transparent quantity a plural one, and *all* a count plural or a non-count singular (CGEL, Ch. 5 §7.3, p. 375).
++NounPhrase target Merfolk => readings 1
++NounPhrase target Equipment you control => readings 1
++NounPhrase two target Merfolk => readings 1
++NounPhrase any number of target Equipment => NounPhrase "target Equipment"; readings 1
++NounPhrase all Equipment => readings 1
++NounPhrase all Merfolk cards => Nominal "Merfolk cards"; readings 1
++NounPhrase all damage => readings 1
++ <card=Stench of Evil> Destroy all Plains. => NounPhrase "all Plains" as Object of destroy; readings 1
++ <card=Daughter of the Deep> {U}, {T}: Target Merfolk can't be blocked this turn. => NounPhrase "Target Merfolk"
++ <card=Eaten by Spiders> Destroy target creature with flying and all Equipment attached to that creature. => NounPhrase "all Equipment attached to that creature"
+*NounPhrase all creature

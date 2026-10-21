@@ -378,7 +378,9 @@ Speech when functioning as Premodifiers.
 The invariant prenominal *target* that marks an Oracle-text target description.
 It is a Determinative and ends a Determiner: alone (*target creature*), after an
 Adjective (*other target creatures*), or after an outer Determiner (*two target
-creatures*, *each other target creature*, *up to one target creature*). The
+creatures*, *each other target creature*, *up to one target creature*). Alone it
+is singular; the Adjective, the outer Determiner or a Number-transparent
+quantity (*any number of target creatures*) gives a plural Nominal its Number. The
 Nominal it determines takes every Modifier below the Determiner (*target
 creature you control*). A Noun Phrase whose Determiner ends in the Marker after
 an outer Determiner, as a non-final Conjunct, coordinates only with a determined

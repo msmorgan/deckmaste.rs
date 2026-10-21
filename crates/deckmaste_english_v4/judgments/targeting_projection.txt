@@ -1,13 +1,13 @@
 # Targeted noun phrases (target creature, two target creatures with flying), their scope over modifiers and coordination
 +NounPhrase target creature
-+NounPhrase target creatures
+*NounPhrase target creatures
 +NounPhrase creatures
 +NounPhrase target Equipment
 +NounPhrase two target creatures
 +NounPhrase two target creature cards
 +NounPhrase target nonartifact creature
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
-+NounPhrase target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
++NounPhrase other target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase two target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase target player's graveyard => NounPhrase "target player's" as Determiner of graveyard
 +NounPhrase target creature's power and toughness => NounPhrase "target creature's"; Nominal "power and toughness"
@@ -16,9 +16,10 @@
 +NounPhrase one target creature
 +NounPhrase target black or red creature => AdjectivePhrase "black or red" as Modifier of creature
 +NounPhrase target attacking creature
-+NounPhrase target attacking creatures
++NounPhrase two target attacking creatures
 +NounPhrase two other target creatures
-+NounPhrase target players or planeswalkers => Nominal "players or planeswalkers" || NounPhrase "target players"; NounPhrase "planeswalkers"; readings 2
++NounPhrase target player or planeswalker => Nominal "player or planeswalker"; readings 1
+*NounPhrase target players or planeswalkers
 # The Targeting Marker is a determiner on its own, after an adjective, or the last word of a determiner with an outer one.
 +NounPhrase target creature => DeterminerPhrase "target" head det:target as Determiner of creature; readings 1
 +NounPhrase target player's graveyard => NounPhrase "target player" head player; DeterminerPhrase "target" head det:target as Determiner of player; readings 1

@@ -136,23 +136,31 @@ const DEPENDENT_HEADS: [&str; 14] = [
     "fewest",
 ];
 
-/// *More* is two lexemes: the comparative of *many* and of *much*.
-fn more() -> Vec<Lexeme> {
-    ["count", "mass"]
-        .into_iter()
-        .map(|sense| {
-            let mut det = Lexeme::invariant(
-                format!("det:more.{sense}"),
-                "more",
-                Category::Determinative,
-                source(SourceKind::Core),
-            );
-            det.properties
-                .features
-                .insert("DeterminativeDistribution".into(), "Dependent".into());
-            det
-        })
-        .collect()
+/// *More* is two lexemes, the comparative of *many* and of *much*; *all*
+/// is two, over a count plural and over a non-count singular.
+fn count_and_mass(lemma: &str) -> Vec<Lexeme> {
+    [
+        ("count", Number::Plural, "Count"),
+        ("mass", Number::Singular, "Mass"),
+    ]
+    .into_iter()
+    .map(|(sense, number, countability)| {
+        let mut det = Lexeme::invariant(
+            format!("det:{lemma}.{sense}"),
+            lemma,
+            Category::Determinative,
+            source(SourceKind::Core),
+        );
+        det.forms[0].features.number = Some(number);
+        det.properties
+            .features
+            .insert("Countability".into(), countability.into());
+        det.properties
+            .features
+            .insert("DeterminativeDistribution".into(), "Dependent".into());
+        det
+    })
+    .collect()
 }
 
 #[must_use]
@@ -233,7 +241,7 @@ pub fn lexicon() -> Lexicon {
         pronoun("it", Third, Some(Singular)),
     ];
     for word in [
-        "the", "a", "your", "each", "all", "target", "any", "that", "another", "every",
+        "the", "a", "your", "each", "target", "any", "that", "another", "every",
     ] {
         let mut det = invariant("det", word, Category::Determinative, Core);
         det.properties
@@ -257,7 +265,8 @@ pub fn lexicon() -> Lexicon {
             .insert("DeterminativeDistribution".into(), "Dependent".into());
         lexemes.push(det);
     }
-    lexemes.extend(more());
+    lexemes.extend(count_and_mass("more"));
+    lexemes.extend(count_and_mass("all"));
     // Only interrogative and fused relative: never a plain determiner.
     for word in ["whichever", "which"] {
         let mut det = invariant("det", word, Category::Determinative, Core);

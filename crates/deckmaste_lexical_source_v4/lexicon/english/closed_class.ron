@@ -7,7 +7,11 @@
         (lemma: "last", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "next", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"]),
-        (lemma: "all", frames: [Complement(PP(["of"])), Complement(PP(["but"]))]),
+        // *All* quantifies a count plural or a non-count singular (CGEL, Ch. 5
+        // §7.3, p. 375); its count-singular use over parts (*all the book*)
+        // is not Oracle's. Like *more*, each use is its own sense.
+        (number: Plural, countability: Count, lemma: "all", sense: Some("count"), frames: [Complement(PP(["of"])), Complement(PP(["but"]))]),
+        (number: Singular, countability: Mass, lemma: "all", sense: Some("mass"), frames: [Complement(PP(["of"])), Complement(PP(["but"]))]),
         (number: Singular, countability: Count, lemma: "another", distribution: SingularOrQuantified, frames: [Complement(PP(["of"]))]),
         // Its partitive is the grammar's: with a plural oblique the Noun
         // Phrase may be singular or plural (*if any of those cards shares ...*).
@@ -42,8 +46,10 @@
         (lemma: "some", frames: [Complement(PP(["of"]))]),
         // The Targeting Marker (*target creature*, *two target creatures*),
         // distinct from the noun and the verb; the grammar builds it into
-        // targeted nominals only.
-        (lemma: "target", distribution: Targeting),
+        // targeted nominals only. On its own it determines a singular count
+        // noun, as *each* does; an outer determiner or an adjective gives a
+        // marked one its Number.
+        (number: Singular, countability: Count, lemma: "target", distribution: Targeting),
         (number: Singular, lemma: "that", distribution: Deictic),
         (lemma: "the"),
         (number: Singular, lemma: "this", distribution: Deictic),

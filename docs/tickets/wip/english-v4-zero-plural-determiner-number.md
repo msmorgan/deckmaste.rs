@@ -38,3 +38,6 @@ pair is still two analyses, and one of them is wrong.
 - No face is lost.
 
 Standard constraints apply.
+
+1. **Census delta** (`zknnsuuk` → `wkmqnkxu`, full corpus): faces read 28,709 → 28,709; total Readings 330,062 → 328,602 (146 units fewer, none more). Lost faces: none.
+2. **Judgment set** (`wkmqnkxu`): 2,962 enforced, 194 pending; all hold.
