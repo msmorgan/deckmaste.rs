@@ -550,7 +550,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (loyaltySymbol (down (.lit 1)))
             (doIfDone (sacrifice (a isCreature))
               (some (sequentially
-                [ searchLibraryFor (exactly 1) isCreature, reveal it, putInto it hand,
+                [ search yourLibrary (a isCreature), reveal it, putInto it hand,
                   shuffle ]))),
           activated (loyaltySymbol (down (.lit 3)))
             (sequentially

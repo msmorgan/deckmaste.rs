@@ -210,7 +210,7 @@ theorem okTahngarthAttacksThatJoin :
 def mindlockOrb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mindlock Orb", cost := some [generic 3, pip .blue], types := [.artifact],
-      text := [static (cant (bare isPlayer) (search any anyNumber (and [])))] } }
+      text := [static (cant (bare isPlayer) (search libraries))] } }
 
 def silence : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -224,7 +224,7 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (sequentially
-            [ establishThroughout (cant (bare isPlayer) (search any anyNumber (and [])))
+            [ establishThroughout (cant (bare isPlayer) (search libraries))
                 thisTurn,
               draw (.lit 1) ]) ] } }
 

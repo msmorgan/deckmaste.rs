@@ -967,7 +967,7 @@ def cryptLurker : Spelled := spelled <| .singleFaced
 def memoricideSearch : Action :=
   sequentially
     [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
-      searchZonesOf (target isPlayer) (exactly 1) (named chosenName),
+      searchZonesOf (target isPlayer) (counted anyNumber (named chosenName)),
       instruct (that player) shuffle ]
 theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] := by decide
 /-- Lost Hours -/
@@ -1052,7 +1052,7 @@ theorem okBoreasChargerChoice : Action.check (DRS.ofList []) boreasChargerChoice
 def boreasChargerSpell : Action :=
   sequentially
     [ choose (a opponentWithMoreLands),
-      searchLibraryFor (exactlyOf theDifference) (hasSubtype plains),
+      search yourLibrary (counted (exactlyOf theDifference) (hasSubtype plains)),
       reveal (those card),
       putOntoBattlefieldTapped (someOf (exactly 1) (those card)),
       putInto (theRest .object) hand ]
@@ -1182,9 +1182,9 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
             [ instruct (target isOpponent) (loseLife (.lit 4)),
               may
                 (sequentially
-                  [ searchLibraryOrGraveyard (named "Vraska, Scheming Gorgon"),
+                  [ searchLibraryOrGraveyard (a (named "Vraska, Scheming Gorgon")),
                     reveal it, putInto it hand ]),
-              doIf (did you (search any anyNumber (and [])) thisWay) shuffle ]) ] } }
+              doIf (did you (search yourLibrary) thisWay) shuffle ]) ] } }
 
 /-- Old-Growth Dryads -/
 def oldGrowthDryads : Spelled := spelled <| .singleFaced
@@ -1195,7 +1195,7 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
         [ when (does thisCreature enter)
             (instruct eachOpponent (may
               (sequentially
-                [ search (libraryOf they) (exactly 1) (and [isLand, hasSupertype .basic]),
+                [ search (libraryOf they) (a (and [isLand, hasSupertype .basic])),
                   putOntoBattlefieldTapped it,
                   shuffle ]))) ],
       power := stat 3, toughness := stat 3 } }

@@ -73,6 +73,15 @@ inductive NameSource where
   | chosen
   deriving DecidableEq, Repr
 
+/-- The Coordinator that links the Conjuncts of a Coordination of noun phrases, locations or
+predicates: "and", "or", or "and/or". Each is its own encoding, so "X and/or Y" never shares a
+tree with "X and Y" or with "X or Y". -/
+inductive Coordinator where
+  | and
+  | or
+  | andOr
+  deriving DecidableEq, Repr
+
 open scoped Semantics.Authoring
 
 mutual
@@ -98,7 +107,9 @@ mutual
     [CR#701.13a]. -/
     | anyLocation
     | not (loc : Location)
-    | or (locs : List Location)
+    /-- The union of `locs`, as its Coordinator prints it: "on the top or bottom of your library",
+    "graveyard, hand, and library", "library and/or graveyard". -/
+    | coord (coordinator : Coordinator) (locs : List Location)
 
   /-- What a choice ranges over. -/
   inductive ChoiceDomain where
@@ -242,9 +253,9 @@ mutual
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
     /-- The member is at `loc`: in a zone, in a pile, or exiled with an object. -/
     | in_ (loc : Location)
-    | and (conjuncts : List Predicate)
-    /-- Disjuncts of different kinds join: "creature or player" denotes either. -/
-    | or (disjuncts : List Predicate)
+    /-- A Coordination of predicates. With "and" every conjunct holds; with "or" or "and/or" some
+    conjunct holds, and conjuncts of different kinds join: "creature or player" denotes either. -/
+    | coord (coordinator : Coordinator) (items : List Predicate)
     | not (predicate : Predicate)
     /-- Rules text printed in square brackets, kept in place so a Text Change can find it
     [CR#702.148a]: transparent, it means what `predicate` means. -/
@@ -312,8 +323,9 @@ mutual
     | combatPlayer (role : CombatRole)
     | described (determiner : DetPhrase) (predicate : Predicate)
     | eachOf (group : NounPhrase)
-    | and (phrases : List NounPhrase)
-    | or (phrases : List NounPhrase)
+    /-- A Coordination of noun phrases. With "and" or "and/or" it denotes the group of what its
+    conjuncts denote; with "or" it denotes one of them. -/
+    | coord (coordinator : Coordinator) (phrases : List NounPhrase)
     /-- "The top N cards of <pile>": `amount` objects from one end of a pile, an ordered group
     [CR#700.3c]. -/
     | slice (end_ : PileEnd) (amount : Amount) (pile : Location)
@@ -1094,7 +1106,9 @@ mutual
     many), or, under a prohibition, more than N [CR#121.1,121.2]. -/
     | draw (quantity : Quantity)
     | expose (verb : ExposeVerb) (exposed : Exposed)
-    | search (scope : Location) (quantity : Quantity) (predicate : Predicate)
+    /-- Search `scope` for what `for_` describes; with no "for …" written, `for_` is `any`
+    (the `search` Definition's default) [CR#701.23a,701.23d]. -/
+    | search (scope : Location) (for_ : NounPhrase)
     /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/
     | shuffle (pile : Location)
     | flipCoins (count : FlipScope) (call : Option FlipCall) (outcome : Option CoinFace)
@@ -1223,6 +1237,14 @@ mutual
         (guard : Option Condition) (from_ : Option Zone)
 end
 
+/-! The Coordinations as their Coordinator spells them, usable as patterns. -/
+
+@[match_pattern] abbrev Location.or (locs : List Location) : Location := .coord .or locs
+@[match_pattern] abbrev Predicate.and (conjuncts : List Predicate) : Predicate := .coord .and conjuncts
+@[match_pattern] abbrev Predicate.or (disjuncts : List Predicate) : Predicate := .coord .or disjuncts
+@[match_pattern] abbrev NounPhrase.and (phrases : List NounPhrase) : NounPhrase := .coord .and phrases
+@[match_pattern] abbrev NounPhrase.or (phrases : List NounPhrase) : NounPhrase := .coord .or phrases
+
 /-- The positive locations `loc` names, as a list of its disjuncts, or none when it names a
 complement ("anywhere other than …") or anywhere. A move from a positive list of zones, observed
 on its departure, is read with its objects' last known information [CR#603.6c,603.10a]. -/
@@ -1231,7 +1253,7 @@ def Location.positiveZones? (loc : Location) (fuel : Nat := 16) : Option (List L
   | 0, _ => none
   | n + 1, .inCaller body => body.positiveZones? n
   | _ + 1, .zone .. | _ + 1, .fromEnd .. | _ + 1, .exiledWith _ | _ + 1, .pile _ => some [loc]
-  | n + 1, .or locs => locs.foldr (fun l acc =>
+  | n + 1, .coord _ locs => locs.foldr (fun l acc =>
       match l.positiveZones? n, acc with
       | some ls, some rest => some (ls ++ rest)
       | _, _ => none) (some [])
@@ -1273,10 +1295,10 @@ def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
   | _ + 1, .zone zn _ => some zn
   | n + 1, .fromEnd _ _ p => p.sort n
   | _ + 1, .exiledWith _ => some .exile
-  | n + 1, .or (first :: rest) =>
+  | n + 1, .coord _ (first :: rest) =>
     let zone := first.sort n
     if zone.isSome && rest.all (fun loc => loc.sort n == zone) then zone else none
-  | _ + 1, .or [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
+  | _ + 1, .coord _ [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
 termination_by structural fuel
 
 end Semantics

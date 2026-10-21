@@ -250,7 +250,7 @@ def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
     b.writtenTypes n
   | _ + 1, .hasType t => [t]
   | n + 1, .and ps => ps.foldr (fun p ts => mergeTypes (p.writtenTypes n) ts) []
-  | n + 1, .or (p :: ps) =>
+  | n + 1, .or (p :: ps) | n + 1, .coord .andOr (p :: ps) =>
     ps.foldl (fun ts p => commonTypes ts (p.writtenTypes n)) (p.writtenTypes n)
   | _, _ => []
 termination_by structural fuel
@@ -263,7 +263,7 @@ def Predicate.headTyAlts (p : Predicate) (fuel : Nat := 64) : List (List CardTyp
   | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ => b.headTyAlts n
   | n + 1, .and ps =>
     ps.foldr (fun p alts => combineTypeAlts (p.headTyAlts n) alts) [[]]
-  | n + 1, .or ps => ps.flatMap (fun p => p.headTyAlts n)
+  | n + 1, .or ps | n + 1, .coord .andOr ps => ps.flatMap (fun p => p.headTyAlts n)
   | _ + 1, .hasType t => [[t]]
   | _ + 1, .hasSubtype s => [s.type.toList]
   | _, _ => [[]]

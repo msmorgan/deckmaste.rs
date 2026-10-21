@@ -225,6 +225,8 @@ semantic_template handOf (player : NounPhrase) : Location := .zone .hand (some p
 semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard (some player)
 /-- "your library" -/
 semantic_template yourLibrary : Location := libraryOf you
+/-- "libraries": every player's library, as "Players can't search libraries". -/
+semantic_template libraries : Location := .zone .library none
 /-- "your hand" -/
 semantic_template yourHand : Location := handOf you
 /-- "your graveyard" -/
@@ -255,14 +257,17 @@ locations and relations, leaving the bare nouns and statuses free for `NounWord`
 
 /-! ### Combinators
 
-`and`, `or` and `not` combine predicates, conditions, noun phrases, locations, timings and costs.
-Each sort has its own namespaced template (`Predicate.and`, `Condition.or`, `Location.not`, …);
-the bare spelling is dispatched on the expected type (`elabExpectedTypeDispatch` below). -/
+`and`, `or` and `not` combine predicates, conditions, noun phrases, locations, timings and costs,
+and `andOr` ("and/or") combines predicates, noun phrases and locations. Each sort has its own
+namespaced template (`Predicate.and`, `Condition.or`, `Location.not`, …); the bare spelling is
+dispatched on the expected type (`elabExpectedTypeDispatch` below). -/
 
 /-- "<p> and <q>": every conjunct holds. -/
 semantic_template Predicate.and (conjuncts : List Predicate) : Predicate := .and conjuncts
 /-- "<p> or <q>": some disjunct holds. -/
 semantic_template Predicate.or (disjuncts : List Predicate) : Predicate := .or disjuncts
+/-- "<p> and/or <q>": some disjunct holds, as "with flying and/or reach". -/
+semantic_template Predicate.andOr (disjuncts : List Predicate) : Predicate := .coord .andOr disjuncts
 /-- "not <p>" -/
 semantic_template Predicate.not (p : Predicate) : Predicate := .not p
 /-- "non<p>", as "nonland" or "noncreature". -/
@@ -272,8 +277,15 @@ semantic_template Condition.or (disjuncts : List Condition := []) : Condition :=
 semantic_template Condition.not (condition : Condition) : Condition := .not condition
 semantic_template NounPhrase.and (phrases : List NounPhrase := []) : NounPhrase := .and phrases
 semantic_template NounPhrase.or (phrases : List NounPhrase := []) : NounPhrase := .or phrases
+/-- "<np> and/or <np>", as "a card named Magnifying Glass and/or a card named Thinking Cap". -/
+semantic_template NounPhrase.andOr (phrases : List NounPhrase := []) : NounPhrase :=
+  .coord .andOr phrases
+/-- "<loc> and <loc>", as "graveyard, hand, and library". -/
+semantic_template Location.and (locs : List Location) : Location := .coord .and locs
 /-- "<loc> or <loc>", as "on the top or bottom of your library". -/
 semantic_template Location.or (locs : List Location) : Location := .or locs
+/-- "<loc> and/or <loc>", as "library and/or graveyard". -/
+semantic_template Location.andOr (locs : List Location) : Location := .coord .andOr locs
 /-- "anywhere other than <loc>" -/
 semantic_template Location.not (loc : Location) : Location := .not loc
 semantic_template Timing.and (conjuncts : List Timing := []) : Timing := .and conjuncts
@@ -283,14 +295,15 @@ semantic_template Cost.or (costs : List Cost := []) : Cost := .or costs
 
 open Lean Elab Term in
 /-- Words several sorts share, each sort's template (or definition) by the result type it builds:
-the combinators `and`, `or` and `not`; the verb and the determiner `target`; and the other words whose sorts'
-templates are namespaced (`did`, `was`, `allBut`, `half`, `token`, `written`, `copy`, `doIf`,
-`replace`, …). A word one of whose sorts is a Definition (`crew`, `saddle`) is dispatched where that
-Definition is declared, above this layer. -/
+the combinators `and`, `or`, `andOr` and `not`; the verb and the determiner `target`; and the
+other words whose sorts' templates are namespaced (`did`, `was`, `allBut`, `half`, `token`,
+`written`, `copy`, `doIf`, `replace`, …). A word one of whose sorts is a Definition (`crew`,
+`saddle`) is dispatched where that Definition is declared, above this layer. -/
 private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
   [ (`and, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.and),
              (``Semantics.Condition, `Semantics.Templates.Condition.and),
              (``Semantics.NounPhrase, `Semantics.Templates.NounPhrase.and),
+             (``Semantics.Location, `Semantics.Templates.Location.and),
              (``Semantics.Timing, `Semantics.Templates.Timing.and) ]),
     (`or, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.or),
             (``Semantics.Condition, `Semantics.Templates.Condition.or),
@@ -298,6 +311,9 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
             (``Semantics.Location, `Semantics.Templates.Location.or),
             (``Semantics.Timing, `Semantics.Templates.Timing.or),
             (``Semantics.Cost, `Semantics.Templates.Cost.or) ]),
+    (`andOr, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.andOr),
+               (``Semantics.NounPhrase, `Semantics.Templates.NounPhrase.andOr),
+               (``Semantics.Location, `Semantics.Templates.Location.andOr) ]),
     (`not, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.not),
              (``Semantics.Condition, `Semantics.Templates.Condition.not),
              (``Semantics.Location, `Semantics.Templates.Location.not),
@@ -405,10 +421,11 @@ semantic_template isChosenPlayer : Predicate := .chosenPlayer .theChoice
 semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestChoice
 /-- "another player": any player other than you. -/
 semantic_template isOtherPlayer : Predicate := and [isPlayer, .otherThan you]
-/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12]. -/
+/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, and/or Warlock [CR#700.12]. -/
 semantic_template isOutlaw : Predicate :=
-  .or [ .hasSubtype assassin, .hasSubtype mercenary, .hasSubtype pirate, .hasSubtype rogue,
-        .hasSubtype warlock ]
+  .coord .andOr
+    [ .hasSubtype assassin, .hasSubtype mercenary, .hasSubtype pirate, .hasSubtype rogue,
+      .hasSubtype warlock ]
 /-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
 semantic_template isHistoric : Predicate :=
   .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype saga]
@@ -880,7 +897,7 @@ semantic_template onEachOfTheirTurns : Timing :=
   .inPart .turn (some (.pro (.word .player) .one)) (.each none)
 /-- "while you're searching your library" -/
 semantic_template whileSearchingYourLibrary : Timing :=
-  .whileDoing (.does (.actor .you) (.search (yourLibrary) anyNumber (.and [])))
+  .whileDoing (.does (.actor .you) (.search yourLibrary .any))
 /-- "while <event>" -/
 semantic_template whileDoing (event : GameEvent) : Timing := .whileDoing event
 /-- "while <condition>" -/

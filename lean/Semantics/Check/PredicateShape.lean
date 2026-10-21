@@ -12,9 +12,9 @@ def Predicate.seedTy (p : Predicate) (fuel : Nat := 32) : List CardType :=
   | _ + 1, .hasSubtype s => s.type.toList
   | n + 1, .superlative _ _ dom | n + 1, .compareOver dom _ _ _ => dom.seedTy n
   | n + 1, .and ps => ps.foldr (fun q acc => mergeTypes (q.seedTy n) acc) []
-  | _ + 1, .or [] => []
-  | n + 1, .or [q] => q.seedTy n
-  | n + 1, .or (q :: qs) => qs.foldl (fun acc r => commonTypes acc (r.seedTy n)) (q.seedTy n)
+  | _ + 1, .or [] | _ + 1, .coord .andOr [] => []
+  | n + 1, .or [q] | n + 1, .coord .andOr [q] => q.seedTy n
+  | n + 1, .or (q :: qs) | n + 1, .coord .andOr (q :: qs) => qs.foldl (fun acc r => commonTypes acc (r.seedTy n)) (q.seedTy n)
   | _ + 1, _ => []
 termination_by structural fuel
 

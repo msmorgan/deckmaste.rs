@@ -371,6 +371,20 @@ def joined : Payload → Bool
   | .join _ _ => true
   | _ => false
 
+/-- Two members of a group taken together: objects stay an object, with the facts both share, and
+players a player; members of different sorts join. -/
+def together : Payload → Payload → Payload
+  | .object t z p o _, .object t' z' p' o' _ =>
+    .object (joinSeed t t') (if z == z' then z else none) (if p == p' then p else none)
+      (if o == o' then o else none) none
+  | .player c, .player c' => .player (c && c')
+  | l, r => .join l r
+
+/-- The payload of the group its members' payloads make up, if there are any. -/
+def groupOf : List Payload → Option Payload
+  | [] => none
+  | first :: rest => some (rest.foldl together first)
+
 end Payload
 
 /-- A discourse referent in a `DRS` (`semantics-v3.md` §1.2). -/
@@ -683,8 +697,13 @@ def defineLetter (l : Letter) (drs : DRS) : DRS :=
 def introducedLetters (l : Letter) (drs : DRS) : List Referent :=
   if countLetter l drs == 0 then [letterB l] else []
 
+/-- `refs` with each part dropped whose group is among them, so that a group reading counts the
+part once. -/
+def wholeGroups (refs : List Referent) : List Referent :=
+  refs.filter fun ref => !ref.partOf.any (fun key => refs.any (·.groupKey == some key))
+
 def countManysAny (drs : DRS) : Nat :=
-  (drs.visibleReferents.filter fun b => !b.isActorFrame && !b.plur.isOne).length
+  (wholeGroups (drs.visibleReferents.filter fun b => !b.isActorFrame && !b.plur.isOne)).length
 
 def countManys (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -695,8 +714,8 @@ def objGroup (k : Kind) (b : Referent) : Bool := Kind.lte k b.kind && !b.plur.is
 /-- The groups "the rest" and "the other" can be taken from. An object a linked ability
 published is read only by a Participial Description (`Referent.linked`), so none is one. -/
 def countGroups (k : Kind) (drs : DRS) : Nat :=
-  (drs.visibleReferents.filter fun b =>
-    !b.linked && b.det != .part && b.det != .bare && objGroup k b).length
+  (wholeGroups (drs.visibleReferents.filter fun b =>
+    !b.linked && b.det != .part && b.det != .bare && objGroup k b)).length
 
 def countParts (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -744,7 +763,7 @@ def countedGroupSize (k : Kind) (drs : DRS) : Option Nat :=
       if b.det == .part || b.det == .bare then loop bs
       else if objGroup k b then b.size
       else loop bs
-  loop drs.visibleReferents
+  loop (wholeGroups drs.visibleReferents)
 
 def theOtherOk (k : Kind) (drs : DRS) : Bool :=
   countGroups k drs ≤ 1 && countParts k drs != 0 &&
@@ -1056,7 +1075,8 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           let maxClause := cands.foldl (fun acc b => Nat.max acc (drs.rankingClause b)) 0
           let inClause := cands.filter (drs.rankingClause · == maxClause)
           let minRank := inClause.foldl (fun acc b => Nat.min acc (drs.rankingRole b)) 2
-          inClause.filter (drs.rankingRole · == minRank)
+          -- A conjunct is not a second antecedent beside its coordination's group.
+          wholeGroups (inClause.filter (drs.rankingRole · == minRank))
   | .word _ | .unionHalf _ =>
       let afterA := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
       let afterC := afterA.filter (fun b => !b.pronounResolved)
@@ -1117,8 +1137,9 @@ def participialRead (plur : Option Plurality) (found : List Referent) :
   match plur with
   | none =>
     -- A part taken from a group that is read too is read as one of the group's members.
-    .ok (found.filter fun ref => !ref.partOf.any (fun key => found.any (·.groupKey == some key)))
+    .ok (wholeGroups found)
   | some _ =>
+    let found := wholeGroups found
     let sites := (found.map fun ref => if ref.linked then (true, ref.linkSite) else (false, ref.id))
       |>.eraseDups
     -- Two objects of one site are alternatives when they lie on different arms of a branch point.

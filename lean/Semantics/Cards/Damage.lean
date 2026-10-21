@@ -523,7 +523,7 @@ def shadowbane : Spelled := spelled <| .singleFaced
     { name := "Shadowbane", cost := some [generic 1, pip .white], types := [.instant],
       text :=
         [ spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-              (toRecipient (youAnd (allOf (and [isCreature, youControl]))))
+              (toRecipient (andOr [you, allOf (and [isCreature, youControl])]))
               (prevent allDamage
                 (some (doIf (preventedFromSource (and [isSource, hasColor .black]))
                   (gainLife preventedThisWay))))
@@ -584,7 +584,7 @@ def harmsWay : Spelled := spelled <| .singleFaced
     { name := "Harm's Way", cost := some [pip .white], types := [.instant],
       text :=
         [ spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-              (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
+              (toRecipient (andOr [you, allOf (and [isPermanent, youControl])]))
               (redirect (theNext (.lit 2)) (target isAnyTarget)) .repeatedly) thisTurn) ] } }
 
 def divineDeflection : Spelled := spelled <| .singleFaced
@@ -592,13 +592,13 @@ def divineDeflection : Spelled := spelled <| .singleFaced
     { name := "Divine Deflection", cost := some [.variable, pip .white], types := [.instant],
       text :=
         [ spell (establishThroughout (damageRule unattributed
-              (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
+              (toRecipient (andOr [you, allOf (and [isPermanent, youControl])]))
               (prevent (theNext (letter .x)) (some (instruct this_ (dealDamage thatMuch (target isAnyTarget)))))
               .repeatedly) thisTurn) ] } }
 
 def glarecasterShield : Ability :=
   activated (mana [generic 5, pip .white])
-    (establishThroughout (damageRule unattributed (toRecipient (youAnd thisCreature))
+    (establishThroughout (damageRule unattributed (toRecipient (andOr [thisCreature, you]))
         (redirect allDamage (target isAnyTarget)) .nextTimeOnly) thisTurn)
 theorem okGlarecasterShield : Ability.check (DRS.ofList []) glarecasterShield = [] := by decide
 

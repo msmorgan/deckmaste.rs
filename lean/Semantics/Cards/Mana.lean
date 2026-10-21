@@ -484,7 +484,7 @@ def shiningShoal : Spelled := spelled <| .singleFaced
               (a (and [hasColor .white, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
           spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-                (toRecipient (youAnd (allOf (and [isCreature, youControl]))))
+                (toRecipient (andOr [you, allOf (and [isCreature, youControl])]))
                 (redirect (theNext (letter .x)) (target isAnyTarget)) .repeatedly) thisTurn) ] } }
 
 def disruptingShoal : Spelled := spelled <| .singleFaced
@@ -745,10 +745,10 @@ def radiantFlames : Spelled := spelled <| .singleFaced
 def birthingPodSearch : Ability :=
   activated
     (compound [mana [generic 1, phyrexianPip .green], tapSymbol, perform (sacrifice (a isCreature))])
-    (searchLibraryFor (exactly 1)
-      (and [isCreature,
+    (search yourLibrary
+      (a (and [isCreature,
              hasManaValue .eq (plus (.lit 1) (statOf (.stat .manaValue)
-                   (the (and [was (sacrifice which), isCreature]))))]))
+                   (the (and [was (sacrifice which), isCreature]))))])))
 theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = [] := by decide
 
 /-- Hibernation's End -/
@@ -757,8 +757,8 @@ def hibernationsEndTrigger : Ability :=
       (does you (pay anyCost .once .paid (some thisEnchantment) (some cumulativeUpkeep)))
     (may
       (sequentially
-        [ searchLibraryFor (exactly 1)
-            (and [isCreature, hasManaValue .eq (countersOn ageCounter thisEnchantment)]),
+        [ search yourLibrary
+            (a (and [isCreature, hasManaValue .eq (countersOn ageCounter thisEnchantment)])),
           putOntoBattlefield (that card),
           shuffle ]))
 theorem okHibernationsEndTrigger : Ability.check (DRS.ofList []) hibernationsEndTrigger = [] := by decide
@@ -873,10 +873,10 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
         [ flying,
           when (does thisCreature enter)
             (sequentially
-              [ searchLibraryOrGraveyard (and [isArtifact, hasManaValue .atMost (.lit 2)]),
+              [ searchLibraryOrGraveyard (a (and [isArtifact, hasManaValue .atMost (.lit 2)])),
                 reveal it,
                 putInto it hand,
-                doIf (did you (searchLibraryFor anyNumber (and [])) thisWay) shuffle ]) ],
+                doIf (did you (search yourLibrary) thisWay) shuffle ]) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Heart of Yavimaya -/

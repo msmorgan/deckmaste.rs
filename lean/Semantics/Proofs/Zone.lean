@@ -291,13 +291,13 @@ theorem badSliceTypeRead :
 
 /-- "Search your library for a creature card." -/
 theorem okSearchZoneFreeDescription :
-    Action.check (DRS.ofList []) (searchLibraryFor (exactly 1) isCreature) = [] := by decide
+    Action.check (DRS.ofList []) (search yourLibrary (a isCreature)) = [] := by decide
 
 /-- "If you would search your library for a creature card, instead search your library for a
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
-    Action.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) isCreature)
-      (instead (.sequentially [searchLibraryFor (exactly 1) isCreature,
+    Action.check (DRS.ofList []) (.replace (search yourLibrary (a isCreature))
+      (instead (.sequentially [search yourLibrary (a isCreature),
         reveal (that .card)]))) = [] := by
   decide
 

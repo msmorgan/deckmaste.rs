@@ -102,8 +102,8 @@ theorem castCanCarryExcludedOrigins :
 theorem namedActionCanCarryItsLocus :
     relativeCheck .player
       ⟨.actor .which,
-        .enact (.action "search") (.search ((.zone .library (some .you)))
-          (.range none none) (.and [])) none (some (.zone .library (some .you))),
+        .enact (.action "search") (.search (.zone .library (some .you)) .any) none
+          (some (.zone .library (some .you))),
         some .thisWay⟩ = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :

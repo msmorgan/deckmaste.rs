@@ -188,6 +188,8 @@ theorem attachmentSourceRemainsAvailableAfterProhibition :
 
 private def tollCost : Cost := .scaled (.mana [.simple (.generic 1)]) (.arith .times (.lit 1) .groupSize)
 
+/-- A toll reads the actor group after the action: a coordinated actor ("creatures and
+artifacts") is the one group the coordination publishes. -/
 theorem tollReadsTheActorGroupAfterTheAction :
     StaticSpec.check (DRS.ofList [])
       (.gatedBy tollCost (.actor (.described .all (.hasType .creature)))
@@ -199,7 +201,7 @@ theorem tollReadsTheActorGroupAfterTheAction :
       StaticSpec.check (DRS.ofList [])
         (.gatedBy tollCost
           (.actor (.and [.described .all (.hasType .creature), .described .all (.hasType .artifact)]))
-          (.attack none) {}) = [.groupSizeInScope 2] := by decide
+          (.attack none) {}) = [] := by decide
 
 theorem postposedTollSeesItsAttachmentPatient :
     StaticSpec.check (DRS.ofList [])

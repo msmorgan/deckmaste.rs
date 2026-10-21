@@ -168,30 +168,17 @@ semantic_definition millCards (cards : NounPhrase) : Action :=
     (enact (.action "mill")
       (.move (.firstMention "millCards.cards" (.inCaller cards))
         library (some graveyard) .arrival none []))
-/-- "Search your library for <quantity> <p>": the performer's own library, as the handoff names
-it ("target player searches their library") (`Definition`, [CR#701.23]). -/
-semantic_definition searchLibraryFor (quantity : Quantity) (p : Predicate) : Action :=
-  .ownScope (some (.action "search"))
-    (enact (.action "search")
-      (.search (libraryOf .actor) (.inCaller quantity) (.inCaller p)))
-/-- "search <whose>'s graveyard, hand, and library for <q> <p>" (`Definition`, [CR#701.23]). -/
-semantic_definition searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) :
-    Action :=
+/-- "search <whose> graveyard, hand, and library for <for_>", the owner written once
+(`Definition`, [CR#701.23]). -/
+semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Action :=
   .ownScope (some (.action "search"))
     (enact (.action "search")
       (.search
-        (or
+        (and
           [ .zone .graveyard (some (.firstMention "searchZonesOf.whose" (.inCaller whose))),
             .zone .hand (some (.laterMention "searchZonesOf.whose" (.inCaller whose))),
             .zone .library (some (.laterMention "searchZonesOf.whose" (.inCaller whose))) ])
-        (.inCaller quantity) (.inCaller p)))
-/-- "search your library and/or graveyard for a <p>": the performer's own (`Definition`,
-[CR#701.23]). -/
-semantic_definition searchLibraryOrGraveyard (p : Predicate) : Action :=
-  .ownScope (some (.action "search"))
-    (enact (.action "search")
-      (.search (or [.zone .library (some .actor), .zone .graveyard (some .actor)]) (exactly 1)
-        (.inCaller p)))
+        (.inCaller for_)))
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
 semantic_definition fight (other : NounPhrase) : Action :=
   .ownScope (some (.action "fight"))
@@ -257,7 +244,7 @@ semantic_definition surveil (amount : Amount) : Action :=
 semantic_definition proliferate : Action :=
   .ownScope (some (.action "proliferate"))
     (enact (.action "proliferate") (sequentially
-      [ .choose none (counted anyNumber (and [or [isPermanent, isPlayer], .hasCounters none]))
+      [ .choose none (counted anyNumber (and [andOr [isPermanent, isPlayer], .hasCounters none]))
           .openly none,
         .doForEach (those .join) (putCounters (.lit 1) (.sameAs it) it) ]))
 /-- "<performer> amasses <subtype> N" with its reminder text (`Definition`, [CR#701.47a]): the
@@ -720,10 +707,13 @@ semantic_definition recruit : Action :=
           doIf (not (is (the (and [isCard, was (discard which) thisWay])) isLand))
             (createToken (creatureToken 1 1 [.white] [human, soldier]))
             none ]))
-semantic_definition search (zone : Location) (quantity : Quantity) (quality : Predicate) : Action :=
+/-- "search <scope>", or "search <scope> for <for_>" (`Definition`, [CR#701.23a]). -/
+semantic_definition search (scope : Location) (for_ : NounPhrase := any) : Action :=
   .ownScope (some (.action "search"))
-    (enact (.action "search")
-      (.search (.inCaller zone) (.inCaller quantity) (.inCaller quality)))
+    (enact (.action "search") (.search (.inCaller scope) (.inCaller for_)))
+/-- "search your library and/or graveyard for <for_>", "your" written once. -/
+semantic_template searchLibraryOrGraveyard (for_ : NounPhrase) : Action :=
+  search (andOr [yourLibrary, yourGraveyard]) for_
 semantic_definition suspect (subject : NounPhrase) : Action :=
   .ownScope (some (.action "suspect"))
     (enact (.action "suspect")
@@ -787,7 +777,7 @@ semantic_definition timeTravel : Action :=
       (sequentially
         [ choose
             (counted anyNumber
-              (or
+              (andOr
                 [ and [isPermanent, actorControls, .hasCounters (some timeCounter)],
                   and
                     [.isCard, .in_ exileZone, ownedBy .actor, .hasCounters (some timeCounter)] ])),

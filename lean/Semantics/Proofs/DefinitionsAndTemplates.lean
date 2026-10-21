@@ -106,4 +106,34 @@ theorem graveyardToHandObservedOnDeparture :
       .move (target isCreature) yourGraveyard (some hand) .departure none [] :=
   ⟨rfl, rfl⟩
 
+/-- "X and Y", "X or Y" and "X and/or Y" are three encodings of a noun phrase. -/
+theorem nounPhraseCoordinatorsAreDistinct :
+    (and [you, target isCreature] : NounPhrase) ≠ (andOr [you, target isCreature] : NounPhrase) ∧
+      (or [you, target isCreature] : NounPhrase) ≠ (andOr [you, target isCreature] : NounPhrase) ∧
+      (and [you, target isCreature] : NounPhrase) ≠ (or [you, target isCreature] : NounPhrase) := by
+  refine ⟨?_, ?_, ?_⟩ <;> intro h <;> cases h
+
+/-- "graveyard, hand, and library", "… or library" and "… and/or library" are three encodings of
+a location. -/
+theorem locationCoordinatorsAreDistinct :
+    (and [yourGraveyard, yourHand, yourLibrary] : Location) ≠
+        (andOr [yourGraveyard, yourHand, yourLibrary] : Location) ∧
+      (or [yourGraveyard, yourHand, yourLibrary] : Location) ≠
+        (andOr [yourGraveyard, yourHand, yourLibrary] : Location) := by
+  refine ⟨?_, ?_⟩ <;> intro h <;> cases h
+
+/-- Flying's "with flying and/or reach" is not "with flying or reach" [CR#702.9b]. -/
+theorem flyingAndOrReachIsNotFlyingOrReach :
+    (andOr [hasKeyword (.the (.named "flying")), hasKeyword reach] : Predicate) ≠
+      (or [hasKeyword (.the (.named "flying")), hasKeyword reach] : Predicate) := by
+  intro h; cases h
+
+/-- "search your library and/or graveyard for …" is the search of that and/or location. -/
+theorem searchLibraryOrGraveyardIsItsLocationSearch :
+    searchLibraryOrGraveyard (a isCard) =
+      search (andOr [yourLibrary, yourGraveyard] : Location) (a isCard) := rfl
+
+/-- "search your library" with no "for …" searches for `any`. -/
+theorem unqualifiedSearchIsForAny : search yourLibrary = search yourLibrary any := rfl
+
 end Semantics.Proofs.DefinitionsAndTemplates

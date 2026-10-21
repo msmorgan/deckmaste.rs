@@ -89,7 +89,7 @@ semantic_definition flying : Ability :=
   .keyword (.named "flying") []
     [ static (cant any (block thisCreature)
         (except := byObjects (bare (and [isCreature,
-          or [hasKeyword (.the (.named "flying")), hasKeyword reach]])))) ]
+          andOr [hasKeyword (.the (.named "flying")), hasKeyword reach]])))) ]
 /-- "Bushido N" with its definition, a triggered ability [CR#702.45a]. -/
 semantic_definition bushido (count : Amount) : Ability :=
   .keyword (.named "bushido") [.number (.inCaller count)]
@@ -678,7 +678,7 @@ creatures." [CR#702.36b] -/
 semantic_definition fear : Ability :=
   .keyword (.named "fear") []
     [ static (cant any (block thisCreature)
-        (except := byObjects (bare (and [isCreature, or [isArtifact, hasColor .black]])))) ]
+        (except := byObjects (bare (and [isCreature, andOr [isArtifact, hasColor .black]])))) ]
 semantic_definition firebending (amount : Amount) : Ability :=
   .keyword (.named "firebending") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.attack none))
@@ -897,7 +897,7 @@ semantic_definition intimidate : Ability :=
   .keyword (.named "intimidate") []
     [ static (cant any (block thisCreature)
         (except := byObjects (bare (and [isCreature,
-          or [isArtifact, shares .color .share thisCreature]])))) ]
+          andOr [isArtifact, shares .color .share thisCreature]])))) ]
 semantic_definition jobSelect : Ability :=
   .keyword (.named "jobSelect") []
     [ when (does thisEquipment enter)
@@ -1389,7 +1389,7 @@ semantic_definition storied : Ability :=
                   (and
                     [ isPermanent,
                       youControl,
-                      or
+                      andOr
                         [ isArtifact,
                           .hasSubtype saga,
                           .hasSupertype .legendary ] ]))
@@ -1450,9 +1450,9 @@ semantic_definition transfigure (cost : Cost) : Ability :=
           [ .inCaller cost,
             .perform (sacrifice thisPermanent) ])
         (sequentially
-          [ .search yourLibrary (oneThrough 1)
-              (and
-                [.isCard, isCreature, hasManaValue .eq (.statOf (.stat .manaValue) thisPermanent)]),
+          [ .search yourLibrary
+              (a (and
+                [.isCard, isCreature, hasManaValue .eq (.statOf (.stat .manaValue) thisPermanent)])),
             putOntoBattlefield (that .card),
             .shuffle (libraryOf .actor) ])
         asSorcery ]
@@ -1463,11 +1463,11 @@ semantic_definition transmute (cost : Cost) : Ability :=
           [ .inCaller cost,
             .perform (discard this_) ])
         (sequentially
-          [ .search yourLibrary (oneThrough 1)
-              (and
+          [ .search yourLibrary
+              (a (and
                 [ .isCard,
                   hasManaValue .eq
-                    (.statOf (.stat .manaValue) (the (and [was (discard which), isCard]))) ]),
+                    (.statOf (.stat .manaValue) (the (and [was (discard which), isCard]))) ])),
             .expose .reveal (.cards (that .card)),
             putInto it hand,
             .shuffle (libraryOf .actor) ])

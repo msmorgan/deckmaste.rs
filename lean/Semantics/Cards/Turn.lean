@@ -417,7 +417,7 @@ def landTax : Spelled := spelled <| .singleFaced
         [ at_ (beginningOfYour .upkeep) (if_ := some (exists_ opponentWithMoreLands))
             (may
               (sequentially
-                [ searchLibraryFor (upTo 3) (and [isLand, hasSupertype .basic]),
+                [ search yourLibrary (counted (upTo 3) (and [isLand, hasSupertype .basic])),
                   reveal (those card),
                   putInto (those card) hand,
                   shuffle ])) ] } }
@@ -483,7 +483,7 @@ def thawingGlaciers : Spelled := spelled <| .singleFaced
         [ static (entersTapped thisLand),
           activated (compound [mana [generic 1], tapSymbol])
             (sequentially
-              [ searchLibraryFor (exactly 1) (and [isLand, hasSupertype .basic]),
+              [ search yourLibrary (a (and [isLand, hasSupertype .basic])),
                 putOntoBattlefieldTapped (that card),
                 shuffle,
                 atNext .cleanup (returnToHand thisLand) ]) ] } }

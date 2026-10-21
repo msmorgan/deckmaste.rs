@@ -673,7 +673,7 @@ expected child kinds in the incoming `DRS`.
 | `ManaRider` | `stepManaRiderWith` steps it; `ManaRider.localChecks` checks its shape. |
 | `CopyExcept` | `stepCopyExceptWith` steps it (`CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
 | `RollRow` | `stepRollRowListWith` checks each row's nonzero literal range and steps its body. |
-| `Action` | `stepAction` (`Action.check`) steps it. |
+| `Action` | `stepAction` (`Action.check`) steps it. `search scope for_` steps `scope`, then `for_` in the patient role; after the event, what `for_` introduced is in the searched zone (if the scope names one) with the `search` stamp (`applySearchFound`). An unqualified search's `for_` is `any`, which introduces nothing. |
 | `Instructions` | The length is the actual list length; `sequentially` refuses an empty list (`nonEmpty`) and steps each member in a new clause after the previous output. No independent length value remains. |
 | `SimInstructions` | The length is the actual list length; `simultaneously` refuses an empty list and withholds earlier siblings' outcomes from later siblings. |
 | `KeywordParam` | `checkKeywordParamsWith` steps each argument against the keyword's schema (`keywordSchemaFor`). |
@@ -700,16 +700,16 @@ expected child kinds in the incoming `DRS`.
 | `ChoiceInScope` | `Predicate.notChosen` reads the partitive choices and the choice history (`countParts`, `DRS.choiceWasPossible`); `Condition.choseThisWay` requires a compatible standing choice. |
 | `ColorTerm` | `stepColorTermWith` steps it. |
 | `LibPlace` | Merged into `Location` (`Location.fromEnd`, stepped by `stepLocationWith`); the place's arrangement and ordinal fit are retired by `lean-checker-sweep-zone`. |
-| `Location` | `stepLocationWith` steps it (`Location.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)): a zone's owner is a player, a place from a pile's end has a nonzero ordinal, a made pile is a written pile mention, the cards exiled with a source name a link source, and a disjunction has at least two disjuncts (a search's disjuncts name distinct zones). |
+| `Location` | `stepLocationWith` steps it (`Location.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)): a zone's owner is a player, a place from a pile's end has a nonzero ordinal, a made pile is a written pile mention, the cards exiled with a source name a link source, and a coordination (`Location.coord`, with "and", "or" or "and/or") has at least two members (a search's members name distinct zones). |
 | `NameSource` | The `named` predicate case requires one standing card-name choice for `chosen` (`choiceRef`). |
 | `ChoiceDomain` | `stepChoiceDomainWith` steps its contents, and `sortedDomainCheck` ([AbilityRules.lean](Semantics/Check/AbilityRules.lean)) checks them against the choice's sort. |
 | `EventComplement` | Retired in favor of event participant, source, destination, and locus fields. |
 | `ComplementWritten` | Required event fields cannot be omitted. An action that declares a locus requires that locus in the event stepper. |
 | `LookbackClause` | `stepDidClauseWith` steps the carried action under the clause's subject as an event pattern. |
-| `Predicate` | `stepPredicate` (`Predicate.check`, `Predicate.checkAt`) steps each child under the head's kind (`relativeKind`) and uses `kindCheck`; conjunction children share a scope, alternatives branch with their own inferred kinds. |
+| `Predicate` | `stepPredicate` (`Predicate.check`, `Predicate.checkAt`) steps each child under the head's kind (`relativeKind`) and uses `kindCheck`; the children of an "and" coordination share a scope, and the alternatives of an "or" or "and/or" coordination branch with their own inferred kinds. |
 | `DetPhrase` | `stepDetPhraseWith` steps it. |
 | `RolesOk` | The `oneEachOf` noun case steps each role's predicate and checks object kind; an empty role list is `nonEmpty`. Whether the roles are distinct (`rolesOk`) is not checked (`lean-v3-authoring-impl-7-checker-and-regime-retirement`). |
-| `Noun` | `stepNounPhrase` (`NounPhrase.check`, `NounPhrase.checkAt`) receives the expected kind and steps references in the incoming `DRS`. |
+| `Noun` | `stepNounPhrase` (`NounPhrase.check`, `NounPhrase.checkAt`) receives the expected kind and steps references in the incoming `DRS`. An "and" or "and/or" coordination (`NounPhrase.coord`) steps its conjuncts in order and then publishes a plural group referent over them (`pushCoordinatedGroup`), which a later "them" reads; each member the coordination introduced is a part of the group (`Referent.partOf`), so a group reading counts it once (`wholeGroups`: bare pronoun winners, Participial Description reads, group counts and "the rest"/"the other" groups). A coordination whose introduced members are all parts of one group is itself a part of that group. |
 | `Amount` | `stepAmount` (`Amount.check`) steps it. |
 | `Quantity` | `stepQuantityWith` steps it. |
 | `NonZeroQ` | `Quantity.nonZero` (`nonZeroQ`) in the consumers that require nonzero cardinality; zero remains allowed in other quantity slots. |

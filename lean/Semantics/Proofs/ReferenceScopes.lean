@@ -355,7 +355,8 @@ private theorem pendingPowerSubjectWins (rs : List Referent) (clause id : Nat)
   simp only [List.foldl_cons, subjectClause, Nat.zero_max,
     rankedOlderMaximum _ _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
     rankedOlderFilter _ _ _ (filteredOlder _), List.foldl_nil]
-  simp [subjectRole]
+  have whole : wholeGroups [subject] = [subject] := rfl
+  simp [subjectRole, whole]
 
 /-- The actual modification pipeline selects its own fresh target in every earlier outer
 context, whether X was already bound or introduces a same-clause letter. No older referent

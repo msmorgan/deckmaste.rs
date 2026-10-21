@@ -398,11 +398,14 @@ theorem possessorQueryPreservesItsWholeContext :
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(1, .player, none), (0, .object, some .battlefield)] := by decide
 
+/-- The coordination leaves its conjuncts' referents as they were, and publishes their group. -/
 theorem nounCoordinationPreservesItsWholeContext :
     let after := nounResult callerCreatureSpell
       (.and [forwardedSubject (.becomes it), .you])
-    after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
-      [(1, .player, none), (0, .object, some .battlefield)] := by decide
+    (after.visibleReferents.filter (·.id < 2)).map (fun ref => (ref.id, ref.kind, ref.zone, ref.partOf)) =
+      [(1, .player, none, some 2), (0, .object, some .battlefield, none)] ∧
+      (after.findById? 2).map (fun ref => (ref.plur, ref.kind)) =
+        some (.many, .join .object .player) := by decide
 
 theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
     let after := nounResult callerCreatureSpell

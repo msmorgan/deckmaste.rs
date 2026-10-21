@@ -177,7 +177,7 @@ theorem emblemGrantorReadsABattlefieldObject :
 
 theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
+      (search yourLibrary (a isInstantOrSorcery))).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched)
       (.sequentially [reveal it, shuffle])
     let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
@@ -193,7 +193,7 @@ theorem revealedTopCardDoesNotAcquireSearchProvenance :
 
 theorem zoneMoveClearsSearchProvenance :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
+      (search yourLibrary (a isInstantOrSorcery))).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (putInto it hand)
     errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
 

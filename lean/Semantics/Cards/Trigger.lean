@@ -685,11 +685,18 @@ def agencyOutfitterSearch : Action :=
   sequentially
     [ may
         (sequentially
-          [ searchZonesOf you (upTo 2)
-              (or [named "Magnifying Glass", named "Thinking Cap"]),
+          [ search (andOr [yourGraveyard, yourHand, yourLibrary])
+              (andOr [a (named "Magnifying Glass"), a (named "Thinking Cap")]),
             putOntoBattlefield them ]),
-      doIf (did you (search any anyNumber (and [])) thisWay) shuffle ]
+      doIf (did you (search yourLibrary) thisWay) shuffle ]
 theorem okAgencyOutfitterSearch : Action.check (DRS.ofList []) agencyOutfitterSearch = [] := by decide
+/-- Agency Outfitter's "them" reads the and/or group of the cards it searched for. -/
+theorem agencyOutfitterThemIsTheFoundGroup :
+    let found := nextClause (stepAction 512 .postEvent .obj (DRS.ofList [])
+      (search (andOr [yourGraveyard, yourHand, yourLibrary])
+        (andOr [a (named "Magnifying Glass"), a (named "Thinking Cap")]))).1
+    (resolveCandidates .bare .many found).map (fun ref => (ref.plur, ref.groupKey == some ref.id)) =
+      [(.many, true)] := by decide
 
 /-- Trouble in Pairs' -/
 def troubleInPairsArms : Ability :=

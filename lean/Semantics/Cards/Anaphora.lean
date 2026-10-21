@@ -94,11 +94,11 @@ def exileFourOfThem : Action :=
 theorem okExileFourOfThem : Action.check (DRS.ofList []) exileFourOfThem = [] := by decide
 
 def sylvanScrying : Action :=
-  sequentially [searchLibraryFor (exactly 1) isLand, reveal it, putInto it hand, shuffle]
+  sequentially [search yourLibrary (a isLand), reveal it, putInto it hand, shuffle]
 theorem okSylvanScrying : Action.check (DRS.ofList []) sylvanScrying = [] := by decide
 
 def searchToBattlefield : Action :=
-  sequentially [searchLibraryFor (exactly 1) isCreature, putOntoBattlefield it, shuffle]
+  sequentially [search yourLibrary (a isCreature), putOntoBattlefield it, shuffle]
 theorem okSearchToBattlefield : Action.check (DRS.ofList []) searchToBattlefield = [] := by decide
 
 def glimpseTheUnthinkable : Action := instruct (target isPlayer) (mill (.lit 10))
@@ -140,8 +140,8 @@ def bifurcate : Spelled := spelled <| .singleFaced
     { name := "Bifurcate", cost := some [generic 3, pip .green], types := [.sorcery],
       text :=
         [ spell (sequentially
-            [ searchLibraryFor (exactly 1)
-                (and [isPermanentCard, (shares .cardName .share (target (and [isCreature, isNontoken])))]),
+            [ search yourLibrary
+                (a (and [isPermanentCard, (shares .cardName .share (target (and [isCreature, isNontoken])))])),
               putOntoBattlefield (that card),
               shuffle ]) ] } }
 
@@ -197,7 +197,7 @@ theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by de
 def eradicateSearch : Action :=
   sequentially
     [ exile (target (and [isCreature, non (hasColor .black)])),
-      searchZonesOf (controllerOf (that card)) anyNumber (shares .cardName .share (that card)),
+      searchZonesOf (controllerOf (that card)) (allOf (shares .cardName .share (that card))),
       exile them,
       instruct (that player) shuffle ]
 theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] := by decide
@@ -219,19 +219,19 @@ theorem okWriteIntoBeingPlacement : Action.check (DRS.ofList []) writeIntoBeingP
 /-- Mystical Tutor -/
 def mysticalTutor : Action :=
   sequentially
-    [searchLibraryFor (exactly 1) isInstantOrSorcery, reveal it, shuffle, putInto it onTop]
+    [search yourLibrary (a isInstantOrSorcery), reveal it, shuffle, putInto it onTop]
 theorem okMysticalTutor : Action.check (DRS.ofList []) mysticalTutor = [] := by decide
 
 /-- Demonic Tutor -/
 def demonicTutor : Action :=
-  sequentially [searchLibraryFor (exactly 1) (and []), putInto it hand, shuffle]
+  sequentially [search yourLibrary (a isCard), putInto it hand, shuffle]
 theorem okDemonicTutor : Action.check (DRS.ofList []) demonicTutor = [] := by decide
 
 /-- Thalia's Lancers -/
 def thaliasLancersSearch : Action :=
   may
     (sequentially
-      [ searchLibraryFor (exactly 1) (and [hasSupertype .legendary]), reveal it,
+      [ search yourLibrary (a (and [hasSupertype .legendary])), reveal it,
         putInto it hand, shuffle ])
 theorem okThaliasLancersSearch : Action.check (DRS.ofList []) thaliasLancersSearch = [] := by decide
 
@@ -339,7 +339,7 @@ def celebrateTheHarvest : Spelled := spelled <| .singleFaced
     { name := "Celebrate the Harvest", cost := some [generic 3, pip .green], types := [.sorcery],
       text :=
         [ spell (sequentially
-            [ searchLibraryFor (upToOf (letter .x)) (and [isLand, hasSupertype .basic]),
+            [ search yourLibrary (counted (upToOf (letter .x)) (and [isLand, hasSupertype .basic])),
               define .x (distinctCount (.value .power) (allOf (and [isCreature, youControl]))),
               putOntoBattlefieldTapped (those card),
               shuffle ]) ] } }
@@ -425,7 +425,7 @@ theorem bioplasmTypedCardReadWrites :
 def scapeshiftSacrifice : Action := sacrifice (counted anyNumber isLand)
 theorem okScapeshiftSacrifice : Action.check (DRS.ofList []) scapeshiftSacrifice = [] := by decide
 def scapeshiftSacrificed : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) scapeshiftSacrifice).1
-def scapeshiftSearch : Action := searchLibraryFor (upToOf groupSize) isLand
+def scapeshiftSearch : Action := search yourLibrary (counted (upToOf groupSize) isLand)
 theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch = [] := by
   decide
 def scapeshiftAfterSearch : DRS := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
@@ -442,7 +442,7 @@ def scapeshift : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ sacrifice (counted anyNumber isLand),
-              searchLibraryFor (upToOf groupSize) isLand,
+              search yourLibrary (counted (upToOf groupSize) isLand),
               putOntoBattlefieldTapped them,
               shuffle ]) ] } }
 

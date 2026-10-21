@@ -84,7 +84,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   | n + 1, .superlative _ ax dom => dom.kind? n <|> some ax.scope
   | n + 1, .compareOver dom _ _ _ => dom.kind? n
   | n + 1, .and ps => ps.findSome? (·.kind? n)
-  | n + 1, .or ps =>
+  | n + 1, .or ps | n + 1, .coord .andOr ps =>
     ps.foldl (fun acc q =>
       match acc, q.kind? n with
       | some k, some k' => some (joinKinds k k')
@@ -160,7 +160,7 @@ def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
   | _ + 1, .isEmblem => some .command
   | _ + 1, .hasStatus _ => some .battlefield
   | n + 1, .and ps => ps.findSome? (·.seedZone n)
-  | n + 1, .or (p :: ps) =>
+  | n + 1, .or (p :: ps) | n + 1, .coord .andOr (p :: ps) =>
     let zone := p.seedZone n
     if ps.all (fun p => p.seedZone n == zone) then zone else none
   | _ + 1, _ => none
@@ -341,7 +341,7 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
     if who.det n == some .each then .many else who.plur n
   | _ + 1, .slice _ (.lit 1) _ => .one
   | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
-  | _ + 1, .and _ => .many
+  | _ + 1, .and _ | _ + 1, .coord .andOr _ => .many
   | n + 1, .or (x :: _) => x.plur n
   | _ + 1, _ => .one
 termination_by structural fuel
@@ -361,7 +361,7 @@ def NounPhrase.anchorPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.anchorPhrase n
   | n + 1, .or alternatives => alternatives.all (·.anchorPhrase n)
-  | _ + 1, .and _ => false
+  | _ + 1, .and _ | _ + 1, .coord .andOr _ => false
   -- A Participial Description reads back one object already in scope, as a pronoun does.
   | _ + 1, .described (.the .one) p => p.participialAnchor?.isSome
   | _ + 1, phrase => phrase.det.all (· == .target)
@@ -372,7 +372,8 @@ def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.groupMention n
   | _ + 1, .laterMention _ body => body.plur != .one
-  | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .and _ | _ + 1, .oneEachOf .. => true
+  | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .and _ | _ + 1, .coord .andOr _
+  | _ + 1, .oneEachOf .. => true
   | _ + 1, .pro _ plur => plur != .one
   | _ + 1, .described (.the plur) _ => plur != .one
   | _ + 1, phrase => phrase.det == some .target
@@ -435,7 +436,7 @@ def Predicate.explicitZone (predicate : Predicate) (fuel : Nat := 32) : Option Z
   | n + 1, .inCaller body | n + 1, .bracketed body => body.explicitZone n
   | _ + 1, .in_ zone => zone.sort
   | n + 1, .and predicates => predicates.findSome? (·.explicitZone n)
-  | n + 1, .or (first :: rest) =>
+  | n + 1, .or (first :: rest) | n + 1, .coord .andOr (first :: rest) =>
     let zone := first.explicitZone n
     if rest.all (fun predicate => predicate.explicitZone n == zone) then zone else none
   | _, _ => none
@@ -452,7 +453,7 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
     b.seedsAbility n
   | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _ => true
   | n + 1, .and ps => ps.any (fun p => p.seedsAbility n)
-  | n + 1, .or ps => !ps.isEmpty && ps.all (fun p => p.seedsAbility n)
+  | n + 1, .or ps | n + 1, .coord .andOr ps => !ps.isEmpty && ps.all (fun p => p.seedsAbility n)
   | _, _ => false
 termination_by structural fuel
 
@@ -484,6 +485,7 @@ termination_by structural fuel
 def predicateOfKind (k : Kind) (p : Predicate) : Predicate :=
   match p with
   | .or ps => .or (ps.filter (fun p => p.kind?.all (· == k)))
+  | .coord .andOr ps => .coord .andOr (ps.filter (fun p => p.kind?.all (· == k)))
   | p => p
 
 def predicatePayload (k : Kind) (p : Predicate) (fuel : Nat := 64) : Payload :=
@@ -563,6 +565,40 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
           resolvedIds := state.resolvedIds.map remap,
           performer := state.performer.map remap,
           relativeBinder := state.relativeBinder.map remap }) drs
+
+/-- What a search found (`refIds`): in the zone searched, if the search names one, and stamped
+with the search. -/
+def applySearchFound (drs : DRS) (refIds : List ReferentId) (zone : Option Zone) : DRS :=
+  refIds.foldl (fun d rid =>
+    d.updateById rid fun r =>
+      match r.payload with
+      | .object ty _ _ orig size =>
+        { r with
+          payload := .object ty zone (mkStamp (some (.action "search")) none) orig size
+          librarySearchResult := zone == some .library }
+      | _ => r) drs
+
+/-- The plural group a Coordination of noun phrases ("and", "and/or") denotes, over the
+referents its conjuncts denote (`members`): a later "them" reads the group, and each conjunct's
+own referent stays reachable. Each member the coordination introduced (from `start` on) is a part
+of the group; a member it reads back is left as it was. When every member it introduced is already
+a part of one group ("a creature card and/or a land card from among them"), the coordination's
+group is a part of that group too, not a second group beside it. -/
+def pushCoordinatedGroup (drs : DRS) (start : ReferentId) (members : List ReferentId)
+    (role : GramRole) (inArgSlot : Bool) : DRS × List ReferentId :=
+  match Payload.groupOf ((members.filterMap drs.findById?).map (·.payload)) with
+  | none => (drs, [])
+  | some payload =>
+    let groupId := drs.nextId
+    let fresh := members.filter (· ≥ start)
+    let sources := (fresh.filterMap fun rid => (drs.findById? rid).map (·.partOf)).eraseDups
+    let partOf := match sources with
+      | [some key] => some key
+      | _ => none
+    let withParts := fresh.foldl (fun d rid => d.updateById rid fun r =>
+      { r with partOf := r.partOf.orElse fun _ => some groupId }) drs
+    let group : Referent := { det := .the, plur := .many, payload, groupKey := some groupId, partOf }
+    (withParts.push group role inArgSlot, [groupId])
 
 /-- Stamp `refIds` in place with `deed` without changing zone. -/
 def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed) : DRS :=
@@ -881,7 +917,7 @@ def stepLocationWith (ops : StepOps) (drs : DRS) (z : Location) (fuel : Nat := 8
       refuse made.pileMention .pileMention)
   | _ + 1, .anyLocation => (drs, [])
   | n + 1, .not loc => stepLocationWith ops drs loc n
-  | n + 1, .or locs =>
+  | n + 1, .coord _ locs =>
     let (out, errs) := locs.foldl (fun (d, es) loc =>
       let (d', e') := stepLocationWith ops d loc n
       (d', es ++ e')) (drs, [])
@@ -1355,7 +1391,7 @@ def stepTextChangeWith (ops : StepOps) (drs : DRS) (tc : TextChange) : DRS × Li
 def stepSearchLocationWith (ops : StepOps) (drs : DRS) (sc : Location) : DRS × List Refusal :=
   let (out, errors) := stepLocationWith ops drs sc
   let distinct := match sc with
-    | .or locs =>
+    | .coord _ locs | .inCaller (.coord _ locs) =>
       let zones := locs.map (·.sort)
       zones.eraseDups.length == zones.length
     | _ => true
@@ -2190,7 +2226,7 @@ def stepOps : Nat → StepOps
             (d', es ++ e')) (drs, [])
           ({ out with relativeKind := drs.relativeKind },
             errs ++ refuse (otherAnchorOkWith ops drs (headKind.getD .object) ps) .otherAnchored)
-        | .or ps =>
+        | .or ps | .coord .andOr ps =>
           let headKind := p.kind? <|> drs.relativeKind
           let (nextId, errors) := ps.foldl (fun (nextId, errors) alternative =>
             let (branch, branchErrors) := ops.pred
@@ -2272,10 +2308,12 @@ def stepOps : Nat → StepOps
               refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
             (drs3, [rid], e1 ++ e2 ++ targetErrors ++
               refuse (detP.det != .the || pred.uniquifies) .uniquifying)
-        | .and ns =>
-          ns.foldl (fun (d, ids, es) n =>
+        | .and ns | .coord .andOr ns =>
+          let (out, ids, errs) := ns.foldl (fun (d, ids, es) n =>
             let (d', ids', e') := ops.np d role inArgSlot n
             (d', ids ++ ids', es ++ e')) (drs, [], refuse (ns.length ≥ 2) .atLeastTwo)
+          let (grouped, groupIds) := pushCoordinatedGroup out drs.nextId ids role inArgSlot
+          (grouped, ids ++ groupIds, errs)
         | .or ns => stepNounAlternativesWith ops drs role inArgSlot ns
         | .eachOf grp =>
           let (drs1, ids, e1) := ops.np drs .other false grp
@@ -2554,8 +2592,8 @@ def stepOps : Nat → StepOps
         | .coinsShowing _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
         | .groupSize =>
           let n := match drs.groupSizeScope with
-            | some ids => (ids.eraseDups.filterMap drs.findById?).filter
-                (fun ref => !ref.plur.isOne) |>.length
+            | some ids => wholeGroups ((ids.eraseDups.filterMap drs.findById?).filter
+                (fun ref => !ref.plur.isOne)) |>.length
             | none => countManysAny drs
           (drs, if n == 1 then [] else [.groupSizeInScope n])
         | .theDifference =>
@@ -3045,20 +3083,11 @@ def stepOps : Nat → StepOps
             (drs2, e1)
           | .zone z => stepLocationWith ops drs z
           | .choice _ => (drs, [])
-        | .search sc q p =>
+        | .search sc for_ =>
           let (drs1, e1) := stepSearchLocationWith ops drs sc
-          let (drs2, e2) := stepQuantityWith ops drs1 q
-          let (drs3, e3) := ops.pred drs2 p
-          let scZone := sc.sort
-          let drs4 := if phase == .postEvent then
-            let foundRef : Referent := {
-              det := .a, plur := q.plur,
-              librarySearchResult := scZone == some .library,
-              payload := .object p.seedTy scZone (mkStamp (some (.action "search")) none) none none
-            }
-            drs3.push foundRef patientRole true
-          else drs3
-          (drs4, e1 ++ e2 ++ e3)
+          let (drs2, foundIds, e2) := ops.np drs1 patientRole true for_
+          let drs3 := if phase == .postEvent then applySearchFound drs2 foundIds sc.sort else drs2
+          (drs3, e1 ++ e2)
         | .shuffle pile =>
           let (drs1, e1) := stepLocationWith ops drs pile
           let drs2 := if phase == .postEvent then afterShuffle drs1 else drs1

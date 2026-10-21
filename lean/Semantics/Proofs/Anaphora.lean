@@ -278,7 +278,7 @@ theorem okShuffleLocusAtLibrary :
 /-- The search action carries its mandatory scope directly. -/
 theorem searchLookbackCarriesItsScope :
     Condition.check (DRS.ofList [])
-      (.did ⟨.actor .you, .search (yourLibrary) (.range none none) .isCard, some .thisWay⟩)
+      (.did ⟨.actor .you, .search yourLibrary (counted anyNumber .isCard), some .thisWay⟩)
       = [] := by decide
 
 /-- "if you shuffled your graveyard this way" -/
@@ -430,9 +430,84 @@ theorem anyTargetTakesDamage :
     Action.check (DRS.ofList [])
       (instruct .this (.dealDamage (.lit 1) (target isAnyTarget))) = [] := by decide
 
+/-- "Tap target creature and target artifact. Untap them." -/
+theorem okCoordinationThenThem :
+    Action.check (DRS.ofList [])
+      (.sequentially [tap (and [target isCreature, target isArtifact]), untap them]) = [] := by
+  decide
+
+/-- "them" after "target creature and target artifact" reads the group the coordination
+publishes, and "that creature" and "that artifact" each still read their own conjunct. -/
+theorem coordinationPublishesItsGroup :
+    let after := nextClause (actionResult (DRS.ofList [])
+      (tap (and [target isCreature, target isArtifact])))
+    (resolveCandidates .bare .many after).map (fun ref => (ref.plur, ref.groupKey == some ref.id)) =
+        [(.many, true)] ∧
+      countReach (.word (.type .creature)) .one after = 1 ∧
+      countReach (.word (.type .artifact)) .one after = 1 := by decide
+
+/-- "Tap target creature and all other creatures with the same name as that creature. Untap
+them.": the plural conjunct is part of the group, not a second antecedent beside it. -/
+theorem okSingularAndPluralConjunctsThenThem :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ tap (and [target isCreature,
+            allOf (and [isCreature, shares .cardName .share (that creature),
+              otherThan (that creature)])]),
+          untap them ]) = [] := by decide
+
+/-- Capricious Efreet's targets: "target nonland permanent you control and up to two target
+nonland permanents you don't control", then "them". -/
+theorem okSingularAndCountedTargetsThenThem :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ tap (and [target (and [non isLand, isPermanent, youControl]),
+            targets (upTo 2) (and [non isLand, isPermanent])]),
+          untap them ]) = [] := by decide
+
+/-- "Exile target creature and all other creatures with that name. Return the exiled cards to
+the battlefield.": the participial reads the coordination's group. -/
+theorem okExiledCardsAfterSingularAndPluralConjuncts :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ exile (and [target isCreature,
+            allOf (and [isCreature, shares .cardName .share (that creature),
+              otherThan (that creature)])]),
+          returnTo (thePlural (and [isCard, was (exile which) thisWay])) battlefield [] ]) = [] := by
+  decide
+
+/-- "Sacrifice this creature and any number of lands. Search your library for up to that many
+land cards.": the group size is the coordination's group. -/
+theorem okGroupSizeAfterCoordination :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ sacrifice (and [thisCreature, counted anyNumber isLand]),
+          search yourLibrary (counted (upToOf groupSize) isLand) ]) = [] := by decide
+
+/-- Kiora, Master of the Depths: "Reveal the top four cards of your library. Put a creature card
+and/or a land card from among them into your hand and the rest into your graveyard.": the
+coordination of parts is a part of the revealed cards, not a second group beside them. -/
+theorem okTheRestAfterCoordinatedParts :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ reveal (topSlice (.lit 4)),
+          putInto (andOr [fromAmong (exactly 1) isCreature them,
+            fromAmong (exactly 1) isLand them]) hand,
+          putInto (theRest .object) graveyard ]) = [] := by decide
+
+/-- "Look at the top three cards of your library. Put one of them and one of them into your hand
+and the other into your graveyard." -/
+theorem okTheOtherAfterCoordinatedParts :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ lookAt (topSlice (.lit 3)),
+          putInto (and [someOf (exactly 1) them, someOf (exactly 1) them]) hand,
+          putInto (theOther .object) graveyard ]) = [] := by decide
+
+/-- "you and this creature" publishes both participants and the group they make up. -/
 theorem youAndPublishesBothParticipants :
-    (nounResult (DRS.ofList []) (youAnd thisCreature)).referents.map (·.kind) =
-      [.object, .player] := by decide
+    (nounResult (DRS.ofList []) (youAnd thisCreature)).referents.map (fun ref => (ref.kind, ref.plur)) =
+      [(.join .player .object, .many), (.object, .one), (.player, .one)] := by decide
 
 /-- "If a player is dealt damage this way, you draw a card." -/
 theorem okDealtThisWayAfterDamage :

@@ -912,7 +912,7 @@ theorem okSedrisTheTraitorKing : Ability.check (DRS.ofList []) sedrisTheTraitorK
 /-- Grixis -/
 def grixis : Ability :=
   static (abilityGrant
-    (allOf (and [ or [hasColor .blue, hasColor .black, hasColor .red], isCreature,
+    (allOf (and [ andOr [hasColor .blue, hasColor .black, hasColor .red], isCreature,
                    in_ yourGraveyard ]))
     (unearth itsManaCost))
 theorem okGrixis : Ability.check (DRS.ofList []) grixis = [] := by decide
@@ -1141,9 +1141,9 @@ def towerWinder : Spelled := spelled <| .singleFaced
         [ reach, deathtouch,
           when (does thisCreature enter)
             (sequentially
-              [ searchLibraryOrGraveyard (named "Command Tower"),
+              [ searchLibraryOrGraveyard (a (named "Command Tower")),
                 reveal it, putInto it hand,
-                doIf (did you (searchLibraryFor anyNumber (and [])) thisWay) shuffle ]) ],
+                doIf (did you (search yourLibrary) thisWay) shuffle ]) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Aim High -/
