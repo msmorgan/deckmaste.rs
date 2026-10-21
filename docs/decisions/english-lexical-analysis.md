@@ -53,11 +53,12 @@ units.
 A Reading is one whole tree enumerated from the packed forest. Two Readings are
 the same only if they are the same tree.
 
-Multiple Readings are successful parsing. `Production Cost` may rank Readings
-for presentation; it never decides admission and never removes one.
+Multiple Readings are successful parsing. The Ranking Key
+([`english-v4.md`](./english-v4.md) §4.3) may rank Readings for presentation;
+it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Four canonicalizations are approved:
+of the text.** Five canonicalizations are approved:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -66,7 +67,17 @@ of the text.** Four canonicalizations are approved:
   distinguishes them;
 - **same-head complement priority:** when a head's selected subcategorization
   frame licenses a preposition phrase as a complement, that same head instance
-  does not also attach the same preposition phrase as an unselected adjunct.
+  does not also attach the same preposition phrase as an unselected adjunct;
+- **adjuncts below a non-modal auxiliary:** a post-verbal adjunct after the
+  participial Verb Phrase complement of perfect *have* or of passive or
+  progressive *be* attaches to that lexical participial Verb Phrase, never to
+  the uncoordinated auxiliary Verb Phrase above it: *was [put there from the
+  battlefield this turn]*, *was [spent to cast this spell]*, *have [lost this
+  turn]*, *have [[cycled or discarded] this turn]*. The two sites differ in no
+  meaning, and k trailing adjuncts would otherwise yield 2^k trees; the host
+  head is the lexical verb (*put*, *spend*, *lose*). A coordinated auxiliary
+  Verb Phrase still hosts an adjunct shared by its conjuncts. The canonical
+  site is built structurally in the chart, not merged afterwards.
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

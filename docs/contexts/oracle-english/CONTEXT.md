@@ -86,10 +86,32 @@ Preference can order alternatives and name a representative; it can neither add
 a Reading nor revoke one.
 
 **Production Cost** (project term):
-A nonnegative preference weight on a Production. A Reading's total sums the
-costs of its Production occurrences; lower totals rank earlier without changing
-grammatical admission or erasing alternative Readings.
-_Avoid_: Construction Cost
+A nonnegative preference weight on a Production. Summed over a Reading's
+Production occurrences, it is one component of the Reading's Ranking Key.
+_Avoid_: Construction Cost; cost for the whole Ranking Key
+
+**Ranking Key** (project term):
+The Preference by which admitted Readings are ordered: a tuple of Attachment
+Class, Catalog Preference, Right Association, Production Cost and a final
+tie-break, compared lexicographically, lower first.
+_Avoid_: total cost, score
+
+**Attachment Class** (project term):
+A structural preference on where a kind of unselected dependent attaches,
+stated by host kind and grammatical function, such as a Supplement anchoring to
+its clause or a dependent after a coordination attaching to the whole
+coordination.
+
+**Catalog Preference** (project term):
+A preferred or dispreferred host for an unselected dependent, declared by a
+lexeme or frame in the lexicon or a catalog, such as a zone noun [CR#400.1] as a
+dispreferred host of a relative clause.
+_Avoid_: policing flag
+
+**Right Association** (project term):
+The preference for attaching an unselected dependent to the nearest eligible
+host, measured by the length in words of the host it attaches to.
+_Avoid_: late closure, low attachment
 
 **Realization**:
 The relationship by which an abstract grammatical value is expressed in a
