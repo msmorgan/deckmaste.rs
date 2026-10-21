@@ -197,6 +197,8 @@ struct Draft {
     /// Coordinators a serial tail admits for correlatives only, which a
     /// plain serial coordination may not end with.
     foreign_coordinators: Vec<LexemeId>,
+    /// A derived passive's Internalised Complement.
+    internalised: Option<usize>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -243,6 +245,7 @@ impl Draft {
             fills_preposition: None,
             foreign_coordinators: Vec::new(),
             unlike: None,
+            internalised: None,
         }
     }
 
@@ -825,6 +828,22 @@ impl<'a> Binder<'a> {
         Ok(draft)
     }
 
+    /// Adds a Valence schema's `internalised` equations to a derived passive
+    /// with an Internalised Complement, the child they call `internalised`.
+    fn internalised_equations(
+        &self,
+        draft: &mut Draft,
+        equations: &[Equation],
+    ) -> Result<(), LoadError> {
+        let Some(child) = draft.internalised else {
+            return Ok(());
+        };
+        let name = std::mem::replace(&mut draft.children[child].name, Ident::new("internalised"));
+        let result = self.equations(draft, equations);
+        draft.children[child].name = name;
+        result
+    }
+
     /// Adds declared equations over a draft's children and mother. A `Gap`
     /// requirement is a child's Gap Rule, set by the caller.
     fn equations(&self, draft: &mut Draft, equations: &[Equation]) -> Result<(), LoadError> {
@@ -1129,6 +1148,7 @@ impl<'a> Binder<'a> {
                 phrase,
                 cost,
                 passive,
+                internalised,
                 adjectival,
                 interleaved,
                 heavy_shift,
@@ -1144,6 +1164,9 @@ impl<'a> Binder<'a> {
                     adjectival.as_deref(),
                     *obligatory,
                 )?;
+                for draft in &mut drafts {
+                    self.internalised_equations(draft, internalised)?;
+                }
                 self.slot_agreement(phrase, &mut drafts, agree)?;
                 if let Some(coordinators) = clusters {
                     let coordinator = self.coordinator_test(coordinators)?;
@@ -1689,7 +1712,8 @@ impl<'a> Binder<'a> {
                 GapRule::Require(Gap::NP),
             );
             if agent {
-                draft.child("complement", self.slot_symbol(&by_pp)?, GapRule::Closed);
+                draft.internalised =
+                    Some(draft.child("complement", self.slot_symbol(&by_pp)?, GapRule::Closed));
             }
             draft
                 .equations
@@ -1861,7 +1885,8 @@ impl<'a> Binder<'a> {
             draft.frame = Some(frame);
             draft.child("head", Symbol::Leaf(Test::Frame(frame)), GapRule::Closed);
             if agent {
-                draft.child("complement", self.slot_symbol(by_pp)?, GapRule::Closed);
+                draft.internalised =
+                    Some(draft.child("complement", self.slot_symbol(by_pp)?, GapRule::Closed));
             }
             draft
                 .equations
@@ -1953,7 +1978,11 @@ impl<'a> Binder<'a> {
                 // The Internalised Complement strands its preposition too
                 // (*the creature that damage was dealt by*).
                 if Some(i) == agent_slot {
-                    draft.child("complement", self.slot_symbol(fill)?, GapRule::Transparent);
+                    draft.internalised = Some(draft.child(
+                        "complement",
+                        self.slot_symbol(fill)?,
+                        GapRule::Transparent,
+                    ));
                     continue;
                 }
                 let relation = self.out.frames[frame].slots[first_slot + i].relation;

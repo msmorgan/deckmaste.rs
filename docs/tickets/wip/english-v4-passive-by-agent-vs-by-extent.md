@@ -28,3 +28,6 @@ because an amount or mana symbol (*{2}*, *1*) is never an agent.
 - No face is lost.
 
 Standard constraints apply.
+
+Census delta (measured on uprxkopx): faces read 28,709 → 28,709; total Readings 328,602 → 328,186; lost faces: none.
+Judgment set: 2,966 enforced at `COMPLETED_STRATUM` 6, all hold; 195 pending.

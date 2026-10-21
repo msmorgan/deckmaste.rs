@@ -214,6 +214,11 @@ pub enum SchemaDecl {
         /// Word that marks the Internalised Complement (verbs only).
         #[serde(default)]
         passive: Option<Ident>,
+        /// Equations on the Internalised Complement of every derived
+        /// passive, over the child `internalised`: what its Preposition
+        /// Phrase may contain (CGEL, Ch. 16 §10.1.1, p. 1428).
+        #[serde(default)]
+        internalised: Vec<Equation>,
         /// Derive Adjectival Passives of this Category from verb frames whose
         /// passive leaves no Complement but the optional `by` phrase.
         #[serde(default)]

@@ -36,15 +36,17 @@
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
         "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Valued", "Serial"],
-        // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // An Amount bounded by a comparative (*3 or less*), only a noun's value.
         "AmountKind": ["ComparativeBounded"],
         // A determiner that ends in the Targeting Marker after an outer one
         // (*two target*, *up to one target*), and its Noun Phrase.
         "Targeting": ["Marked"],
-        "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
+        // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
+        // A braced symbol's fused head (*add {G}*, *reduced by {2}*) is a
+        // Symbol: an amount of what it represents.
+        "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity", "Symbol"],
         // The NounKind of a head's *of* oblique.
-        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
+        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity", "Symbol"],
         "Determination": ["Bare", "Overt"],
         // The Determination of a determinative's *than* Complement.
         "ObliqueDetermination": ["Bare", "Overt"],
@@ -981,7 +983,7 @@
         (name: "GradedValuedBare", lhs: "NounPhrase", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")],
             equations: [Exclude("modifier.Grade", "Plain"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third"), Require("head.NounDistribution", "Valued")]),
         (name: "SymbolFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "SymbolHead")]),
-        (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
+        (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Symbol"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
@@ -1233,7 +1235,12 @@
         Parameters(head: Noun, phrase: "IndexedNominal"),
         Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator")),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, clusters: Some("Coordinator")),
+        // The Internalised Complement is *by* plus a Noun Phrase, the
+        // active's Subject (CGEL, Ch. 16 §10.1.1, p. 1428). An amount, a
+        // fused-head quantity or a symbol after *by* is an extent (*reduced
+        // by {2}*, *increased by two*; Ch. 8 §5.2, p. 692); a *by* gerund is
+        // a means Adjunct (p. 1428).
+        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")], adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, clusters: Some("Coordinator")),
         Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability")]),
         Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement

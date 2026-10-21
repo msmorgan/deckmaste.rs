@@ -123,7 +123,9 @@ that is never also the Displaced Subject's postmodifier; and predicative Complem
 complex-transitive verbs, including Preposition Phrases that could modify a
 nominal (*face down*, *of the chosen type*). Locatives after `be` and `remain`
 are Locative Complements, not predicatives. Passives carry their `by` phrase as
-a Complement, and Adjectival Passives come from frames whose passive leaves no
+a Complement; it is *by* plus a Noun Phrase that is neither a fused-head
+quantity (*two*) nor a braced symbol (*{2}*), so a selected *by* extent (*reduced by
+{2}*, *increased by two*) is never also the Internalised Complement. Adjectival Passives come from frames whose passive leaves no
 other Complement; they are predicative Complements only.
 
 The profiler assigns reduced relatives and `named` postmodifiers to Stratum 3,

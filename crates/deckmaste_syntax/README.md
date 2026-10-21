@@ -68,14 +68,17 @@ checks compare characters without allocating another source string.
 
 Authors write active Subcategorization Frames once; the engine derives the rest.
 
-- `Valence { head, phrase, passive, adjectival, obligatory }`: for each frame of each head lexeme
+- `Valence { head, phrase, passive, internalised, adjectival, obligatory }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant, a predicative-Gap variant of a `Copular` frame only (a
   subjective predicative; never the objective one of *turn it face up*) and,
   when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
-  Phrase, which strands its preposition like any other; a non-auxiliary `Prepositional` frame's passive strands its
+  Phrase, which strands its preposition like any other. `internalised` equations
+  constrain that Preposition Phrase in every derived passive, as the child
+  `internalised` (the English grammar admits only *by* + a Noun Phrase that is
+  neither a fused-head quantity nor a braced symbol, so *reduced by {2}* is only its selected extent); a non-auxiliary `Prepositional` frame's passive strands its
   Preposition Phrase (*each card looked at*). Only a verb's phrases are `Voice: Active`; another head's phrase
   takes its Voice from the head (a declared Adjectival Passive is Passive). When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
