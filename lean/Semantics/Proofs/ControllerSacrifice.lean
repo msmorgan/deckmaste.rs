@@ -65,7 +65,7 @@ theorem wholeOwnedScopeWouldBeAmbiguous :
         [.anaphor .bare .one 2] := by decide
 
 theorem sacrificeStampSelectsTheSameObject :
-    (participialCandidates (.action "sacrifice") (some .one) none false afterSacrifice).head?.map
+    (participialCandidates (.deed (.action "sacrifice")) (some .one) none false afterSacrifice).head?.map
         (·.id) =
       (firstReach (.word .card) .one afterSacrifice).map (·.id) := by decide
 
@@ -96,7 +96,7 @@ theorem compositionPassesTheAuthoringBoundary :
 theorem controlGrantRecordsItsPatientIdentity :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (gainControl (target isCreature) (some untilEndOfTurn))
-    let refs := participialCandidates (.core .gainControl) (some .one) none false (nextClause after)
+    let refs := participialCandidates (.deed (.core .gainControl)) (some .one) none false (nextClause after)
     errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧
       refs.map (·.id) = (after.referents.filter (fun r => r.det == .target)).map (·.id) := by decide
 
@@ -158,7 +158,8 @@ theorem laterCardIsTheSacrificedObject :
       (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
       some (3, .target, .one,
         .object [.creature, .artifact] (some .graveyard)
-          (some ⟨.action "sacrifice", true, true, []⟩) none none) := by decide
+          (some ⟨some (.action "sacrifice"), true, some ⟨some .battlefield, some .graveyard⟩, []⟩)
+          none none) := by decide
 
 theorem outerArtifactDoesNotStealThePatient :
     let outer : DRS := DRS.ofList
@@ -349,7 +350,7 @@ private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPatt
  (stepAction (fuel + 1) .postEvent .obj drs moveBody).1 =
  let selected := stepNounPhrase fuel drs .obj true moveArg
  applyZoneMove { selected.1 with historicalMoveFrom := drs.historicalMoveFrom }
-   selected.2.1 (some (.core .put)) (some .graveyard) := by
+   selected.2.1 none (some .graveyard) := by
  cases drs with
  | mk => simp only at ordinary; subst ordinary; rfl
 
@@ -369,19 +370,20 @@ private def afterPrefix (fresh : Nat) : List Referent :=
  [ { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
    { id := fresh + 5, det := .target, plur := .one,
      payload := .object [.creature] (some .graveyard)
-       (some ⟨.action "sacrifice", true, true, []⟩) none none },
+       (some ⟨some (.action "sacrifice"), true, some ⟨some .battlefield, some .graveyard⟩, []⟩)
+       none none },
    { id := fresh + 1, det := .the, plur := .one, payload := .player false },
    { id := fresh, det := .target, plur := .one,
      payload := .object [.artifact] (some .battlefield) none none none } ]
 private theorem isolatedMoveStamp (fresh : Nat) (names : List BindingId) (data : DRS) :
  (dropActorFrame (applyInPlaceStamp
-   (applyZoneMove (argumentBase fresh names data) [fresh + 2] (some (.core .put)) (some .graveyard))
+   (applyZoneMove (argumentBase fresh names data) [fresh + 2] none (some .graveyard))
    [fresh + 5] (some (.action "sacrifice")))).referents = afterPrefix fresh := by
  simp only [applyZoneMove, show [fresh + 2].eraseDups = [fresh + 2] from rfl,
    List.foldl_cons, List.foldl_nil]
  simp [argumentBase, argumentPrefix, afterPrefix, DRS.findById?,
    applyInPlaceStamp, DRS.updateById, dropActorFrame, dropActorFrame.dropFirst,
-   Referent.isActorFrame, mkStamp, onFieldZone, zoneIsB, mergeIdents, List.foldl_cons, List.foldl_nil]
+   Referent.isActorFrame, moveStamp, onFieldZone, zoneIsB, mergeIdents, List.foldl_cons, List.foldl_nil]
 
 private theorem argumentStep (fuel : Nat) (drs : DRS) :
     stepNounPhrase (fuel + 3) drs .obj true moveArg =
@@ -562,7 +564,7 @@ private theorem movedStampedPrefixAndSuffixWithActors (fresh : Nat) (names : Lis
     let base := argumentBase fresh names data
     (dropActorFrame (applyInPlaceStamp
       (applyZoneMove { base with referents := base.referents++rs }
-        [fresh + 2] (some (.core .put)) (some .graveyard))
+        [fresh + 2] none (some .graveyard))
       [fresh + 5] (some (.action "sacrifice")))).referents = afterPrefix fresh ++rs := by
   dsimp only
   have found : (argumentBase fresh names data).findById? (fresh + 2) =
@@ -579,11 +581,11 @@ private theorem movedStampedPrefixAndSuffixWithActors (fresh : Nat) (names : Lis
     exact Nat.ne_of_lt (Nat.lt_add_right 5 h))]
   have active : ∃ ref ∈ (applyInPlaceStamp
       (applyZoneMove (argumentBase fresh names data) [fresh + 2]
-        (some (.core .put)) (some .graveyard)) [fresh + 5]
+        none (some .graveyard)) [fresh + 5]
       (some (.action "sacrifice"))).referents, ref.isActorFrame = true := by
     have head : ((applyInPlaceStamp
         (applyZoneMove (argumentBase fresh names data) [fresh + 2]
-          (some (.core .put)) (some .graveyard)) [fresh + 5]
+          none (some .graveyard)) [fresh + 5]
         (some (.action "sacrifice"))).referents.head?).map (·.isActorFrame) = some true := by
       simp only [applyZoneMove, show [fresh + 2].eraseDups = [fresh + 2] from rfl,
         List.foldl_cons, List.foldl_nil]
@@ -591,7 +593,7 @@ private theorem movedStampedPrefixAndSuffixWithActors (fresh : Nat) (names : Lis
         applyInPlaceStamp, DRS.updateById, Referent.isActorFrame, mergeIdents]
     cases h : (applyInPlaceStamp
         (applyZoneMove (argumentBase fresh names data) [fresh + 2]
-          (some (.core .put)) (some .graveyard)) [fresh + 5]
+          none (some .graveyard)) [fresh + 5]
         (some (.action "sacrifice"))).referents with
     | nil => simp [h] at head
     | cons ref refs =>
@@ -635,7 +637,7 @@ private theorem argumentOutBase (fresh : Nat) (rs : List Referent)
   simp_all [argumentBase]
 
 private def movedOut (fresh : Nat) (rs : List Referent) : DRS :=
- applyZoneMove (argumentOut fresh rs) [fresh + 2] (some (.core .put)) (some .graveyard)
+ applyZoneMove (argumentOut fresh rs) [fresh + 2] none (some .graveyard)
 private theorem movedOutMetadata (fresh : Nat) (rs : List Referent)
     (older : ∀ r ∈ rs, r.id < fresh)
     (noNames : ∀ r ∈ rs, r.idents.elem "controllerSacrifices.subject" = false)
@@ -653,9 +655,9 @@ private theorem movedOutMetadata (fresh : Nat) (rs : List Referent)
      payload := .object [.creature] (some .battlefield) none none none } := by
     simp [base, argumentBase, argumentPrefix, DRS.findById?]
   change (applyZoneMove { base with referents := base.referents ++ rs } [fresh + 2]
-       (some (.core .put)) (some .graveyard)).currentClause = 1 ∧
+       none (some .graveyard)).currentClause = 1 ∧
      (applyZoneMove { base with referents := base.referents ++ rs } [fresh + 2]
-       (some (.core .put)) (some .graveyard)).pendingRoles = [(fresh + 5, .obj)]
+       none (some .graveyard)).pendingRoles = [(fresh + 5, .obj)]
   rw [MoveActors.applyZoneMove_appendWithActors base rs _ _ _ _ found (by
     intro r hr; exact Nat.ne_of_lt (Nat.lt_add_right 2 (older r hr))) actorLinks]
   simp only [applyZoneMove, show [fresh + 2].eraseDups = [fresh + 2] from rfl, List.foldl_cons, List.foldl_nil]
@@ -853,7 +855,7 @@ private theorem actualMovedScopeClosure (fresh : Nat) (rs : List Referent)
     rw [caller, Bool.or_true]
   obtain ⟨next, outer, hstack, howned⟩ := movedPreowned input frame [] old
     [.creature] (some .battlefield) none none none
-    (some (.core .put)) (some .graveyard) found rfl (by rfl) stack owned selected
+    none (some .graveyard) found rfl (by rfl) stack owned selected
   exact leaveStampedOwned (movedOut fresh rs) next outer [fresh + 5]
     (some (.action "sacrifice")) hstack howned
 

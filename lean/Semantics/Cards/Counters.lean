@@ -1070,7 +1070,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
                 triggerReflexively
                   (doOnlyIf (sacrifice thisEnchantment)
                     (compareAmt (countersOn bloodstainCounter thisEnchantment) .atLeast (.lit 5)))
-                  (putInto (target (and [isCreature, isCard, in_ yourGraveyard])) hand) ]) ] } }
+                  (returnToHand (target (and [isCreature, isCard, in_ yourGraveyard]))) ]) ] } }
 
 /-- Bewitching Leechcraft -/
 def bewitchingLeechcraft : Spelled := spelled <| .singleFaced

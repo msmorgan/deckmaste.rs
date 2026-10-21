@@ -20,7 +20,8 @@ namespace Semantics.Cards
 
 def cloudshift : Action :=
   sequentially
-    [exile (target (and [isCreature, youControl])), putOntoBattlefieldUnderYourControl (that card)]
+    [ exile (target (and [isCreature, youControl])),
+      returnToBattlefield (that card) [(under you)] ]
 theorem okCloudshift : Action.check (DRS.ofList []) cloudshift = [] := by decide
 
 def bitterDownfall : Action :=
@@ -34,7 +35,7 @@ def suspendedSentence : Action :=
 theorem okSuspendedSentence : Action.check (DRS.ofList []) suspendedSentence = [] := by decide
 
 def flickeringSpirit : Action :=
-  sequentially [exile thisCreature, putInto it battlefield (riders := [(under (ownerOf it))])]
+  sequentially [exile thisCreature, returnToBattlefield it [(under (ownerOf it))]]
 theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
@@ -172,7 +173,7 @@ theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] 
 
 def everAfter : Action :=
   sequentially
-    [ putOntoBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard])),
+    [ returnToBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard])),
       become (those creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } },
       putInto this_ onBottom ]
@@ -188,7 +189,7 @@ theorem okMartyrsCry : Action.check (DRS.ofList []) martyrsCry = [] := by decide
 def anotherRound : Action :=
   sequentially
     [ exile (counted anyNumber (and [isCreature, youControl])),
-      putInto them battlefield (riders := [(under (ownerOf them))]),
+      returnToBattlefield them [(under (ownerOf them))],
       repeat_ (moreTimes (letter .x)) ]
 theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by decide
 
@@ -370,7 +371,7 @@ def nekrataalRider : DRS :=
 theorem nekrataalOneCreatureWord : countReach (.word creature) .one nekrataalRider = 1 := by
   decide
 theorem nekrataalOneDestroyed :
-    (participialCandidates (.action "destroy") (some .one) none false nekrataalRider).length = 1 := by
+    (participialCandidates (.deed (.action "destroy")) (some .one) none false nekrataalRider).length = 1 := by
   decide
 
 def sequencedRiderBody : Action :=
@@ -378,9 +379,9 @@ def sequencedRiderBody : Action :=
 theorem okSequencedRiderBody : Action.check (DRS.ofList []) sequencedRiderBody = [] := by decide
 def sequencedRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
 theorem sequencedRiderOneDestroyed :
-    (participialCandidates (.action "destroy") (some .one) none false sequencedRider).length = 1 := by decide
+    (participialCandidates (.deed (.action "destroy")) (some .one) none false sequencedRider).length = 1 := by decide
 theorem sequencedRiderOneExiled :
-    (participialCandidates (.action "exile") (some .one) none false sequencedRider).length = 1 := by
+    (participialCandidates (.deed (.action "exile")) (some .one) none false sequencedRider).length = 1 := by
   decide
 
 /-- Engulfing Flames -/
@@ -388,35 +389,35 @@ def engulfingFlamesBody : Action := instruct this_ (dealDamage (.lit 1) (target 
 theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :
-    (participialCandidates (.action "destroy") (some .one) none false engulfingFlamesRider).length = 0 := by decide
+    (participialCandidates (.deed (.action "destroy")) (some .one) none false engulfingFlamesRider).length = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
 
 def bioplasmExiledPronoun : NounPhrase := it
 theorem okBioplasmExiledPronoun :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
-    (participialCandidates (.action "exile") (some .one) (some creature) false bioplasmAfterExile).length
+    (participialCandidates (.deed (.action "exile")) (some .one) (some creature) false bioplasmAfterExile).length
       = 0 := by
   decide
 theorem bioplasmExiledCardHasNoType :
-    (participialCandidates (.action "exile") (some .one) none false bioplasmAfterExile).map (·.ty)
+    (participialCandidates (.deed (.action "exile")) (some .one) none false bioplasmAfterExile).map (·.ty)
       = [[]] := by decide
 def bioplasmAfterTest : DRS := (stepCondition 512 (nextClause bioplasmAfterExile) bioplasmCardTest).1
 theorem bioplasmTypeTestPreservesExiledIdentity :
-    let before := participialCandidates (.action "exile") (some .one) none false bioplasmAfterExile
-    let after := participialCandidates (.action "exile") (some .one) none false bioplasmAfterTest
+    let before := participialCandidates (.deed (.action "exile")) (some .one) none false bioplasmAfterExile
+    let after := participialCandidates (.deed (.action "exile")) (some .one) none false bioplasmAfterTest
     before.length = 1 ∧ after.map (·.id) = before.map (·.id) := by decide
 theorem bioplasmTestRemarksType :
-    (participialCandidates (.action "exile") (some .one) none false bioplasmAfterTest).map (·.ty)
+    (participialCandidates (.deed (.action "exile")) (some .one) none false bioplasmAfterTest).map (·.ty)
       = [[.creature]] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
-    (participialCandidates (.action "exile") (some .one) (some creature) false bioplasmAfterTest).length
+    (participialCandidates (.deed (.action "exile")) (some .one) (some creature) false bioplasmAfterTest).length
       = 0 := by
   decide
 theorem bioplasmTypedCardReadWrites :
-    (participialCandidates (.action "exile") (some .one) (some (.ofType .card .creature)) false
+    (participialCandidates (.deed (.action "exile")) (some .one) (some (.ofType .card .creature)) false
       bioplasmAfterTest).length = 1 := by
   decide
 
@@ -430,9 +431,9 @@ theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch 
 def scapeshiftAfterSearch : DRS := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
-    (participialCandidates (.action "search") (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
+    (participialCandidates (.deed (.action "search")) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 theorem scapeshiftOneSacrificedGroup :
-    (participialCandidates (.action "sacrifice") (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
+    (participialCandidates (.deed (.action "sacrifice")) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 
 /-- Scapeshift -/
 def scapeshift : Spelled := spelled <| .singleFaced
@@ -607,7 +608,7 @@ def factOrFiction : Spelled := spelled <| .singleFaced
               putInto onePile hand,
               putInto (theOther .pile) graveyard ]) ] } }
 
-def unsummon : Action := putInto (target isCreature) hand
+def unsummon : Action := returnToHand (target isCreature)
 theorem okUnsummon : Action.check (DRS.ofList []) unsummon = [] := by decide
 def grismold : Action :=
   instruct eachPlayer (createToken (creatureToken 1 1 [.green] [plant]))

@@ -53,10 +53,10 @@ inductive Refusal where
   | ordinalNonZero
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
-  /-- A Participial Description ("the exiled card", "each creature destroyed this way") reads
-  back the objects its deed acted on in scope, and found `found` of them, not exactly one
-  [CR#607.1,607.2a]. -/
-  | participialDescription (deed : Deed) (found : Nat)
+  /-- A Participial Description ("the exiled card", "each creature destroyed this way", "the
+  card returned this way") reads back the objects its deed or its Zone Change acted on in scope,
+  and found `found` of them, not exactly one [CR#607.1,607.2a]. -/
+  | participialDescription (anchor : ParticipialAnchor) (found : Nat)
   /-- A Participial Description names an agent of its deed the checker cannot read back: a
   stamp records what a deed did, not who did it, so only no agent, "you", the performer, or the
   object whose keyword ability defines the verb are read. -/

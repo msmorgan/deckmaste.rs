@@ -1035,21 +1035,27 @@ semantic_template phaseOut : Action := .setStatus .phasedOut .actor
 semantic_template phaseIn : Action := .setStatus .phasedIn .actor
 /-- "<subject> becomes <status>" [CR#603.2e] -/
 semantic_template Status.become (status : Status) : Action := .setStatus status .actor
-/-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
-its owner's control". Observation follows the pattern, not an individual occurrence's origin: a
+/-- The Zone Change every put and return Template writes: `subject` moves from `from_` to
+`destination` with `riders` [CR#400.7]. "Put" and "return" name no deed, so the two verbs expand
+to the same move; each Template keeps its own wording. The written origin, not the verb, decides
+the Observation Point. Observation follows the pattern, not an individual occurrence's origin: a
 move from the battlefield or a graveyard (or, to a hand or library, from exile, the stack or the
 command zone) is observed on its departure, and "from anywhere" is not a leaves-the-battlefield
 trigger [CR#603.6c,603.10a]. -/
-semantic_template putInto (subject : NounPhrase) (destination : Location)
-    (from_ : Option Location := none) (riders : List MoveRider := []) : Action :=
-  let before : Bool := match from_.bind (·.positiveZones?) with
+private semantic_template zoneChange (subject : NounPhrase) (destination : Location)
+    (from_ : Location) (riders : List MoveRider) : Action :=
+  let before : Bool := match from_.positiveZones? with
     | some zs => !zs.isEmpty && zs.all (fun z =>
         z.sort == some .battlefield || z.sort == some .graveyard ||
           ((destination.sort == some .hand || destination.sort == some .library) &&
             (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
     | none => false
-  .move subject (from_.getD .anyLocation) (some destination)
-    (if before then .departure else .arrival) none riders
+  .move subject from_ (some destination) (if before then .departure else .arrival) none riders
+/-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
+its owner's control". -/
+semantic_template putInto (subject : NounPhrase) (destination : Location)
+    (from_ : Option Location := none) (riders : List MoveRider := []) : Action :=
+  zoneChange subject destination (from_.getD .anyLocation) riders
 /-- "turn <subject> face up" -/
 semantic_template turnFaceUp (subject : NounPhrase) : Action := .setStatus .faceUp subject
 /-- "flip <subject>": a flip card's permanent turns to its flipped half, whose alternative name,
@@ -1108,42 +1114,41 @@ semantic_template faceDownWardedCreature : FaceDown :=
           power := some (.lit 2), toughness := some (.lit 2) }⟩
 /-- "put <subject> <destination>" -/
 semantic_template put (subject : NounPhrase) (destination : Location) : Action :=
-  .enact (.core .put) (.move subject .anyLocation (some destination) .arrival none []) none none
+  zoneChange subject destination .anyLocation []
 /-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
 bottom") -/
 semantic_template putWith (subject : NounPhrase) (destination : Location)
     (riders : List MoveRider) : Action :=
-  .enact (.core .put) (.move subject .anyLocation (some destination) .arrival none riders) none none
+  zoneChange subject destination .anyLocation riders
 /-- "return <subject> to <zone>" -/
 semantic_template returnTo (subject : NounPhrase) (destination : Location)
     (riders : List MoveRider) : Action :=
-  .enact (.core .return_) (.move subject .anyLocation (some destination) .arrival none riders) none
-    none
+  zoneChange subject destination .anyLocation riders
 /-- "return <subject> [from <from_>] to the battlefield [riders]" -/
 semantic_template returnToBattlefield (subject : NounPhrase) (riders : List MoveRider := [])
     (from_ : Option Location := none) : Action :=
-  .enact (.core .return_)
-    (.move subject (from_.getD .anyLocation) (some battlefield) .arrival none riders) none none
+  zoneChange subject battlefield (from_.getD .anyLocation) riders
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Action :=
   returnTo subject battlefield [.entersTransformed, (.under controller)]
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Action :=
-  .move subject .anyLocation (some battlefield) .arrival none
+  zoneChange subject battlefield .anyLocation
     [(.under who), (.withCounters amount (.printed kind) .fresh)]
+/-- "put <subject> onto the battlefield" -/
 semantic_template putOntoBattlefield (subject : NounPhrase) : Action :=
-  .move subject .anyLocation (some battlefield) .arrival none []
+  zoneChange subject battlefield .anyLocation []
+/-- "put <subject> onto the battlefield tapped" -/
 semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
-  .move subject .anyLocation (some battlefield) .arrival none [(.entersAs .tapped)]
+  zoneChange subject battlefield .anyLocation [(.entersAs .tapped)]
 /-- "put <subject> onto the battlefield under your control" -/
 semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Action :=
-  .move subject .anyLocation (some battlefield) .arrival none [(.under .you)]
+  zoneChange subject battlefield .anyLocation [(.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
     (from_ : Location := .anyLocation) : Action :=
-  .move subject from_ (some battlefield) .arrival none
-    [(.entersAs .tapped), (.entersAttacking none)]
+  zoneChange subject battlefield from_ [(.entersAs .tapped), (.entersAttacking none)]
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
     (agent : NounPhrase := you) : Action :=
@@ -1508,9 +1513,10 @@ semantic_template Action.replace (replaced : Action) (replacement : Replacement)
 semantic_template rerollStored (quantity : Quantity) (whose : NounPhrase) : Action :=
   .rerollStored quantity whose
 semantic_template restartGame : Action := .restartGame
+/-- "return <subject> [from <from_>] to its owner's hand" -/
 semantic_template returnToHand (subject : NounPhrase) (from_ : Location := wherever) :
     Action :=
-  enact (.core .return_) (.move subject from_ (some hand) .arrival none [])
+  zoneChange subject hand from_ []
 semantic_template revealChoices (sort : HiddenSort) : Action := .revealChoices sort
 semantic_template selectRandom (quantity : Quantity) (what : Predicate) : Action :=
   choose (countedAtRandom quantity what)

@@ -595,9 +595,6 @@ theorem okPatientlessScry :
 theorem scryPatternAllowsUnspecifiedActor :
     GameEvent.check (DRS.ofList []) (.does .any (scry (.lit 1))) = [] := by decide
 
-/-- The put deed supplies no standalone participial noun phrase. -/
-theorem putHasNoStandaloneParticiple : participleOf (.core .put) = none := by decide
-
 /-- "Whenever a creature transforms into a Phyrexian, …" -/
 theorem okIntransitiveBecomes :
     GameEvent.check (DRS.ofList [])
@@ -787,7 +784,7 @@ theorem badDistributedDiscardSingular :
       (.sequentially
         [ .sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them],
           exile (the (and [was (discard which), isCard])) ])
-      = [.participialDescription (.action "discard") 0] := by
+      = [.participialDescription (.deed (.action "discard")) 0] := by
   decide
 
 /-- "Tap target creature." -/

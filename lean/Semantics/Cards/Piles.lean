@@ -166,7 +166,7 @@ def deathOrGlory : Spelled := spelled <| .singleFaced
             [ separateIntoPiles
                 (allOf (and [isCreature, in_ yourGraveyard])) 2,
               exile (pileOfChoice anOpponent),
-              putOntoBattlefield (theOther .pile) ]) ] } }
+              returnToBattlefield (theOther .pile) ]) ] } }
 
 /-- Steam Augury -/
 def steamAugury : Spelled := spelled <| .singleFaced

@@ -198,7 +198,7 @@ produces. The traps, all hit once:
 - Types use UpperCamelCase; constructors and functions use lowerCamelCase in
   the type's namespace. Fields and arguments use descriptive words.
 - Lean keywords used as names take a trailing underscore, such as `if_`,
-  `from_`, and `return_`.
+  `from_`, and `repeat_`.
 - Write templates and definitions bare (`creature`) and constructors with a leading dot
   (`.hasType`). The bench opens `Semantics.Templates` and `Semantics.Definitions`; it does not open syntax
   namespaces whose constructors would shadow core names.

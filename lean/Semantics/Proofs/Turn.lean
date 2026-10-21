@@ -92,7 +92,7 @@ theorem badParticipialWrongVerb :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
         (putInto (the (and [was (sacrifice which), isCard])) battlefield))
-      = [.participialDescription (.action "sacrifice") 0] := by
+      = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
 
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
@@ -100,7 +100,7 @@ theorem badParticipialWrongNoun :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isArtifact)))
         (putInto (the (and [was (sacrifice which), isCreature])) battlefield))
-      = [.participialDescription (.action "sacrifice") 0] := by
+      = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
 
 theorem badParticipialAmbig :
@@ -109,7 +109,7 @@ theorem badParticipialAmbig :
         (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
             isCreature))])
         (putInto (the (and [was (sacrifice which), isCard])) battlefield))
-      = [.participialDescription (.action "sacrifice") 2] := by
+      = [.participialDescription (.deed (.action "sacrifice")) 2] := by
   decide
 
 theorem okBareCardRead :

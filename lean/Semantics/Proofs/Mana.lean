@@ -36,7 +36,7 @@ theorem badDiscardedCreatureWord :
       (activatedAbility (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
             (the (and [was (discard which), isCreature]))) (target isAnyTarget))))
-      = [.participialDescription (.action "discard") 0] := by
+      = [.participialDescription (.deed (.action "discard")) 0] := by
   decide
 
 /-- "{1}, {T}: Draw a card." -/

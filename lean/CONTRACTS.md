@@ -280,11 +280,19 @@ A Participial Description is a `NounPhrase.described` with determiner `the` (one
 `many`: "the exiled cards"), `all`, `each` or the bare plural, one of whose conjuncts is a
 `Predicate.did` with no span written or `thisWay`, whose `which` is what the deed acted on
 (`Predicate.participialAnchor?`). It introduces no referent: `participialCandidates`
-selects the referents its deed stamped (`Referent.stampedBy`, which also reads the deed a
-keyword ability's verb was done by: devouring is sacrificing [CR#702.82b]), of its number,
-named by the other conjuncts' Head Noun as the object was when acted on (`card`, a
-battlefield location as "permanent", Card Types: `stampedWordOk` [CR#608.2h]) and in the
-zones they name now. `thisWay` reads only referents the current ability stamped
+selects the referents its anchor stamped (`Referent.anchoredBy`): the deed the clause names
+(`Referent.stampedBy`, which also reads the deed a keyword ability's verb was done by:
+devouring is sacrificing [CR#702.82b]) or, where no deed names a move, the move's Zone Change,
+by the destination it writes and the origin, if one is written, so "the creature returned this
+way" and "the creature put onto the battlefield this way" read one creature
+(`returnedAndPutReadTheReturnedCard`, `returnedCreatureReadsThePermanentItIs`,
+`zoneChangeReadsItsWrittenOrigin`), of its number, named by the other conjuncts' Head Noun
+(`card`, a battlefield location as "permanent", Card Types: `stampedWordOk`) and in the zones
+they name now. "Card" reads the zone the object is in now; a Card Type or "permanent" reads the
+permanent it is, if it is on the battlefield now (one a move put there), or else the permanent it
+was when acted on, a departed one by its last known information [CR#608.2h], so "each permanent
+put into a graveyard this way" reads a destroyed permanent and no discarded card
+(`permanentPutIntoAGraveyardReadsItsOrigin`). `thisWay` reads only referents the current ability stamped
 [CR#607.1c]; no span written also reads those a linked ability published, and a singular
 `the` reads a published group [CR#607.3]. `participialRead` resolves: a group determiner
 reads every candidate (a Card Type picks members, asking nothing of the group); `the`
@@ -953,6 +961,18 @@ destination. The destination's shape, the arrangement's fit to the moved
 plurality, the subject's card types and the riders' fit to the destination are
 game rules the checker does not assert (`lean-checker-sweep-zone`). There is
 no destinationless movement action.
+
+"Put" and "return" name no deed: each is ordinary English for a Zone Change
+[CR#400.7]. The put and return Templates (`putInto`, `put`, `putWith`,
+`putOntoBattlefield*`, `returnTo`, `returnToBattlefield*`, `returnToHand`) keep
+their wordings and expand through one helper to a bare `.move`, so a put and a
+return with the same subject, origin, destination and riders are one tree
+(`putAndReturnExpandToOneTree`). The written origin, not the verb, decides the
+Observation Point, as described below for `putInto`
+(`graveyardToHandObservedOnDeparture`). Every move stamps what it moved with
+its Zone Change (`Stamp.zoneChange`: the zone it left, if known, and the zone it
+entered), whether or not a deed names the move; of the bare moves, only a move
+to exile is also stamped by a deed, exiling [CR#701.13a].
 
 User ruling (2026-09-06): Counter is one enactment of the Counter label around
 stack-to-graveyard movement, uniformly for its spell or ability subject. This

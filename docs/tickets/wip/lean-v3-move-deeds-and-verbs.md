@@ -62,8 +62,10 @@ encodings") and finding B3 of the warts audit. It takes over
    drops the stamp when the Deed is `none`. The stamp shape is the implementer's choice: an
    optional Deed, or a separate movement record. A Participial Description whose relative clause
    is a `.move` anchors on that movement: the destination it writes, and the origin if one is
-   written. "The card returned to the battlefield this way" and "the card put onto the battlefield
-   this way" then read the same referent. Delete `inferredDeed`'s graveyard and hand cases. Its
+   written. "The creature returned to the battlefield this way" and "the creature put onto the
+   battlefield this way" then read the same referent. ("Card" would not do here: it reads the zone
+   the object is in now, and the battlefield is no card zone; a Card Type reads the permanent the
+   object is on the battlefield [CR#608.2h].) Delete `inferredDeed`'s graveyard and hand cases. Its
    exile case stays: exile is a Keyword Action [CR#701.13a].
 4. Rewrite the card sites below onto the Template of their printed verb.
 5. Update `lean/CONTRACTS.md` ("Movement destinations" and any statement of `put`/`return_`
@@ -146,8 +148,9 @@ Whichever ticket lands second rebases.
   `putOntoBattlefield s`. This is the tree identity the governing principle accepts.
 - **Add** a pin that a move from a graveyard to a hand is observed on departure through both
   `returnToHand` (with a written origin) and `putInto` [CR#603.10a].
-- **Add** a pin that, after *Cloudshift*'s exile and return, "the card returned this way" and
-  "the card put onto the battlefield this way" both resolve to the returned card. Today the first
+- **Add** a pin that, after *Cloudshift*'s exile and return, "the creature returned this way" and
+  "the creature put onto the battlefield this way" both resolve to the returned card ("card"
+  reads the zone the object is in now, which here is no card zone). Today the first
   is refused after a put Template.
 - The `ok…` theorems for every rewritten card stay green under `./lean/scripts/build`
   (`--wfail`).

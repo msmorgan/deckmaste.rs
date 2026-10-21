@@ -54,10 +54,10 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 def missyFaceDownReturn : Ability :=
   whenever (does (a (and [isCreature, non isArtifact, otherThan thisCreature])) die)
     (sequentially
-      [ putInto it battlefield (riders := [(faceDownAs
+      [ returnToBattlefield it [(faceDownAs
               { characteristics := some
                   { types := [.artifact, .creature], subtypes := [cyberman],
-                    power := stat 2, toughness := stat 2 } }), (entersAs .tapped), (under you)]) ])
+                    power := stat 2, toughness := stat 2 } }), (entersAs .tapped), (under you)] ])
 theorem okMissyFaceDownReturn : Ability.check (DRS.ofList []) missyFaceDownReturn = [] := by decide
 
 /-- Yedora, Grave Gardener -/
@@ -71,9 +71,9 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
             (does (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature])) die)
             (may
               (sequentially
-                [ putInto it battlefield (riders := [(faceDownAs
+                [ returnToBattlefield it [(faceDownAs
                         { characteristics := some { types := [.land], subtypes := [forest] }
-                            }), (under (ownerOf it))]) ])) ],
+                            }), (under (ownerOf it))] ])) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Ral Zarek, Guest Lecturer's ultimate -/

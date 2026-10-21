@@ -241,10 +241,11 @@ abbrev KeywordActionLabel := String
 /-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
 [CR#508.1,509.1], tapping a permanent for mana [CR#106.12a], and the other actions the rules
 define in their own sections. Closed, so a law matches them structurally instead of naming a
-lexeme. -/
+lexeme. "Put" and "return" name no deed: each is ordinary English for a Zone Change [CR#400.7],
+written as the move itself. -/
 inductive CoreDeed where
   | attack | block | target | copy | draw | gainLife | loseGame | winGame | spend | trigger
-  | put | return_ | gainControl | unlock | fullyUnlock | tapForMana
+  | gainControl | unlock | fullyUnlock | tapForMana
   deriving DecidableEq, Repr
 
 /-- A condition that causes a state-based action [CR#704.1]. -/

@@ -83,4 +83,27 @@ theorem exhaustedWrapperRefuses :
     (stepLocationWith (stepOps 64) (DRS.ofList []) hand 0).2 =
       [.recursionLimit] := by decide
 
+/-! ## Put and return
+
+"Put" and "return" name no deed: each is ordinary English for a Zone Change [CR#400.7]. Separate
+Templates keep the two wordings, and they expand to the same move. -/
+
+theorem putAndReturnExpandToOneTree (subject : NounPhrase) (destination : Location)
+    (riders : List MoveRider) (origin : Location) :
+    returnToHand subject = putInto subject hand ∧
+    returnToHand subject origin = putInto subject hand (some origin) ∧
+    returnToBattlefield subject = putOntoBattlefield subject ∧
+    returnToBattlefield subject riders (some origin) = putInto subject battlefield (some origin) riders ∧
+    returnTo subject destination riders = putWith subject destination riders :=
+  ⟨rfl, rfl, rfl, rfl, rfl⟩
+
+/-- A move from a graveyard to a hand is observed on its departure, whichever verb writes it: an
+ability that triggers when a card leaves a graveyard looks back in time [CR#603.10a]. -/
+theorem graveyardToHandObservedOnDeparture :
+    returnToHand (target isCreature) yourGraveyard =
+      .move (target isCreature) yourGraveyard (some hand) .departure none [] ∧
+    putInto (target isCreature) hand (some yourGraveyard) =
+      .move (target isCreature) yourGraveyard (some hand) .departure none [] :=
+  ⟨rfl, rfl⟩
+
 end Semantics.Proofs.DefinitionsAndTemplates

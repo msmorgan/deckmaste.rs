@@ -175,7 +175,8 @@ def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
-/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. -/
+/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. A bare move names a deed
+only when it moves to exile, which is exiling [CR#701.13a]; "put" and "return" name none. -/
 def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
@@ -184,8 +185,6 @@ def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   | n + 1, .ownScope none body => body.inferredDeed n
   | _ + 1, .enact verb _ _ _ => some verb
   | _ + 1, .move _ _ (some (.zone .exile _)) _ _ _ => some (.action "exile")
-  | _ + 1, .move _ _ (some (.zone .graveyard _)) _ _ _ => some (.core .put)
-  | _ + 1, .move _ _ (some (.zone .hand _)) _ _ _ => some (.core .return_)
   | _ + 1, .setStatus .tapped _ => some (.action "tap")
   | _ + 1, .setStatus .untapped _ => some (.action "untap")
   | _ + 1, .draw _ => some (.core .draw)
@@ -201,11 +200,12 @@ termination_by structural fuel
 
 /-! ## Participial Descriptions
 
-"The exiled card", "the sacrificed creature", "each creature destroyed this way": a definite or
-group description whose predicate says, with no span written or with "this way", what a deed did
-to its members. It introduces no referent: it reads back the objects that deed acted on in scope
-(`participialCandidates`, `participialRead`), in the current ability or, with no span written,
-in an ability linked to it [CR#607.1,607.1c,607.2a]. -/
+"The exiled card", "the sacrificed creature", "each creature destroyed this way", "the card
+returned this way": a definite or group description whose predicate says, with no span written or
+with "this way", what a deed or a Zone Change did to its members. It introduces no referent: it
+reads back the objects that deed or move acted on in scope (`participialCandidates`,
+`participialRead`), in the current ability or, with no span written, in an ability linked to it
+[CR#400.7,607.1,607.1c,607.2a]. -/
 
 /-- Whether `np` is the relative pronoun `which`, however wrapped. -/
 def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 8) : Bool :=
@@ -216,15 +216,31 @@ def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 8) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-/-- The deed a relative clause reads back by, when it can anchor a Participial Description: no
-span or "this way" written, `which` standing for what the deed acted on rather than for its
-subject, and an action that names its deed. -/
-def DidClause.anchorDeed? (clause : DidClause) : Option Deed :=
+/-- The Zone Change an action writes, when it moves something into a zone: the origin, if one
+is written, and the destination [CR#400.7]. -/
+def Action.writtenZoneChange? (inst : Action) (fuel : Nat := 8) : Option (Option Zone × Zone) :=
+  match fuel, inst with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.writtenZoneChange? n
+  | _ + 1, .move _ from_ (some to) _ _ _ => to.sort.map (from_.sort, ·)
+  | _, _ => none
+termination_by structural fuel
+
+/-- What an action is read back by: the deed it names, or, where none does, the Zone Change it
+writes ("returned", "put" [CR#400.7]). -/
+def Action.participialAnchor? (inst : Action) : Option ParticipialAnchor :=
+  match inst.inferredDeed with
+  | some deed => some (.deed deed)
+  | none => inst.writtenZoneChange?.map fun (origin, destination) => .zoneChange origin destination
+
+/-- What a relative clause reads back by, when it can anchor a Participial Description: no span
+or "this way" written, `which` standing for what the action acted on rather than for its
+subject, and an action that names its deed or writes a Zone Change. -/
+def DidClause.anchor? (clause : DidClause) : Option ParticipialAnchor :=
   let relativizesSubject := match clause.subj with
     | .actor np | .by np => np.isWhich
     | .any => false
   match clause.within with
-  | none | some .thisWay => if relativizesSubject then none else clause.action.inferredDeed
+  | none | some .thisWay => if relativizesSubject then none else clause.action.participialAnchor?
   | some _ => none
 
 /-- A predicate's conjuncts, through `inCaller`, `bracketed` and nested `and`. -/
@@ -235,11 +251,11 @@ def Predicate.conjuncts (p : Predicate) (fuel : Nat := 8) : List Predicate :=
   | _, p => [p]
 termination_by structural fuel
 
-/-- The relative clause, and its deed, a Participial Description reads back by: the first
+/-- The relative clause, and its anchor, a Participial Description reads back by: the first
 conjunct that anchors one. -/
-def Predicate.participialAnchor? (p : Predicate) : Option (DidClause × Deed) :=
+def Predicate.participialAnchor? (p : Predicate) : Option (DidClause × ParticipialAnchor) :=
   p.conjuncts.findSome? fun
-    | .did clause => clause.anchorDeed?.map (clause, ·)
+    | .did clause => clause.anchor?.map (clause, ·)
     | _ => none
 
 /-- What a Participial Description's other conjuncts ask of the objects it reads back: a Head
@@ -270,13 +286,13 @@ back: none written ("the exiled card"), "you" or the performer, who do what the 
 keyword ability defines for itself, the object that has it ("creatures it devoured"
 [CR#702.82b]). A stamp does not record who did the deed, so any other agent ("the card an
 opponent exiled") is refused. -/
-def DidClause.participialAgentOk (clause : DidClause) (deed : Deed) : Bool :=
+def DidClause.participialAgentOk (clause : DidClause) (anchor : ParticipialAnchor) : Bool :=
   match clause.subj with
   | .any => true
   | .by np | .actor np =>
     np.isYou ||
-      (match deed, np with
-       | _, .actor | _, .this | _, .headed _ .this | .ofAbility _, .pro .. => true
+      (match anchor, np with
+       | _, .actor | _, .this | _, .headed _ .this | .deed (.ofAbility _), .pro .. => true
        | _, _ => false)
 
 /-- The number a Participial Description's determiner reads: "the" one object, or with
@@ -295,7 +311,7 @@ def Predicate.withAnchorSpan (p : Predicate) (fuel : Nat := 8) : Predicate :=
   | n + 1, .bracketed body => .bracketed (body.withAnchorSpan n)
   | n + 1, .and ps => .and (ps.map (·.withAnchorSpan n))
   | _ + 1, .did clause =>
-    if clause.within.isNone && clause.anchorDeed?.isSome then
+    if clause.within.isNone && clause.anchor?.isSome then
       .did { clause with within := some .thisWay }
     else .did clause
   | _, p => p
@@ -495,8 +511,9 @@ def Reach.isBarePronoun : Reach → Bool
   | .bare | .atSlot _ => true
   | _ => false
 
-/-- Clear `r.idents` on departed referents and transition them to `destZone` stamped with `deed`
-(`semantics-v3.md` §1.2, `[CR#400.7,400.7j]`). -/
+/-- Clear `r.idents` on departed referents and transition them to `destZone`, stamped with their
+Zone Change and with `deed`, if a deed names the move (`semantics-v3.md` §1.2,
+`[CR#400.7,400.7j]`). -/
 def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
     (destZone : Option Zone) : DRS :=
   refIds.eraseDups.foldl (fun (state : DRS) oldId =>
@@ -506,7 +523,7 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
       if state.historicalReferentIds.contains oldId then state else
       let payload : Option Payload := match old.payload with
         | .object ty oldZone _ orig size =>
-          some (.object ty destZone (mkStamp deed oldZone true) orig size)
+          some (.object ty destZone (some (moveStamp deed oldZone destZone)) orig size)
         | .ability orig _ => some (.ability orig destZone)
         | _ => none
       match payload with
@@ -557,8 +574,8 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
         let newPayload := match r.payload with
           | .object ty zn oldProv orig sz =>
             let newStamp := match oldProv with
-              | some ⟨_, wasPerm, moved, _⟩ => some ⟨v, wasPerm, moved, []⟩
-              | none => mkStamp (some v) zn false
+              | some old => some { old with verb := some v, through := [] }
+              | none => mkStamp (some v) zn
             .object ty zn newStamp orig sz
           | other => other
         { r with payload := newPayload }) drs
@@ -572,8 +589,9 @@ def applyThroughStamp (drs : DRS) (refIds : List ReferentId) (deed : Deed) : DRS
       let newPayload := match r.payload with
         | .object ty zn oldProv orig sz =>
           let newStamp := match oldProv with
-            | some old => some ⟨deed, old.wasField, old.moved, old.verb :: old.through⟩
-            | none => mkStamp (some deed) zn false
+            | some old =>
+              some { old with verb := some deed, through := old.verb.toList ++ old.through }
+            | none => mkStamp (some deed) zn
           .object ty zn newStamp orig sz
         | other => other
       { r with payload := newPayload }) drs
@@ -1828,7 +1846,7 @@ def addedTargetContextWith (ops : StepOps) (drs : DRS) (description : Predicate)
     match bindFor .target .one .object description with
     | ref@{ payload := .object ty zone _ origin size, .. } =>
       { ref with
-        payload := .object ty zone (mkStamp (some (.core .target)) zone false) origin size
+        payload := .object ty zone (mkStamp (some (.core .target)) zone) origin size
         linked := true, linkSite := drs.nextId }
     | ref => ref
   nextClause ({ drs with nextId := Nat.max drs.nextId described.nextId }.push target .other false)
@@ -2230,12 +2248,12 @@ def stepOps : Nat → StepOps
           | none => (drs, [], [.anaphor (.word .permanent) .one 0])
         | .described detP pred =>
           match detP.participialNumber?, pred.participialAnchor? with
-          | some plur, some (clause, deed) =>
+          | some plur, some (clause, anchor) =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
             let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred.withAnchorSpan
             let (word, zones) := Predicate.participialHead pred.conjuncts plur.isNone
-            let found := participialCandidates deed plur word clause.within.isSome drs zones
-            let agentErrors := refuse (clause.participialAgentOk deed) .participialAgent
+            let found := participialCandidates anchor plur word clause.within.isSome drs zones
+            let agentErrors := refuse (clause.participialAgentOk anchor) .participialAgent
             match participialRead plur found with
             | .ok read =>
               -- Read back, an object a linked ability published is mentioned in this one.
@@ -2243,7 +2261,7 @@ def stepOps : Nat → StepOps
                 (d.updateById ref.id fun ref => { ref with linked := false }).recordMention ref.id
                   role inArgSlot) drs2
               (mentioned, read.map (·.id), e1 ++ e2 ++ agentErrors)
-            | .error n => (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription deed n])
+            | .error n => (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription anchor n])
           | _, _ =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
             let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred
@@ -3014,7 +3032,7 @@ def stepOps : Nat → StepOps
           let drs2 := if phase == .postEvent then
             let cardRef : Referent := {
               det := .the, plur := quantity.plur,
-              payload := .object [] (some .hand) (mkStamp (some (.core .draw)) (some .hand) false) none none
+              payload := .object [] (some .hand) (mkStamp (some (.core .draw)) (some .hand)) none none
             }
             drs1.push cardRef patientRole true
           else drs1
@@ -3036,7 +3054,7 @@ def stepOps : Nat → StepOps
             let foundRef : Referent := {
               det := .a, plur := q.plur,
               librarySearchResult := scZone == some .library,
-              payload := .object p.seedTy scZone (mkStamp (some (.action "search")) none false) none none
+              payload := .object p.seedTy scZone (mkStamp (some (.action "search")) none) none none
             }
             drs3.push foundRef patientRole true
           else drs3

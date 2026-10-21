@@ -410,11 +410,15 @@ The cost a Linked Facet reads back: a cost named by its Keyword Ability, or
 _Avoid_: paid cost name
 
 **Participial Description** (project term):
-A definite or group description whose Predicate says what a Deed did to its
-members, with either no span written or "this way" ("the exiled card", "the
-sacrificed creature", "each creature destroyed this way"). It introduces no
-Object: it denotes the one Object or group in scope that Deed acted on. A Card
-Type or "permanent" in it names the Object by what it was when acted on
+A definite or group description whose Predicate says what a Deed or a Zone
+Change did to its members, with either no span written or "this way" ("the
+exiled card", "the sacrificed creature", "each creature destroyed this way",
+"the card returned this way"). It introduces no Object: it denotes the one
+Object or group in scope that Deed or Zone Change acted on. "Put" and "return"
+name no Deed; such a description reads the Zone Change itself, by the zone it
+went to and the zone it came from, if written ([CR#400.7]). A Card Type or
+"permanent" in it names the Object by what it is, if it is on the battlefield
+now ("the creature returned this way"), or else by what it was when acted on
 ([CR#608.2h]); "card", and a zone, by where it is now. With "this way" it
 reads only its own ability's deeds ([CR#607.1c]); with no span written it also
 reads those of an ability linked to it, where a singular "the" reads each of

@@ -187,7 +187,7 @@ theorem participialDescriptionWithoutItsDeedRefused :
       (sequentially
         [ tap (target isCreature),
           gainLife (powerOf (the (and [was (destroy which), isCreature]))) ]) =
-      [.participialDescription (.action "destroy") 0] := by
+      [.participialDescription (.deed (.action "destroy")) 0] := by
   decide
 
 /-- A clause whose `which` is the deed's subject anchors no description: "each player who
@@ -251,11 +251,82 @@ the run once, the stopping card as one of its members [CR#702.85a]. -/
 theorem runReadOnceWithItsStoppingCard :
     let after := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (exile (.run .top (and [non isLand]) (libraryOf .you)))).1
-    let found := participialCandidates (.action "exile") none (some .card) true after
+    let found := participialCandidates (.deed (.action "exile")) none (some .card) true after
     found.length = 2 ∧
       (match participialRead none found with
        | .ok read => read.map (·.det)
        | .error _ => []) = [.the] := by
+  decide
+
+/-! ## Zone Changes
+
+"Put" and "return" name no deed. A Participial Description whose clause is a move reads the move
+itself: the destination it writes, and the origin, if one is written [CR#400.7]. -/
+
+/-- Cloudshift: "Exile target creature you control, then return that card to the battlefield
+under your control." -/
+private def cloudshiftThen (readBack : Action) : Action :=
+  sequentially
+    [ exile (target (and [isCreature, youControl])),
+      returnToBattlefield (that card) [(under you)],
+      readBack ]
+
+/-- After Cloudshift's exile and return, "the one returned this way" and "the one put onto the
+battlefield this way" both read the returned card: the two verbs write one move. -/
+theorem returnedAndPutReadTheReturnedCard :
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (sequentially
+        [ exile (target (and [isCreature, youControl])),
+          returnToBattlefield (that card) [(under you)] ])).1
+    (returnToBattlefield which).participialAnchor? = some (.zoneChange none .battlefield) ∧
+    (putOntoBattlefield which).participialAnchor? = some (.zoneChange none .battlefield) ∧
+    (participialCandidates (.zoneChange none .battlefield) (some .one) none true after).map
+      (·.zone) = [some .battlefield] ∧
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (was (returnToBattlefield which) thisWay)))) = [] ∧
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (was (putOntoBattlefield which) thisWay)))) = [] := by
+  decide
+
+/-- A Card Type reads what a move put onto the battlefield as the permanent it is now
+[CR#608.2h]: after Cloudshift, "the creature returned this way" and "the creature put onto the
+battlefield this way" read the returned creature, as "the permanent returned this way" does. -/
+theorem returnedCreatureReadsThePermanentItIs :
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (and [isCreature, was (returnToBattlefield which) thisWay])))) = []
+      ∧
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (and [isCreature, was (putOntoBattlefield which) thisWay])))) = []
+      ∧
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (and [isPermanent, was (returnToBattlefield which) thisWay])))) =
+      [] := by
+  decide
+
+/-- An object a move took off the battlefield is read as the permanent it was [CR#608.2h], and
+one that never was a permanent is not one: Terastodon's "each permanent put into a graveyard this
+way" reads a destroyed land, and nothing after a discard. -/
+theorem permanentPutIntoAGraveyardReadsItsOrigin :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ destroy (target isLand),
+          tap (each (and [isPermanent, was (putInto which graveyard) thisWay])) ]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ discard (a (and [isCard, in_ yourHand])),
+          tap (each (and [isPermanent, was (putInto which graveyard) thisWay])) ]) =
+      [.participialDescription (.zoneChange none .graveyard) 0] := by
+  decide
+
+/-- A written origin narrows the read: Cloudshift returned its card from exile, so "the one
+returned from a graveyard this way" reads nothing. -/
+theorem zoneChangeReadsItsWrittenOrigin :
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (was (returnToBattlefield which (from_ := some exileZone))
+        thisWay)))) = [] ∧
+    Action.check (DRS.ofList [])
+      (cloudshiftThen (tap (the (was (returnToBattlefield which (from_ := some graveyard))
+        thisWay)))) = [.participialDescription (.zoneChange (some .graveyard) .battlefield) 0] := by
   decide
 
 end Semantics.Proofs.Lookback

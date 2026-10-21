@@ -556,8 +556,7 @@ def repeal : Spelled := spelled <| .singleFaced
     { name := "Repeal", cost := some [.variable, pip .blue], types := [.instant],
       text :=
         [ spell (sequentially
-            [ putInto (target (and [non isLand, isPermanent, hasManaValue .eq (letter .x)]))
-                hand,
+            [ returnToHand (target (and [non isLand, isPermanent, hasManaValue .eq (letter .x)])),
               draw (.lit 1) ]) ] } }
 
 def entrancingMelody : Spelled := spelled <| .singleFaced

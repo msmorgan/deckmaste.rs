@@ -78,20 +78,22 @@ theorem unionRefinementAcceptsOneMatchingHalf :
       (DRS.ofList [{ det := .target, plur := .one, payload := .join artifactCard.payload copiedCreature, idents := [] }]) = 1 := by decide
 
 private def movedCopy (deed : Deed) (origin : Option Origin) : Referent :=
-  { det := .target, plur := .one, payload := .object [.creature] (some .exile) (some ⟨deed, true, true, []⟩) origin none, idents := [] }
+  { det := .target, plur := .one, idents := [],
+    payload := .object [.creature] (some .exile)
+      (some (moveStamp (some deed) (some .battlefield) (some .exile))) origin none }
 
 theorem participialRefinementsKeepCarrierTypeAndOrigin :
-    (participialCandidates (.action "exile") (some .one)
+    (participialCandidates (.deed (.action "exile")) (some .one)
       (some (.copied (.ofType .card .creature))) false
       [movedCopy (.action "exile") (some .copy)]).length = 1 := by decide
 
 theorem participialRefinementsRejectWrongDeed :
-    (participialCandidates (.action "exile") (some .one)
+    (participialCandidates (.deed (.action "exile")) (some .one)
       (some (.copied (.ofType .card .creature))) false
       [movedCopy (.action "destroy") (some .copy)]).length = 0 := by decide
 
 theorem participialRefinementsRejectOriginal :
-    (participialCandidates (.action "exile") (some .one)
+    (participialCandidates (.deed (.action "exile")) (some .one)
       (some (.copied (.ofType .card .creature))) false
       [movedCopy (.action "exile") none]).length = 0 := by decide
 
@@ -99,15 +101,15 @@ theorem participialRefinementsRejectOriginal :
 conjuncts name a Head Noun: "the exiled card" and the bare "the exiled one" both reach it. -/
 
 theorem participialWithoutHeadNounReachesTheStampedObject :
-    (participialCandidates (.action "exile") (some .one) none false
+    (participialCandidates (.deed (.action "exile")) (some .one) none false
       [movedCopy (.action "exile") none]).length = 1 := by decide
 
 theorem participialWithHeadNounReachesTheStampedObject :
-    (participialCandidates (.action "exile") (some .one) (some .card) false
+    (participialCandidates (.deed (.action "exile")) (some .one) (some .card) false
       [movedCopy (.action "exile") none]).length = 1 := by decide
 
 theorem participialRejectsWrongDeed :
-    (participialCandidates (.action "exile") (some .one) none false
+    (participialCandidates (.deed (.action "exile")) (some .one) none false
       [movedCopy (.action "destroy") none]).length = 0 := by decide
 
 theorem typeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (b : Referent) :

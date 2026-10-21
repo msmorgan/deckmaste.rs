@@ -230,15 +230,27 @@ def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.permanentActor)
 /-! ## Discourse Representation Structure (`DRS`) -/
 
-/-- Provenance: the verb that last moved a referent, whether it was on the battlefield then,
-and whether it changed zones; and the deeds `verb` was done by (`through`), when a keyword
-ability's verb is done by doing another deed: devouring is sacrificing [CR#702.82b]. -/
+/-- A Zone Change a stamp records: the zone the object left, if known, and the zone it entered
+[CR#400.7]. -/
+structure ZoneChange where
+  origin : Option Zone
+  destination : Option Zone
+  deriving DecidableEq, Repr, BEq
+
+/-- Provenance: the deed that last acted on a referent, if a deed names it; whether it was on the
+battlefield then; the Zone Change that last moved it, if it changed zones, which a move records
+whether or not a deed names it ("put", "return" [CR#400.7]); and the deeds `verb` was done by
+(`through`), when a keyword ability's verb is done by doing another deed: devouring is
+sacrificing [CR#702.82b]. -/
 structure Stamp where
-  verb : Deed
+  verb : Option Deed
   wasField : Bool
-  moved : Bool
+  zoneChange : Option ZoneChange
   through : List Deed := []
   deriving DecidableEq, Repr, BEq
+
+/-- Whether the stamped object changed zones. -/
+def Stamp.moved (st : Stamp) : Bool := st.zoneChange.isSome
 
 inductive Origin where
   | token | copy
@@ -680,13 +692,15 @@ def countManys (k : Kind) (drs : DRS) : Nat :=
 
 def objGroup (k : Kind) (b : Referent) : Bool := Kind.lte k b.kind && !b.plur.isOne
 
+/-- The groups "the rest" and "the other" can be taken from. An object a linked ability
+published is read only by a Participial Description (`Referent.linked`), so none is one. -/
 def countGroups (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
-    b.det != .part && b.det != .bare && objGroup k b).length
+    !b.linked && b.det != .part && b.det != .bare && objGroup k b).length
 
 def countParts (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
-    b.det == .part && Kind.lte k b.kind).length
+    !b.linked && b.det == .part && Kind.lte k b.kind).length
 
 def DRS.recordSelection (drs : DRS) (kind : Kind) (sourceGroup : Option ReferentId)
     (chosen : Bool) : DRS :=
@@ -760,7 +774,8 @@ def restSource (k : Kind) (drs : DRS) : Option Referent :=
   let rec loop : List Referent → Option Referent
     | [] => none
     | b :: bs =>
-      if b.det == .part then
+      if b.linked then loop bs
+      else if b.det == .part then
         match loop bs with
         | some s => some s
         | none => if Kind.lte k b.kind then some b else none
@@ -781,8 +796,10 @@ def DRS.consumeRest (after before : DRS) (kind : Kind) : DRS :=
 
 def zoneOfGroup (k : Kind) (drs : DRS) : Option Zone := restSource k drs >>= (·.zone)
 def tyOfGroup (k : Kind) (drs : DRS) : List CardType := (restSource k drs).elim [] (·.ty)
+/-- Whether this text has targeted a `k` that "another target" can be other than. A target a
+linked ability published is read only by a Participial Description (`Referent.linked`). -/
 def anyTargeted (k : Kind) (drs : DRS) : Bool :=
-  drs.visibleReferents.any fun b => b.det == .target && Kind.lte k b.kind
+  drs.visibleReferents.any fun b => !b.linked && b.det == .target && Kind.lte k b.kind
 
 def anchorTyOk (t : CardType) : List CardType → Bool
   | [] => true
@@ -833,9 +850,15 @@ def slotZoneOk : SlotCarrier → Option Zone → Bool
   | .card, zn => isCardZone zn
   | .spell, zn => onStackZone zn
 
-def mkStamp : Option Deed → Option Zone → Bool → Option Stamp
-  | none, _, _ => none
-  | some v, oldZn, moved => some ⟨v, onFieldZone oldZn, moved, []⟩
+/-- The stamp a deed leaves on an object it acts on where it is (`zone`); no deed, no stamp. -/
+def mkStamp : Option Deed → Option Zone → Option Stamp
+  | none, _ => none
+  | some v, zone => some ⟨some v, onFieldZone zone, none, []⟩
+
+/-- The stamp a move leaves on the object it moved from `origin` to `destination`, whether or not
+a deed names the move [CR#400.7]. -/
+def moveStamp (deed : Option Deed) (origin destination : Option Zone) : Stamp :=
+  ⟨deed, onFieldZone origin, some ⟨origin, destination⟩, []⟩
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
@@ -934,18 +957,20 @@ def Reach.kind : Reach → Kind
   | .unionHalf w => w.kind
   | _ => .object
 
-def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb || s.through.contains v
+def stampedBy (v : Deed) (s : Stamp) : Bool := s.verb == some v || s.through.contains v
 
 /-- Whether `word` names a stamped object by what it was when its deed acted on it: a Card Type
-or "permanent" reads the permanent it was, a departed one by its last known information
-[CR#608.2h], while "card" and "spell" read the zone it is in now. -/
+or "permanent" reads the permanent it is, if it is on the battlefield now (one a move put there:
+"the creature returned this way"), or else the permanent it was, a departed one by its last known
+information [CR#608.2h], while "card" and "spell" read the zone it is in now. -/
 def stampedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
   | .ofType word t, st, ty, zn, og => stampedWordOk word st ty zn og && tyIs t ty
   | .copied word, st, ty, zn, og => stampedWordOk word st ty zn og && isCopyOrigin og
-  | .type t, st, ty, _, _ | .subtype (.of t _), st, ty, _, _ => st.wasField && tyIs t ty
+  | .type t, st, ty, zn, _ | .subtype (.of t _), st, ty, zn, _ =>
+    (st.wasField || onFieldZone zn) && tyIs t ty
   | .card, _, _, zn, _ => isCardZone zn
   | .spell, _, _, zn, _ | .subtype (.spell _), _, _, zn, _ => onStackZone zn
-  | .permanent, st, _, _, _ => st.wasField
+  | .permanent, st, _, zn, _ => st.wasField || onFieldZone zn
   | _, _, _, _, _ => false
 
 def stampIs (v : Deed) : Option Stamp → Bool
@@ -965,7 +990,7 @@ def markTy (ty : List CardType) (b : Referent) : Referent :=
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
-    b.librarySearchResult || deedFeatureOf st.verb == some .librarySearch
+    b.librarySearchResult || (st.verb.bind deedFeatureOf) == some .librarySearch
   | .object _ (some .library) none _ _ => false
   | _ => true
 
@@ -1025,15 +1050,34 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           let best := t.foldl (fun acc b => if b.id > acc.id then b else acc) h
           [best]
 
-/-- The objects `deed` stamped that a Participial Description admits: of its number (`plur`;
+/-- What a Participial Description reads back by: the deed its clause names ("the exiled card"),
+or, where no deed names the clause's move, that Zone Change, by the destination it writes and the
+origin, if one is written ("the card returned to the battlefield this way" [CR#400.7]). -/
+inductive ParticipialAnchor where
+  | deed (deed : Deed)
+  | zoneChange (origin : Option Zone) (destination : Zone)
+  deriving DecidableEq, Repr
+
+/-- Whether `b`'s stamp is what `anchor` reads back: the deed, or a Zone Change into the
+anchor's destination from its origin, if it names one. -/
+def Referent.anchoredBy (b : Referent) : ParticipialAnchor → Bool
+  | .deed deed => b.stampedBy deed
+  | .zoneChange origin destination =>
+    match b.payload.prov.bind (·.zoneChange) with
+    | some change =>
+      change.destination == some destination && origin.all (fun zone => change.origin == some zone)
+    | none => false
+
+/-- The objects `anchor` reads back that a Participial Description admits: of its number (`plur`;
 none for a group determiner, which reads members of any number), within its span (`thisWay`:
 only objects the current ability stamped [CR#607.1c]; no span written: also those a linked
 ability published, where a singular "the" reads a group the linked ability acted on
 [CR#607.2a,607.3]), named by `word` as `stampedWordOk` reads it, and in each of `zones`. -/
-def participialCandidates (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
-    (thisWay : Bool) (drs : DRS) (zones : List Zone := []) : List Referent :=
+def participialCandidates (anchor : ParticipialAnchor) (plur : Option Plurality)
+    (word : Option NounWord) (thisWay : Bool) (drs : DRS) (zones : List Zone := []) :
+    List Referent :=
   drs.visibleReferents.filter fun b =>
-    !b.isActorFrame && Kind.lte .object b.kind && b.stampedBy deed &&
+    !b.isActorFrame && Kind.lte .object b.kind && b.anchoredBy anchor &&
       (!thisWay || !b.linked) &&
       (match plur with
        | none => true

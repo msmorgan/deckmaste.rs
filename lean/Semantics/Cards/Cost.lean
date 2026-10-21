@@ -73,7 +73,7 @@ theorem okSistersOfStoneDeathRecall : Ability.check (DRS.ofList []) sistersOfSto
 /-- Synod Sanctum -/
 def synodSanctumReturn : Ability :=
   activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
-    (putOntoBattlefieldUnderYourControl (allOf exiledWithThisArtifact))
+    (returnToBattlefield (allOf exiledWithThisArtifact) [(under you)])
 theorem okSynodSanctumReturn : Ability.check (DRS.ofList []) synodSanctumReturn = [] := by decide
 
 def coldStorage : Spelled := spelled <| .singleFaced
@@ -82,7 +82,8 @@ def coldStorage : Spelled := spelled <| .singleFaced
       text :=
         [ activated (mana [generic 3]) (exile (target (and [isCreature, youControl]))),
           activated (perform (sacrifice thisArtifact))
-            (putOntoBattlefieldUnderYourControl (each (and [isCreature, exiledWithThisArtifact]))) ] } }
+            (returnToBattlefield (each (and [isCreature, exiledWithThisArtifact]))
+              [(under you)]) ] } }
 
 def barlsCage : Ability :=
   activated (mana [generic 3]) (skipUntap (target isCreature) (.lit 1))
@@ -740,7 +741,7 @@ def tymorasInvoker : Ability :=
 theorem okTymorasInvoker : Ability.check (DRS.ofList []) tymorasInvoker = [] := by decide
 /-- Skyblade's Boon -/
 def skybladesBoonReturn : Ability :=
-  activatedOnlyIf (mana [generic 2, pip .white]) (putInto this_ hand)
+  activatedOnlyIf (mana [generic 2, pip .white]) (returnToHand this_)
     (or [is this_ (in_ battlefield), is this_ (cardIn yourGraveyard)])
 theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonReturn = [] := by decide
 /-- Bamboozling Beeble -/
@@ -929,7 +930,7 @@ def academyJourneymage : Spelled := spelled <| .singleFaced
         [ static (onlyIfSo (costShift this_ (less (.lit 1)))
             (exists_ (and [hasSubtype wizard, youControl]))),
           when (does thisCreature enter)
-            (putInto (target (and [isCreature, anOpponentControls])) hand) ],
+            (returnToHand (target (and [isCreature, anOpponentControls]))) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Alabaster Leech -/

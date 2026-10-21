@@ -70,7 +70,7 @@ theorem badZoneRestriction :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [was (exile which), isCreature])) ] =
-      [.participialDescription exiling 0] := by
+      [.participialDescription (.deed exiling) 0] := by
   decide
 
 /-- Required pin: a description demanding a zone or carrier other than the one the linked ability
@@ -80,11 +80,11 @@ theorem badLinkedObjectInAnotherZone :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [was (exile which), isCard, in_ battlefield])) ] =
-      [.participialDescription exiling 0] ∧
+      [.participialDescription (.deed exiling) 0] ∧
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [was (exile which), isCard, in_ graveyard])) ] =
-      [.participialDescription exiling 0] ∧
+      [.participialDescription (.deed exiling) 0] ∧
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [was (exile which), isCard, in_ exileZone])) ] = [] := by
@@ -95,7 +95,7 @@ theorem badLinkedObjectInAnotherZone :
 theorem badAmbiguousExiledCard :
     Ability.checkText (DRS.ofList [])
       [exileGraveyardCard, exileGraveyardCard, returnToTheBattlefield theExiledCard] =
-      [.participialDescription exiling 2] := by
+      [.participialDescription (.deed exiling) 2] := by
   decide
 
 /-- Required pin: a singular "the exiled card" reads each card the linked ability exiled
@@ -108,7 +108,7 @@ theorem okSingularReadsLinkedGroup :
 /-- With no linked ability that exiled anything, there is no exiled card to read. -/
 theorem badNothingExiled :
     Ability.checkText (DRS.ofList []) [returnToTheBattlefield theExiledCard] =
-      [.participialDescription exiling 0] := by
+      [.participialDescription (.deed exiling) 0] := by
   decide
 
 /-- The linked ability exiled; it sacrificed nothing [CR#607.2a]. -/
@@ -116,7 +116,7 @@ theorem badDeedTheLinkedAbilityNeverPerformed :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [was (sacrifice which), isCard])) ] =
-      [.participialDescription sacrificing 0] := by
+      [.participialDescription (.deed sacrificing) 0] := by
   decide
 
 /-- A linked ability's objects are read back by a Participial Description, never by a
@@ -142,7 +142,7 @@ theorem badThisWayReadsNoLinkedObject :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [isCard, was (exile which) thisWay])) ] =
-      [.participialDescription exiling 0] := by
+      [.participialDescription (.deed exiling) 0] := by
   decide
 
 /-- Only what the linked ability did is linked [CR#607.1]: a creature its trigger event names
@@ -151,7 +151,7 @@ theorem badTriggerEventObjectNotLinked :
     Ability.checkText (DRS.ofList [])
       [ when (does you (sacrifice (a isCreature))) (draw (.lit 1)),
         spell (draw (statOf (.stat .manaValue) theSacrificed)) ] =
-      [.participialDescription sacrificing 0] := by
+      [.participialDescription (.deed sacrificing) 0] := by
   decide
 
 /-- The arms of a handoff are read too: "target opponent may exile a card from a graveyard".
@@ -349,7 +349,7 @@ theorem okReadsTargetOfThisSpell :
 /-- Required pin: with no target added, there is none to read. -/
 theorem badNoAddedTarget :
     Ability.checkText (DRS.ofList []) [merges (the (was (target which)))] =
-      [.participialDescription (.core .target) 0, .participialDescription (.core .target) 0] := by
+      [.participialDescription (.deed (.core .target)) 0, .participialDescription (.deed (.core .target)) 0] := by
   decide
 
 /-- Required pin: another ability's target is not this spell's: an activated ability that taps
@@ -358,9 +358,20 @@ theorem badUnrelatedTarget :
     Ability.checkText (DRS.ofList [])
       [ activated (.mana [generic 1]) (tap (target isCreature)),
         merges (the (was (target which))) ] =
-      [.participialDescription (.core .target) 0, .participialDescription (.core .target) 0] := by
+      [.participialDescription (.deed (.core .target)) 0, .participialDescription (.deed (.core .target)) 0] := by
   decide
 
 end MutateTarget
+
+/-- What a linked ability published is read back only by a Participial Description: a
+creature card the first ability put onto the battlefield is no target the second ability's bare
+"another target creature" can be other than, nor a group "the rest" is taken from. -/
+theorem linkedTargetAnchorsNoBareOther :
+    Ability.checkText (DRS.ofList [])
+      [ when (does thisCreature enter)
+          (putOntoBattlefield (target (and [isCreature, in_ yourGraveyard]))),
+        activated (mana [generic 1]) (tap (target (and [isCreature, isOther]))) ] =
+      [.anyTargeted .object, .otherAnchored] := by
+  decide
 
 end Semantics.Proofs.LinkedReadback

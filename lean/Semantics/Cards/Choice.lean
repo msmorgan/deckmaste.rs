@@ -35,7 +35,7 @@ theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction =
 def continueSpell : Action :=
   sequentially
     [ choose (targets (upTo 4) (and [isCreature, in_ yourGraveyard])),
-      putOntoBattlefield them ]
+      returnToBattlefield them ]
 theorem okContinueSpell : Action.check (DRS.ofList []) continueSpell = [] := by decide
 
 def kindredDominance : Action :=

@@ -41,9 +41,9 @@ private theorem additionalCostPublishesTheActualGroupIdentity :
     let initial := DRS.ofList [{ det := .the, plur := .one, payload := .quality .color, id := 7 }]
     let actual := (stepCost 64 initial additionalTapGroupCost).1
     let published := Ability.textContext initial additionalTapGroup
-    let actualIds := (participialCandidates (.action "tap") (some .many) none false actual).map (·.id)
+    let actualIds := (participialCandidates (.deed (.action "tap")) (some .many) none false actual).map (·.id)
     let publishedIds :=
-      (participialCandidates (.action "tap") (some .many) none false published).map (·.id)
+      (participialCandidates (.deed (.action "tap")) (some .many) none false published).map (·.id)
     actualIds = [8] ∧ publishedIds = actualIds ∧ published.nextId = actual.nextId ∧
       (published.findById? 7).map (·.payload) = some (.quality .color) ∧
       Ability.checkText initial [additionalTapGroup, .spell none (.draw (.exactlyOf .groupSize))] = [] ∧

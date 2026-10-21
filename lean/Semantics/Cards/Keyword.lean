@@ -342,7 +342,7 @@ def windZendikon : Spelled := spelled <| .singleFaced
                 { colors := [.blue], types := [.creature], subtypes := [elemental],
                   text := [flying], power := stat 2, toughness := stat 2 } }
               (some .land))),
-          when (does (enchanted land) die) (putInto (that card) hand) ] } }
+          when (does (enchanted land) die) (returnToHand (that card)) ] } }
 
 def awakenTheBear : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -855,7 +855,7 @@ def bloodfireEnforcers : Spelled := spelled <| .singleFaced
 
 def stormOfSouls : Action :=
   sequentially
-    [ putOntoBattlefield (allOf (and [isCreature, in_ yourGraveyard])),
+    [ returnToBattlefield (allOf (and [isCreature, in_ yourGraveyard])),
       become them
         { characteristics :=
           { subtypes := [spirit], text := [flying],

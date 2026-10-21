@@ -1032,7 +1032,7 @@ def pulseOfTheForge : Action :=
   sequentially
     [ dealDamage (.lit 4) targetPlayerOrPlaneswalker,
       doIf (compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf you))
-        (putInto this_ hand) ]
+        (returnToHand this_) ]
 theorem okPulseOfTheForge : Action.check (DRS.ofList []) pulseOfTheForge = [] := by decide
 /-- Goblin Lyre's losing arm -/
 def goblinLyreLoseFlip : Action :=
@@ -1336,7 +1336,7 @@ def wordsOfWorship : Action :=
 theorem okWordsOfWorship : Action.check (DRS.ofList []) wordsOfWorship = [] := by decide
 def theLastRoninII : Action :=
   triggerReflexively (mill (.lit 4))
-    (putInto (target (and [isCreature, in_ yourGraveyard])) hand)
+    (returnToHand (target (and [isCreature, in_ yourGraveyard])))
 theorem okTheLastRoninII : Action.check (DRS.ofList []) theLastRoninII = [] := by decide
 
 def moonlitWakeCard : Spelled := spelled <| .singleFaced

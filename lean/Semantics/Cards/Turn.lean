@@ -30,14 +30,14 @@ theorem okThroughTheBreach : Action.check (DRS.ofList []) throughTheBreach = [] 
 def turnToMist : Action :=
   sequentially
     [ exile (target isCreature),
-      atNext .endStep (putOntoBattlefield (that card)) ]
+      atNext .endStep (returnToBattlefield (that card)) ]
 theorem okTurnToMist : Action.check (DRS.ofList []) turnToMist = [] := by decide
 
 def voyagerStaff : Ability :=
   activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
     (sequentially
       [ exile (target isCreature),
-        atNext .endStep (putOntoBattlefield (the (and [was (exile which), isCard]))) ])
+        atNext .endStep (returnToBattlefield (the (and [was (exile which), isCard]))) ])
 theorem okVoyagerStaff : Ability.check (DRS.ofList []) voyagerStaff = [] := by decide
 
 def staffOfNin : Ability :=
@@ -74,7 +74,7 @@ def fourKnocks : Ability :=
 theorem okFourKnocks : Ability.check (DRS.ofList []) fourKnocks = [] := by decide
 
 def hammerOfBogardan : Ability :=
-  activatedOnlyDuring (mana [generic 2, pip .red, pip .red, pip .red]) (putInto this_ hand)
+  activatedOnlyDuring (mana [generic 2, pip .red, pip .red, pip .red]) (returnToHand this_)
     (duringPart .upkeep (some you))
 theorem okHammerOfBogardan : Ability.check (DRS.ofList []) hammerOfBogardan = [] := by decide
 
@@ -488,7 +488,7 @@ def thawingGlaciers : Spelled := spelled <| .singleFaced
               [ searchLibraryFor (exactly 1) (and [isLand, hasSupertype .basic]),
                 putOntoBattlefieldTapped (that card),
                 shuffle,
-                atNext .cleanup (putInto thisLand hand) ]) ] } }
+                atNext .cleanup (returnToHand thisLand) ]) ] } }
 
 /-- Blood Frenzy -/
 def bloodFrenzy : Spelled := spelled <| .singleFaced

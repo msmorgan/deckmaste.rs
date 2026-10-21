@@ -566,10 +566,9 @@ def gush : Spelled := spelled <| .singleFaced
     { name := "Gush", cost := some [generic 4, pip .blue], types := [.instant],
       text :=
         [ static (altCost this_
-            (some (perform (putInto
+            (some (perform (returnToHand
               (counted (exactly 2)
-                (and [isLand, hasSubtype island, youControl]))
-              hand)))),
+                (and [isLand, hasSubtype island, youControl])))))),
           spell (draw (.lit 2)) ] } }
 
 def sunscour : Spelled := spelled <| .singleFaced
@@ -608,10 +607,9 @@ def thwart : Spelled := spelled <| .singleFaced
     { name := "Thwart", cost := some [generic 2, pip .blue, pip .blue], types := [.instant],
       text :=
         [ static (altCost this_
-            (some (perform (putInto
+            (some (perform (returnToHand
               (counted (exactly 3)
-                (and [isLand, hasSubtype island, youControl]))
-              hand)))),
+                (and [isLand, hasSubtype island, youControl])))))),
           spell (counter (target isSpell)) ] } }
 
 def theLadyOfOtariaLine : StaticSpec :=
@@ -867,7 +865,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
       cost := some [pip .white, pip .white, pip .black, pip .black, pip .black, pip .green, pip .green],
       types := [.sorcery],
       text :=
-        [ spell (putOntoBattlefield (withDifferentNames
+        [ spell (returnToBattlefield (withDifferentNames
               (counted anyNumber (and [isPermanentCard, in_ yourGraveyard])))) ] } }
 
 /-- Gray Merchant of Asphodel -/

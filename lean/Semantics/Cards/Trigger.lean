@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 def gracefulReprieve : Action :=
-  delayWithin (does (target isCreature) die) thisTurn (putOntoBattlefield (that card))
+  delayWithin (does (target isCreature) die) thisTurn (returnToBattlefield (that card))
 theorem okGracefulReprieve : Action.check (DRS.ofList []) gracefulReprieve = [] := by decide
 
 def cloudkinSeer : Ability := when (does thisCreature enter) (draw (.lit 1))
@@ -455,7 +455,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
             (does (a (and [ isCreature,
                               did thisCreature (dealDamage anyAmount which) soFarThisTurn ])) die)
             (sequentially
-              [ putOntoBattlefieldUnderYourControl it,
+              [ returnToBattlefield it [(under you)],
                 become (that creature)
                   { characteristics := { colors := [.black], subtypes := [zombie] } } ]) ],
       power := stat 3, toughness := stat 5 } }
@@ -596,7 +596,7 @@ def faithsReward : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Faith's Reward", cost := some [generic 3, pip .white], types := [.instant],
       text :=
-        [ spell (putOntoBattlefield (allOf (and [ isPermanentCard, in_ yourGraveyard,
+        [ spell (returnToBattlefield (allOf (and [ isPermanentCard, in_ yourGraveyard,
                            was (putInto which yourGraveyard (from_ := some battlefield))
                              soFarThisTurn ]))) ] } }
 

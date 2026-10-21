@@ -155,11 +155,11 @@ theorem okGoblinsItDevoured :
 devoured [CR#702.82b]. -/
 theorem badDevouredWithoutDevour :
     Ability.checkText (DRS.ofList []) [drawForEachDevoured] =
-        [.participialDescription (.ofAbility (.named "devour")) 0] ∧
+        [.participialDescription (.deed (.ofAbility (.named "devour"))) 0] ∧
       Ability.checkText (DRS.ofList [])
         [ static (.addedCost (.perform (sacrifice (a isCreature))) false .once),
           drawForEachDevoured ] =
-        [.participialDescription (.ofAbility (.named "devour")) 0] := by
+        [.participialDescription (.deed (.ofAbility (.named "devour"))) 0] := by
   decide
 
 /-- "If tribute wasn't paid" [CR#702.104b]: the tribute choice not taken. -/
