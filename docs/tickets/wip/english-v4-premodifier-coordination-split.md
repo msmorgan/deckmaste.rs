@@ -1,97 +1,54 @@
 ---
 needs: []
 ---
-# *instant or sorcery spell* is coordinated Premodifiers, never [*instant*] or [*sorcery spell*]
+# Withdrawn: *instant or sorcery spell* as [*instant*] or [*sorcery spell*]
 
-Owner ruling (cost-audit smaller defect): mint this as a defect. A coordinated
-Type Word before a carrier noun splits into a Nominal coordination
-[*instant*] or [*sorcery spell*]. That is the Noun Phrase split against the
-Premodifier analysis.
+This ticket proposed excluding a Nominal coordination whose last conjunct
+begins with a noun Premodifier when the conjunct before it is a bare noun that
+could itself be that Premodifier. The goal was to make *instant or sorcery
+spell* read only as [*instant or sorcery*] *spell*.
 
-## The defect
+## Owner's ruling: withdrawn
 
-*instant or sorcery spell* has two analyses today:
+[*X*] or [*Y Z*] against [*X or Y*] *Z* is a genuine structural Ambiguity.
+Only domain semantics separates the two, so both Readings stay. The planned
+structural Ranking Key's conjunct-balance test (`english-v4-attachment-classes`)
+already ranks [*instant or sorcery*] *spell* first. That is a Preference, not
+an Admission change.
 
-- the intended one: [*instant or sorcery*] *spell*, a coordination of Noun
-  Premodifiers;
-- a Nominal coordination [*instant*] or [*sorcery spell*], whose first
-  coordinate is a bare Type Word.
+## Evidence
 
-The second analysis is one node smaller, so it is also the cheaper one. Other
-texts with the same split:
+A prototype added an engine-derived rule (no new feature), and it removed the
+only intended Reading of real text. In each case below, the split is what the
+card means:
 
-- *Counter target instant or sorcery spell*;
-- *Return target artifact or creature card from your graveyard*;
-- *you may put an Elf or Tyvar card from your graveyard onto the battlefield*;
-- *reveal a creature or land card*;
-- *a Bat, Bird, Mouse, or Rabbit card*;
-- *copy the next instant or sorcery spell you cast this turn*;
-- *Return target artifact or non-Aura enchantment card*. This text also shows
-  the related split [*artifact or non-Aura*] *enchantment card*.
+- **Satsuki, the Living Lore:** *Return target Saga or enchantment creature you
+  control to its owner's hand.* The intended Reading is [*Saga*] or
+  [*enchantment creature*]. A Saga creature is already an enchantment
+  creature, so the distributive Reading would make *Saga or* redundant. No
+  lexical or structural fact separates this text from *target Elf or Soldier
+  creature*, where the distributive Reading is the intended one.
+- **Puppet Crafting:** *Enchant artifact or non-Aura enchantment.* Two bare type
+  words name permanents, and there is no carrier noun.
+- ***target spell or nonland permanent*** (Commit, Press the Enemy, Sink into
+  Stupor, Sudden Setback, Talion's Throneguard): the conjuncts are in
+  different domains, a spell and a permanent. The rule could spare these only
+  by declaring *spell* `HeadOnly`.
+- **Psychic Paper:** *its name and creature type are the last chosen name and
+  creature type.* The face lost every Reading.
 
-## Authority
+So the ticket's premise was false: a bare type word coordinated with a
+premodified nominal is sometimes exactly what Oracle means. On the census, the
+prototype went from 295,697 to 281,688 Readings, Surplus from 149,101 to
+140,984, and faces read from 28,709 to 28,708. It was abandoned.
 
-- `docs/oracle-style-guide.md` §7, "Card types are common nouns and
-  attributive modifiers":
-  - "Coordinate alternatives explicitly: … `instant or sorcery card`".
-  - "A final carrier noun may distribute over the whole coordinated phrase …
-    Repeat the carrier when the alternatives have different domains or
-    modifiers."
-  - So [*instant*] or [*sorcery spell*] would be written with a repeated
-    carrier if it were meant.
-- `docs/oracle-style-guide.md`, shortest useful checklist, item 6: a bare type
-  word names a permanent on the battlefield. In *Return target artifact or
-  creature card from your graveyard*, the split would therefore pair a
-  permanent with a graveyard card. No Oracle text repeats a type with and
-  without a carrier (*X or X card*): there are 0 matches in the snapshot.
-- CGEL, Ch. 15 §1.3.4, pp. 1285–1286 (*long poems and essays*): with a
-  dependent next to a coordination, the dependent applies either to one
-  coordinate or to the whole coordination. Here the dependent is the head that
-  follows. Oracle's register (OSG §7) fixes the distributive structure.
+## What stays
 
-## Change
+- `crates/deckmaste_english_v4/judgments/noun_premodifiers.txt:14` stays as it
+  is. It endorses both Readings of *instant or sorcery card* as an Ambiguity
+  witness, and that matches this ruling.
+- Two defects the investigation found are ticketed separately:
+  `english-v4-compound-noun-premodifier-coordination` (*artifact or non-Aura
+  enchantment card*) and `english-v4-spurious-attribute-chain-reading`.
 
-- Exclude a Nominal coordination whose last coordinate carries a noun
-  Premodifier when its first coordinate is a bare noun that the same Noun
-  Premodifier coordination would take.
-- Express this through the coordination's features (Premodifier presence or
-  Conversion), never by naming Type Words.
-- Before landing, confirm against the census that no face reads only through
-  the split.
-
-## Acceptance set
-
-All figures are from the cost-audit evaluation data, measured on `loxuknun`.
-
-- **Corpus sample:** 14 Segments lose 1,605 Readings, out of a combined Surplus
-  of 3,079.
-- **Judgment set:**
-  - 17 entries lose 164 Readings, out of a Surplus of 274.
-  - No entry's endorsed Readings all use the split.
-- **Corpus reach:**
-  - 638 ambiguous units contain *X or Y spell/card/permanent*, with 22,525
-    Readings between them.
-  - Expected reduction: roughly half of the Surplus of the affected Segments,
-    as in the sample.
-
-## Done when
-
-- The examples above have only the Premodifier coordination, each pinned by a
-  `+` Judgment on real text.
-- No face is lost, and no unit gains a Reading.
-
-## Constraint: no new features in `english.ron`
-
-Owner's ruling (round 2): this defect comes from a rule that is too broad, and
-it is fixed by tightening or deleting that rule. The fix adds **zero new
-features to `english.ron`**. It uses existing features, lexicon or catalog
-frames, or an engine mechanism, and names no word in the grammar. If it
-cannot be done that way, STOP and return to the owner.
-
-The Change's "Premodifier presence" must be an existing feature or derived by
-the engine. A new feature for it is out; STOP instead.
-
-Standard constraints apply.
-
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Withdrawn: no grammar change.
