@@ -59,6 +59,24 @@ per Syntactic Family and the most frequent skeletons. Given an earlier census's
 face verdicts as a baseline, it also places every face that census did not read.
 No attachment tree is enumerated except for a unit with a judgment.
 
+Each unit's count is reported two ways. `derivations` is the size of its Packed
+Forest, the number of trees: the census's no-Reading verdict and the judgment
+evaluator's 4096-derivation limit use it, and `total_derivations` sums it. It
+multiplies, so a unit of several sentences, each a little ambiguous, can count
+in the thousands. The unit is therefore also split into its **Segments**
+(`OUTER_CATEGORIES`): the walk descends from the root through the line, its
+top-level sentence sequence, activation costs, labels, modes and modal headers,
+and a Keyword Line's items and parameters, and each first Constituent of another
+Category (always a `Sentence`), or leaf of an outer Production, is a Segment,
+identified by its extent without the structural punctuation at its edges. A
+sentence sequence nested in a Segment, as in a quoted ability, stays in it. Each
+unit reports its Segments with their Derivations and its **Surplus**,
+Σ(nᵢ − 1) over them, which is 0 exactly when the unit is unambiguous; the
+report sums it in `total_surplus` and counts ambiguous units and Segments. A
+unit with a Derivation whose Segments differ between Derivations, or do not
+multiply to its count, is not segmentable (its Surplus is `derivations − 1`);
+the summary lists it and `--check` fails on it.
+
 `COMPLETED_STRATUM` is the highest Stratum whose gate is met. A unit at or below
 it that is not read is a regression, unless [`deferred.txt`](deferred.txt) names
 it by card and text: a deferred unit is left unread on purpose, owned by a
@@ -70,8 +88,8 @@ cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<ce
 ```
 
 prints the summary and writes the full per-unit report to
-`target/english-v4/strata.json` (untracked). `--check` fails on a regression or
-a stale deferral.
+`target/english-v4/strata.json` (untracked). `--check` fails on a regression, a
+stale deferral or a unit that is not segmentable.
 
 The full lexical environment binds. Stratum 0 covers Type Lines, complete
 keyword lists and non-clausal parameters, symbolic costs and structured
@@ -303,7 +321,8 @@ as a positive entry at the grammar root. Balanced reminder text is stripped.
 Each argument must contain one entry.
 
 The command prints the profiled Stratum and Syntactic Families, vocabulary gaps,
-and the Packed Forest's total derivation count. Explicit `+`/`*` entries and
+the Packed Forest's total derivation count, the Segments with their
+Derivations, and the Surplus. Explicit `+`/`*` entries and
 inputs with assertions also print the judgment Outcome. Outcomes use the full
 judgment evaluator, including its round-trip checks and 4096-derivation limit;
 `--limit` only limits the display, not assertion evaluation.

@@ -117,6 +117,20 @@ has an admitted Reading and both round-trip laws hold; known-wrong-only when it
 has Readings but a Judgment shows every one of them wrong; otherwise unread.
 _Avoid_: coverage for a count that includes known-wrong-only units
 
+**Segment** (project term):
+A top-level stretch of a Corpus Unit delimited by its outer structure: a
+sentence of its top-level sentence sequence, an activation cost, a label before
+its dash, a Keyword Line's item or parameter, a modal header, or a header. A
+Segment has Derivations; a sentence sequence nested inside a Segment, as in a
+quoted ability, belongs to it.
+_Avoid_: sentence for a Segment that is not one; Reading for a Segment's count
+
+**Surplus** (project term):
+How far a Corpus Unit is from one Reading, summed over its Segments: Σ(nᵢ − 1),
+where nᵢ is the number of Derivations of Segment i. It is 0 exactly when the
+unit is unambiguous.
+_Avoid_: ambiguity count for the product of the Segments' counts
+
 **Complexity Stratum** (project term):
 One of eight cumulative levels of syntactic complexity, numbered 0 to 7, that
 partition the Corpus Units; each owns a set of Syntactic Families.

@@ -20,6 +20,8 @@ use std::collections::BTreeSet;
 
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::CompiledGrammar;
+use deckmaste_syntax::SegmentFrame;
+use deckmaste_syntax::Segmentation;
 
 use crate::corpus::Corpus;
 use crate::corpus::UnitKind;
@@ -45,7 +47,7 @@ pub enum Verdict {
 }
 
 /// Why a unit is unread.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, serde::Serialize)]
 pub enum Unread {
     /// The grammar does not bind to the lexical environment.
     Unbound,
@@ -65,8 +67,14 @@ pub struct UnitResult {
     pub text: String,
     pub profile: Profile,
     pub verdict: Verdict,
-    /// Distinct trees in its Packed Forest.
+    /// Distinct trees in its Packed Forest: the product of its Segments'
+    /// counts.
     pub derivations: u128,
+    /// Its Segments and their Derivations, when it has a Derivation.
+    pub segments: Option<Segmentation>,
+    /// Σ(nᵢ − 1) over its Segments' Derivations; `derivations − 1` for a
+    /// unit that is not segmentable.
+    pub surplus: u128,
 }
 
 /// Counts for one Stratum.
@@ -119,6 +127,14 @@ pub struct Report {
     /// Deferrals whose unit is read.
     pub stale_deferrals: Vec<String>,
     pub total_derivations: u128,
+    /// The units' Surplus, summed.
+    pub total_surplus: u128,
+    /// Units with more than one Reading (a Surplus above 0).
+    pub ambiguous_units: usize,
+    /// Segments with more than one Derivation.
+    pub ambiguous_segments: usize,
+    /// Units with a Derivation but no single product segmentation.
+    pub not_segmentable: Vec<String>,
     pub units: Vec<UnitResult>,
 }
 
@@ -134,7 +150,10 @@ pub fn run(
     judgments: &[Judgment],
     baseline: Option<&BTreeMap<String, bool>>,
 ) -> Report {
-    let grammar = crate::bind(&env.lexicon, &env.frames);
+    let grammar = crate::bind(&env.lexicon, &env.frames).and_then(|grammar| {
+        let frame = crate::segment_frame(&grammar)?;
+        Ok((grammar, frame))
+    });
     let bind_error = grammar.as_ref().err().map(ToString::to_string);
     let by_text: BTreeMap<&str, Vec<&Judgment>> = judgments
         .iter()
@@ -173,12 +192,20 @@ pub fn run(
                                 })
                                 .copied()
                                 .collect();
-                            let (verdict, derivations) = match grammar {
-                                None => (Verdict::Unread(Unread::Unbound), 0),
-                                Some(grammar) => {
-                                    judge_unit(grammar, env, &analyzed, &face.scope, &entries)
-                                }
+                            let (verdict, derivations, segments) = match grammar {
+                                None => (Verdict::Unread(Unread::Unbound), 0, None),
+                                Some((grammar, frame)) => judge_unit(
+                                    grammar,
+                                    frame,
+                                    env,
+                                    &analyzed,
+                                    &face.scope,
+                                    &entries,
+                                ),
                             };
+                            let surplus = segments
+                                .as_ref()
+                                .map_or(0, |s: &Segmentation| s.surplus(derivations));
                             UnitResult {
                                 face: face.identity.clone(),
                                 name: face.name.clone(),
@@ -188,6 +215,8 @@ pub fn run(
                                 profile,
                                 verdict,
                                 derivations,
+                                segments,
+                                surplus,
                             }
                         })
                         .collect::<Vec<_>>()
@@ -204,19 +233,33 @@ pub fn run(
 
 fn judge_unit(
     grammar: &CompiledGrammar,
+    frame: &SegmentFrame,
     env: &LexicalEnvironment,
     analyzed: &deckmaste_lexical::AnalyzedText,
     scope: &BTreeSet<deckmaste_lexical::LexemeId>,
     entries: &[&Judgment],
-) -> (Verdict, u128) {
+) -> (Verdict, u128, Option<Segmentation>) {
     let parse = grammar.parse_analyzed(analyzed);
     if !parse.vocabulary_gaps.is_empty() {
-        return (Verdict::Unread(Unread::VocabularyGap), 0);
+        return (Verdict::Unread(Unread::VocabularyGap), 0, None);
     }
     let derivations = parse.derivation_count();
     if derivations == 0 {
-        return (Verdict::Unread(Unread::NoReading), 0);
+        return (Verdict::Unread(Unread::NoReading), 0, None);
     }
+    let segments = Some(parse.segments(frame));
+    let (verdict, derivations) = judge_parse(grammar, env, &parse, derivations, scope, entries);
+    (verdict, derivations, segments)
+}
+
+fn judge_parse(
+    grammar: &CompiledGrammar,
+    env: &LexicalEnvironment,
+    parse: &deckmaste_syntax::Parse<'_>,
+    derivations: u128,
+    scope: &BTreeSet<deckmaste_lexical::LexemeId>,
+    entries: &[&Judgment],
+) -> (Verdict, u128) {
     if let Err(fault) = parse.verify_realization(&env.lexicon) {
         return (
             Verdict::Unread(Unread::Law(format!("law 1: {fault}"))),
@@ -224,7 +267,7 @@ fn judge_unit(
         );
     }
     for reading in parse.best_readings(LAW_TWO_READINGS) {
-        if let Err(why) = judgment::law_two(grammar, &env.lexicon, &parse, &reading, scope) {
+        if let Err(why) = judgment::law_two(grammar, &env.lexicon, parse, &reading, scope) {
             return (Verdict::Unread(Unread::Law(why)), derivations);
         }
     }
@@ -270,6 +313,10 @@ fn summarize(
     let mut by_face: BTreeMap<&str, (Stratum, bool)> = BTreeMap::new();
     let mut regressions = Vec::new();
     let mut total_derivations = 0u128;
+    let mut total_surplus = 0u128;
+    let mut ambiguous_units = 0;
+    let mut ambiguous_segments = 0;
+    let mut not_segmentable = Vec::new();
     let mut stale_deferrals = Vec::new();
     let deferrals = deferrals();
     let residual = |face: &str| baseline.is_some_and(|b| b.get(face) == Some(&false));
@@ -304,6 +351,17 @@ fn summarize(
             regressions.push(format!("{} ({}): {}", unit.name, unit.face, unit.text));
         }
         total_derivations = total_derivations.saturating_add(unit.derivations);
+        total_surplus = total_surplus.saturating_add(unit.surplus);
+        ambiguous_units += usize::from(unit.derivations > 1);
+        match &unit.segments {
+            Some(Segmentation::Segments(segments)) => {
+                ambiguous_segments += segments.iter().filter(|s| s.derivations > 1).count();
+            }
+            Some(Segmentation::NotSegmentable(why)) => {
+                not_segmentable.push(format!("{} ({why:?}): {}", unit.name, unit.text));
+            }
+            None => {}
+        }
         for family in &unit.profile.families {
             *families.entry(*family).or_default() += 1;
             if residual(&unit.face) {
@@ -361,6 +419,10 @@ fn summarize(
         regressions,
         stale_deferrals,
         total_derivations,
+        total_surplus,
+        ambiguous_units,
+        ambiguous_segments,
+        not_segmentable,
         units,
     }
 }
@@ -400,11 +462,19 @@ impl Report {
         }
         let _ = writeln!(
             out,
-            "faces {}  units {}  completed stratum {}  total derivations {}",
+            "faces {}  units {}  completed stratum {}",
             self.faces,
             self.units.len(),
             self.completed_stratum
                 .map_or_else(|| "none".to_owned(), |s| s.to_string()),
+        );
+        let _ = writeln!(
+            out,
+            "surplus {}  ambiguous units {}  ambiguous segments {}  not segmentable {}  total derivations (product) {}",
+            self.total_surplus,
+            self.ambiguous_units,
+            self.ambiguous_segments,
+            self.not_segmentable.len(),
             self.total_derivations
         );
         let _ = writeln!(
@@ -466,6 +536,12 @@ impl Report {
         if !self.regressions.is_empty() {
             let _ = writeln!(out, "\nregressions at or below the completed stratum:");
             for line in &self.regressions {
+                let _ = writeln!(out, "  {line}");
+            }
+        }
+        if !self.not_segmentable.is_empty() {
+            let _ = writeln!(out, "\nunits with no single product segmentation:");
+            for line in &self.not_segmentable {
                 let _ = writeln!(out, "  {line}");
             }
         }

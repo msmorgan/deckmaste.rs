@@ -10,6 +10,7 @@ use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::FrameCatalog;
 use deckmaste_syntax::Grammar;
 use deckmaste_syntax::LoadError;
+use deckmaste_syntax::SegmentFrame;
 
 /// The Oracle English grammar data file.
 pub const GRAMMAR: &str = include_str!("../grammar/english.ron");
@@ -29,6 +30,38 @@ pub fn grammar() -> Result<Grammar, LoadError> {
 /// grammar reference to catalog vocabulary.
 pub fn bind(lexicon: &Lexicon, frames: &FrameCatalog) -> Result<CompiledGrammar, LoadError> {
     CompiledGrammar::bind(&grammar()?, lexicon, frames)
+}
+
+/// The outer structure of a Corpus Unit, through which the census's Segment
+/// walk descends: the line and its top-level sentence sequence, activation
+/// costs and labels, modes and modal headers, and a Keyword Line's items and
+/// parameters. A `Sentence` is not outer, so a nested sentence sequence stays
+/// inside its Segment.
+pub const OUTER_CATEGORIES: &[&str] = &[
+    "Document",
+    "Paragraphs",
+    "Ability",
+    "Sentences",
+    "Effect",
+    "Mode",
+    "Modes",
+    "ModalAbility",
+    "ModeEffect",
+    "KeywordList",
+    "KeywordLineItem",
+    "KeywordPhrase",
+    "KeywordParameters",
+];
+
+/// Structural punctuation a Segment's extent ignores at its edges.
+pub const SEGMENT_EDGES: &[char] = &['.', '•', '—', ':', '|', ','];
+
+/// The Oracle English outer structure, resolved in a bound grammar.
+///
+/// # Errors
+/// An outer Category the grammar does not declare.
+pub fn segment_frame(grammar: &CompiledGrammar) -> Result<SegmentFrame, LoadError> {
+    grammar.segment_frame(OUTER_CATEGORIES, SEGMENT_EDGES)
 }
 
 pub mod corpus;

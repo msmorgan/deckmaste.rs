@@ -29,8 +29,12 @@ pub use grammar::Grammar;
 pub use laws::RealizationFault;
 pub use reading::AdmissionError;
 pub use reading::Constituent;
+pub use reading::NotSegmentable;
 pub use reading::Reading;
 pub use reading::ReadingNode;
+pub use reading::Segment;
+pub use reading::SegmentFrame;
+pub use reading::Segmentation;
 pub use step::Gap;
 
 /// Why a grammar or frame catalog cannot be loaded or bound.

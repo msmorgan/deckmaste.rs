@@ -188,3 +188,47 @@ fn the_deferral_list_names_each_unit_once() {
             .all(|(name, text)| !name.is_empty() && !text.is_empty())
     );
 }
+
+/// A unit of two sentences, each with 2 Readings: 4 Derivations, the product,
+/// and a Surplus of 2, one per ambiguous Segment.
+#[test]
+fn a_unit_counts_its_segments_and_their_surplus() {
+    use deckmaste_syntax::Segmentation;
+    let env = LexicalEnvironment {
+        lexicon: seed::lexicon(),
+        frames: seed::frames(),
+    };
+    let sentence = "Untap all permanents you control during each other player's untap step.";
+    let mut corpus = Corpus::default();
+    corpus.push(face(
+        "a",
+        &format!("{sentence} {sentence}\nDestroy target creature."),
+    ));
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let unit = |text: &str| report.units.iter().find(|u| u.text == text).unwrap();
+    let pair = unit(&format!("{sentence} {sentence}"));
+    assert_eq!(pair.derivations, 4);
+    assert_eq!(pair.surplus, 2);
+    let Some(Segmentation::Segments(segments)) = &pair.segments else {
+        panic!("{:?}", pair.segments);
+    };
+    let counts: Vec<(&str, u128)> = segments
+        .iter()
+        .map(|s| (s.text.as_str(), s.derivations))
+        .collect();
+    let bare = sentence.trim_end_matches('.');
+    assert_eq!(counts, [(bare, 2), (bare, 2)]);
+    let single = unit("Destroy target creature.");
+    assert_eq!((single.derivations, single.surplus), (1, 0));
+    // A unit without a Derivation has no Segments and no Surplus.
+    let type_line = unit("Sorcery");
+    assert_eq!((type_line.segments.clone(), type_line.surplus), (None, 0));
+    assert_eq!(report.total_surplus, 2);
+    assert_eq!(report.ambiguous_units, 1);
+    assert_eq!(report.ambiguous_segments, 2);
+    assert_eq!(report.not_segmentable, Vec::<String>::new());
+    assert_eq!(
+        report.total_surplus,
+        report.units.iter().map(|u| u.surplus).sum::<u128>()
+    );
+}

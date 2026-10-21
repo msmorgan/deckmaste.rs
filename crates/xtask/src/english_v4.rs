@@ -120,6 +120,12 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
             report.regressions.len()
         );
     }
+    if args.check && !report.not_segmentable.is_empty() {
+        anyhow::bail!(
+            "{} units have no single product segmentation",
+            report.not_segmentable.len()
+        );
+    }
     if args.check && !report.stale_deferrals.is_empty() {
         anyhow::bail!(
             "{} deferred units are read; remove them from deferred.txt",
@@ -164,6 +170,7 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
     let env = LexicalEnvironment::load().context("loading the v4 lexical environment")?;
     let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames)?;
+    let frame = deckmaste_english_v4::segment_frame(&grammar)?;
     let judge = Judge {
         grammar: &grammar,
         lexicon: &env.lexicon,
@@ -204,11 +211,21 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
             continue;
         };
         writeln!(output, "Vocabulary gaps: {:?}", parse.vocabulary_gaps)?;
-        writeln!(
-            output,
-            "Packed Forest derivations: {}",
-            parse.derivation_count()
-        )?;
+        let derivations = parse.derivation_count();
+        writeln!(output, "Packed Forest derivations: {derivations}")?;
+        let segmentation = parse.segments(&frame);
+        let segments = match &segmentation {
+            deckmaste_syntax::Segmentation::Segments(segments) => segments
+                .iter()
+                .map(|s| format!("{} {:?}", s.derivations, s.text))
+                .collect::<Vec<_>>()
+                .join(" | "),
+            deckmaste_syntax::Segmentation::NotSegmentable(why) => {
+                format!("not segmentable: {why:?}")
+            }
+        };
+        writeln!(output, "Segments: {segments}")?;
+        writeln!(output, "Surplus: {}", segmentation.surplus(derivations))?;
         for (index, reading) in parse.best_readings(args.limit).iter().enumerate() {
             parse.admit(reading, &env.lexicon)?;
             dump_reading(&grammar, &env, reading, index + 1, output)?;
@@ -314,6 +331,12 @@ mod tests {
         assert_eq!(output.matches("Stratum:").count(), 5);
         assert_eq!(output.matches("Syntactic Families:").count(), 5);
         assert_eq!(output.matches("Packed Forest derivations:").count(), 5);
+        assert_eq!(output.matches("Segments:").count(), 5);
+        assert_eq!(output.matches("Surplus:").count(), 5);
+        assert!(
+            output.contains("Segments: 1 \"Destroy target creature\"\nSurplus: 0"),
+            "{output}"
+        );
         assert_eq!(output.matches("Outcome:").count(), 4);
         assert!(output.contains("Outcome: holds"));
         assert!(output.contains("Outcome: no Reading satisfies"));

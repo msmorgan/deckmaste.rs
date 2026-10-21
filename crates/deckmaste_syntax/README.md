@@ -24,6 +24,15 @@ It has no proc macros and no generated code: a grammar is data.
    them. `readings()` builds them all and is for tests. A Derivation never
    contains its own Constituent, so a unary cycle adds none of its own and
    hides none of its finite siblings.
+   `segments(frame)` splits the forest into Segments without building trees:
+   a `SegmentFrame` (`CompiledGrammar::segment_frame`) names the outer
+   Categories the walk descends through and the punctuation ignored at a
+   Segment's edges. The first Constituent on each path of another Category,
+   or a leaf of an outer Production, is a Segment, identified by its extent;
+   its count is the Derivations of everything reached there. The result is the
+   Segments only when every Derivation divides the text the same way and their
+   counts multiply to `derivation_count()`; otherwise it says which failed
+   (`NotSegmentable`). The walk keeps at most 64 segmentations per node.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.

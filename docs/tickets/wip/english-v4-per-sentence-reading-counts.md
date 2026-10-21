@@ -193,5 +193,5 @@ Most of the total is ambiguity inside one segment, not multiplication.
 
 Standard constraints apply.
 
-Census delta: measured at landing.
-Judgment set: run at landing.
+Census delta (measured on ouyqrrlq): faces read 28,709 → 28,709; total Readings (product) 327,929 → 327,929; Surplus 175,304 over 17,890 ambiguous units and 19,871 ambiguous of 118,178 Segments; not segmentable 0; lost faces: none.
+Judgment set (ouyqrrlq): 2,976 enforced at `COMPLETED_STRATUM` 6, all hold; 195 pending.
