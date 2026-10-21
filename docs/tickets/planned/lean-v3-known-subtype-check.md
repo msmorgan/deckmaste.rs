@@ -1,24 +1,30 @@
 ---
 needs: [lean-v3-authoring-impl-14-ast-and-authoring-cleanup]
 ---
-# Refuse a subtype no declaration has
+# Enforce catalog-only `Subtype` construction at the authoring boundary
 
 `lean-v3-authoring-impl-14-ast-and-authoring-cleanup` retired the string
 subtype templates (`creatureType "…"` and kin). Cards now name catalog
 subtypes (`Definitions/Subtypes.lean`), which fixed *Mishra's Factory*
-writing "AssemblyWorker" for Assembly-Worker `[CR#205.3m]`. The raw
-constructor `Subtype.of host "label"` still accepts any string, and nothing
-refuses an unknown one: 13 sites outside the catalog write it (the checker's
-own examples in `Check.lean`, the generated `Facts.lean`, and some proofs).
+writing "AssemblyWorker" for Assembly-Worker `[CR#205.3m]`. However,
+`Subtype` is not yet marked `@[internal_expansion]`, and 10 sites in
+`Check.lean` and `Proofs/*.lean` still construct raw `Subtype.of host "label"`
+values directly instead of using the catalog definitions.
 
-The open question is design: where the list of subtypes the checker reads
-comes from. The checker sits below the catalog (`Semantics.Definitions`
-imports it), so it cannot read the declarations themselves.
+## Design
 
-Proposal: have `cargo xtask facts generate` emit a `subtypeLabels` table
-beside `keywordActionLabels`, from the subtype declarations, and pin it
-against `Definitions/Subtypes.lean`. Add `Refusal.knownSubtype` at every
-place a `Subtype` is stepped (type lines, `hasSubtype`, subtype heads,
-creation specs), checked as `knownKeyword` is. Then rewrite the remaining
-raw sites in proofs to the catalog names, keeping a raw one only in the pin
-that shows an unknown subtype is refused.
+- Enforce subtype validity at the authoring boundary only — do **not** add a
+  `subtypeLabels` table to `Check/Facts.lean` or a `Refusal.knownSubtype` to
+  `Check/`.
+- Mark `Subtype` `@[internal_expansion]` in `Semantics/Words.lean` so
+  `declare_semantic_primitives` does not expose `Semantics.Primitives.Subtype.of`
+  or `Semantics.Primitives.Subtype.spell`; only `Definitions/Subtypes.lean`
+  constructs `Subtype` values for authored declarations.
+- Rewrite the raw `Subtype.of` sites in `Check.lean` and `Proofs/*.lean`
+  (`Check.lean:205,224`, `Proofs/Rules.lean:45`, `Proofs/CorpusRecency.lean:24`,
+  `Proofs/RefusalReachability.lean:119`, `Proofs/Numbers.lean:32,42`,
+  `Proofs/Faces.lean:271,306,608`) to use the catalog definitions from
+  `Definitions/Subtypes.lean` (`equipment`, `dragon`, `siege`, `aura`,
+  `insect`, `elemental`, `jace`), leaving only `Check/Facts.lean` (generated
+  below `Definitions/Subtypes.lean`) and `Proofs/Rules.lean:182` (the
+  `Definition.check` negative pin for `Refusal.definitionNamed`).
