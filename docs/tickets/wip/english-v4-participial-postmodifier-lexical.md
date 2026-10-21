@@ -48,5 +48,10 @@ pp. 1429–1430, in the comment.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`mmzmnxwo`, against its claim parent): faces read 28,706 →
+   28,706; Readings (product) 218,547 → 218,535; Surplus 91,328 → 91,316;
+   cheapest tier singleton in 14,544 of 17,220 ambiguous units, unchanged. Only
+   Stalwart Successor and Botanical Brawler fell, 12 → 6 each; no unit rose;
+   lost faces none; `strata --check` passes.
+2. **Judgment set** (`mmzmnxwo`): 3,010 enforced, 200 pending, all hold; the new
+   Stalwart Successor entry in `participial_uses.txt` fails on the claim parent.

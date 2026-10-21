@@ -1160,16 +1160,19 @@
         // way*, *a card exiled with ...*). A single postpositive participle
         // ranks behind it (CGEL, Ch. 5 §14.2, p. 445), and is never one whose
         // Adjectival Passive is a declared Adjective: bare *tapped* is that
-        // Adjective.
+        // Adjective. A past-participial postmodifier is a bare passive, with
+        // neither *be* nor *get*, so the auxiliary *been* never heads one
+        // (CGEL, Ch. 14 §9, pp. 1264–1265; Ch. 16 §10.1.1, pp. 1429–1430).
         (name: "ParticipialPostmodifier", lhs: "Postmodifier", rhs: [Cat("head", "VerbPhrase")],
-            equations: [Require("head.VerbForm", "PastParticiple"), Require("head.Voice", "Passive")], heavy: ["head"], cost: 1),
+            equations: [Require("head.VerbForm", "PastParticiple"), Require("head.Voice", "Passive"), Exclude("head.VerbKind", "Auxiliary")], heavy: ["head"], cost: 1),
         (name: "GerundParticipialPostmodifier", lhs: "Postmodifier", rhs: [Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "GerundParticiple")], heavy: ["head"], cost: 1),
         // A single participle postmodifies the bare nominal, outside its
         // premodifiers and inside any relative clause (*creatures entering*,
-        // *a creature dying*).
+        // *a creature dying*). A past participle here is a bare passive too,
+        // never the auxiliary *been* (CGEL, Ch. 14 §9, pp. 1264–1265).
         (name: "SingleParticipialPostmodifier", lhs: "Nominal", rhs: [Cat("head", "BareNominal"), Cat("modifier", "VerbPhrase")],
-            equations: [Agree("$.ConjunctNumber", "$.Number"), Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive"), Exclude("modifier.AdjectivalPassive", "Lexical")], light: ["modifier"], cost: 3),
+            equations: [Agree("$.ConjunctNumber", "$.Number"), Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive"), Exclude("modifier.AdjectivalPassive", "Lexical"), Exclude("modifier.VerbKind", "Auxiliary")], light: ["modifier"], cost: 3),
         (name: "SingleGerundParticipialPostmodifier", lhs: "Nominal", rhs: [Cat("head", "BareNominal"), Cat("modifier", "VerbPhrase")],
             equations: [Agree("$.ConjunctNumber", "$.Number"), Require("modifier.VerbForm", "GerundParticiple")], light: ["modifier"], cost: 3),
         // Relative clauses (CGEL, Ch. 12 §3). A bare relative is a finite
