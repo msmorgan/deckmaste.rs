@@ -28,7 +28,7 @@ theorem okRawNonattacking : Predicate.checkAt .object (DRS.ofList []) rawNonatta
 def harmonyOfNature : Action :=
   sequentially
     [ tap (counted anyNumber (and [isUntapped, isCreature, youControl])),
-      doForEach (theVerbed (.action "tap") .many (some creature) .thisWay)
+      doForEach (each (and [isCreature, was (tap which) thisWay]))
         (gainLife (.lit 4)) ]
 theorem okHarmonyOfNature : Action.check (DRS.ofList []) harmonyOfNature = [] := by decide
 
@@ -233,7 +233,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
                       subtypes := [phyrexian, horror],
                       power := some (letter .x), toughness := some (letter .x) } },
               define .x
-                  (numberOf (theVerbed (.action "destroy") .many (some creature) .thisWay)) ]) ] } }
+                  (countOf (and [isCreature, was (destroy which) thisWay])) ]) ] } }
 
 /-- Damning Verdict -/
 def damningVerdict : Spelled := spelled <| .singleFaced
@@ -359,7 +359,7 @@ def bioplasmExile : Action := exile (topSlice (.lit 1))
 theorem okBioplasmExile :
     Action.check ((stepGameEvent 512 (DRS.ofList []) bioplasmAttack).1) bioplasmExile = [] := by decide
 def bioplasmAfterExile : DRS := (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) bioplasmAttack).1) bioplasmExile).1
-def bioplasmExiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
+def bioplasmExiledCard : NounPhrase := the (and [was (exile which), isCard])
 theorem okBioplasmExiledCard :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide
 

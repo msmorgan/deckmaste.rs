@@ -298,7 +298,7 @@ creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
     Action.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) isCreature)
       (instead (.sequentially [searchLibraryFor (exactly 1) isCreature,
-        reveal (theVerbed (.action "search") .one)]))) = [] := by
+        reveal (that .card)]))) = [] := by
   decide
 
 /-- "Each player mills a card. Exile it." -/

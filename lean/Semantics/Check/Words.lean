@@ -7,10 +7,10 @@ import Semantics.Check.Facts
 The checker's vocabulary and Discourse Representation Theory (`DRS`) layer (`semantics-v3.md`
 §1.2–§1.5). Holds the structured `DRS` state (`ReferentId`, `GramRole`, `Payload`, `Referent`,
 `OwnScopeFrame`, `DRS`), the two-stage anaphor resolver (`J1` accessibility, `J2` clause-mate
-exclusion, `D′` bare pronoun resolution, `AC>R1` demonstrative resolution, Principle A reflexives,
-and unique stamped participles), the Reference Scope frame stack (`enterOwnScope`, `enterCaller`,
-`leaveCaller`, `leaveOwnScope`), the facts tables (`abilityDeedFacts`, `actFacts`),
-and the leaf predicates the phrase and ability layers consult.
+exclusion, `D′` bare pronoun resolution, `AC>R1` demonstrative resolution, Principle A
+reflexives, and the stamped readback of Participial Descriptions), the Reference Scope frame
+stack (`enterOwnScope`, `enterCaller`, `leaveCaller`, `leaveOwnScope`), the facts tables
+(`abilityDeedFacts`, `actFacts`), and the leaf predicates the phrase and ability layers consult.
 -/
 
 namespace Semantics
@@ -134,6 +134,7 @@ def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
   [ ((.named "crew"), {}),
     ((.named "saddle"), {}),
     ((.named "phasing"), {}),
+    ((.named "cycling"), {}),
     ((.named "mutate"), {}),
     ((.named "devour"), {}) ]
 
@@ -372,6 +373,10 @@ structure Referent where
   announcedTargetResult : Bool := false
   createdResult : Bool := false
   librarySearchResult : Bool := false
+  /-- Published to later abilities of the same text by the ability that acted on it
+  (`Ability.textContext`): only a Participial Description with no span written reads it back,
+  the ability that reads it being linked to the one that published it [CR#607.1,607.2a]. -/
+  linked : Bool := false
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -811,11 +816,6 @@ def zoneIsB : Option Zone → Zone → Bool
 def onFieldZone (z : Option Zone) : Bool := zoneIsB z .battlefield
 def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
 
-/-- The reaches that resolve to an object referent a move can re-stamp. -/
-def Reach.tracksObject : Reach → Bool
-  | .bare | .atSlot _ | .verbed _ none _ => true
-  | _ => false
-
 def slotZoneOk : SlotCarrier → Option Zone → Bool
   | .permanent, zn => onFieldZone zn
   | .card, zn => isCardZone zn
@@ -920,14 +920,16 @@ def NounWord.refined : NounWord → Bool
 def Reach.kind : Reach → Kind
   | .word w => w.kind
   | .unionHalf w => w.kind
-  | .verbed _ (some w) _ => w.kind
   | _ => .object
 
 def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
 
-def verbedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
-  | .ofType word t, st, ty, zn, og => verbedWordOk word st ty zn og && tyIs t ty
-  | .copied word, st, ty, zn, og => verbedWordOk word st ty zn og && isCopyOrigin og
+/-- Whether `word` names a stamped object by what it was when its deed acted on it: a Card Type
+or "permanent" reads the permanent it was, a departed one by its last known information
+[CR#608.2h], while "card" and "spell" read the zone it is in now. -/
+def stampedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
+  | .ofType word t, st, ty, zn, og => stampedWordOk word st ty zn og && tyIs t ty
+  | .copied word, st, ty, zn, og => stampedWordOk word st ty zn og && isCopyOrigin og
   | .type t, st, ty, _, _ | .subtype (.of t _), st, ty, _, _ => st.wasField && tyIs t ty
   | .card, _, _, zn, _ => isCardZone zn
   | .spell, _, _, zn, _ | .subtype (.spell _), _, _, zn, _ => onStackZone zn
@@ -955,20 +957,13 @@ def survivesShuffle (b : Referent) : Bool :=
   | .object _ (some .library) none _ _ => false
   | _ => true
 
-/-- Stage 1 (`J1`): sort, plurality, zone/carrier, and stamp reach (`semantics-v3.md` §1.5). -/
+/-- Stage 1 (`J1`): sort, plurality, and zone/carrier reach (`semantics-v3.md` §1.5). -/
 def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   match r with
   | .bare => Kind.lte .object b.kind && pl.isOne == b.plur.isOne
   | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
-  | .verbed v none _ =>
-    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && b.stampedBy v
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
-  | .verbed v (some w) _ =>
-    match b.payload with
-    | .object ty zn (some st) og _ =>
-      pl.isOne == b.plur.isOne && b.stampedBy v && verbedWordOk w st ty zn og
-    | _ => false
 
 /-- A characteristic read may name a departed permanent by its former type
 [CR#608.2h]. This changes accessibility, not the referent's current zone. -/
@@ -976,7 +971,7 @@ def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   reaches r pl b || match r, b.payload with
     | .word w, .object ty zn (some st) og _ =>
       b.det != .self && pl.isOne == b.plur.isOne && st.moved &&
-        verbedWordOk w st ty zn og
+        stampedWordOk w st ty zn og
     | _, _ => false
 
 /-- Stage 2 (`J2`): whether `id` is a clause-mate co-argument in the current clause. -/
@@ -990,8 +985,7 @@ def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
 - Demonstratives / definite NPs (`.word _`, `.unionHalf _`) use `AC>R1`: filter by
   `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), exclude any referent already resolved
   by a bare pronoun in the current clause (`C`, `pronounResolved == true`), and pick the most
-  recently introduced candidate (`R1`, highest `id`).
-- Stamped participles (`.verbed _ _ _`) filter by `J1` and require a unique match. -/
+  recently introduced candidate (`R1`, highest `id`). -/
 def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
     List Referent :=
   let j1 := drs.visibleReferents.filter fun ref =>
@@ -1016,8 +1010,37 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
       | h :: t =>
           let best := t.foldl (fun acc b => if b.id > acc.id then b else acc) h
           [best]
-  | .verbed _ _ _ =>
-      j1
+
+/-- The objects `deed` stamped that a Participial Description's number (`plur`), span
+(`thisWay`) and Head Noun (`word`) admit; `participialCandidates` reads them. -/
+def participialMatches (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
+    (thisWay : Bool) (drs : DRS) : List Referent :=
+  drs.visibleReferents.filter fun b =>
+    !b.isActorFrame && Kind.lte .object b.kind && b.stampedBy deed &&
+      (!thisWay || !b.linked) &&
+      (match plur with
+       | none => true
+       | some .one => b.plur.isOne || (!thisWay && b.linked)
+       | some .many => !b.plur.isOne) &&
+      (match word, b.payload with
+       | none, _ => true
+       | some w, .object ty zn (some st) og _ => stampedWordOk w st ty zn og
+       | some _, _ => false)
+
+/-- The referents a Participial Description reads back: objects `deed` stamped, as many as its
+determiner says (`plur`; none for a group determiner, which reads a group of any size), named by
+`word` as `stampedWordOk` reads it. With "this way" written (`thisWay`), only objects the current
+ability stamped [CR#607.1c]; with no span written, also those a linked ability published, where
+a singular "the" reads a group the linked ability acted on as well [CR#607.2a,607.3]. A group
+determiner reads a whole group, not a part a selection drew from it beside the group ("all cards
+exiled this way" is the whole run, not also the card that stopped it [CR#702.85a]). A read is
+sound when exactly one referent answers. -/
+def participialCandidates (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
+    (thisWay : Bool) (drs : DRS) : List Referent :=
+  let found := participialMatches deed plur word thisWay drs
+  match plur with
+  | none => if found.any (·.det != .part) then found.filter (·.det != .part) else found
+  | some _ => found
 
 /-- How many winning antecedents `r` resolves to in `drs`; a read is sound at `1`. -/
 def countReach (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) : Nat :=

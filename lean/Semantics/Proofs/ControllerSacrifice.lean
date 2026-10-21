@@ -65,12 +65,13 @@ theorem wholeOwnedScopeWouldBeAmbiguous :
         [.anaphor .bare .one 2] := by decide
 
 theorem sacrificeStampSelectsTheSameObject :
-    (firstReach (.verbed (.action "sacrifice") none .attributive) .one afterSacrifice).map (·.id) =
+    (participialCandidates (.action "sacrifice") (some .one) none false afterSacrifice).head?.map
+        (·.id) =
       (firstReach (.word .card) .one afterSacrifice).map (·.id) := by decide
 
 theorem formerPermanentReadIsAdmitted :
     NounPhrase.checkAt (some .object) afterSacrifice
-      (theVerbed (.action "sacrifice") .one (some .permanent) .thisWay) = [] := by decide
+      (the (and [isPermanent, was (sacrifice which) thisWay])) = [] := by decide
 
 theorem thatPlayerCanTakeTheFollowingAction :
     Action.check (DRS.ofList [])
@@ -95,8 +96,7 @@ theorem compositionPassesTheAuthoringBoundary :
 theorem controlGrantRecordsItsPatientIdentity :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (gainControl (target isCreature) (some untilEndOfTurn))
-    let refs := resolveCandidates (.verbed (.core .gainControl) none .attributive)
-      .one (nextClause after)
+    let refs := participialCandidates (.core .gainControl) (some .one) none false (nextClause after)
     errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧
       refs.map (·.id) = (after.referents.filter (fun r => r.det == .target)).map (·.id) := by decide
 
@@ -121,7 +121,7 @@ theorem reflexiveFollowUpRemainsAvailable :
     action.reflexEncloseUse = .reflexive := by decide
 
 theorem riderReadsTheStampedPatient :
-    let patient := theVerbed (.action "sacrifice") .one (some .card) .thisWay
+    let patient := the (and [isCard, was (sacrifice which) thisWay])
     let (after, ids, errors) := stepNounPhrase 64 (nextClause afterSacrifice) .obj true patient
     Action.check (DRS.ofList [])
       (.withContinuation .required action (some (.expose .reveal (.cards patient))) none) = [] ∧

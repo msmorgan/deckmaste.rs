@@ -80,45 +80,35 @@ theorem unionRefinementAcceptsOneMatchingHalf :
 private def movedCopy (deed : Deed) (origin : Option Origin) : Referent :=
   { det := .target, plur := .one, payload := .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none, idents := [] }
 
-theorem verbedRefinementsKeepCarrierTypeAndOrigin :
-    countReach (.verbed (.action "exile") (some (.copied (.ofType .card .creature))) .attributive)
-      .one [movedCopy (.action "exile") (some .copy)] = 1 := by decide
+theorem participialRefinementsKeepCarrierTypeAndOrigin :
+    (participialCandidates (.action "exile") (some .one)
+      (some (.copied (.ofType .card .creature))) false
+      [movedCopy (.action "exile") (some .copy)]).length = 1 := by decide
 
-theorem verbedRefinementsRejectWrongDeed :
-    countReach (.verbed (.action "exile") (some (.copied (.ofType .card .creature))) .attributive)
-      .one [movedCopy (.action "destroy") (some .copy)] = 0 := by decide
+theorem participialRefinementsRejectWrongDeed :
+    (participialCandidates (.action "exile") (some .one)
+      (some (.copied (.ofType .card .creature))) false
+      [movedCopy (.action "destroy") (some .copy)]).length = 0 := by decide
 
-theorem verbedRefinementsRejectOriginal :
-    countReach (.verbed (.action "exile") (some (.copied (.ofType .card .creature))) .attributive)
-      .one [movedCopy (.action "exile") none] = 0 := by decide
+theorem participialRefinementsRejectOriginal :
+    (participialCandidates (.action "exile") (some .one)
+      (some (.copied (.ofType .card .creature))) false
+      [movedCopy (.action "exile") none]).length = 0 := by decide
 
-/-! The one verbed selector, twice: with no noun word it is the pronoun ("it", stamped by the
-deed that produced it), which reaches any object the deed stamped and tracks it as it moves; with
-a word it is the description ("the exiled card"), whose kind is the word's and which does not. -/
+/-! A Participial Description reads the object its deed stamped whether or not its other
+conjuncts name a Head Noun: "the exiled card" and the bare "the exiled one" both reach it. -/
 
-theorem verbedPronounReachesTheStampedObject :
-    countReach (.verbed (.action "exile") none .attributive) .one
-      [movedCopy (.action "exile") none] = 1 := by decide
+theorem participialWithoutHeadNounReachesTheStampedObject :
+    (participialCandidates (.action "exile") (some .one) none false
+      [movedCopy (.action "exile") none]).length = 1 := by decide
 
-theorem verbedDescriptionReachesTheStampedObject :
-    countReach (.verbed (.action "exile") (some .card) .attributive) .one
-      [movedCopy (.action "exile") none] = 1 := by decide
+theorem participialWithHeadNounReachesTheStampedObject :
+    (participialCandidates (.action "exile") (some .one) (some .card) false
+      [movedCopy (.action "exile") none]).length = 1 := by decide
 
-theorem verbedPronounRejectsWrongDeed :
-    countReach (.verbed (.action "exile") none .attributive) .one
-      [movedCopy (.action "destroy") none] = 0 := by decide
-
-theorem verbedPronounTracksItsObject :
-    Reach.tracksObject (.verbed (.action "exile") none .attributive) = true := by decide
-
-theorem verbedDescriptionDoesNotTrackItsObject :
-    Reach.tracksObject (.verbed (.action "exile") (some .card) .attributive) = false := by decide
-
-theorem verbedPronounIsAnObject :
-    Reach.kind (.verbed (.action "exile") none .attributive) = .object := by decide
-
-theorem verbedDescriptionTakesItsWordsKind :
-    Reach.kind (.verbed (.action "exile") (some .player) .attributive) = .player := by decide
+theorem participialRejectsWrongDeed :
+    (participialCandidates (.action "exile") (some .one) none false
+      [movedCopy (.action "destroy") none]).length = 0 := by decide
 
 theorem typeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (b : Referent) :
     wordReaches (.copied (.ofType word ty)) b =
@@ -130,11 +120,11 @@ theorem halfTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (pl 
       halfWordReaches (.ofType (.copied word) ty) pl := by
   simp only [halfWordReaches, Bool.and_right_comm]
 
-theorem verbedTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (st : Stamp)
+theorem stampedTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (st : Stamp)
     (remembered : List CardType) (zone : Option Zone) (origin : Option Origin) :
-    verbedWordOk (.copied (.ofType word ty)) st remembered zone origin =
-      verbedWordOk (.ofType (.copied word) ty) st remembered zone origin := by
-  simp only [verbedWordOk, Bool.and_right_comm]
+    stampedWordOk (.copied (.ofType word ty)) st remembered zone origin =
+      stampedWordOk (.ofType (.copied word) ty) st remembered zone origin := by
+  simp only [stampedWordOk, Bool.and_right_comm]
 
 private def selectedOpponent : NounPhrase :=
   .someOf (.counted (exactly 1)) none (allOf (.isOpponentOf .you))

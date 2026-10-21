@@ -41,7 +41,7 @@ theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] 
 def bondOfRevival : Action :=
   sequentially
     [ returnToBattlefield (target (and [isCreature, in_ yourGraveyard])),
-      gainHaste (theVerbed (.core .return_) .one) (some untilYourNextTurn) ]
+      gainHaste it (some untilYourNextTurn) ]
 theorem okBondOfRevival : Action.check (DRS.ofList []) bondOfRevival = [] := by decide
 
 def vraskasStoneglare : Action :=
@@ -181,7 +181,7 @@ theorem okEverAfter : Action.check (DRS.ofList []) everAfter = [] := by decide
 def martyrsCry : Action :=
   sequentially
     [ exile (allOf (and [isCreature, hasColor .white])),
-      doForEach (theVerbed (.action "exile") .many (some creature) .thisWay)
+      doForEach (each (and [isCreature, was (exile which) thisWay]))
         (instruct (controllerOf it) (draw (.lit 1))) ]
 theorem okMartyrsCry : Action.check (DRS.ofList []) martyrsCry = [] := by decide
 
@@ -197,7 +197,7 @@ def eradicateSearch : Action :=
   sequentially
     [ exile (target (and [isCreature, non (hasColor .black)])),
       searchZonesOf (controllerOf (that card)) anyNumber (shares .cardName .share (that card)),
-      exile (theVerbed (.action "search") .many),
+      exile them,
       instruct (that player) shuffle ]
 theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] := by decide
 
@@ -369,7 +369,8 @@ def nekrataalRider : DRS :=
   (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy).1
 theorem nekrataalOneCreatureWord : countReach (.word creature) .one nekrataalRider = 1 := by
   decide
-theorem nekrataalOneDestroyed : countReach (.verbed (.action "destroy") none .attributive) .one nekrataalRider = 1 := by
+theorem nekrataalOneDestroyed :
+    (participialCandidates (.action "destroy") (some .one) none false nekrataalRider).length = 1 := by
   decide
 
 def sequencedRiderBody : Action :=
@@ -377,8 +378,9 @@ def sequencedRiderBody : Action :=
 theorem okSequencedRiderBody : Action.check (DRS.ofList []) sequencedRiderBody = [] := by decide
 def sequencedRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
 theorem sequencedRiderOneDestroyed :
-    countReach (.verbed (.action "destroy") none .attributive) .one sequencedRider = 1 := by decide
-theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .attributive) .one sequencedRider = 1 := by
+    (participialCandidates (.action "destroy") (some .one) none false sequencedRider).length = 1 := by decide
+theorem sequencedRiderOneExiled :
+    (participialCandidates (.action "exile") (some .one) none false sequencedRider).length = 1 := by
   decide
 
 /-- Engulfing Flames -/
@@ -386,35 +388,36 @@ def engulfingFlamesBody : Action := instruct this_ (dealDamage (.lit 1) (target 
 theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :
-    countReach (.verbed (.action "destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
+    (participialCandidates (.action "destroy") (some .one) none false engulfingFlamesRider).length = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
 
-def bioplasmExiledPronoun : NounPhrase := theVerbed (.action "exile") .one
+def bioplasmExiledPronoun : NounPhrase := it
 theorem okBioplasmExiledPronoun :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
-    countReach (.verbed (.action "exile") (some creature) .attributive) .one bioplasmAfterExile
+    (participialCandidates (.action "exile") (some .one) (some creature) false bioplasmAfterExile).length
       = 0 := by
   decide
 theorem bioplasmExiledCardHasNoType :
-    tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterExile = [] := by decide
+    (participialCandidates (.action "exile") (some .one) none false bioplasmAfterExile).map (·.ty)
+      = [[]] := by decide
 def bioplasmAfterTest : DRS := (stepCondition 512 (nextClause bioplasmAfterExile) bioplasmCardTest).1
 theorem bioplasmTypeTestPreservesExiledIdentity :
-    let reach := Reach.verbed (.action "exile") none .attributive
-    let before := resolveCandidates reach .one bioplasmAfterExile
-    let after := resolveCandidates reach .one bioplasmAfterTest
+    let before := participialCandidates (.action "exile") (some .one) none false bioplasmAfterExile
+    let after := participialCandidates (.action "exile") (some .one) none false bioplasmAfterTest
     before.length = 1 ∧ after.map (·.id) = before.map (·.id) := by decide
 theorem bioplasmTestRemarksType :
-    tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterTest = [.creature] := by decide
+    (participialCandidates (.action "exile") (some .one) none false bioplasmAfterTest).map (·.ty)
+      = [[.creature]] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
-    countReach (.verbed (.action "exile") (some creature) .attributive) .one bioplasmAfterTest
+    (participialCandidates (.action "exile") (some .one) (some creature) false bioplasmAfterTest).length
       = 0 := by
   decide
 theorem bioplasmTypedCardReadWrites :
-    countReach (.verbed (.action "exile") (some (.ofType .card .creature)) .attributive) .one
-      bioplasmAfterTest = 1 := by
+    (participialCandidates (.action "exile") (some .one) (some (.ofType .card .creature)) false
+      bioplasmAfterTest).length = 1 := by
   decide
 
 /-- Scapeshift -/
@@ -427,9 +430,9 @@ theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch 
 def scapeshiftAfterSearch : DRS := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
-    countReach (.verbed (.action "search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
+    (participialCandidates (.action "search") (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 theorem scapeshiftOneSacrificedGroup :
-    countReach (.verbed (.action "sacrifice") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
+    (participialCandidates (.action "sacrifice") (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 
 /-- Scapeshift -/
 def scapeshift : Spelled := spelled <| .singleFaced
@@ -439,7 +442,7 @@ def scapeshift : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ sacrifice (counted anyNumber isLand),
               searchLibraryFor (upToOf groupSize) isLand,
-              putOntoBattlefieldTapped (theVerbed (.action "search") .many),
+              putOntoBattlefieldTapped them,
               shuffle ]) ] } }
 
 /-- Bind to Life, Vastlands Scavenger's adventure -/
@@ -458,8 +461,7 @@ theorem okGleamOfDeath : Action.check (DRS.ofList []) gleamOfDeath = [] := by de
 def tezzeretAllArtifacts : Action :=
   sequentially
     [ exile (topSlice (.lit 10)),
-      putOntoBattlefield (allFromAmong isArtifact
-                            (theVerbed (.action "exile") .many (some .card) .thisWay)) ]
+      putOntoBattlefield (allFromAmong isArtifact them) ]
 theorem okTezzeretAllArtifacts : Action.check (DRS.ofList []) tezzeretAllArtifacts = [] := by decide
 
 def companyContext : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice (.lit 6)))).1
@@ -551,15 +553,6 @@ def hijack : Spelled := spelled <| .singleFaced
             [ gainControl (target (or [isArtifact, isCreature])) (some untilEndOfTurn) (controller := you),
               untap it,
               gainHaste it (some untilEndOfTurn) ]) ] } }
-
-def hijackDeedDescriptions : Action :=
-  sequentially
-    [ gainControl (target (or [isArtifact, isCreature]))
-        (some untilEndOfTurn) (controller := you),
-      untap (theVerbed (.core .gainControl) .one),
-      gainHaste (theVerbed (.action "untap") .one) (some untilEndOfTurn) ]
-theorem okHijackDeedDescriptions :
-    Action.check (DRS.ofList []) hijackDeedDescriptions = [] := by decide
 
 /-- Open the Vaults -/
 def openTheVaults : Action :=

@@ -277,7 +277,8 @@ mutual
     /-- "each …": a group, resolution-time [CR#608.2] -/
     | each
     | all
-    | the
+    /-- "the <noun>", or with `plur = many` "the <nouns>" ("the exiled cards") [CR#607.2a] -/
+    | the (plur : Plurality := .one)
     | count (quantity : Quantity) (mode : Option ChoiceMode)
     /-- the bare plural: a description, no determiner [CR#109.2] -/
     | bare

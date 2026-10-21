@@ -41,7 +41,7 @@ def DetPhrase.det : DetPhrase → Determiner
   | .a _ => .a
   | .each => .each
   | .all => .all
-  | .the => .the
+  | .the _ => .the
   | .count _ _ => .count
   | .bare => .bare
 
@@ -64,7 +64,8 @@ termination_by structural fuel
 
 def DetPhrase.plur : DetPhrase → Plurality
   | .target q | .count q _ => q.plur
-  | .a _ | .each | .the => .one
+  | .the plur => plur
+  | .a _ | .each => .one
   | .all | .bare => .many
 
 def SliceCount.plur : SliceCount → Plurality
@@ -175,6 +176,107 @@ def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
+/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. -/
+def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
+  match fuel, inst with
+  | 0, _ => none
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.inferredDeed n
+  | _ + 1, .ownScope (some d) _ => some d
+  | n + 1, .ownScope none body => body.inferredDeed n
+  | _ + 1, .enact verb _ _ _ => some verb
+  | _ + 1, .move _ _ (some (.zone .exile _)) _ _ _ => some (.action "exile")
+  | _ + 1, .move _ _ (some (.zone .graveyard _)) _ _ _ => some (.core .put)
+  | _ + 1, .move _ _ (some (.zone .hand _)) _ _ _ => some (.core .return_)
+  | _ + 1, .setStatus .tapped _ => some (.action "tap")
+  | _ + 1, .setStatus .untapped _ => some (.action "untap")
+  | _ + 1, .draw _ => some (.core .draw)
+  | _ + 1, .trigger => some (.core .trigger)
+  | _ + 1, .crew _ => some (.ofAbility (.named "crew"))
+  | _ + 1, .saddle _ => some (.ofAbility (.named "saddle"))
+  | _ + 1, .fullyUnlock _ => some (.core .fullyUnlock)
+  | _ + 1, .createObject .. => some (.action "create")
+  | _ + 1, .expose .reveal _ => some (.action "reveal")
+  | _ + 1, _ => none
+termination_by structural fuel
+
+/-! ## Participial Descriptions
+
+"The exiled card", "the sacrificed creature", "each creature destroyed this way": a definite or
+group description whose predicate says, with no span or "this way" written, what a deed did to its
+members. It introduces no referent: it reads back the objects that deed acted on in scope
+(`participialCandidates`), in the current ability or, with no span written, in an ability linked
+to it [CR#607.1,607.1c,607.2a]. -/
+
+/-- Whether `np` is the relative pronoun `which`, however wrapped. -/
+def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 8) : Bool :=
+  match fuel, np with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body
+  | n + 1, .headed _ body => body.isWhich n
+  | _ + 1, .which => true
+  | _, _ => false
+termination_by structural fuel
+
+/-- The deed a relative clause reads back by, when it can anchor a Participial Description: no
+span or "this way" written, `which` standing for what the deed acted on rather than for its
+subject, and an action that names its deed. -/
+def DidClause.anchorDeed? (clause : DidClause) : Option Deed :=
+  let relativizesSubject := match clause.subj with
+    | .actor np | .by np => np.isWhich
+    | .any => false
+  match clause.within with
+  | none | some .thisWay => if relativizesSubject then none else clause.action.inferredDeed
+  | some _ => none
+
+/-- A predicate's conjuncts, through `inCaller`, `bracketed` and nested `and`. -/
+def Predicate.conjuncts (p : Predicate) (fuel : Nat := 8) : List Predicate :=
+  match fuel, p with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.conjuncts n
+  | n + 1, .and ps => ps.flatMap (·.conjuncts n)
+  | _, p => [p]
+termination_by structural fuel
+
+/-- The relative clause, and its deed, a Participial Description reads back by: the first
+conjunct that anchors one. -/
+def Predicate.participialAnchor? (p : Predicate) : Option (DidClause × Deed) :=
+  p.conjuncts.findSome? fun
+    | .did clause => clause.anchorDeed?.map (clause, ·)
+    | _ => none
+
+/-- The Head Noun a Participial Description's other conjuncts name its objects by, read as
+`stampedWordOk` reads it: "card", "permanent" (a battlefield location: "each permanent sacrificed
+this way" [CR#702.82c]) and each Card Type ("the exiled creature card"). -/
+def Predicate.participialWord? (conjuncts : List Predicate) : Option NounWord :=
+  let base : Option NounWord :=
+    if conjuncts.any (fun | .isCard => true | _ => false) then some .card
+    else if conjuncts.any (fun | .in_ loc => loc.sort == some .battlefield | _ => false) then
+      some .permanent
+    else none
+  conjuncts.foldl (fun word conjunct => match conjunct with
+    | .hasType t => some (word.elim (.type t) (fun w => .ofType w t))
+    | _ => word) base
+
+/-- The number a Participial Description's determiner reads: "the" one object, or with
+`plur = many` a group; "all", "each" and the bare plural a group of any size (`some none`). Other
+determiners read no Participial Description. -/
+def DetPhrase.participialNumber? : DetPhrase → Option (Option Plurality)
+  | .the plur => some (some plur)
+  | .all | .each | .bare => some none
+  | _ => none
+
+/-- `p` with each anchoring relative clause that writes no span given the span its description
+supplies: stepped as "this way" is, it looks back over nothing further. -/
+def Predicate.withAnchorSpan (p : Predicate) (fuel : Nat := 8) : Predicate :=
+  match fuel, p with
+  | n + 1, .inCaller body => .inCaller (body.withAnchorSpan n)
+  | n + 1, .bracketed body => .bracketed (body.withAnchorSpan n)
+  | n + 1, .and ps => .and (ps.map (·.withAnchorSpan n))
+  | _ + 1, .did clause =>
+    if clause.within.isNone && clause.anchorDeed?.isSome then
+      .did { clause with within := some .thisWay }
+    else .did clause
+  | _, p => p
+termination_by structural fuel
+
 def NounPhrase.det (np : NounPhrase) (fuel : Nat := 64) : Option Determiner :=
   match fuel, np with
   | n + 1, .inCaller b | n + 1, .firstMention _ b | n + 1, .agree _ _ b => b.det n
@@ -221,6 +323,8 @@ def NounPhrase.anchorPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.anchorPhrase n
   | n + 1, .or alternatives => alternatives.all (·.anchorPhrase n)
   | _ + 1, .and _ => false
+  -- A Participial Description reads back one object already in scope, as a pronoun does.
+  | _ + 1, .described (.the .one) p => p.participialAnchor?.isSome
   | _ + 1, phrase => phrase.det.all (· == .target)
   | _, _ => false
 termination_by structural fuel
@@ -232,6 +336,7 @@ def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .and _ | _ + 1, .oneEachOf .. => true
   | _ + 1, .pro _ plur => plur != .one
   | _ + 1, .paid (.objects _ _ plur) _ => plur != .one
+  | _ + 1, .described (.the plur) _ => plur != .one
   | _ + 1, phrase => phrase.det == some .target
   | _, _ => false
 termination_by structural fuel
@@ -436,28 +541,6 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
           | other => other
         { r with payload := newPayload }) drs
 
-/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. -/
-def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
-  match fuel, inst with
-  | 0, _ => none
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.inferredDeed n
-  | _ + 1, .ownScope (some d) _ => some d
-  | n + 1, .ownScope none body => body.inferredDeed n
-  | _ + 1, .enact verb _ _ _ => some verb
-  | _ + 1, .move _ _ (some (.zone .exile _)) _ _ _ => some (.action "exile")
-  | _ + 1, .move _ _ (some (.zone .graveyard _)) _ _ _ => some (.core .put)
-  | _ + 1, .move _ _ (some (.zone .hand _)) _ _ _ => some (.core .return_)
-  | _ + 1, .setStatus .tapped _ => some (.action "tap")
-  | _ + 1, .setStatus .untapped _ => some (.action "untap")
-  | _ + 1, .draw _ => some (.core .draw)
-  | _ + 1, .trigger => some (.core .trigger)
-  | _ + 1, .crew _ => some (.ofAbility (.named "crew"))
-  | _ + 1, .saddle _ => some (.ofAbility (.named "saddle"))
-  | _ + 1, .fullyUnlock _ => some (.core .fullyUnlock)
-  | _ + 1, .createObject .. => some (.action "create")
-  | _ + 1, .expose .reveal _ => some (.action "reveal")
-  | _ + 1, _ => none
-termination_by structural fuel
 
 /-- Voice and `GramRole` assignment (`semantics-v3.md` §3.2):
 - Active (`.actor np`): primary patient inside `action` gets `.obj`.
@@ -847,8 +930,15 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | _ => match clauseActorKind action, actorShape? drs1 with
         | some expected, some shape => kindCheck expected (some shape.kind)
         | _, _ => []
+    -- With no agent written, or one written with "by", no performer of the enclosing action
+    -- performs the deed looked back at: its handoffs are hidden while the clause steps.
+    let hidden := match subj with
+      | .actor _ => []
+      | .any | .by _ => drs1.referents.filter (·.isActorFrame)
     let historical : DRS := {
       drs1 with
+      referents := if hidden.isEmpty then drs1.referents else
+        drs1.referents.filter (!·.isActorFrame)
       actionPattern := true
       historicalReferentIds := drs.referents.map (·.id) }
     let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
@@ -857,6 +947,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | some span => stepLookbackSpanWith ops drs3 span
       | none => (drs3, [])
     ({ drs4 with
+        referents := hidden ++ drs4.referents
         actionPattern := drs.actionPattern
         historicalReferentIds := drs.historicalReferentIds }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
 
@@ -869,13 +960,15 @@ def stepRelativeDidWith (ops : StepOps) (drs : DRS) (whichRef : Referent) (claus
   let subDrs' := { subDrs.push whichRef .other false with
     relativeBinder := some binderId, relativeUses := 0 }
   let (out, errs) := stepDidClauseWith ops subDrs' clause
-  (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject)
+  (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject ++
+    refuse clause.within.isSome .unanchoredLookback)
 
 /-- The referent a conjunct relative clause's `which` binds: the enclosing object predicate's
 binding, so the clause reads the head's types and zone from its sibling conjuncts; any other
 head binds its bare kind. -/
 def relativeSeed (headKind : Kind) (enclosing : Predicate) : Referent :=
   if headKind == .object then bindFor .the .one .object enclosing else kindBinding headKind
+
 
 def stepCausingWith (ops : StepOps) (drs : DRS) (c : Causing) : DRS × List Refusal :=
   match c with
@@ -1836,14 +1929,25 @@ def stepOps : Nat → StepOps
             ({ drs' with relativeUses := drs.relativeUses + 1 }, [r.id], [])
           | none => (drs, [], [.anaphor (.word .permanent) .one 0])
         | .described detP pred =>
-          let (drs1, e1) := stepDetPhraseWith ops drs detP
-          let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred
-          let ref := bindFor detP.det detP.plur (pred.kindOr .object) pred
-          let rid := drs2.nextId
-          let drs3 := drs2.push ref role inArgSlot
-          let targetErrors := if detP.det == .target then
-            refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
-          (drs3, [rid], e1 ++ e2 ++ targetErrors ++ refuse (detP.det != .the || pred.uniquifies) .uniquifying)
+          match detP.participialNumber?, pred.participialAnchor? with
+          | some plur, some (clause, deed) =>
+            let (drs1, e1) := stepDetPhraseWith ops drs detP
+            let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred.withAnchorSpan
+            let word := Predicate.participialWord? pred.conjuncts
+            let found := participialCandidates deed plur word clause.within.isSome drs
+            match found with
+            | [w] => (drs2.recordMention w.id role inArgSlot, [w.id], e1 ++ e2)
+            | _ => (drs2, [], e1 ++ e2 ++ [.participialDescription deed found.length])
+          | _, _ =>
+            let (drs1, e1) := stepDetPhraseWith ops drs detP
+            let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred
+            let ref := bindFor detP.det detP.plur (pred.kindOr .object) pred
+            let rid := drs2.nextId
+            let drs3 := drs2.push ref role inArgSlot
+            let targetErrors := if detP.det == .target then
+              refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
+            (drs3, [rid], e1 ++ e2 ++ targetErrors ++
+              refuse (detP.det != .the || pred.uniquifies) .uniquifying)
         | .and ns =>
           ns.foldl (fun (d, ids, es) n =>
             let (d', ids', e') := ops.np d role inArgSlot n
@@ -2106,7 +2210,7 @@ def stepOps : Nat → StepOps
         | .tally clause mode =>
           let (_, e1) := stepDidClauseWith ops drs clause
           let e2 := if tallyOk mode clause then [] else [.tallyOk]
-          (drs, e1 ++ e2)
+          (drs, e1 ++ e2 ++ refuse clause.within.isSome .unanchoredLookback)
         | .thatMuch =>
           if countAmountOutcomes drs == 1 then (drs, []) else (drs, [.quantOutcomeInScope (countAmountOutcomes drs)])
         | .chosenNumber ref =>
@@ -2174,7 +2278,8 @@ def stepOps : Nat → StepOps
         | .did clause =>
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
-          ({ out with relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses }, errs)
+          ({ out with relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses },
+            errs ++ refuse clause.within.isSome .unanchoredLookback)
         | .gameHas designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .matches subj pred =>
           let (drs1, ids, e1) := ops.np drs .subj true subj

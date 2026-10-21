@@ -81,35 +81,35 @@ theorem badDeadCreatureRead :
   decide
 
 /-- "Discard a card: Return the discarded card to the battlefield." -/
-theorem okVerbedDiscardedCard :
+theorem okParticipialDiscardedCard :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (putInto (theVerbed (.action "discard") .one (some .card)) battlefield)) = [] := by
+        (putInto (the (and [was (discard which), isCard])) battlefield)) = [] := by
   decide
 
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
-theorem badVerbedWrongVerb :
+theorem badParticipialWrongVerb :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (putInto (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
-      = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 0] := by
+        (putInto (the (and [was (sacrifice which), isCard])) battlefield))
+      = [.participialDescription (.action "sacrifice") 0] := by
   decide
 
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
-theorem badVerbedWrongNoun :
+theorem badParticipialWrongNoun :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isArtifact)))
-        (putInto (theVerbed (.action "sacrifice") .one (some (.type .creature))) battlefield))
-      = [.anaphor (.verbed (.action "sacrifice") (some (.type .creature)) .attributive) .one 0] := by
+        (putInto (the (and [was (sacrifice which), isCreature])) battlefield))
+      = [.participialDescription (.action "sacrifice") 0] := by
   decide
 
-theorem badVerbedAmbig :
+theorem badParticipialAmbig :
     Ability.check (DRS.ofList [])
       (activatedAbility
         (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
             isCreature))])
-        (putInto (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
-      = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 2] := by
+        (putInto (the (and [was (sacrifice which), isCard])) battlefield))
+      = [.participialDescription (.action "sacrifice") 2] := by
   decide
 
 theorem okBareCardRead :

@@ -19,12 +19,14 @@ def boshIronGolem : Ability :=
   activated (compound [mana [generic 3, pip .red], perform (sacrifice (a isArtifact))])
     (instruct this_
        (dealDamage
-          (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some artifact)))
+          (statOf (.stat .manaValue) (the (and [was (sacrifice which), isArtifact])))
         (target isAnyTarget) .noncombatOnly))
 theorem okBoshIronGolem : Ability.check (DRS.ofList []) boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (compound [mana [generic 3], perform (discard (aAtRandom (cardIn yourHand)))])
-    (instruct thisEnchantment (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target isAnyTarget) .noncombatOnly))
+    (instruct thisEnchantment
+      (dealDamage (statOf (.stat .manaValue) (the (and [was (discard which), isCard])))
+        (target isAnyTarget) .noncombatOnly))
 theorem okPyromancy : Ability.check (DRS.ofList []) pyromancy = [] := by decide
 def luckyOffering : Action :=
   sequentially
@@ -361,7 +363,9 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
             [ choose (target isAnyTarget),
               draw (.lit 3),
               discard (a (cardIn yourHand)),
-              instruct this_ (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) thatJoin .noncombatOnly) ]) ] } }
+              instruct this_
+                (dealDamage (statOf (.stat .manaValue) (the (and [was (discard which), isCard])))
+                  thatJoin .noncombatOnly) ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -748,7 +752,7 @@ def birthingPodSearch : Ability :=
     (searchLibraryFor (exactly 1)
       (and [isCreature,
              hasManaValue .eq (plus (.lit 1) (statOf (.stat .manaValue)
-                   (theVerbed (.action "sacrifice") .one (some creature))))]))
+                   (the (and [was (sacrifice which), isCreature]))))]))
 theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = [] := by decide
 
 /-- Hibernation's End -/
@@ -860,7 +864,7 @@ def soldeviAdnate : Spelled := spelled <| .singleFaced
         [ activated
             (compound [tapSymbol,
               perform (sacrifice (a (and [isCreature, or [hasColor .black, isArtifact]])))])
-            (addMana (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one))
+            (addMana (statOf (.stat .manaValue) (the (and [was (sacrifice which), isCreature])))
               (manaOf [[.of .black]])) ],
       power := stat 1, toughness := stat 2 } }
 

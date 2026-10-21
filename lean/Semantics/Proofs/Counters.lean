@@ -541,9 +541,10 @@ theorem okOtherThanExiledByThisAbility :
       (activated
         (.compound [.tapSymbol, .perform (exile (a (.and [.not isLand, .in_ (handOf .you)])))])
         (.sequentially
-          [ (.putCounters (.lit 4) (.printed (.named "timeCounter")) (theVerbed (.action "exile") .one (some .card)) .one true),
+          [ (.putCounters (.lit 4) (.printed (.named "timeCounter"))
+              (the (and [was (exile which), isCard])) .one true),
             (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and
-                [ .otherThan (theVerbed (.action "exile") .one (some .card)),
+                [ .otherThan (the (and [was (exile which), isCard])),
                   .hasPossessor .owner .you, .in_ exileZone ])) .one true) ])) = [] := by
   decide
 

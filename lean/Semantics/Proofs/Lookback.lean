@@ -143,4 +143,58 @@ theorem eventModifiersPreserveFacts (event : GameEvent) (ordinal : Ordinal)
     (GameEvent.nthOccurrence ordinal part event).facts (fuel + 1) = event.facts fuel ∧
       (GameEvent.causes cause event).facts (fuel + 1) = event.facts fuel := ⟨rfl, rfl⟩
 
+/-! ## Unwritten spans
+
+A lookback with no span written is an attributive participle, read only by a Participial
+Description ("the destroyed creature"). A condition and a tally always write their span, and so
+does a relative clause under any other determiner. -/
+
+theorem unanchoredConditionRefused :
+    Condition.check (DRS.ofList []) (.did ⟨.any, destroy (a isCreature), none⟩) =
+      [.unanchoredLookback] := by decide
+
+theorem unanchoredTallyRefused :
+    Amount.check (DRS.ofList []) (.tally ⟨.any, destroy (a isCreature), none⟩ .events) =
+      [.unanchoredLookback] := by decide
+
+/-- "target creature destroyed" names no span and no destruction to read back. -/
+theorem unanchoredRelativeClauseRefused :
+    NounPhrase.checkAt (some .object) (DRS.ofList [])
+      (target (and [isCreature, was (destroy which)])) = [.unanchoredLookback] := by decide
+
+/-- "Destroy target creature. Its controller gains life equal to the destroyed creature's
+power.": "the destroyed creature" reads back what the destruction acted on. -/
+theorem participialDescriptionReadsBackItsDeed :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ destroy (target isCreature),
+          instruct (controllerOf it)
+            (gainLife (powerOf (the (and [was (destroy which), isCreature])))) ]) = [] := by
+  decide
+
+/-- With "this way" written the relative clause still anchors the description: "the creature
+destroyed this way". -/
+theorem participialThisWayReadsBackItsDeed :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ destroy (target isCreature),
+          gainLife (powerOf (the (and [isCreature, was (destroy which) thisWay]))) ]) = [] := by
+  decide
+
+/-- Nothing was destroyed: the description has nothing to read back. -/
+theorem participialDescriptionWithoutItsDeedRefused :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ tap (target isCreature),
+          gainLife (powerOf (the (and [was (destroy which), isCreature]))) ]) =
+      [.participialDescription (.action "destroy") 0] := by
+  decide
+
+/-- A clause whose `which` is the deed's subject anchors no description: "each player who
+sacrificed a permanent this way" describes players. -/
+theorem subjectRelativeClauseAnchorsNoDescription :
+    (Predicate.participialAnchor?
+      (and [isPlayer, did which (sacrifice (a isPermanent)) thisWay])).isNone = true := by
+  decide
+
 end Semantics.Proofs.Lookback

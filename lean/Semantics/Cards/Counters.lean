@@ -38,8 +38,7 @@ theorem okKaitoBaneOfNightmares : Action.check (DRS.ofList []) kaitoBaneOfNightm
 def jhoiraOfTheGhitu : Ability :=
   activated
     (compound [mana [generic 2], perform (exile (a (and [non isLand, in_ yourHand])))])
-    (putCounters (.lit 4) timeCounter
-      (theVerbed (.action "exile") .one (some .card)) .many)
+    (putCounters (.lit 4) timeCounter (the (and [was (exile which), isCard])) .many)
 theorem okJhoiraOfTheGhitu : Ability.check (DRS.ofList []) jhoiraOfTheGhitu = [] := by decide
 def alaundoTheSeer : Action :=
   removeCounters (exactly 1) (some timeCounter) (each
@@ -1215,7 +1214,7 @@ theorem okNeurokTransmuter : Action.check (DRS.ofList []) neurokTransmuter = [] 
 def syphonMind : Action :=
   sequentially
     [ sequentially [instruct (each isOtherPlayer) (choose (a (cardIn hand))), discard them],
-      doForEach (theVerbed (.action "discard") .many (some .card) .thisWay) (draw (.lit 1)) ]
+      doForEach (each (and [isCard, was (discard which) thisWay])) (draw (.lit 1)) ]
 theorem okSyphonMind : Action.check (DRS.ofList []) syphonMind = [] := by decide
 def peek : Action := sequentially [lookAtHandOf (target isPlayer), draw (.lit 1)]
 theorem okPeek : Action.check (DRS.ofList []) peek = [] := by decide

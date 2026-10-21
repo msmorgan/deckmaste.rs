@@ -330,10 +330,6 @@ inductive NounWord where
   | pile
   deriving DecidableEq, Repr
 
-inductive VerbedMarking where
-  | attributive | thisWay
-  deriving DecidableEq, Repr
-
 inductive SlotCarrier where
   | permanent | card | spell
   deriving DecidableEq, Repr
@@ -344,9 +340,6 @@ inductive Reach where
   | atSlot (slot : SlotCarrier)
   | word (word : NounWord)
   | unionHalf (word : NounWord)
-  /-- "the exiled card" names its noun word; "it", stamped by the deed that produced it, names
-  none. -/
-  | verbed (verb : Deed) (word : Option NounWord) (marking : VerbedMarking)
   deriving DecidableEq, Repr
 
 /-- A Binding Identity: the name under which a Definition or Template body's first mention of a referent

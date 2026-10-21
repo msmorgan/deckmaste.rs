@@ -559,7 +559,7 @@ theorem okBerserkersFrenzyLowRoll : Action.check (DRS.ofList []) berserkersFrenz
 /-- Damn -/
 def damnDestroyLine : Action :=
   doAndForbid (destroy (target isCreature))
-    (regeneration (theVerbed (.action "destroy") .one (some creature) .thisWay))
+    (regeneration (a (and [isCreature, was (destroy which) thisWay])))
 theorem okDamnDestroyLine : Action.check (DRS.ofList []) damnDestroyLine = [] := by decide
 
 def nekrataalWhole : Spelled := spelled <| .singleFaced

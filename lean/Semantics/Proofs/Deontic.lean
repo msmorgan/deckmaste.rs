@@ -270,7 +270,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
       (doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature)))
-        (regeneration (theVerbed (.action "sacrifice") .many (some .permanent)))) = [] := by
+        (regeneration (bare (and [was (sacrifice which), isPermanent])))) = [] := by
   decide
 
 /-- "Destroy target creature. It can't be regenerated.": the destroy, then a prohibition until

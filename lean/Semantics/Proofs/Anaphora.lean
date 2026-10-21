@@ -768,25 +768,26 @@ theorem distributedDeedReadsBackPlural :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them],
-          exile (theVerbed (.action "discard") .many (some .card)) ]) = [] := by
+          exile (thePlural (and [was (discard which), isCard])) ]) = [] := by
   decide
 
 /-- "Discard a card. Exile the discarded card." -/
-theorem okTheVerbedAfterSingularDiscard :
+theorem okTheDiscardedCardAfterSingularDiscard :
     Action.check (DRS.ofList [])
       (.sequentially
         [ discard (a (.and [.isCard, .in_ yourHand])),
-          exile (theVerbed (.action "discard") .one (some .card)) ])
+          exile (the (and [was (discard which), isCard])) ])
       = [] := by
   decide
 
-/-- "Each opponent discards a card. Exile that card." -/
+/-- "Each opponent discards a card. Exile the discarded card.": the cards discarded are a group,
+which a singular "the" reads only when a linked ability discarded them [CR#607.3]. -/
 theorem badDistributedDiscardSingular :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them],
-          exile (theVerbed (.action "discard") .one (some .card)) ])
-      = [.anaphor (.verbed (.action "discard") (some .card) .attributive) .one 0] := by
+          exile (the (and [was (discard which), isCard])) ])
+      = [.participialDescription (.action "discard") 0] := by
   decide
 
 /-- "Tap target creature." -/

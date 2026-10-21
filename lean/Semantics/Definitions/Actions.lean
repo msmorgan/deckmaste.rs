@@ -711,7 +711,7 @@ semantic_definition recruit : Action :=
       (sequentially
         [ draw (.lit 1),
           discard (a (cardIn (handOf .actor))),
-          doIf (not (is (theVerbed (.action "discard") .one (some .card) .thisWay) isLand))
+          doIf (not (is (the (and [isCard, was (discard which) thisWay])) isLand))
             (createToken (creatureToken 1 1 [.white] [human, soldier]))
             none ]))
 semantic_definition search (zone : Location) (quantity : Quantity) (quality : Predicate) : Action :=

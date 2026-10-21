@@ -168,9 +168,8 @@ def escapeToTheWilds : Action :=
   sequentially
     [ exile (topSlice (.lit 5)),
       establishThroughout (can you
-                             (play
-                                (theVerbed (.action "exile") .many (some .card)
-                                   .thisWay))) (untilEvent (endOf .turn (some you) nextTime)) ]
+                             (play (bare (and [isCard, was (exile which) thisWay]))))
+        (untilEvent (endOf .turn (some you) nextTime)) ]
 theorem okEscapeToTheWilds : Action.check (DRS.ofList []) escapeToTheWilds = [] := by decide
 
 /-- Muse Vessel -/
@@ -1197,7 +1196,7 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
             (instruct eachOpponent (may
               (sequentially
                 [ search (libraryOf they) (exactly 1) (and [isLand, hasSupertype .basic]),
-                  putOntoBattlefieldTapped (theVerbed (.action "search") .one),
+                  putOntoBattlefieldTapped it,
                   shuffle ]))) ],
       power := stat 3, toughness := stat 3 } }
 

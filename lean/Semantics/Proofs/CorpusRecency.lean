@@ -205,7 +205,8 @@ private def cycledContext : DRS :=
 private def cycloneFinalCard : NounPhrase :=
   a (.and [.isCard, .in_ yourLibrary,
     .shares .cardType .share
-      (theVerbed (.ofAbility (.named "cycling")) .one (some .card) .attributive)])
+      (the (.and [.did ⟨.any, .enact (.ofAbility (.named "cycling")) (discard .which) none none, none⟩,
+        .isCard]))])
 private def cycloneExile : Action :=
   .move cycloneFinalCard (yourLibrary) (some exileZone) .arrival none []
 private def cycloneAfter : DRS :=

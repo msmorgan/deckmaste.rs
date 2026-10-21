@@ -81,7 +81,8 @@ theorem connive_def_sound :
     (conniveDef targetCreature).check (DRS.ofList []) = [] := by decide
 
 /-- Representative multi-step definition 3: `airbend`
-(`ownScope` + `inCaller` + `firstMention` + zone-changing `move` + stamped participle `"the exiled card"`). -/
+(`ownScope` + `inCaller` + `firstMention` + zone-changing `move` + Participial Description
+`"the exiled card"`). -/
 def airbendDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
@@ -90,7 +91,9 @@ def airbendDef (subject : NounPhrase) : Action :=
       .establish
         (.can (.actor .you)
           (.procedure .cast
-            (.pro (.verbed (.action "exile") (some .card) .attributive) .one)
+            (.described (.the .one)
+              (.and [.did ⟨.any, .move .which .anyLocation (some exileZone) .departure none [], none⟩,
+                .isCard]))
             (.payingInstead (.mana [.simple (.generic 2)])) none none none)
           {})
         none

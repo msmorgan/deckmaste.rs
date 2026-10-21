@@ -681,9 +681,9 @@ def agencyOutfitterSearch : Action :=
   sequentially
     [ may
         (sequentially
-          [ searchZonesOf you (exactly 1)
+          [ searchZonesOf you (upTo 2)
               (or [named "Magnifying Glass", named "Thinking Cap"]),
-            putOntoBattlefield (theVerbed (.action "search") .one) ]),
+            putOntoBattlefield them ]),
       doIf (did you (search any anyNumber (and [])) thisWay) shuffle ]
 theorem okAgencyOutfitterSearch : Action.check (DRS.ofList []) agencyOutfitterSearch = [] := by decide
 
@@ -711,9 +711,8 @@ def bioplasm : Spelled := spelled <| .singleFaced
               [ exile (topSlice (.lit 1)),
                 doIf bioplasmCardTest
                   (get thisCreature
-                    (up (powerOf
-                           (theVerbed (.action "exile") .one (some (.ofType .card .creature)))))
-                    (up (toughnessOf (theVerbed (.action "exile") .one)))
+                    (up (powerOf (the (and [was (exile which), isCreature, isCard]))))
+                    (up (toughnessOf it))
                     (some thisTurn)) ]) ],
       power := stat 4, toughness := stat 4 } }
 

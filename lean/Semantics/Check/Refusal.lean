@@ -53,6 +53,14 @@ inductive Refusal where
   | ordinalNonZero
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
+  /-- A Participial Description ("the exiled card", "each creature destroyed this way") reads
+  back the objects its deed acted on in scope, and found `found` of them, not exactly one
+  [CR#607.1,607.2a]. -/
+  | participialDescription (deed : Deed) (found : Nat)
+  /-- A historical clause with no span written ("exiled", not "exiled this way" or "exiled this
+  turn") reads back only as a Participial Description: a condition, a tally, or any other
+  relative clause names the span it looks back over. -/
+  | unanchoredLookback
   /-- "that turn" reads back the one turn an earlier phrase introduced; it found `found`. -/
   | turnAntecedent (found : Nat)
   /-- A Definition or Template body's later mention of a referent parameter finds no binding recorded under its

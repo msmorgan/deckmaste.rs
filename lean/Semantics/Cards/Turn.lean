@@ -37,7 +37,7 @@ def voyagerStaff : Ability :=
   activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
     (sequentially
       [ exile (target isCreature),
-        atNext .endStep (putOntoBattlefield (theVerbed (.action "exile") .one (some .card))) ])
+        atNext .endStep (putOntoBattlefield (the (and [was (exile which), isCard]))) ])
 theorem okVoyagerStaff : Ability.check (DRS.ofList []) voyagerStaff = [] := by decide
 
 def staffOfNin : Ability :=

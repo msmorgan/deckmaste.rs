@@ -44,9 +44,7 @@ semantic_definition cascade : Ability :=
           [ exile (.run .top (and [non isLand, cheaper]) (libraryOf .you)),
             may (castWithoutPaying (that .card) (some cheaper)),
             .move
-              (allFromAmong
-                (not (.did ⟨.any, cast .which, some .thisWay⟩))
-                (theVerbed (.action "exile") .many))
+              (allOf (and [isCard, was (exile which) thisWay, not (was (cast which) thisWay)]))
               .anyLocation (some onBottom) .arrival none [(.inOrder .randomOrder)] ]) ]
 /-- "Ripple N" with its definition [CR#702.60a]: "When you cast this spell, you may reveal the top
 N cards of your library. If you do, you may cast any of those cards with the same name as this
@@ -63,9 +61,8 @@ semantic_definition ripple (amount : Amount) : Ability :=
                     (those .card))
                   none,
                 .move
-                  (allFromAmong
-                    (not (.did ⟨.any, cast .which, some .thisWay⟩))
-                    (theVerbed (.action "reveal") .many (some .card)))
+                  (allOf
+                    (and [isCard, was (reveal which) thisWay, not (was (cast which) thisWay)]))
                   .anyLocation (some onBottom) .arrival none [.inOrder .anyOrder] ]))) ]
 /-- "Renown N" with its reminder text: "When this creature deals combat damage to a player, if it
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
@@ -493,24 +490,26 @@ semantic_definition dethrone : Ability :=
 [CR#702.114a,604.3a]. -/
 semantic_definition devoid : Ability :=
   .keyword (.named "devoid") [] [static (qualityDefinition this_ .sets (colored (.some [])))]
-/-- Devour's definition over the permanents `quality` describes: "As this object enters, you may
-sacrifice any number of [quality] permanents. This permanent enters with N +1/+1 counters on it for
-each permanent sacrificed this way." [CR#702.82a,702.82c] -/
-semantic_template devourEntry (quality : Predicate) (amount : Amount) : Ability :=
+/-- Devour's definition over the permanents `quality` describes, counted by the variant's head
+noun `head`: "As this object enters, you may sacrifice any number of [quality] permanents. This
+permanent enters with N +1/+1 counters on it for each [head] sacrificed this way." Devour counts
+each creature [CR#702.82a], devour [quality] each permanent [CR#702.82c]. -/
+semantic_template devourEntry (quality head : Predicate) (amount : Amount) : Ability :=
   static
     (replace (would thisPermanent enter)
       (also
         (may (sacrifice (counted anyNumber (and [quality, .in_ battlefield])))
           (some
-            (putCounters (.arith .times amount (.countOf (theVerbed (.action "sacrifice") .many)))
+            (putCounters (forEach amount (and [head, was (sacrifice which) thisWay]))
               p1p1Counter thisPermanent)))))
 /-- "Devour [quality] N", a variant of devour, so it carries devour's label [CR#702.82c]. -/
 semantic_definition devourQuality (quality : Predicate) (amount : Amount) : Ability :=
   .keyword (.named "devour") [.quality (.inCaller quality), .number (.inCaller amount)]
-    [devourEntry (.inCaller quality) (.inCaller amount)]
+    [devourEntry (.inCaller quality) isPermanent (.inCaller amount)]
 /-- "Devour N": devour over creatures [CR#702.82a]. -/
 semantic_definition devour (amount : Amount) : Ability :=
-  .keyword (.named "devour") [.number (.inCaller amount)] [devourEntry isCreature (.inCaller amount)]
+  .keyword (.named "devour") [.number (.inCaller amount)]
+    [devourEntry isCreature isCreature (.inCaller amount)]
 semantic_definition disguise (cost : Cost) : Ability :=
   .keyword (.named "disguise") [.cost (.inCaller cost)]
     [ static
@@ -821,7 +820,7 @@ semantic_definition hexproofFrom (quality : Predicate) : Ability :=
                   opponentsControl ])))
           (target thisPermanent)) ]
 semantic_definition hideaway (amount : Amount) : Ability :=
-  let exiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
+  let exiledCard : NounPhrase := the (and [was (exile which), isCard])
   .keyword (.named "hideaway") [.number (.inCaller amount)]
     [ when (does thisPermanent enter)
         (sequentially
@@ -1262,7 +1261,7 @@ semantic_definition scavenge (cost : Cost) : Ability :=
         (.compound
           [ .inCaller cost,
             .perform (exileFrom thisCard yourGraveyard) ])
-        (putCounters (powerOf (theVerbed (.action "exile") .one (some .card)))
+        (putCounters (powerOf (the (and [isCard, did you (exile which)])))
           p1p1Counter (target isCreature))
         asSorcery ]
 semantic_definition shadow : Ability :=
@@ -1373,7 +1372,7 @@ semantic_definition station : Ability :=
   .keyword (.named "station") []
     [ activatedOnlyDuring
         (.perform (tap (a (and [isCreature, .otherThan thisPermanent, isUntapped, youControl]))))
-        (putCounters (powerOf (theVerbed (.action "tap") .one (some creature)))
+        (putCounters (powerOf (the (and [was (tap which), isCreature])))
           chargeCounter thisPermanent)
         asSorcery ]
 semantic_definition storied : Ability :=
@@ -1450,7 +1449,7 @@ semantic_definition transfigure (cost : Cost) : Ability :=
           [ .search yourLibrary (oneThrough 1)
               (and
                 [.isCard, isCreature, hasManaValue .eq (.statOf (.stat .manaValue) thisPermanent)]),
-            putOntoBattlefield (theVerbed (.action "search") .one),
+            putOntoBattlefield (that .card),
             .shuffle (libraryOf .actor) ])
         asSorcery ]
 semantic_definition transmute (cost : Cost) : Ability :=
@@ -1464,10 +1463,9 @@ semantic_definition transmute (cost : Cost) : Ability :=
               (and
                 [ .isCard,
                   hasManaValue .eq
-                    (.statOf (.stat .manaValue)
-                      (theVerbed (.action "discard") .one (some .card))) ]),
-            .expose .reveal (.cards (theVerbed (.action "search") .one)),
-            putInto (theVerbed (.action "search") .one) hand,
+                    (.statOf (.stat .manaValue) (the (and [was (discard which), isCard]))) ]),
+            .expose .reveal (.cards (that .card)),
+            putInto it hand,
             .shuffle (libraryOf .actor) ])
         asSorcery ]
 semantic_definition tribute (amount : Amount) : Ability :=

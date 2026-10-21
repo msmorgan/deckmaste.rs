@@ -113,11 +113,6 @@ semantic_template splitOverPlaneswalker : NounPhrase :=
 semantic_template splitOverPermanent : NounPhrase :=
   eitherOf (.pro (.unionHalf .player) .one)
     (.possessorOf .controller (.pro (.unionHalf .permanent) .one))
-/-- "the <verb>ed <word>", e.g. "the tapped creatures"; with no word, the pronoun the deed
-stamped: "it" or "them", "the exiled card". -/
-semantic_template theVerbed (verb : Deed) (plurality : Plurality) (word : Option NounWord := none)
-    (marking : VerbedMarking := .attributive) : NounPhrase :=
-  .pro (.verbed verb word marking) plurality
 /-! ## Wildcards
 
 `any` is the unconstrained value of its sort: the unspecified agent of a passive ("can't be
@@ -191,7 +186,9 @@ semantic_template aTheirChoice (p : Predicate) : NounPhrase := .described (.a .t
 /-- "a … of your choice" -/
 semantic_template aYourChoice (p : Predicate) : NounPhrase := .described (.a .yourChoice) p
 /-- "the …" -/
-semantic_template the (p : Predicate) : NounPhrase := .described .the p
+semantic_template the (p : Predicate) : NounPhrase := .described (.the .one) p
+/-- "the …s", the definite plural: "the exiled cards", "the discarded cards" [CR#607.2a]. -/
+semantic_template thePlural (p : Predicate) : NounPhrase := .described (.the .many) p
 /-- "N …", "up to N …" -/
 semantic_template counted (q : Quantity) (p : Predicate) : NounPhrase :=
   .described (.count q none) p

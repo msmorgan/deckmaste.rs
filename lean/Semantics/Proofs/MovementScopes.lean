@@ -183,8 +183,8 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
     errors = [] ∧ beforeIds.length = 1 ∧
       (resolveCandidates .bare .one (nextClause after)).map (·.id) = beforeIds ∧
-      (resolveCandidates (.verbed (.action "search") (some .card) .attributive)
-        .one (nextClause after)).map (·.id) = beforeIds := by decide
+      (participialCandidates (.action "search") (some .one) (some .card) false
+        (nextClause after)).map (·.id) = beforeIds := by decide
 
 theorem revealedTopCardDoesNotAcquireSearchProvenance :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])

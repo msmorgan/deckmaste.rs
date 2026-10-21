@@ -27,15 +27,16 @@ target." -/
 theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
-        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target isAnyTarget) .any))) = [] := by
+        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
+          (the (and [was (discard which), isCard]))) (target isAnyTarget) .any))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
-            (theVerbed (.action "discard") .one (some (.type .creature)))) (target isAnyTarget) .any)))
-      = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
+            (the (and [was (discard which), isCreature]))) (target isAnyTarget) .any)))
+      = [.participialDescription (.action "discard") 0] := by
   decide
 
 /-- "{1}, {T}: Draw a card." -/

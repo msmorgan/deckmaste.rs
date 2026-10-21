@@ -496,7 +496,12 @@ theorem millThenPutFromAmongMilled :
       (.sequentially
         [ mill (.lit 3),
           may
-            (putInto (fromAmong (exactly 1) isArtifact (theVerbed (.action "mill") .many (some .card) .thisWay))
+            (putInto
+              (fromAmong (exactly 1) isArtifact
+                (thePlural (and [isCard,
+                  .did ⟨.any, .ownScope (some (.action "mill"))
+                    (.move (.inCaller .which) yourLibrary (some graveyard) .departure none []),
+                    some .thisWay⟩])))
               hand) ]) = [] := by
   decide
 

@@ -412,7 +412,7 @@ def meldThemInto : Action :=
         (allOf (and [ isCreature, youControl,
                        or [ named "Graf Rats",
                              named "Midnight Scavengers" ] ])),
-      meldInto (theVerbed (.action "exile") .many) "Chittering Host" ]
+      meldInto them "Chittering Host" ]
 theorem okMeldThemInto : Action.check (DRS.ofList []) meldThemInto = [] := by decide
 
 /-- Profit // Loss -/

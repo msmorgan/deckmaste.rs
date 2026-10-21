@@ -286,7 +286,7 @@ theorem okSharedSubjectDelta :
   decide
 
 theorem badSharedSubjectEmptyDelta :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.laterMention "sharedSubject.subject" (theVerbed (.action "untap") .one))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.laterMention "sharedSubject.subject" it)
       = [.bindingIdentity "sharedSubject.subject"] := by
   decide
 

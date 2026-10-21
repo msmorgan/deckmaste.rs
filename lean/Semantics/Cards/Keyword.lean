@@ -889,7 +889,7 @@ theorem okHateMirageTokens : Action.check (DRS.ofList []) hateMirageTokens = [] 
 def descentOfTheDragons : Action :=
   sequentially
     [ destroy (targets anyNumber isCreature),
-      doForEach (theVerbed (.action "destroy") .many (some creature) .thisWay)
+      doForEach (each (and [isCreature, was (destroy which) thisWay]))
         (instruct (controllerOf it) (createToken { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [dragon],
                 text := [flying], power := stat 4, toughness := stat 4 } })) ]
@@ -1153,9 +1153,8 @@ def aimHigh : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ untap (target isCreature),
               establishThroughout (conjunction
-                                     [ getsPt (theVerbed (.action "untap") .one) (up (.lit 2))
-                                         (up (.lit 2)),
-                    abilityGrant (theVerbed (.action "untap") .one) reach ]) untilEndOfTurn ]) ] } }
+                                     [ getsPt it (up (.lit 2)) (up (.lit 2)),
+                    abilityGrant it reach ]) untilEndOfTurn ]) ] } }
 
 /-- Harried Dronesmith -/
 def harriedDronesmithToken : Action :=
