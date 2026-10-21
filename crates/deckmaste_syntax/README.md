@@ -260,6 +260,18 @@ Reading that uses either Production parses its realization to decide them. A ver
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 
+A Production whose last child is a function Category aliasing its own Category
+builds an auxiliary phrase: that child is the participial Verb Phrase
+Complement of perfect *have* or of passive or progressive *be*, whereas a
+modal's bare infinitival is a Category of its own. When such a phrase is
+`VerbKind: Auxiliary` and not a coordination, it is never the head of a
+Production of its own Category whose later children are all `adjunct`s: a
+post-verbal Adjunct attaches to the lexical participial Verb Phrase inside it
+(*was [put there from the battlefield this turn]*, *have [lost this turn]*), so
+the duplicate site above it is never built (`english-lexical-analysis.md` §2).
+A coordination of auxiliary Verb Phrases still hosts an Adjunct its conjuncts
+share.
+
 ## Reading Normal Form
 
 `normal_form(reading)` identifies only the approved canonicalizations the
@@ -267,10 +279,13 @@ engine derives: every grouping of a chain joined by one coordinator becomes one
 node listing its conjuncts and then the coordinator (with no features of its
 own); a Production over a coordination of its `uncoordinated` child becomes
 the coordination of that Production over each conjunct (clause versus
-verb-phrase coordination of bare imperatives); and a Preposition Phrase
-attached as a Predicate adjunct to a head with a longer frame selecting it
-becomes that frame's complement. It endorses nothing; it lets two sets of
-Readings be compared under exactly those equivalences.
+verb-phrase coordination of bare imperatives); an Adjunct Production over an
+uncoordinated auxiliary Verb Phrase becomes the auxiliary over that Production
+of its participial Complement's Verb Phrase (adjuncts below a non-modal
+auxiliary); and a Preposition Phrase attached as a Predicate adjunct to a head
+with a longer frame selecting it becomes that frame's complement. It endorses
+nothing; it lets two sets of Readings be compared under exactly those
+equivalences.
 
 Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in

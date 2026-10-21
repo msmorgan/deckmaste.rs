@@ -25,15 +25,22 @@ impl CompiledGrammar {
     ///   Production whose child is `uncoordinated` (where the coordination one
     ///   level up is the same analysis) over a coordination of that child
     ///   becomes the coordination of the Production over each conjunct;
+    /// - adjuncts below a non-modal auxiliary: a post-verbal Adjunct of an
+    ///   uncoordinated auxiliary Verb Phrase becomes an Adjunct of the lexical
+    ///   participial Verb Phrase that is its Complement;
     /// - same-head complement priority: a Preposition Phrase attached as a
     ///   Predicate adjunct to a head that has a longer frame selecting it
     ///   becomes that frame's complement.
     #[must_use]
     pub fn normal_form(&self, reading: &Reading) -> Reading {
+        self.normalize(&self.lower_adjuncts(reading))
+    }
+
+    fn normalize(&self, reading: &Reading) -> Reading {
         let Reading::Node(node) = reading else {
             return reading.clone();
         };
-        let children: Vec<Reading> = node.children.iter().map(|c| self.normal_form(c)).collect();
+        let children: Vec<Reading> = node.children.iter().map(|c| self.normalize(c)).collect();
         let production = self
             .by_id
             .get(&node.production)
@@ -140,7 +147,7 @@ impl CompiledGrammar {
                             features.insert(name, *value);
                         }
                     }
-                    conjuncts.push(self.normal_form(&Reading::Node(ReadingNode {
+                    conjuncts.push(self.normalize(&Reading::Node(ReadingNode {
                         children: own,
                         features,
                         ..node.clone()
@@ -159,6 +166,94 @@ impl CompiledGrammar {
         // A coordination of coordinations by one coordinator is one chain.
         let Reading::Node(flat_node) = &flat else { unreachable!() };
         Self::flat_coordination(flat_node, flat_node.children.clone())
+    }
+
+    /// Adjuncts below a non-modal auxiliary, on the Reading as built: every
+    /// Adjunct Production over an uncoordinated auxiliary Verb Phrase becomes
+    /// the auxiliary over that Production of its participial Complement's
+    /// Verb Phrase, which the Production takes its features from.
+    fn lower_adjuncts(&self, reading: &Reading) -> Reading {
+        let Reading::Node(node) = reading else {
+            return reading.clone();
+        };
+        let children = node
+            .children
+            .iter()
+            .map(|c| self.lower_adjuncts(c))
+            .collect();
+        self.lower(node, children)
+    }
+
+    /// `node` over its lowered `children`, lowered if it is an Adjunct
+    /// Production over an auxiliary Verb Phrase.
+    fn lower(&self, node: &ReadingNode, children: Vec<Reading>) -> Reading {
+        let lowered = self
+            .by_id
+            .get(&node.production)
+            .filter(|&&p| self.productions[p].post_adjunct_host(0))
+            .and_then(|_| self.below_auxiliary(node, &children));
+        lowered.unwrap_or_else(|| {
+            Reading::Node(ReadingNode {
+                children,
+                ..node.clone()
+            })
+        })
+    }
+
+    /// `node`, an Adjunct Production over the auxiliary Verb Phrase that is
+    /// its first child, as the auxiliary over that Production of its
+    /// participial Complement's head Verb Phrase.
+    fn below_auxiliary(&self, node: &ReadingNode, children: &[Reading]) -> Option<Reading> {
+        let Some(Reading::Node(auxiliary)) = children.first() else {
+            return None;
+        };
+        let p = &self.productions[*self.by_id.get(&auxiliary.production)?];
+        let (at, value) = p.auxiliary?;
+        let feature = self.category_features[p.lhs][at];
+        if auxiliary.features.get(&self.features[feature])
+            != Some(&self.values[feature][usize::from(value)])
+        {
+            return None;
+        }
+        let Some(Reading::Node(complement)) = auxiliary.children.last() else {
+            return None;
+        };
+        let c = &self.productions[*self.by_id.get(&complement.production)?];
+        let head = c.rhs[..c.head?]
+            .iter()
+            .filter(|s| !matches!(s, crate::step::Symbol::Punct(..)))
+            .count();
+        let Some(Reading::Node(lexical)) = complement.children.get(head) else {
+            return None;
+        };
+        if base(&lexical.category) != base(&node.category) {
+            return None;
+        }
+        // The Production over the lexical Verb Phrase takes its features from
+        // that head; the Gap passes through the auxiliary and its Complement
+        // unchanged.
+        let mut own = children.to_vec();
+        own[0] = Reading::Node(lexical.clone());
+        let lowered = self.lower(
+            &ReadingNode {
+                features: lexical.features.clone(),
+                ..node.clone()
+            },
+            own,
+        );
+        let mut inner = complement.children.clone();
+        inner[head] = lowered;
+        let mut outer = auxiliary.children.clone();
+        *outer.last_mut()? = Reading::Node(ReadingNode {
+            children: inner,
+            gap: node.gap,
+            ..complement.clone()
+        });
+        Some(Reading::Node(ReadingNode {
+            children: outer,
+            gap: node.gap,
+            ..auxiliary.clone()
+        }))
     }
 
     /// The complement analysis equivalent to attaching `adjunct` to `host`,

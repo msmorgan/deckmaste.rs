@@ -78,5 +78,8 @@ cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`vxxvzlxt`, full corpus): faces read 28,705 → 28,705;
+   total Readings (product) 254,721 → 244,448 and Surplus 113,291 → 106,850
+   (1,895 units fewer, none more); per unit, the set of Reading Normal Forms is
+   unchanged. Lost faces: none.
+2. **Judgment set** (`vxxvzlxt`): 2,987 enforced, 195 pending; all hold.

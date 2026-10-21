@@ -236,6 +236,12 @@ pub(crate) struct Production {
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
+    /// An auxiliary Verb Phrase: the mother feature slot that holds
+    /// `VerbKind: Auxiliary`, and that value. Its last child is a function
+    /// Category aliasing its own Category, the participial Verb Phrase
+    /// Complement of perfect *have* or of passive or progressive *be*
+    /// (`Summary::auxiliary`).
+    pub auxiliary: Option<(usize, u16)>,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -393,6 +399,7 @@ pub(crate) fn resolve(
         fills_preposition: None,
         foreign_coordinators: Vec::new(),
         unlike: None,
+        auxiliary: None,
         id,
         lhs,
         rhs,
@@ -484,6 +491,10 @@ pub(crate) struct Summary {
     /// no comma-set post-dependent, which attaches inside the fronted one
     /// (`english-lexical-analysis.md` §2).
     pub fronted: bool,
+    /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
+    /// it hosts no post-verbal Adjunct, which attaches to the lexical
+    /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
+    pub auxiliary: bool,
 }
 
 /// A lexical leaf as a child sees it.
@@ -879,6 +890,21 @@ impl Production {
         (summary.set_off && first_conjunct) || (summary.fronted && post_host)
     }
 
+    /// Whether child `position` is the head of a Production of its own
+    /// Category whose every later child is an Adjunct: a post-verbal Adjunct's
+    /// host, which an auxiliary Verb Phrase never is (`Summary::auxiliary`).
+    pub(crate) fn post_adjunct_host(&self, position: usize) -> bool {
+        position == 0
+            && self.head == Some(0)
+            && self.coordinator.is_none()
+            && self.rhs.len() > 1
+            && matches!(self.rhs[0], Symbol::Cat { category, .. } if category == self.lhs)
+            && self.names[1..]
+                .iter()
+                .zip(&self.rhs[1..])
+                .all(|(name, symbol)| matches!(symbol, Symbol::Punct(..)) || name == "adjunct")
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -994,6 +1020,9 @@ impl Production {
                     return None;
                 }
                 if self.comma_scope_excludes(position, summary) {
+                    return None;
+                }
+                if summary.auxiliary && self.post_adjunct_host(position) {
                     return None;
                 }
                 if self.requires_coordination == Some(position)
@@ -1119,6 +1148,9 @@ impl Production {
                 && self.rhs.len() > 2
                 && self.head == Some(self.rhs.len() - 1)
                 && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)),
+            auxiliary: self
+                .auxiliary
+                .is_some_and(|(at, value)| values[at].get() == Some(value)),
         })
     }
 }

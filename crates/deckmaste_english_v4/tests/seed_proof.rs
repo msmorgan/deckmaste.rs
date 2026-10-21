@@ -520,3 +520,89 @@ fn normal_form_identifies_groupings_of_one_coordinator() {
         "three conjuncts and the coordinator"
     );
 }
+
+/// The Adjunct Productions in `reading` whose dependent is `adjunct`, with
+/// their host child.
+fn adjunct_hosts<'r>(s: &Seed, reading: &'r Reading, adjunct: &str) -> Vec<&'r ReadingNode> {
+    let mut out = Vec::new();
+    let mut stack = vec![reading];
+    while let Some(Reading::Node(node)) = stack.pop() {
+        if node.production.starts_with("Adjunct:") && s.surface(&node.children[1]) == adjunct {
+            out.push(node);
+        }
+        stack.extend(&node.children);
+    }
+    out
+}
+
+#[test]
+fn adjuncts_attach_below_a_non_modal_auxiliary() {
+    let s = seed();
+    let during = "during your untap step";
+    let readings = s.readings("The creature is destroyed during your untap step.");
+    // The verbal passive's Adjunct attaches to the lexical participle's
+    // phrase, never to the passive auxiliary's Verb Phrase above it; the
+    // Adjectival Passive's attaches to its copular Verb Phrase (settled
+    // analysis).
+    let mut hosts: Vec<String> = readings
+        .iter()
+        .flat_map(|r| adjunct_hosts(&s, r, during))
+        .map(|a| s.surface(&a.children[0]))
+        .collect();
+    hosts.sort();
+    assert_eq!(hosts, ["destroyed", "is destroyed"]);
+    let verbal = readings
+        .iter()
+        .find(|r| s.surface(&adjunct_hosts(&s, r, during)[0].children[0]) == "destroyed")
+        .unwrap();
+    let copular = readings.iter().find(|r| *r != verbal).unwrap();
+    assert!(s.has(copular, "Predicative", "destroyed"));
+    // Hand-build the excluded attachment to the auxiliary's Verb Phrase.
+    let adjunct = adjunct_hosts(&s, verbal, during)[0];
+    let auxiliary = find_node(verbal, &|n| n.production == "Passive").unwrap();
+    let complement = node(&auxiliary.children[1]);
+    let lowered = Reading::Node(ReadingNode {
+        children: vec![adjunct.children[0].clone()],
+        ..complement.clone()
+    });
+    let bare = Reading::Node(ReadingNode {
+        children: vec![auxiliary.children[0].clone(), lowered],
+        ..auxiliary.clone()
+    });
+    let excluded = Reading::Node(ReadingNode {
+        features: auxiliary.features.clone(),
+        children: vec![bare, adjunct.children[1].clone()],
+        ..adjunct.clone()
+    });
+    let excluded = replace(verbal, auxiliary, &excluded);
+    assert_eq!(s.surface(&excluded), s.surface(verbal));
+    assert!(
+        s.grammar.admit(&excluded, &s.lexicon).is_err(),
+        "an uncoordinated auxiliary Verb Phrase hosts no post-verbal Adjunct"
+    );
+    assert_eq!(
+        s.grammar.normal_form(&excluded),
+        s.grammar.normal_form(verbal)
+    );
+    // A coordination of auxiliary Verb Phrases hosts an Adjunct its conjuncts
+    // share.
+    let coordinated = s.readings("The creature is destroyed or is exiled during your untap step.");
+    assert!(
+        coordinated
+            .iter()
+            .flat_map(|r| adjunct_hosts(&s, r, during))
+            .any(|a| s.surface(&a.children[0]) == "is destroyed or is exiled")
+    );
+}
+
+/// The first node in `reading`, in preorder, that satisfies `test`.
+fn find_node<'r>(
+    reading: &'r Reading,
+    test: &dyn Fn(&ReadingNode) -> bool,
+) -> Option<&'r ReadingNode> {
+    let node = reading.node()?;
+    if test(node) {
+        return Some(node);
+    }
+    node.children.iter().find_map(|c| find_node(c, test))
+}
