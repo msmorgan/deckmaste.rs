@@ -33,19 +33,20 @@ Equality in the second law preserves grammatical structure, lexical identities,
 features and retained spelling variants; computed source positions are not
 identity. No source-buffer echo or opaque catch-all leaf counts as realization.
 Punctuation may decide an analysis, but its presence is not stored in a Reading;
-realization derives it from structure.
-The exception is the separator in a keyword-ability list: Oracle permits both
-commas and semicolons here, so the Reading retains that spelling distinction
-to satisfy the round-trip laws. This does not license retaining punctuation
-whose spelling is determined by the construction.
+realization derives it from structure. This includes the separator in a
+keyword-ability list, which is always a comma once reminder text is removed
+(see below).
 
 **Facts about the input.** The supported corpus is the Vintage-playable cards
 (legal or restricted), excluding Scryfall `set_type: funny`. Balanced
 parenthesised reminder text is removed before analysis; the original Oracle text
-is kept as source metadata. A card's Shortened Name is in scope only on that
-card's own text [CR#201.5c]; full names are in scope everywhere. The census
-enumerates, validates, counts and digests per unit below the face, and a face's
-reported count is a sum over its units.
+is kept as source metadata. Oracle separates the keywords of a keyword line with
+semicolons only because one of them carries reminder text, so on a line that
+loses reminder text and holds no sentence, those semicolons become commas. A
+card's Shortened Name is in scope only on that card's own text [CR#201.5c]; full
+names are in scope everywhere. The census enumerates, validates, counts and
+digests per unit below the face, and a face's reported count is a sum over its
+units.
 
 ## 2. What a Reading is
 

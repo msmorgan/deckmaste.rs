@@ -85,8 +85,9 @@ a Reading count. A rule, feature or production that would exist only to reject
 some text is never added, and no entry asks for one.
 
 Punctuation that the construction determines is never stored in a Reading.
-The separator between the keywords of a keyword line is the known exception:
-Oracle uses both commas and semicolons there, so a Reading keeps it.
+The separator between the keywords of a keyword line is always a comma: Oracle's
+semicolons there exist only beside reminder text, and become commas when it is
+removed.
 
 ## Conventions
 

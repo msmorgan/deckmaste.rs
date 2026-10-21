@@ -384,7 +384,6 @@
         (name: "KeywordAbilityList", lhs: "Ability", rhs: [Cat("head", "KeywordList")]),
         (name: "SingleKeyword", lhs: "KeywordList", rhs: [Cat("head", "KeywordLineItem")]),
         (name: "CommaKeywords", lhs: "KeywordList", rhs: [Cat("first", "KeywordLineItem"), Punct(','), Cat("rest", "KeywordList")]),
-        (name: "SemicolonKeywords", lhs: "KeywordList", rhs: [Cat("first", "KeywordLineItem"), Punct(';'), Cat("rest", "KeywordList")]),
         (name: "TypesOnly", lhs: "TypeLine", rhs: [Cat("head", "CardTypes")]),
         (name: "TypesWithSubtypes", lhs: "TypeLine", rhs: [Cat("head", "CardTypes"), Mark('—', Free), Cat("subtypes", "Subtypes")]),
         (name: "SupertypePrefix", lhs: "TypeLine", rhs: [Class("modifier", "Supertype"), Cat("head", "TypeLine")]),

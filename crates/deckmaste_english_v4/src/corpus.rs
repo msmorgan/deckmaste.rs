@@ -75,7 +75,8 @@ pub fn card_name_lexeme(name: &str) -> LexemeId {
 }
 
 /// The rules-text units of a face: its paragraph lines after balanced
-/// reminder text is removed, trimmed, without empty lines. A line break
+/// reminder text is removed (a keyword line's semicolon separators becoming
+/// commas with it), trimmed, without empty lines. A line break
 /// inside a quotation that closes later in the text does not end a line.
 #[must_use]
 pub fn split_lines(oracle_text: &str) -> Vec<String> {
@@ -181,6 +182,18 @@ mod tests {
                 "Flying (This creature can't be blocked.)\n(Reminder only.)\n{T}: Add {G}."
             ),
             ["Flying", "{T}: Add {G}."]
+        );
+    }
+
+    #[test]
+    fn keyword_semicolons_become_commas_with_the_reminder_text() {
+        // Shu General's Oracle text.
+        assert_eq!(
+            split_lines(
+                "Vigilance; horsemanship (This creature can't be blocked except by \
+                 creatures with horsemanship.)"
+            ),
+            ["Vigilance, horsemanship"]
         );
     }
 

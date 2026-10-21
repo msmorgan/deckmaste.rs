@@ -1,5 +1,7 @@
 //! Independent Reading construction and document round trips for Stratum 0.
 
+use std::collections::BTreeMap;
+
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
@@ -9,7 +11,6 @@ use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::Gap;
 use deckmaste_syntax::Reading;
 use deckmaste_syntax::ReadingNode;
-use std::collections::BTreeMap;
 
 fn node(production: &str, category: &str, children: Vec<Reading>) -> Reading {
     Reading::Node(ReadingNode {
@@ -51,7 +52,7 @@ fn keyword(lemma: &str, capitalization: SurfaceCase) -> Reading {
 }
 
 #[test]
-fn independently_constructed_keyword_lists_retain_each_separator() {
+fn independently_constructed_keyword_list_round_trips() {
     let env = LexicalEnvironment::load().unwrap();
     let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
     let tail = node(
@@ -59,29 +60,22 @@ fn independently_constructed_keyword_lists_retain_each_separator() {
         "KeywordList",
         vec![keyword("vigilance", SurfaceCase::Declared)],
     );
-    let mut readings = Vec::new();
-    for (production, surface) in [
-        ("CommaKeywords", "Flying, vigilance"),
-        ("SemicolonKeywords", "Flying; vigilance"),
-    ] {
-        let list = node(
-            production,
-            "KeywordList",
-            vec![keyword("flying", SurfaceCase::Initial), tail.clone()],
-        );
-        let reading = node(
-            "TextAbility",
-            "Document",
-            vec![node("KeywordAbilityList", "Ability", vec![list])],
-        );
-        grammar.admit(&reading, &env.lexicon).unwrap();
-        assert_eq!(grammar.realize(&reading, &env.lexicon).unwrap(), surface);
-        let parse = grammar.parse(&env.lexicon, surface);
-        parse.verify_realization(&env.lexicon).unwrap();
-        assert!(parse.contains(&reading));
-        readings.push(reading);
-    }
-    assert_ne!(readings[0], readings[1]);
+    let list = node(
+        "CommaKeywords",
+        "KeywordList",
+        vec![keyword("flying", SurfaceCase::Initial), tail],
+    );
+    let reading = node(
+        "TextAbility",
+        "Document",
+        vec![node("KeywordAbilityList", "Ability", vec![list])],
+    );
+    grammar.admit(&reading, &env.lexicon).unwrap();
+    let surface = "Flying, vigilance";
+    assert_eq!(grammar.realize(&reading, &env.lexicon).unwrap(), surface);
+    let parse = grammar.parse(&env.lexicon, surface);
+    parse.verify_realization(&env.lexicon).unwrap();
+    assert!(parse.contains(&reading));
 }
 
 #[test]

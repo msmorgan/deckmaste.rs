@@ -87,7 +87,7 @@
 +AdjectivePhrase equal
 +AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of great
 + Flying
-+ Flying, vigilance; haste
++ Flying, vigilance, haste
 + Ward {2}{U}
 + Frenzy 2
 + Flying (Draw cards.)
@@ -101,7 +101,7 @@
 + Creatures have "{T}: Draw cards."
 +KeywordPhrase Ward
 +KeywordPhrase Frenzy
-+ Flying; ward {2}{T}
++ Flying, ward {2}{T}
 +KeywordPhrase ward
 + Spells that target target creatures attack. => RelativeClause "that target target creatures" gap "Spells"; NounPhrase "target creatures" as Object of target
 + Target creatures attack.

@@ -11,4 +11,4 @@
 +KeywordPhrase Forestwalk
 +KeywordPhrase Landwalk
 + Equipped creature has nonbasic landwalk. => KeywordPhrase "nonbasic landwalk"
-+ First strike; legendary landwalk => KeywordPhrase "legendary landwalk"
++ First strike, legendary landwalk => KeywordPhrase "legendary landwalk"

@@ -269,9 +269,10 @@ belongs to Stratum 3 even inside a keyword parameter.
 
 A `KeywordPhrase` distinguishes supplied parameters from an omitted-parameter
 mention. Keyword lists require supplied parameters; noun modifiers and selected
-keyword complements can use mentions. Comma and semicolon keyword separators
-are distinct Productions, so their Readings retain the permitted spelling
-choice. Other punctuation and symbol attachment are derived from structure.
+keyword complements can use mentions. Keyword lists separate their items with
+commas: reminder-text removal turns Oracle's semicolon separators (used only
+beside reminder text) into commas. Punctuation and symbol attachment are
+derived from structure.
 
 The load report identifies the one-member `RangeMarker` lexical class: it
 contains the level-range notation marker. This keeps the marker's spelling in

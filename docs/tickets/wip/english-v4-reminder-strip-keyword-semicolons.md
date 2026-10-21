@@ -34,3 +34,9 @@ stripped, and every one of them had reminder text. None lacks it.
 - A corpus test pins the normalization on one real card, for example Shu General.
 
 Standard constraints apply.
+
+1. **Census delta** (measured on `suumltxq`): faces read 28,709 → 28,709;
+   total Readings 346,725 → 346,725; lost faces: none. The 31 affected units
+   now read as comma lists through `CommaKeywords`, each with its baseline
+   Reading count.
+2. **Judgment set**: passes (2,909 enforced, 191 pending).

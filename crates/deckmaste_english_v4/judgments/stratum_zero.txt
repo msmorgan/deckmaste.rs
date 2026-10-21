@@ -1,8 +1,8 @@
 # Card-frame syntax, keyword parameter frames, and outer spines over seed payloads.
 + Legendary Artifact Creature — Golem => TypeLine "Legendary Artifact Creature — Golem"
 + Basic Snow Land — Island => TypeLine "Basic Snow Land — Island"
-+ Flying, vigilance; trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
-+ Flying; vigilance, trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
++ Flying, vigilance, trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
++ Vigilance; horsemanship (This creature can't be blocked except by creatures with horsemanship.) => KeywordPhrase "Vigilance"; KeywordPhrase "horsemanship"; readings 1
 + Ward {2}
 + Equip—Sacrifice a creature.
 + Equip legendary creature {1} => Quality "legendary creature"

@@ -596,7 +596,7 @@ fn keyword_line<'e>(payload: &[Tok<'e>], families: &mut BTreeSet<Family>) -> boo
         return false;
     }
     let items: Vec<&[Tok<'e>]> = payload
-        .split(|t| t.is_punct(',') || t.is_punct(';'))
+        .split(|t| t.is_punct(','))
         .filter(|item| !item.is_empty())
         .collect();
     // A keyword, or a bound keyword after its stem (*Swamp*·*walk*).
