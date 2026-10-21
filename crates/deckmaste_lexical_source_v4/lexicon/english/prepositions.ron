@@ -8,8 +8,8 @@
 // complement, not complex prepositions (pp. 616, 624-625).
 //
 // A Nominal complement is a bare singular count nominal: *until end of turn*,
-// *in addition to*, *on top of*. A Pred complement is CGEL's preposition +
-// adjective idiom: *at random*, *in common* (p. 626).
+// *on top of*. A Pred complement is CGEL's preposition + adjective idiom:
+// *at random*, *in common* (p. 626).
 //
 // A PresentClause complement is a finite Clause in the present tense: Oracle
 // states a repeated trigger event, a state or an endpoint in the simple
@@ -114,13 +114,24 @@
         (complement: VerblessClause, hosts: Predicate),
     ]),
     // *cards in your graveyard*; *Put the rest ... in a random order*;
-    // *cards in hand*; *is a Ninja in addition to its other types*;
-    // *have a creature type in common*; *phases in*
+    // *cards in hand*; *have a creature type in common*; *phases in*
     (lemma: "in", frames: [
         (complement: NP, hosts: NominalAndPredicate),
         (complement: Nominal, hosts: NominalAndPredicate),
         (complement: AdjP, hosts: Predicate),
         (complement: Intransitive, hosts: ComplementOnly),
+    ]),
+    // *In addition* licenses the *to* phrase as a unit, CGEL's layered head
+    // (Ch. 7 §3.1, pp. 622-623): *addition* never takes a *to* complement
+    // elsewhere in Oracle text, and a layered head is a compound preposition
+    // like *instead*, only composite. Oracle uses it only to keep types or
+    // costs, so it modifies a predicate, never a nominal: *is a Ninja in
+    // addition to its other types*; *by paying 3 life in addition to paying
+    // their other costs* (oracle-style-guide §7, "Type changes and
+    // retention"; §12, "Colors and types").
+    (lemma: "in addition", frames: [
+        (complement: PP(["to"]), hosts: Predicate),
+        (complement: Intransitive, hosts: Predicate),
     ]),
     // *cards you've drafted this draft round, including this card*
     // Oracle sets it off by a comma: a Supplement (*note how many cards

@@ -63,5 +63,8 @@ emptied:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`mnpnoqsp`): faces read 28,709 → 28,709; Readings
+   (product) 327,929 → 307,104; Surplus 175,304 → 155,881. 286 units fell,
+   every one containing *in addition*; none rose, none emptied, no verdict
+   changed. Lost faces: none.
+2. **Judgment set** (`mnpnoqsp`): 2,978 enforced, 195 pending, 0 failures.

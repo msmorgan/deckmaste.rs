@@ -15,3 +15,7 @@
 + Create a token that's a copy of target creature, except it's an artifact and it has flying.
 + This creature becomes a copy of target creature, except it's an artifact in addition to its other types.
 +VerbPhrase enter as a copy of this creature, except it has flying => PrepositionPhrase "except it has flying" as Adjunct of enter
+# *In addition to its other types* modifies the predicate *be*, never the
+# type nominal it follows.
++ <card=Activated Sleeper> You may have this creature enter as a copy of any creature card in a graveyard that was put there from the battlefield this turn, except it's a Phyrexian in addition to its other types. => PrepositionPhrase "in addition to its other types" as Adjunct of be; !Nominal "Phyrexian in addition to its other types"
++ <card=Deceptive Frostkite> You may have this creature enter as a copy of a creature you control with power 4 or greater, except it's a Dragon in addition to its other types and it has flying. => PrepositionPhrase "in addition to its other types" as Adjunct of be; !Nominal "Dragon in addition to its other types"

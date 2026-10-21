@@ -8,8 +8,6 @@
     // Game nouns.
     (lemma: "ability", frames: [Complement(PP(["of"]))]),
     "activation",
-    // *in addition to*, or *in addition* alone (CGEL, Ch. 7 §3.1, p. 620).
-    (lemma: "addition", frames: [Complement(PP(["to"])), Intransitive]),
     (lemma: "amount", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "attacker",
     // Pre-head dependent in "base power and toughness"; a noun, so that it
