@@ -21,6 +21,7 @@ fn verb(lemma: &str, frames: Vec<FrameSpec>) -> VerbEntry {
         form_of: None,
         binding: None,
         frames,
+        active_only: false,
     }
 }
 
@@ -47,6 +48,15 @@ fn a_verb_has_a_frame() {
     let mut sources = Sources::load().unwrap();
     sources.verbs.push(verb("frobnicate", Vec::new()));
     rejects(&sources, "at least one Subcategorization Frame");
+}
+
+#[test]
+fn only_a_verb_with_frames_restricts_them_to_active_voice() {
+    let mut sources = Sources::load().unwrap();
+    let mut auxiliary = verb("frobnicate", Vec::new());
+    auxiliary.active_only = true;
+    sources.closed_class.auxiliaries.push(auxiliary);
+    rejects(&sources, "restricts them to active voice");
 }
 
 #[test]

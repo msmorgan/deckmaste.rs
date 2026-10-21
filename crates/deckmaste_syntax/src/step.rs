@@ -128,6 +128,9 @@ pub(crate) enum Test {
     /// A free lexeme of this Category whose Complement is optional: it
     /// declares no Subcategorization Frame, or an Intransitive one.
     FreeOptional(LexicalCategory),
+    /// A free lexeme of this Category not every Frame of which is restricted
+    /// to active voice: an Active-only verb has no passive participle.
+    FreeNotActiveOnly(LexicalCategory),
     Numeral(deckmaste_lexical::Numeral),
     Word(LexemeId),
     Class(usize),
@@ -634,7 +637,9 @@ impl Production {
             ChildView::Node(summary) => {
                 if let Some((at, closed)) = &self.unextended
                     && *at == position
-                    && summary.final_preposition.is_some_and(|p| closed.contains(&p))
+                    && summary
+                        .final_preposition
+                        .is_some_and(|p| closed.contains(&p))
                 {
                     return None;
                 }
@@ -830,9 +835,12 @@ impl Production {
             (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) => {
                 Some((lexeme, Some(*frame)))
             }
-            (Symbol::Leaf(Test::FreeLexical(_) | Test::FreeOptional(_)), Some(lexeme)) => {
-                Some((lexeme, None))
-            }
+            (
+                Symbol::Leaf(
+                    Test::FreeLexical(_) | Test::FreeOptional(_) | Test::FreeNotActiveOnly(_),
+                ),
+                Some(lexeme),
+            ) => Some((lexeme, None)),
             _ => None,
         };
         if let Some(key) = key {
@@ -1113,6 +1121,12 @@ impl CompiledGrammar {
                 leaf.category == *category
                     && facts.is_some_and(|f| {
                         f.binding == deckmaste_lexical::Binding::Free && f.optional_complement
+                    })
+            }
+            Test::FreeNotActiveOnly(category) => {
+                leaf.category == *category
+                    && facts.is_some_and(|f| {
+                        f.binding == deckmaste_lexical::Binding::Free && !f.active_only
                     })
             }
             Test::Numeral(notation) => leaf.notation == Some(*notation),

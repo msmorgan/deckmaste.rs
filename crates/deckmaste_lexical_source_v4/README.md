@@ -61,6 +61,9 @@ frame with its Host Category; `Intransitive` is an Intransitive Preposition
 declared, that every verb has a frame, and that each frame has the shape of
 its family. Only an auxiliary in `closed_class.ron` may have no frame (perfect
 *have*, *hasn't*, contracted *'ve*): the grammar names those as Closed Words.
+A verb whose frames are restricted to active voice declares `active_only: true`
+(*cost*, lexical *have*: CGEL, Ch. 16 §10.1.2, p. 1432); its frames derive no
+passive, and only a verb with frames may declare it.
 Contracted auxiliaries (*'ve*, *'re*, *'m*, *'s*) are suffix-bound verbs with
 full finite bundles; the genitive *'s* is a different Lexeme with the same
 spelling.

@@ -116,7 +116,10 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   not *draw 2/2*); like a keyword-phrase Object it derives no passive.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
-  preposition among its Complements (*come up heads*).
+  preposition among its Complements (*come up heads*). A frame marked
+  `active_only` (an Active-only Frame: *cost*, lexical *have*) derives no
+  passive of any kind: verbal, prepositional or adjectival. A verb whose every
+  frame is Active-only has no past participle in a `Premodification` either.
 - `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause

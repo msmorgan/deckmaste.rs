@@ -914,7 +914,15 @@ A systematic relation between the Complement realizations of one
 Subcategorization Frame, such as active and passive Voice, Extraction of a
 Complement to leave a Gap, or a Shared Complement under Right Node Raising.
 Valence Alternations follow from a head's active frames; they are never
-declared per lexeme.
+declared per lexeme. An Active-only Frame has no passive Valence Alternation.
+
+**Active-only Frame** (project term):
+A Verb Frame restricted to active voice: its Object cannot be externalised by
+passivisation, as with *cost* and *have* (*A packet of cigarettes costs around
+seven dollars*, *Jill has the best qualifications*) (CGEL, Ch. 16 §10.1.2,
+p. 1432). The restriction is a lexical property of the verb in that sense, not
+a sign that its post-verbal Noun Phrase is no Object.
+_Avoid_: intransitive for such a verb
 
 **Frame Slot** (project term):
 One position in a lexical subcategorization frame: the grammatical relation the

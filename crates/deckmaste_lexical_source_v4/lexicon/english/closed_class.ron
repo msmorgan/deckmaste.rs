@@ -150,9 +150,12 @@
             frames: [Intransitive, Monotransitive]),
         (lemma: "don't", form_of: Some("do"), third_singular: "doesn't", preterite: "didn't", finite_only: true,
             negative: true, frames: [Catenative(BareInf), Intransitive]),
-        // *you may have target player reveal their hand*
+        // *you may have target player reveal their hand*. Lexical *have* is
+        // restricted to active voice (CGEL, Ch. 16 §10.1.2, p. 1432, [17]);
+        // the perfect auxiliary is the grammar's.
         (lemma: "have", third_singular: "has", past: "had",
-            frames: [Monotransitive, Transitive(KeywordPhrase), Catenative(ToInf), ComplexCatenative(BareInf)]),
+            frames: [Monotransitive, Transitive(KeywordPhrase), Catenative(ToInf), ComplexCatenative(BareInf)],
+            active_only: true),
         // Only the perfect auxiliary (*hasn't been chosen*), which the grammar
         // names; no frame selects a past participle.
         (lemma: "haven't", form_of: Some("have"), third_singular: "hasn't", preterite: "hadn't",

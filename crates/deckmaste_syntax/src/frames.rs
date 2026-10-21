@@ -172,6 +172,12 @@ pub struct FrameSlot {
 pub struct Frame {
     pub family: FrameFamily,
     pub slots: Vec<FrameSlot>,
+    /// The frame is restricted to active voice, so it derives no passive
+    /// Valence Alternation: *A packet of cigarettes costs around seven
+    /// dollars*, *Jill has the best qualifications* (CGEL, Ch. 16 §10.1.2,
+    /// p. 1432, [17]).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub active_only: bool,
 }
 
 impl Frame {

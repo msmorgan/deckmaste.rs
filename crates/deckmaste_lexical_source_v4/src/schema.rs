@@ -200,6 +200,10 @@ pub struct VerbEntry {
     /// Closed Word or Lexical Class member (perfect *have*, *hasn't*, *'ve*).
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+    /// Every frame is restricted to active voice and derives no passive
+    /// (CGEL, Ch. 16 §10.1.2, p. 1432): *costs {1} less*, *has flying*.
+    #[serde(default)]
+    pub active_only: bool,
 }
 
 /// Noun subclasses with distinct adjunct distributions.

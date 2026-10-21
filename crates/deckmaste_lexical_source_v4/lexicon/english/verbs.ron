@@ -36,7 +36,8 @@
     (lemma: "control", past: "controlled", gerund: "controlling", frames: [Monotransitive]),
     (lemma: "copy", frames: [Monotransitive]),
     // A hollow *to*-infinitival Complement (CGEL, Ch. 14 §6.3(c), p. 1250).
-    (lemma: "cost", past: "cost", frames: [Monotransitive, TransitiveWithComplement(HollowToInf)]),
+    // Restricted to active voice (CGEL, Ch. 16 §10.1.2, p. 1432, [17]).
+    (lemma: "cost", past: "cost", frames: [Monotransitive, TransitiveWithComplement(HollowToInf)], active_only: true),
     (lemma: "count", frames: [Monotransitive]),
     // Ditransitive for the recipient passive *this creature is dealt damage*.
     (lemma: "deal", past: "dealt",

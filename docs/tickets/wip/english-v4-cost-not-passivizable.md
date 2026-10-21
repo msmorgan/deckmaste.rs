@@ -61,5 +61,8 @@ About 1,400 Surplus over 13 units, none emptied:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (measured on `mxukolkx`): faces read 28,709 → 28,709;
+   total Readings 327,929 → 325,187 (Surplus 175,304 → 173,822, over 19
+   units, none rising); lost faces: none.
+2. **Judgment set**: 2,977 enforced at `COMPLETED_STRATUM` 6, all hold; 195
+   pending.

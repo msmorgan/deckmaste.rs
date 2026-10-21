@@ -459,6 +459,7 @@ fn normal_form_identifies_same_head_complement_priority() {
                 relation: SlotRelation::Object,
                 fill: SlotFill::NP,
             }],
+            active_only: false,
         }),
         children: vp.children[..2].to_vec(),
         ..vp.clone()

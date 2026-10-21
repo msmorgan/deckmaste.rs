@@ -51,6 +51,8 @@ pub(crate) struct Builder {
         std::collections::BTreeMap<LexemeId, Vec<Vec<deckmaste_syntax::frames::ParameterPart>>>,
     pub(crate) lexemes: Vec<Lexeme>,
     frames: Vec<(LexemeId, Category, Vec<FrameSpec>, String)>,
+    /// Verbs whose every frame is restricted to active voice.
+    active_only: std::collections::BTreeSet<LexemeId>,
     prepositions: Vec<(LexemeId, Vec<PrepositionFrameSpec>, String)>,
 }
 
@@ -137,6 +139,11 @@ impl Builder {
         if entry.frames.is_empty() && !auxiliary {
             return Err(invalid(
                 "a verb declares at least one Subcategorization Frame",
+            ));
+        }
+        if entry.active_only && entry.frames.is_empty() {
+            return Err(invalid(
+                "only a verb with frames restricts them to active voice",
             ));
         }
         if entry.binding.is_some() && !auxiliary {
@@ -253,6 +260,9 @@ impl Builder {
         let id = lexeme.id;
         self.push(lexeme);
         self.frames(id, Category::Verb, &entry.frames);
+        if entry.active_only {
+            self.active_only.insert(id);
+        }
         Ok(())
     }
 
@@ -391,7 +401,8 @@ impl Builder {
         for (id, category, specs, owner) in &self.frames {
             let mut frames = Vec::new();
             for spec in specs {
-                let frame = resolver.frame(spec, *category, owner)?;
+                let mut frame = resolver.frame(spec, *category, owner)?;
+                frame.active_only = self.active_only.contains(id);
                 if frames.contains(&frame) {
                     return Err(SourceError::Invalid(format!(
                         "`{owner}` declares {spec:?} twice"
@@ -429,8 +440,8 @@ impl Builder {
 }
 
 /// Marks each free noun and adjective whose lemma is also a free word of the
-/// other Category, a pair related by conversion (*His tie is brown* beside *a dark
-/// shade of brown*; CGEL, Ch. 19 §3.3, p. 1642), with `Conversion:
+/// other Category, a pair related by conversion (*His tie is brown* beside *a
+/// dark shade of brown*; CGEL, Ch. 19 §3.3, p. 1642), with `Conversion:
 /// Converted`.
 fn mark_conversions(lexemes: &mut [Lexeme]) {
     let lemmas = |category: Category| -> BTreeSet<String> {
@@ -642,7 +653,11 @@ impl Resolver<'_> {
                 "`{owner}`: {spec:?} is not a frame of a {category:?}"
             )));
         }
-        let frame = Frame { family, slots };
+        let frame = Frame {
+            family,
+            slots,
+            active_only: false,
+        };
         if !frame.is_well_formed() {
             return Err(SourceError::Invalid(format!(
                 "`{owner}`: {spec:?} does not have the shape of its family"

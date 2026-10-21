@@ -119,7 +119,8 @@ known-wrong analysis as coverage.
 declared verb and noun receives its full English inflectional paradigm, and
 every declared complement frame automatically receives its active, passive,
 gapped, and shared-complement derivations whether or not cards exercise every
-combination. Syntactic schemas and unselected host categories, by contrast,
+combination; only an Active-only Frame (*cost*, *have*: CGEL, Ch. 16 §10.1.2,
+p. 1432) derives no passive. Syntactic schemas and unselected host categories, by contrast,
 model the controlled technical register of **Oracle English**
 (`docs/oracle-style-guide.md`), not unrestricted open-domain English. *The
 Cambridge Grammar of the English Language* (CGEL) supplies standard grammatical

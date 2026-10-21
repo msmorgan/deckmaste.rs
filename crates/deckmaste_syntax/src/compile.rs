@@ -62,6 +62,9 @@ pub(crate) struct LexemeFacts {
     /// makes Complements obligatory: it declares no Frame, or an
     /// Intransitive one.
     pub optional_complement: bool,
+    /// Whether every Frame it declares is restricted to active voice, so it
+    /// has no passive participle (*cost*, lexical *have*).
+    pub active_only: bool,
     pub preposition_frames: BTreeSet<usize>,
 }
 
@@ -404,6 +407,7 @@ impl<'a> Binder<'a> {
                     binding: lexeme.binding,
                     frames: BTreeSet::new(),
                     optional_complement: true,
+                    active_only: false,
                     preposition_frames: BTreeSet::new(),
                 },
             );
@@ -426,6 +430,7 @@ impl<'a> Binder<'a> {
             }
             facts.optional_complement =
                 list.is_empty() || list.iter().any(|f| f.family == FrameFamily::Intransitive);
+            facts.active_only = !list.is_empty() && list.iter().all(|f| f.active_only);
         }
         for (id, list) in &catalog.prepositions {
             let facts = lexemes
@@ -1326,11 +1331,14 @@ impl<'a> Binder<'a> {
                 modifier_id,
                 0,
             );
-            let child = leaf.child(
-                "head",
-                Symbol::Leaf(Test::FreeLexical(head)),
-                GapRule::Closed,
-            );
+            // An Active-only verb has no passive participle, so none of its
+            // forms premodifies as one (CGEL, Ch. 16 §10.1.2, p. 1432).
+            let test = if *form == deckmaste_lexical::WordForm::PastParticiple {
+                Test::FreeNotActiveOnly(head)
+            } else {
+                Test::FreeLexical(head)
+            };
+            let child = leaf.child("head", Symbol::Leaf(test), GapRule::Closed);
             let inflection = self.feature("Inflection")?;
             leaf.equations.push((
                 Path::Child(child, inflection),
@@ -1631,6 +1639,9 @@ impl<'a> Binder<'a> {
                 }
             }
             drafts.extend(family);
+            // A frame restricted to active voice derives no passive of any
+            // kind: verbal, prepositional or adjectival.
+            let passive = passive.filter(|_| !frame.active_only);
             if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
                 && matches!(slots.first(), Some(SlotFill::NP))
             {
@@ -2901,7 +2912,8 @@ pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {
         FrameFamily::Intransitive => "Intransitive".to_owned(),
         family => format!("{family:?}"),
     };
-    format!("Valence:{phrase}/{family}({})", slots.join(","))
+    let voice = if frame.active_only { "[ActiveOnly]" } else { "" };
+    format!("Valence:{phrase}/{family}({}){voice}", slots.join(","))
 }
 
 /// What a Frame Slot selects, as same-head complement priority sees it.

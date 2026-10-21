@@ -1,0 +1,2 @@
+# "cost" and lexical "have" are restricted to active voice (CGEL, Ch. 16 §10.1.2, p. 1432, [17]): neither has a passive participle, so "cost" in "its activation cost" is a noun
++ <card=Magus Lucea Kane> Psychic Stimulus — {T}: Add {C}{C}. When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its activation cost this turn, copy that spell or ability. You may choose new targets for the copy. => NounPhrase "its mana cost"; NounPhrase "its activation cost"; !VerbPhrase "cost"
