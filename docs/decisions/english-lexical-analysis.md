@@ -67,7 +67,13 @@ of the text.** Six canonicalizations are approved:
   distinguishes them;
 - **same-head complement priority:** when a head's selected subcategorization
   frame licenses a preposition phrase as a complement, that same head instance
-  does not also attach the same preposition phrase as an unselected adjunct;
+  does not also attach the same preposition phrase as an unselected adjunct.
+  It extends to a noun that stands bare with its Complement omitted: a
+  preposition phrase right after it that one of its frames selects is that
+  noun's Complement, never a dependent of another host (*on top [of your
+  library]*, *equal to the number [of cards in their hand]*; CGEL, Ch. 5 §14.1,
+  pp. 439–441, and §15, p. 454). Its prepositions pass up the right edge of
+  every constituent that ends in the bare noun;
 - **adjuncts below a non-modal auxiliary:** a post-verbal adjunct after the
   participial Verb Phrase complement of perfect *have* or of passive or
   progressive *be* attaches to that lexical participial Verb Phrase, never to

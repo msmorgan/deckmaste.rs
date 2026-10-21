@@ -83,10 +83,22 @@ which removed the same split for nouns that may not stand bare (*the amount of
   the fix cannot be done that way, STOP and return to the owner.
 - `pile` has no *of* frame today, though Oracle uses *a pile of* (8 times) and
   *piles of* (2 times). Declare it in `nouns.ron`.
+  - Owner's ruling (2026-10-21): `pile` stays without an *of* frame. Every
+    Vintage-legal *pile of* is descriptive (*the pile of their choice*), and
+    `nouns.ron` gives a descriptive *of*-phrase no frame; *a pile of
+    creatures* and *piles of three cards* appear only on minigame cards.
 - Extending the closure to every noun with a declared *of* frame (*ability,
   copy, controller, power, value, kind*, …) is the implementer's call. Do it
   only if the census shows no lost face and no unit gaining a Reading, and
   record the outcome here.
+  - Outcome (ztpwvnym): the closure covers every noun with a PP Complement
+    frame, since the listed nouns declare theirs exactly as *ability* or *copy*
+    do. No face is lost. The one unit that gains Readings is Tawnos's Coffin
+    (192 → 336 on the combined line), where *number* and *kind* both declare
+    an *of* frame. Its old Readings all stranded *of counters* outside *noted
+    number and kind*; gap-transparent participial premodification now gives
+    the shared Complement analysis instead.
+  - Owner's ruling (2026-10-21): the Tawnos's Coffin rise is accepted.
 - Not affected:
   - *the top three cards of your library*: *of …* stays on *cards*;
   - *the number of colors of mana spent …*: *of mana* stays a Modifier of
@@ -122,5 +134,5 @@ All figures are from the cost-audit evaluation data, measured on `loxuknun`.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+Census delta (ztpwvnym): faces read 28,705 → 28,705; Readings 243,154 → 218,665 (Surplus 106,258 → 91,446); lost faces: none.
+Judgment set (ztpwvnym): `cargo test -p deckmaste_english_v4` passes (3,000 enforced, 198 pending), including the new `relational_noun_complements.txt`.

@@ -242,6 +242,9 @@ pub(crate) struct Production {
     /// Complement of perfect *have* or of passive or progressive *be*
     /// (`Summary::auxiliary`).
     pub auxiliary: Option<(usize, u16)>,
+    /// A noun's bare phrase, which omits the Complements its head's frames
+    /// select (`Summary::omitted_complement`).
+    pub omits_complement: bool,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -400,6 +403,7 @@ pub(crate) fn resolve(
         foreign_coordinators: Vec::new(),
         unlike: None,
         auxiliary: None,
+        omits_complement: false,
         id,
         lhs,
         rhs,
@@ -427,6 +431,10 @@ pub(crate) fn resolve(
             leaves: 0,
             head_final: false,
             final_preposition: None,
+            omitted_complement: 0,
+            after_unlike_omissions: false,
+            conjunct_omitted: None,
+            unlike_omissions: false,
             preposition: None,
             extensions: 0,
             coordinator: None,
@@ -466,6 +474,18 @@ pub(crate) struct Summary {
     /// The preposition of the Preposition Phrase dependent it ends in, through
     /// its head line, when that preposition closes some `unextended` child.
     pub final_preposition: Option<LexemeId>,
+    /// The Complements omitted by the bare noun phrase it ends in, through
+    /// any of its last children, as an index into
+    /// [`CompiledGrammar::extension_sets`] (0: none). A Preposition Phrase
+    /// right after it headed by one of their prepositions is that noun's
+    /// Complement, never a dependent of another host
+    /// (`english-lexical-analysis.md` §2, same-head complement priority).
+    pub omitted_complement: u16,
+    /// It is a coordination whose conjuncts omit unlike Complements, the last
+    /// conjunct's `omitted_complement`: a Preposition Phrase right after it
+    /// may be a dependent of the whole coordination, which cannot share it as
+    /// a Complement (*the type and amount of mana*), but of no other host.
+    pub unlike_omissions: bool,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
     /// A coordination's second preposition (*into your hand or onto the
@@ -535,6 +555,16 @@ pub(crate) struct State {
     /// The preposition of the Preposition Phrase dependent the last child
     /// so far ends in (`Summary::final_preposition`).
     final_preposition: Option<LexemeId>,
+    /// The Complements omitted by the bare noun phrase the last child so far
+    /// ends in (`Summary::omitted_complement`).
+    omitted_complement: u16,
+    /// The last child so far is a coordination with unlike omissions
+    /// (`Summary::unlike_omissions`).
+    after_unlike_omissions: bool,
+    /// The Complements the first conjunct so far omits.
+    conjunct_omitted: Option<u16>,
+    /// Some conjunct so far omits other Complements than the first.
+    unlike_omissions: bool,
     preposition: Option<(LexemeId, usize)>,
     extensions: u16,
     coordinator: Option<LexemeId>,
@@ -680,6 +710,52 @@ impl Production {
             }
             ChildView::Leaf(_) => next.final_preposition = None,
             ChildView::Punct => {}
+        }
+        Some(())
+    }
+
+    /// The Complements omitted by the bare noun phrase the phrase so far ends
+    /// in, or `None` if the child is a Preposition Phrase right after one and
+    /// headed by a preposition it omits: that phrase is the bare noun's own
+    /// Complement, which no other host may take. Only a coordination whose
+    /// conjuncts omit unlike Complements may take it as its own dependent.
+    fn track_omitted_complement(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        match child {
+            ChildView::Node(summary) => {
+                if self.coordinator.is_some() && self.head_line[position] {
+                    let first = *next
+                        .conjunct_omitted
+                        .get_or_insert(summary.omitted_complement);
+                    next.unlike_omissions |=
+                        summary.unlike_omissions || first != summary.omitted_complement;
+                }
+                if next.omitted_complement != 0 && !next.after_unlike_omissions {
+                    let omitted = grammar.extension_set(next.omitted_complement);
+                    let heads = [
+                        summary.preposition.map(|(p, _)| p),
+                        summary.other_preposition,
+                    ];
+                    if heads
+                        .into_iter()
+                        .flatten()
+                        .any(|p| omitted.contains(&Extension::Preposition(p)))
+                    {
+                        return None;
+                    }
+                }
+                next.omitted_complement = summary.omitted_complement;
+                next.after_unlike_omissions = summary.unlike_omissions;
+            }
+            ChildView::Leaf(_) | ChildView::Punct => {
+                next.omitted_complement = 0;
+                next.after_unlike_omissions = false;
+            }
         }
         Some(())
     }
@@ -879,8 +955,8 @@ impl Production {
 
     /// Whether a comma-fronted dependent's scope rules this child out: it
     /// scopes over a whole coordination, never its first conjunct, and over a
-    /// comma-set post-dependent of its Clause, never inside the post-dependent's
-    /// host (`english-lexical-analysis.md` §2).
+    /// comma-set post-dependent of its Clause, never inside the
+    /// post-dependent's host (`english-lexical-analysis.md` §2).
     fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
         let first_conjunct = self.coordinator.is_some() && self.names[position] == "first";
         let post_host = position == 0
@@ -903,6 +979,30 @@ impl Production {
                 .iter()
                 .zip(&self.rhs[1..])
                 .all(|(name, symbol)| matches!(symbol, Symbol::Punct(..)) || name == "adjunct")
+    }
+
+    /// Whether child `position`'s slot admits the phrase: a selected `PP`
+    /// slot its preposition, an unselected adjunct its Host Categories.
+    fn slot_admits(&self, position: usize, summary: &Summary) -> bool {
+        let Symbol::Cat {
+            prepositions, host, ..
+        } = &self.rhs[position]
+        else {
+            return true;
+        };
+        if let Some(list) = prepositions {
+            let Some((prep, _)) = summary.preposition.as_ref() else {
+                return false;
+            };
+            if !list.contains(prep)
+                || summary
+                    .other_preposition
+                    .is_some_and(|o| !list.contains(&o))
+            {
+                return false;
+            }
+        }
+        !host.is_some_and(|kind| summary.hosts & crate::frames::host_bit(kind) == 0)
     }
 
     /// Adds child `position` to `state`, or `None` if it does not fit.
@@ -935,6 +1035,7 @@ impl Production {
         next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
         self.track_head_final(&mut next, position, child);
         self.track_final_preposition(grammar, &mut next, position, child)?;
+        self.track_omitted_complement(grammar, &mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -975,25 +1076,8 @@ impl Production {
         }
         match child {
             ChildView::Node(summary) => {
-                if let Symbol::Cat {
-                    prepositions, host, ..
-                } = &self.rhs[position]
-                {
-                    if let Some(list) = prepositions {
-                        let (prep, _) = summary.preposition.as_ref()?;
-                        if !list.contains(prep)
-                            || summary
-                                .other_preposition
-                                .is_some_and(|o| !list.contains(&o))
-                        {
-                            return None;
-                        }
-                    }
-                    if let Some(kind) = host
-                        && summary.hosts & crate::frames::host_bit(*kind) == 0
-                    {
-                        return None;
-                    }
+                if !self.slot_admits(position, summary) {
+                    return None;
                 }
                 if summary.gap != Gap::None {
                     next.gap_right_edge = summary.gap_right_edge;
@@ -1123,6 +1207,14 @@ impl Production {
             leaves: state.leaves,
             head_final: state.head_final,
             final_preposition: state.final_preposition,
+            omitted_complement: if self.omits_complement {
+                state.extensions
+            } else {
+                state.omitted_complement
+            },
+            unlike_omissions: coordinated
+                && state.unlike_omissions
+                && state.omitted_complement != 0,
             preposition: if coordinated && state.mixed_prepositions {
                 None
             } else {

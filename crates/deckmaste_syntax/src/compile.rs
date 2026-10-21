@@ -205,6 +205,8 @@ struct Draft {
     foreign_coordinators: Vec<LexemeId>,
     /// A derived passive's Internalised Complement.
     internalised: Option<usize>,
+    /// A noun's bare phrase, which omits its head's Complements.
+    omits_complement: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -252,6 +254,7 @@ impl Draft {
             foreign_coordinators: Vec::new(),
             unlike: None,
             internalised: None,
+            omits_complement: false,
         }
     }
 
@@ -1219,6 +1222,7 @@ impl<'a> Binder<'a> {
             .foreign_coordinators
             .clone_from(&draft.foreign_coordinators);
         production.unlike = draft.unlike;
+        production.omits_complement = draft.omits_complement;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -1336,11 +1340,8 @@ impl<'a> Binder<'a> {
                 let (h, a) = if *side == Side::After {
                     // A comma-set post-adjunct is outside any relative clause
                     // (CGEL, Ch. 12 §4, p. 1058): its host passes up no Gap.
-                    let host_gap = if delimiter.is_some() {
-                        GapRule::Closed
-                    } else {
-                        GapRule::Transparent
-                    };
+                    let host_gap =
+                        if delimiter.is_some() { GapRule::Closed } else { GapRule::Transparent };
                     let h = draft.child("head", host_symbol, host_gap);
                     if let Some(c) = delimiter {
                         draft.child("", Symbol::Punct(*c, Binding::Suffix), GapRule::Closed);
@@ -1470,7 +1471,9 @@ impl<'a> Binder<'a> {
             1,
         );
         attachment.child("modifier", symbol(modifier_id), GapRule::Closed);
-        attachment.child("head", symbol(host_id), GapRule::Closed);
+        // Like an adjective, a participle premodifies a conjunct whose
+        // Complement is shared (*the noted number and kind of counters*).
+        attachment.child("head", symbol(host_id), GapRule::Transparent);
         drafts.push(attachment);
         Ok(drafts)
     }
@@ -1701,6 +1704,11 @@ impl<'a> Binder<'a> {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
             let test = if obligatory { Test::FreeOptional(head) } else { Test::FreeLexical(head) };
             bare.child("head", Symbol::Leaf(test), GapRule::Closed);
+            // A bare noun omits the Complements its frames select: a
+            // Preposition Phrase right after it that one of them selects is
+            // its Complement, never another host's dependent (CGEL, Ch. 5
+            // §14.1, pp. 439–441; §15, p. 454).
+            bare.omits_complement = head == LexicalCategory::Noun;
             if let Some(f) = complement_kind {
                 let kind = self.value(f, "Intransitive")?;
                 bare.equations.push((Path::Mother(f), Target::Value(kind)));

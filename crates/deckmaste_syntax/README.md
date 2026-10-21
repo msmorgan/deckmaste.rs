@@ -119,7 +119,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   preposition among its Complements (*come up heads*). A frame marked
   `active_only` (an Active-only Frame: *cost*, lexical *have*) derives no
   passive of any kind: verbal, prepositional or adjectival. A verb whose every
-  frame is Active-only has no past participle in a `Premodification` either.
+  frame is Active-only has no past participle in a `Premodification` either. A
+  `Premodification` passes up its head's Gap, so a premodified conjunct shares
+  its Complement (*the noted number and kind of counters*).
 - `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
@@ -131,7 +133,12 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   the bottom*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
-  (*choose to attack* has no purpose reading).
+  (*choose to attack* has no purpose reading). A noun's bare phrase omits the
+  Complements its frames select, and a Preposition Phrase right after it headed
+  by one of their prepositions is that noun's Complement, never a dependent of
+  another host (*on top of your library*, *equal to the number of cards in
+  their hand*): every constituent ending in a bare noun passes its omitted
+  Complements on to the sibling that follows it.
   A delimited (comma-set) post-adjunct's host passes up no Gap, so it never
   closes a relative clause's Clause (CGEL, Ch. 12 §4, p. 1058).
   Likewise a frame's predicative
