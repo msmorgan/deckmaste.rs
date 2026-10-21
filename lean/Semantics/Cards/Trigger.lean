@@ -103,7 +103,7 @@ def incisorGlider : Ability :=
     (get (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn))
 theorem okIncisorGlider : Ability.check (DRS.ofList []) incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
-  whenIf (does thisCreature enter) (happened attack you soFarThisTurn)
+  whenIf (does thisCreature enter) (did you attack soFarThisTurn)
     (draw (.lit 1))
 theorem okStormFleetSpy : Ability.check (DRS.ofList []) stormFleetSpy = [] := by decide
 def loanShark : Ability :=
@@ -115,11 +115,11 @@ theorem okLoanShark : Ability.check (DRS.ofList []) loanShark = [] := by decide
 def forceOfDespair : Action :=
   destroy (allOf
              (and
-                [isCreature, happenedTo any (putOntoBattlefield which) soFarThisTurn]))
+                [isCreature, was (putOntoBattlefield which) soFarThisTurn]))
 theorem okForceOfDespair : Action.check (DRS.ofList []) forceOfDespair = [] := by decide
 def cradleToGrave : Action :=
   destroy (target (and [isCreature, not
-    (hasColor .black), happenedTo any (putOntoBattlefield which) soFarThisTurn]))
+    (hasColor .black), was (putOntoBattlefield which) soFarThisTurn]))
 theorem okCradleToGrave : Action.check (DRS.ofList []) cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
@@ -420,7 +420,7 @@ def admiralsOrder : Spelled := spelled <| .singleFaced
     { name := "Admiral's Order", cost := some [generic 1, pip .blue, pip .blue], types := [.instant],
       text :=
         [ static (onlyWhile (altCost this_ (some (mana [pip .blue])))
-            (happened attack you soFarThisTurn)),
+            (did you attack soFarThisTurn)),
           spell (counter (target isSpell)) ] } }
 
 def fyndhornDruid : Spelled := spelled <| .singleFaced
@@ -428,7 +428,7 @@ def fyndhornDruid : Spelled := spelled <| .singleFaced
     { name := "Fyndhorn Druid", cost := some [generic 2, pip .green], types := [.creature],
       subtypes := [elf, druid],
       text :=
-        [ whenIf (does thisCreature die) (happened (block it) any soFarThisTurn)
+        [ whenIf (does thisCreature die) (was (block it) soFarThisTurn)
             (gainLife (.lit 4)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -450,9 +450,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
       text :=
         [ whenever
             (does (a (and [ isCreature,
-                              happenedTo thisCreature
-                                (dealDamage anyAmount which)
-                                soFarThisTurn ])) die)
+                              did thisCreature (dealDamage anyAmount which) soFarThisTurn ])) die)
             (sequentially
               [ putOntoBattlefieldUnderYourControl it,
                 become (that creature)
@@ -567,8 +565,7 @@ def reciprocate : Spelled := spelled <| .singleFaced
         [ spell (exile
             (target
                (and
-                  [isCreature, happenedTo which (dealDamage anyAmount you)
-                     soFarThisTurn]))) ] } }
+                  [isCreature, did which (dealDamage anyAmount you) soFarThisTurn]))) ] } }
 
 /-- Tahngarth, First Mate -/
 def tahngarthHeader : GameEvent := does anOpponent (attackWith (counted (atLeast 1) isCreature))
@@ -597,8 +594,7 @@ def faithsReward : Spelled := spelled <| .singleFaced
     { name := "Faith's Reward", cost := some [generic 3, pip .white], types := [.instant],
       text :=
         [ spell (putOntoBattlefield (allOf (and [ isPermanentCard, in_ yourGraveyard,
-                           happenedTo any
-                             (putInto which yourGraveyard (from_ := some battlefield))
+                           was (putInto which yourGraveyard (from_ := some battlefield))
                              soFarThisTurn ]))) ] } }
 
 /-- Oscorp Industries -/
@@ -624,7 +620,7 @@ def fblthp : Spelled := spelled <| .singleFaced
         [ when (does this_ enter)
             (replace (draw (.lit 1))
               (doIf (or
-                  [ did ⟨it, enter (from_ := some yourLibrary), triggering⟩,
+                  [ did it (enter (from_ := some yourLibrary)) triggering,
                     is it (castFrom yourLibrary) ])
                 (instead (draw (.lit 2))))),
           when (does (a isSpell) (target this_)) (shuffleInto this_) ],
@@ -688,7 +684,7 @@ def agencyOutfitterSearch : Action :=
           [ searchZonesOf you (exactly 1)
               (or [named "Magnifying Glass", named "Thinking Cap"]),
             putOntoBattlefield (theVerbed (.action "search") .one) ]),
-      doIf (happenedThisWay (search any anyNumber (and [])) you) shuffle ]
+      doIf (did you (search any anyNumber (and [])) thisWay) shuffle ]
 theorem okAgencyOutfitterSearch : Action.check (DRS.ofList []) agencyOutfitterSearch = [] := by decide
 
 /-- Trouble in Pairs' -/
@@ -937,7 +933,7 @@ def dread : Spelled := spelled <| .singleFaced
 private semantic_template creatureDamagedByAttachedHostThisTurn (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
     .did ⟨.actor (.attachHost attachment creature),
-      .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
+      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩])
 
 /-- Vampiric Embrace. -/
 def vampiricEmbrace : Spelled := spelled <| .singleFaced

@@ -486,7 +486,7 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCar
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   aggregateOver .max isPlayer
-    (eventTally (⟨they, (discard (allOf (cardIn hand))), thisWay⟩) .events)
+    (eventTally they (discard (allOf (cardIn hand))) thisWay .events)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -692,7 +692,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                 instruct (those player) (sacrifice (those permanent)),
                 doForEach
                   (each (and [ isPlayer,
-                                did (⟨which, (sacrifice (a isPermanent)), thisWay⟩)
+                                did which (sacrifice (a isPermanent)) thisWay
                                   ]))
                   (sequentially
                     [ instruct they (expose .reveal (cards (slice .top (.lit 1) (libraryOf they)))),

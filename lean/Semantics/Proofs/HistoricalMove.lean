@@ -14,7 +14,7 @@ private def creatureRead : NounPhrase := .pro (.word (.type .creature)) .one
 
 private def deathLookback : DidClause :=
   ⟨.any, .move creatureRead (.zone .battlefield none)
-    (some (.zone .graveyard none)) .departure none [], .thisWay⟩
+    (some (.zone .graveyard none)) .departure none [], some .thisWay⟩
 
 /-- A death lookback reads the departed participant's battlefield type without moving it again. -/
 theorem historicalDeathPreservesTheCurrentObject :
@@ -40,7 +40,7 @@ theorem historicalEligibilityRequiresItsWrittenOrigin :
       [.anaphor (.word (.type .creature)) .one 0] ∧
     Condition.check context (.did ⟨.any,
       .move creatureRead (.zone .hand none)
-        (some (.zone .graveyard none)) .departure none [], .thisWay⟩) =
+        (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 end Semantics.Proofs.HistoricalMove

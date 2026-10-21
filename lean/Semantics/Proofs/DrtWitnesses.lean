@@ -7,9 +7,8 @@ namespace Semantics.Proofs.DrtWitnesses
 
 private def kalitasBody : Action := .sequentially [
   destroy (target isCreature),
-  .doIf (happenedThisWay
-      (.move (that (.type .creature)) (battlefield)
-        (some (graveyardOf .any)) .departure none []) .any)
+  .doIf (was (.move (that (.type .creature)) (battlefield)
+        (some (graveyardOf .any)) .departure none []) thisWay)
     (.sequentially [
       create (.lit 1)
         (.written { characteristics :=

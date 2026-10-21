@@ -657,13 +657,13 @@ theorem okDestroyCreature : Action.check (DRS.ofList []) (destroy (target isCrea
 /-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
 theorem okCombatDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.by thisCreature, .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, .duration soFarThisTurn none⟩) = [] := by
+      (.did ⟨.by thisCreature, .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, some (.duration soFarThisTurn none)⟩) = [] := by
   decide
 
 /-- "creature that was dealt combat damage by a color this turn" -/
 theorem badCombatDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.by (a (quality .color)), .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, .duration soFarThisTurn none⟩)
+      (.did ⟨.by (a (quality .color)), .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, some (.duration soFarThisTurn none)⟩)
       = [.kindMismatch .object (.quality .color)] := by
   decide
 
@@ -671,19 +671,19 @@ theorem badCombatDamageComplement :
 other conjuncts reads `which` without a marker wrapper. -/
 theorem okConjunctRelativeDamaged :
     Predicate.checkAt .object (DRS.ofList [])
-      (and [isCreature, happenedTo any (dealDamage anyAmount which) soFarThisTurn]) = [] := by
+      (and [isCreature, was (dealDamage anyAmount which) soFarThisTurn]) = [] := by
   decide
 
 /-- "Destroy target creature that blocked this turn." -/
 theorem okConjunctRelativeBlocked :
     Action.check (DRS.ofList [])
-      (destroy (target (and [isCreature, happenedTo which block soFarThisTurn]))) = [] := by
+      (destroy (target (and [isCreature, did which block soFarThisTurn]))) = [] := by
   decide
 
 /-- A conjunct relative clause's `which` is seeded from its enclosing predicate: "creature that
 …" binds a creature on the battlefield, not a bare object. -/
 theorem conjunctRelativeWhichReadsItsSiblingConjuncts :
-    (relativeSeed .object (and [isCreature, happenedTo which block soFarThisTurn])).payload =
+    (relativeSeed .object (and [isCreature, did which block soFarThisTurn])).payload =
       .object [.creature] (some .battlefield) none none none := by
   decide
 

@@ -58,14 +58,14 @@ theorem okKjeldoranFrostbeast : Ability.check (DRS.ofList []) kjeldoranFrostbeas
 
 /-- Tippy-Toe, Terrific Partner -/
 def tippyToe : Ability :=
-  atIf (beginningOfYour .endStep) (happened (gainLife anyAmount) you soFarThisTurn)
+  atIf (beginningOfYour .endStep) (did you (gainLife anyAmount) soFarThisTurn)
     (draw (.lit 1))
 theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
   raid
     (atIf (beginningOfYour .postcombatMain)
-      (happened attack you soFarThisTurn)
+      (did you attack soFarThisTurn)
       (exile (topSlice (.lit 1))))
 theorem okBrazenCannonade : Ability.check (DRS.ofList []) brazenCannonade = [] := by decide
 
@@ -224,8 +224,7 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
             [ untap
                 (allOf
                    (and
-                      [isCreature, happenedTo which attack
-                         soFarThisTurn])),
+                      [isCreature, did which attack soFarThisTurn])),
               additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ]) ] } }
 
 def fullThrottleFirstLine : Action := additionalPhase .combat (some .mainPhase) (.lit 2)
@@ -329,9 +328,9 @@ def fettergeist : Spelled := spelled <| .singleFaced
 
 def chainVeilEndStep : Ability :=
   atIf (beginningOfYour .endStep)
-    (not (happened (activate (a
+    (not (did you (activate (a
       (and [abilityHead .loyalty,
-      abilityOf (a isPlaneswalker)]))) you soFarThisTurn))
+      abilityOf (a isPlaneswalker)]))) soFarThisTurn))
     (loseLife (.lit 2))
 theorem okChainVeilEndStep : Ability.check (DRS.ofList []) chainVeilEndStep = [] := by decide
 
@@ -517,8 +516,8 @@ def berserk : Spelled := spelled <| .singleFaced
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that creature))
-                    (happened attack (that
-                      creature) soFarThisTurn)) ])
+                    (did (that
+                      creature) attack soFarThisTurn)) ])
                           (timing := some (beforePart .combatDamage none)) ] } }
 
 end Semantics.Cards

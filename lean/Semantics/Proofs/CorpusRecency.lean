@@ -75,7 +75,7 @@ private def runeswordBefore : DRS :=
 private def runeswordVictim : NounPhrase :=
   .firstMention "runesword.victim" (a (.and [isCreature,
     .did ⟨.actor (.laterMention "runesword.source" (target isCreature)),
-      .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩]))
+      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩]))
 private def runeswordWould : WouldClause :=
   .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure none [])
 
@@ -154,7 +154,7 @@ theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
     .did ⟨.actor (.attachHost attachment (.type .creature)),
-      .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
+      .dealDamage .anyAmount .which .any, some (.duration soFarThisTurn none)⟩])
 
 private def scytheDeath : GameEvent :=
   does (damagedVictim .equipped) die

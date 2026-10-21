@@ -93,7 +93,7 @@ def vodalianIllusionist : Ability :=
 theorem okVodalianIllusionist : Ability.check (DRS.ofList []) vodalianIllusionist = [] := by decide
 def witchsMist : Ability :=
   activated (compound [mana [generic 2, pip .black], tapSymbol])
-    (destroy (target (and [isCreature, happenedTo any (dealDamage anyAmount which) soFarThisTurn])))
+    (destroy (target (and [isCreature, was (dealDamage anyAmount which) soFarThisTurn])))
 theorem okWitchsMist : Ability.check (DRS.ofList []) witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (compound [mana [generic 3], tapSymbol])
@@ -661,9 +661,9 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
             (instruct
                (target
                   (and
-                     [isPlayer, happenedTo thisCreature (dealDamage anyAmount which)
-                        soFarThisTurn])) (loseLife
-              (.lit 1))) ],
+                     [ isPlayer,
+                       did thisCreature (dealDamage anyAmount which) soFarThisTurn ]))
+              (loseLife (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
 
 def idolOfOblivion : Spelled := spelled <| .singleFaced
@@ -671,8 +671,7 @@ def idolOfOblivion : Spelled := spelled <| .singleFaced
     { name := "Idol of Oblivion", cost := some [generic 2], types := [.artifact],
       text :=
         [ activatedOnlyIf tapSymbol (draw (.lit 1))
-            (happened (createObject anyAmount (token (copyOf (a isToken)) []) false) you
-               soFarThisTurn),
+            (did you (createObject anyAmount (token (copyOf (a isToken)) []) false) soFarThisTurn),
           activated (compound [mana [generic 8], tapSymbol, perform (sacrifice thisArtifact)])
             (createToken (creatureToken 10 10 [] [eldrazi])) ] } }
 

@@ -1185,7 +1185,7 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
                 (sequentially
                   [ searchLibraryOrGraveyard (named "Vraska, Scheming Gorgon"),
                     reveal it, putInto it hand ]),
-              doIf (happenedThisWay (search any anyNumber (and [])) you) shuffle ]) ] } }
+              doIf (did you (search any anyNumber (and [])) thisWay) shuffle ]) ] } }
 
 /-- Old-Growth Dryads -/
 def oldGrowthDryads : Spelled := spelled <| .singleFaced

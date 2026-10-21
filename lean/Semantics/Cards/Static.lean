@@ -630,9 +630,9 @@ theorem okClergyOfTheHolyNimbus : Ability.check (DRS.ofList []) clergyOfTheHolyN
 def rampantFrogantuaPump : Ability :=
   static (getsPt thisCreature
     (up (forEach (.lit 10) (and [isPlayer,
-      happenedTo which loseGame thisGame])))
+      did which loseGame thisGame])))
     (up (forEach (.lit 10) (and [isPlayer,
-      happenedTo which loseGame thisGame]))))
+      did which loseGame thisGame]))))
 theorem okRampantFrogantuaPump : Ability.check (DRS.ofList []) rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
 def maskwoodNexusTypes : Ability :=

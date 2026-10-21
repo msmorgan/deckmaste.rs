@@ -134,18 +134,18 @@ def kratosStoicFather : Ability :=
 theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
   atIf (beginningOfPossessed .endStep eachPlayer)
-    (happened die (a isCreature) soFarThisTurn)
+    (did (a isCreature) die soFarThisTurn)
     (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
   at_ (beginningOfYour .endStep)
     (putCounters (forEach (.lit 1) (and
-      [isOpponent, happenedTo any (dealDamage anyAmount which) soFarThisTurn]))
+      [isOpponent, was (dealDamage anyAmount which) soFarThisTurn]))
       p1p1Counter thisCreature .many)
 theorem okFuriousSpinesplitter : Ability.check (DRS.ofList []) furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
   atIf (beginningOfPossessed .upkeep eachPlayer)
-    (happened (loseLife anyAmount) you lastTurn) (putCounters (.lit 1) p1p1Counter thisCreature .many)
+    (did you (loseLife anyAmount) lastTurn) (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okPaladinOfAtonement : Ability.check (DRS.ofList []) paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
   atIf (beginningOfYour .endStep)
@@ -442,7 +442,7 @@ def tromell : Spelled := spelled <| .singleFaced
               [ repeatTimes (letter .x) proliferate,
                 define .x
                   (countOf (and [ isNontoken, isCreature, youControl,
-                                   happenedTo any (putOntoBattlefield
+                                   was (putOntoBattlefield
                                                      which) soFarThisTurn ])) ]) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -807,9 +807,7 @@ def sengirVampire : Spelled := spelled <| .singleFaced
         [ flying,
           whenever
             (does (a (and [ isCreature,
-                              happenedTo thisCreature
-                                (dealDamage anyAmount which)
-                                soFarThisTurn ])) die)
+                              did thisCreature (dealDamage anyAmount which) soFarThisTurn ])) die)
             (putCounters (.lit 1) p1p1Counter thisCreature .many) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -926,7 +924,7 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
       text :=
         [ protection (hasColor .black),
           atIf (beginningOfPossessed .endStep eachPlayer)
-            (happened (dealDamage anyAmount anOpponent) thisCreature soFarThisTurn)
+            (did thisCreature (dealDamage anyAmount anOpponent) soFarThisTurn)
             (putCounters (.lit 1) p1p1Counter it .many) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -937,9 +935,8 @@ def ichorShade : Spelled := spelled <| .singleFaced
       subtypes := [phyrexian, shade],
       text :=
         [ atIf (beginningOfYour .endStep)
-            (happened
-               (putInto (a (or [isArtifact, isCreature])) graveyard (from_ := some battlefield))
-               any soFarThisTurn)
+            (was (putInto (a (or [isArtifact, isCreature])) graveyard (from_ := some battlefield))
+              soFarThisTurn)
             (putCounters (.lit 1) p1p1Counter thisCreature .many) ],
       power := stat 2, toughness := stat 3 } }
 

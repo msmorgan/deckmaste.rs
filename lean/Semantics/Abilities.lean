@@ -132,11 +132,13 @@ mutual
 
   /-- A historical action clause ("if you sacrificed a creature this turn", "each card exiled
   this way", "creatures that attacked this turn"), used by `Condition.did`, `Predicate.did`,
-  and `Amount.tally`. -/
+  and `Amount.tally`. With no span written (`within = none`) it is an attributive participle
+  ("the exiled card"), which only a Participial Description reads: it names the objects a deed
+  in scope acted on, in this ability or in an ability linked to it [CR#607.1,607.2a]. -/
   structure DidClause where
     subj : Subject
     action : Action
-    within : LookbackSpan
+    within : Option LookbackSpan
 
   /-- Which turn a timing or duration names. `that` reads back the turn an earlier phrase
   named ("that turn"); there is no "this", which names an object. -/
@@ -1241,8 +1243,6 @@ termination_by structural fuel
 
 instance : Coe Condition AsThough where
   coe := .condition
-
-abbrev did := DidClause.mk
 
 end Semantics
 

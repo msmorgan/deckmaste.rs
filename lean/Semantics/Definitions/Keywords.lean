@@ -45,7 +45,7 @@ semantic_definition cascade : Ability :=
             may (castWithoutPaying (that .card) (some cheaper)),
             .move
               (allFromAmong
-                (not (.did ⟨.any, cast .which, .thisWay⟩))
+                (not (.did ⟨.any, cast .which, some .thisWay⟩))
                 (theVerbed (.action "exile") .many))
               .anyLocation (some onBottom) .arrival none [(.inOrder .randomOrder)] ]) ]
 /-- "Ripple N" with its definition [CR#702.60a]: "When you cast this spell, you may reveal the top
@@ -64,7 +64,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
                   none,
                 .move
                   (allFromAmong
-                    (not (.did ⟨.any, cast .which, .thisWay⟩))
+                    (not (.did ⟨.any, cast .which, some .thisWay⟩))
                     (theVerbed (.action "reveal") .many (some .card)))
                   .anyLocation (some onBottom) .arrival none [.inOrder .anyOrder] ]))) ]
 /-- "Renown N" with its reminder text: "When this creature deals combat damage to a player, if it
@@ -336,12 +336,12 @@ semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (doIf (happened (.dealDamage .anyAmount .which .any) anOpponent soFarThisTurn)
+          (doIf (did anOpponent (.dealDamage .anyAmount .which .any) soFarThisTurn)
             (withRiders [.withCounters (.inCaller amount) p1p1Counter .fresh]))) ]
 semantic_definition boast (ability : Ability) : Ability :=
   .keyword (.named "boast") [.ability (.inCaller ability)]
     [ .qualified (.inCaller ability) none (some oncePerTurn)
-        (some (is thisCreature (happenedTo which (.attack none) soFarThisTurn)))
+        (some (is thisCreature (did which (.attack none) soFarThisTurn)))
         none ]
 semantic_definition buyback (cost : Cost) : Ability :=
   .keyword (.named "buyback") [.cost (.inCaller cost)]
@@ -948,7 +948,7 @@ semantic_definition mayhem (cost : Cost) : Ability :=
           (can you
             (cast thisCard (from_ := some yourGraveyard)
               (payment := .payingInstead (.inCaller cost))))
-          (happened (discard thisCard) you soFarThisTurn)) ]
+          (did you (discard thisCard) soFarThisTurn)) ]
 semantic_definition megamorph (cost : Cost) : Ability :=
   .keyword (.named "megamorph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
@@ -1108,7 +1108,7 @@ semantic_definition powerUp (ability : Ability) : Ability :=
     [ .qualified (.inCaller ability) none (some oncePerObject) none none,
       static
         (onlyWhile (reducedBySymbols thisAbility (.manaCostOf thisPermanent))
-          (is thisPermanent (happenedTo .any (putOntoBattlefield .which) soFarThisTurn))) ]
+          (is thisPermanent (was (putOntoBattlefield .which) soFarThisTurn))) ]
 semantic_definition protection (quality : Predicate) : Ability :=
   .keyword (.named "protection") [.quality (.inCaller quality)]
     [ static
@@ -1155,9 +1155,8 @@ semantic_definition prowl (cost : Cost) : Ability :=
   .keyword (.named "prowl") [.cost (.inCaller cost)]
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
-          (happened (.dealDamage .anyAmount (a isPlayer) .combatOnly)
-            (a (and [.shares (.subtype .creature) .share thisSpell, youControl]))
-            soFarThisTurn)) ]
+          (did (a (and [.shares (.subtype .creature) .share thisSpell, youControl]))
+            (.dealDamage .anyAmount (a isPlayer) .combatOnly) soFarThisTurn)) ]
 semantic_definition rampage (amount : Amount) : Ability :=
   .keyword (.named "rampage") [.number (.inCaller amount)]
     [ triggered (does .any (.block thisCreature))
@@ -1188,7 +1187,7 @@ semantic_definition readAhead : Ability :=
                   [ chapterAbilityOf thisSaga,
                     not (.compare [.chapter] .eq (countersOn loreCounter thisSaga)) ])))
             .trigger)
-          (happened (putOntoBattlefield thisSaga) .any soFarThisTurn)) ]
+          (was (putOntoBattlefield thisSaga) soFarThisTurn)) ]
 semantic_definition rebound : Ability :=
   .keyword (.named "rebound") []
     [ static
@@ -1333,7 +1332,7 @@ semantic_definition spectacle (cost : Cost) : Ability :=
   .keyword (.named "spectacle") [.cost (.inCaller cost)]
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
-          (happened (loseLife .anyAmount) anOpponent soFarThisTurn)) ]
+          (did anOpponent (loseLife .anyAmount) soFarThisTurn)) ]
 /-- "Splice onto [quality] [cost]" [CR#702.47a]. Named in its sort, `Ability.splice`, as a
 declaration whose bare name is taken is (`Subtype.army`, `DesignationLabel.solved`): `splice` is
 the authoring syntax's word for a supplied body. -/
@@ -1410,9 +1409,7 @@ semantic_definition surge (cost : Cost) : Ability :=
   .keyword (.named "surge") [.cost (.inCaller cost)]
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
-          (happened (cast (a anotherSpell))
-            (actor (or [.you, a isTeammate]))
-            soFarThisTurn)) ]
+          (did (actor (or [.you, a isTeammate])) (cast (a anotherSpell)) soFarThisTurn)) ]
 semantic_definition suspend (amount : Amount) (cost : Cost) : Ability :=
   keywordNumberCosting (.named "suspend") (.inCaller amount) (.inCaller cost)
 semantic_definition teamwork (amount : Amount) : Ability :=

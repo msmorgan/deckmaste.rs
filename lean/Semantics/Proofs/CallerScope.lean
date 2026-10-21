@@ -463,7 +463,7 @@ theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
 /-- "If you sacrificed a creature this turn": a caller's condition introducing the creature its
 action reads. -/
 private def sacrificedACreature : Condition :=
-  happened (sacrifice (a isCreature)) you soFarThisTurn
+  did you (sacrifice (a isCreature)) soFarThisTurn
 
 /-- "… If you sacrificed a creature this turn, return it to its owner's hand instead.", the
 replacement the caller's: its condition and action are read in one caller frame, the action a

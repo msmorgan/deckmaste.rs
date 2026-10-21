@@ -853,7 +853,9 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       historicalReferentIds := drs.referents.map (·.id) }
     let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
     let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
-    let (drs4, e4) := stepLookbackSpanWith ops drs3 within
+    let (drs4, e4) := match within with
+      | some span => stepLookbackSpanWith ops drs3 span
+      | none => (drs3, [])
     ({ drs4 with
         actionPattern := drs.actionPattern
         historicalReferentIds := drs.historicalReferentIds }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)

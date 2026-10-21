@@ -71,7 +71,7 @@ def conniveDef (subject : NounPhrase) : Action :=
           (.did ⟨.actor .you,
             .move (.described (.a .unmarked) (.not (.hasType .land)))
               (handZone) (some graveyardZone) .departure (some .anEffect) [],
-            .thisWay⟩)
+            some .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.laterMention "subject" (.inCaller subject)) .one true)
           none

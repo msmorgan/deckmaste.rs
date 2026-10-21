@@ -807,9 +807,9 @@ def dreamThief : Spelled := spelled <| .singleFaced
         [ flying,
           when (does thisCreature enter)
             (doOnlyIf (draw (.lit 1))
-              (happened (cast (a
+              (did you (cast (a
                 (and [isSpell, hasColor .blue,
-                otherThan this_]))) you soFarThisTurn)) ],
+                otherThan this_]))) soFarThisTurn)) ],
       power := stat 2, toughness := stat 1 } }
 
 def brightspearZealot : Spelled := spelled <| .singleFaced
@@ -836,8 +836,8 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
           static (onlyWhile
             (getsPt (allOf (and [hasSubtype merfolk, youControl]))
               (up (.lit 1)) (up (.lit 0)))
-            (happened (attackWith (counted (atLeast 3)
-              (hasSubtype merfolk))) you soFarThisTurn)) ],
+            (did you (attackWith (counted (atLeast 3)
+              (hasSubtype merfolk))) soFarThisTurn)) ],
       power := stat 2, toughness := stat 2 } }
 
 def bloodfireEnforcers : Spelled := spelled <| .singleFaced
@@ -1142,8 +1142,7 @@ def towerWinder : Spelled := spelled <| .singleFaced
             (sequentially
               [ searchLibraryOrGraveyard (named "Command Tower"),
                 reveal it, putInto it hand,
-                doIf (happenedThisWay (searchLibraryFor anyNumber (and []))
-                        you) shuffle ]) ],
+                doIf (did you (searchLibraryFor anyNumber (and [])) thisWay) shuffle ]) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Aim High -/
@@ -1172,7 +1171,7 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
         [ lifelink,
           whenIf (does thisCreature enter)
             (or
-              [ did ⟨it, enter (from_ := some yourGraveyard), triggering⟩,
+              [ did it (enter (from_ := some yourGraveyard)) triggering,
                 is it (and [castBy you, castFrom yourGraveyard]) ])
             (triggerReflexively (exile it)
               (createToken
@@ -1214,7 +1213,7 @@ def darkbladeAgentGrants : Ability :=
         abilityGrant thisCreature
           (whenever
              (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (draw
-                                                                                                  (.lit 1))) ]) (happened (surveil anyAmount) you soFarThisTurn))
+                                                                                                  (.lit 1))) ]) (did you (surveil anyAmount) soFarThisTurn))
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=

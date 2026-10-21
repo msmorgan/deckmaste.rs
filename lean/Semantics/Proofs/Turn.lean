@@ -570,7 +570,7 @@ theorem okSneak : Ability.check (DRS.ofList []) (sneak (.mana [pip .blue])) = []
 timing qualifier on a lookback. -/
 theorem okCastWhenASorceryCouldNotHaveBeen :
     Condition.check (DRS.ofList [])
-      (happened (.procedure .cast .this .itsOwnCost none none none) (.actor .you) thisGame (some (.not asSorcery)))
+      (did (.actor .you) (.procedure .cast .this .itsOwnCost none none none) (within thisGame (some (.not asSorcery))))
       = [] := by
   decide
 

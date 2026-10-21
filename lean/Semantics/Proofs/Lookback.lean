@@ -16,10 +16,10 @@ private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=
 private def withinThisTurn : LookbackSpan := .duration soFarThisTurn none
 
 theorem scopedPlayerDraw :
-    relativeCheck .player ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ = [] := by decide
+    relativeCheck .player ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ = [] := by decide
 
 theorem playerGapCannotStandForObject :
-    relativeCheck .object ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ =
+    relativeCheck .object ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ =
       [.kindMismatch .player .object] := by decide
 
 theorem gapRequiresLookback :
@@ -30,7 +30,7 @@ theorem scopedCreatureDeath :
     relativeCheck .object
       ⟨.any, .move (.headed (.type .creature) .which)
         (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [],
-        withinThisTurn⟩ = [] := by decide
+        some withinThisTurn⟩ = [] := by decide
 
 theorem nestedLookbackBindsItsOwnParticipant :
     relativeCheck .player
@@ -40,9 +40,9 @@ theorem nestedLookbackBindsItsOwnParticipant :
             (.and [.hasType .creature, .in_ (.zone .stack none),
               .did ⟨.any, .move (.headed (.type .creature) .which)
                 (.zone .battlefield none) (some (.zone .graveyard none))
-                .departure none [], withinThisTurn⟩]))
+                .departure none [], some withinThisTurn⟩]))
           .itsOwnCost none none none,
-        withinThisTurn⟩ = [] := by decide
+        some withinThisTurn⟩ = [] := by decide
 
 theorem nestedLookbackCannotCaptureOuterGap :
     relativeCheck .player
@@ -50,33 +50,33 @@ theorem nestedLookbackCannotCaptureOuterGap :
         .procedure .cast
           (.described (.a .unmarked)
             (.and [.hasType .creature, .in_ (.zone .stack none),
-              .did ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩]))
+              .did ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩]))
           .itsOwnCost none none none,
-        withinThisTurn⟩ = [.kindMismatch .player .object] := by decide
+        some withinThisTurn⟩ = [.kindMismatch .player .object] := by decide
 
 theorem lookbackRequiresBoundParticipant :
-    relativeCheck .player ⟨.actor .you, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ =
+    relativeCheck .player ⟨.actor .you, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ =
       [.lookbackSubject] := by decide
 
 theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
       ⟨.actor .you, .draw (.exactlyOf .anyAmount),
-        .duration soFarThisTurn
+        some (.duration soFarThisTurn
           (some (.onlyIf (.exists_ (.described .bare
             (.and [.hasType .creature,
               .did ⟨.any, .move .which (.zone .battlefield none)
-                (some (.zone .graveyard none)) .departure none [], withinThisTurn⟩])))))⟩ =
+                (some (.zone .graveyard none)) .departure none [], some withinThisTurn⟩]))))))⟩ =
       [.lookbackSubject] := by decide
 
 theorem participantCanOccurMoreThanOnce :
     relativeCheck .object
       ⟨.actor (.headed (.type .creature) .which),
         .dealDamage .anyAmount (.headed (.type .creature) .which) .any,
-        withinThisTurn⟩ = [] := by decide
+        some withinThisTurn⟩ = [] := by decide
 
 private def damageHistory : Predicate :=
   .did ⟨.actor (.headed (.type .creature) .which),
-    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)) .any, withinThisTurn⟩
+    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)) .any, some withinThisTurn⟩
 
 theorem historyDoesNotIntroduceDamageOutcome :
     countOutcomes .damageDealt (stepPredicate 64 (DRS.ofList []) damageHistory).1 = 0 := by decide
@@ -90,28 +90,28 @@ theorem historyNamedParticipantAccessibleLocally :
       ⟨.actor .which,
         .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) (.isOpponentOf .you)))
           (.pro (.word .player) .one) .any,
-        withinThisTurn⟩ = [] := by decide
+        some withinThisTurn⟩ = [] := by decide
 
 theorem castCanCarryExcludedOrigins :
     relativeCheck .player
       ⟨.actor .which,
         .procedure .cast (.described (.a .unmarked) (.and [.isCard, .in_ (.zone .stack none)]))
           .itsOwnCost none (some (.not (.zone .hand (some .you)))) none,
-        withinThisTurn⟩ = [] := by decide
+        some withinThisTurn⟩ = [] := by decide
 
 theorem namedActionCanCarryItsLocus :
     relativeCheck .player
       ⟨.actor .which,
         .enact (.action "search") (.search ((.zone .library (some .you)))
           (.range none none) (.and [])) none (some (.zone .library (some .you))),
-        .thisWay⟩ = [] := by decide
+        some .thisWay⟩ = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :
     relativeCheck .player
       ⟨.actor .which,
         .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
           none (some (.zone .graveyard (some .you))),
-        .thisWay⟩ = [.lookbackLocus] := by decide
+        some .thisWay⟩ = [.lookbackLocus] := by decide
 
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :
     (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder ∧
@@ -136,7 +136,7 @@ theorem designatedSpellCanBeMatched :
       ⟨.actor .which,
         .procedure .cast (.headed .spell (.designated (.named "commander") .you))
           .itsOwnCost none none none,
-        .duration thisGame none⟩ = [] := by decide
+        some (.duration thisGame none)⟩ = [] := by decide
 
 theorem eventModifiersPreserveFacts (event : GameEvent) (ordinal : Ordinal)
     (part : Option TurnPart) (cause : Causing) (fuel : Nat) :

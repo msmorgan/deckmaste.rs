@@ -260,10 +260,10 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
         [ spell (doIf
             (and
               [ is this_ (castFrom yourHand),
-                happened (cast (a
+                did you (cast (a
                   (and [ isSpell, otherThan
                   this_,
-                             named "Approach of the Second Sun" ]))) you thisGame ])
+                             named "Approach of the Second Sun" ]))) thisGame ])
             winGame
             (some (sequentially
               [ putInto this_ (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
@@ -390,7 +390,7 @@ theorem okNongreenSpellsOrAbilities :
 /-- Hot Pursuit -/
 def twoOrMorePlayersHaveLost : Condition :=
   compareAmt (countOf (and
-    [isPlayer, happenedTo which loseGame thisGame])) .atLeast (.lit 2)
+    [isPlayer, did which loseGame thisGame])) .atLeast (.lit 2)
 theorem okTwoOrMorePlayersHaveLost : Condition.check (DRS.ofList []) twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=

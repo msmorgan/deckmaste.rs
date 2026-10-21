@@ -62,13 +62,13 @@ theorem damagePublishesParticipantsAndOutcome :
 theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
     (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
     ((stepDidClause 64 drs
-      ⟨.actor source, .dealDamage .anyAmount patient kind, .thisWay⟩).1.referents.head?).map
+      ⟨.actor source, .dealDamage .anyAmount patient kind, some .thisWay⟩).1.referents.head?).map
         (·.payload) = some (.outcome .damageDealt) := by rfl
 
 theorem observedDamageDoesNotExportOrRefineReferents (kind : DamageKind) :
     let before := nounResult (DRS.ofList []) (target isArtifact)
     let after := (stepPredicate 64 before (.did ⟨.actor .which,
-      .dealDamage .anyAmount .you kind, .thisWay⟩)).1
+      .dealDamage .anyAmount .you kind, some .thisWay⟩)).1
     after.referents = before.referents ∧ countOutcomes .damageDealt after = 0 := by
   cases kind <;> decide
 
@@ -146,7 +146,7 @@ theorem anywhereAndBattlefieldHaveDifferentObservation :
 theorem historyDoesNotMoveTheCurrentReference :
     let before := nounResult (DRS.ofList []) (a isCreature)
     let after := (stepPredicate 64 before (.did ⟨.any,
-      .move .which (battlefield) (some graveyard) .departure none [], .thisWay⟩)).1
+      .move .which (battlefield) (some graveyard) .departure none [], some .thisWay⟩)).1
     nounZone after it = some .battlefield := by decide
 
 theorem anyZoneChangeIsMeaningful :

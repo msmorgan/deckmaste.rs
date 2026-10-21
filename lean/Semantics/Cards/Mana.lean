@@ -680,7 +680,7 @@ theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [
 /-- Dark Fortress -/
 def darkFortressMana : Ability :=
   activatedOnlyIf tapSymbol (addMana (.lit 1) (manaOf [[.of .black], [.of .red]]))
-    (or [ happened (putOntoBattlefield thisLand) any soFarThisTurn,
+    (or [ was (putOntoBattlefield thisLand) soFarThisTurn,
            exists_ (and [isLand, hasSupertype .basic, youControl]) ])
 theorem okDarkFortressMana : Ability.check (DRS.ofList []) darkFortressMana = [] := by decide
 
@@ -809,8 +809,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
           vigilance,
           atIf (beginningOfYour .endStep)
             (not
-               (happened (cast (a isSpell) (from_ := some yourHand))
-                  you soFarThisTurn))
+               (did you (cast (a isSpell) (from_ := some yourHand)) soFarThisTurn))
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -877,8 +876,7 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
               [ searchLibraryOrGraveyard (and [isArtifact, hasManaValue .atMost (.lit 2)]),
                 reveal it,
                 putInto it hand,
-                doIf (happenedThisWay (searchLibraryFor anyNumber (and []))
-                        you) shuffle ]) ],
+                doIf (did you (searchLibraryFor anyNumber (and [])) thisWay) shuffle ]) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Heart of Yavimaya -/

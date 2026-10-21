@@ -287,8 +287,8 @@ semantic_template Cost.or (costs : List Cost := []) : Cost := .or costs
 open Lean Elab Term in
 /-- Words several sorts share, each sort's template (or definition) by the result type it builds:
 the combinators `and`, `or` and `not`; the verb and the determiner `target`; and the other words whose sorts'
-templates are namespaced (`did`, `allBut`, `half`, `token`, `written`, `copy`, `doIf`, `replace`,
-…). A word one of whose sorts is a Definition (`crew`, `saddle`) is dispatched where that
+templates are namespaced (`did`, `was`, `allBut`, `half`, `token`, `written`, `copy`, `doIf`,
+`replace`, …). A word one of whose sorts is a Definition (`crew`, `saddle`) is dispatched where that
 Definition is declared, above this layer. -/
 private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
   [ (`and, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.and),
@@ -317,6 +317,8 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
                     (``Semantics.Condition, `Semantics.Templates.Condition.duringPart) ]),
     (`did, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.did),
              (``Semantics.Condition, `Semantics.Templates.Condition.did) ]),
+    (`was, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.was),
+             (``Semantics.Condition, `Semantics.Templates.Condition.was) ]),
     (`allBut, [ (``Semantics.PreventCut, `Semantics.Templates.PreventCut.allBut),
                 (``Semantics.IgnoredOutcomes, `Semantics.Templates.IgnoredOutcomes.allBut) ]),
     (`half, [ (``Semantics.Amount, `Semantics.Templates.half),
@@ -632,8 +634,6 @@ semantic_template superlative (op : AggregateOp) (axis : ProjAxis) (domain : Pre
   .superlative op axis domain
 semantic_template targeting (subject : NounPhrase) (extent : TargetExtent) : Predicate :=
   .targets subject extent
-semantic_template wasCast : Predicate :=
-  .did ⟨.any, .procedure .cast .which .itsOwnCost none none none, .thisWay⟩
 semantic_template withMostVotes : Predicate := .withMostVotes
 /-! ## Nouns -/
 
@@ -941,7 +941,11 @@ semantic_template devotion (player : NounPhrase) (color : ColorTerm)
 semantic_template distinctCount (axis : KindAxis) (domain : NounPhrase) : Amount :=
   .distinctCount axis domain
 semantic_template down (amount : Amount) : (Delta Amount) := .down amount
-semantic_template eventTally (clause : DidClause) (mode : TallyMode) : Amount := .tally clause mode
+/-- How often, or how much, `subj` did `action` over `within`: a tally always reads a written
+span. -/
+semantic_template eventTally (subj : Subject) (action : Action) (within : LookbackSpan)
+    (mode : TallyMode) : Amount :=
+  .tally ⟨subj, action, some within⟩ mode
 semantic_template greatestStoredMatch (subject : NounPhrase) : Amount :=
   .greatestStoredMatch subject
 semantic_template groupSize : Amount := .groupSize
@@ -1223,22 +1227,11 @@ semantic_template which : NounPhrase := .which
 /-- The number of occurrences of a historical action clause. -/
 semantic_template eventCount (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
-  .tally ⟨subj, action, .duration within timing⟩ .events
-/-- A historical action clause. -/
-semantic_template happened (action : Action) (subj : Subject) (within : Duration)
-    (timing : Option Timing := none) : Condition :=
-  .did ⟨subj, action, .duration within timing⟩
-/-- The event the enclosing action caused: "if you searched your library this way". -/
-semantic_template happenedThisWay (action : Action) (subj : Subject) : Condition :=
-  .did ⟨subj, action, .thisWay⟩
-/-- A historical action clause whose `.which` stands for the entity being described. -/
-semantic_template happenedTo (subj : Subject) (action : Action) (within : Duration)
-    (timing : Option Timing := none) : Predicate :=
-  .did ⟨subj, action, .duration within timing⟩
+  .tally ⟨subj, action, some (.duration within timing)⟩ .events
 /-- The accumulated magnitude of historical action events. -/
 semantic_template eventSum (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
-  .tally ⟨subj, action, .duration within timing⟩ .quantity
+  .tally ⟨subj, action, some (.duration within timing)⟩ .quantity
 /-- "if there is no <designation>" ("if there is no monarch"): nothing holds it. -/
 semantic_template thereIsNo (designation : DesignationLabel) : Condition :=
   .not (.exists_ (bare (.hasDesignation designation none)))
@@ -2097,17 +2090,35 @@ semantic_template eachTime (player : Option NounPhrase := none) : TurnRef := .ea
 semantic_template nextTime (player : Option NounPhrase := none) : TurnRef := .next player
 /-- "that turn's" occurrence -/
 semantic_template thatTime : TurnRef := .that
-/-- "this way", "this turn": the span a historical clause looks back over. -/
+/-- "this turn", "this game": the span a historical clause looks back over. -/
 semantic_template within (d : Duration) (timing : Option Timing := none) : LookbackSpan :=
   .duration d timing
 /-- "… this way": the event the enclosing action caused. -/
 semantic_template thisWay : LookbackSpan := .thisWay
 /-- The event that triggered the enclosing ability [CR#603.2]. -/
 semantic_template triggering : LookbackSpan := .triggering
-/-- "<subj> <action>ed <within>" as a description of the entity `.which` stands for. -/
-semantic_template Predicate.did (clause : DidClause) : Predicate := .did clause
-/-- "if <subj> <action>ed <within>" -/
-semantic_template Condition.did (clause : DidClause) : Condition := .did clause
+/-- A bare duration is the span over it: `did you attack soFarThisTurn`. -/
+instance [AuthoringContext] : Coe Duration LookbackSpan := ⟨(within · none)⟩
+/-- A bare duration is a written span over it, where the span is optional. -/
+instance [AuthoringContext] : Coe Duration (Option LookbackSpan) := ⟨fun d => some (within d none)⟩
+/-- "<subj> <action>ed [<within>]" as a description of the entity `which` stands for
+("creatures that attacked this turn"); with no span written, the attributive participle a
+Participial Description reads ("the creature you sacrificed"). -/
+semantic_template Predicate.did (subj : Subject) (action : Action)
+    (within : Option LookbackSpan := none) : Predicate :=
+  .did ⟨subj, action, within⟩
+/-- "if <subj> <action>ed <within>": a condition always reads a written span. -/
+semantic_template Condition.did (subj : Subject) (action : Action) (within : LookbackSpan) :
+    Condition :=
+  .did ⟨subj, action, some within⟩
+/-- "<action>ed [<within>]", the passive with no agent: "the exiled card", "each creature
+destroyed this way", "creatures that were dealt damage this turn". -/
+semantic_template Predicate.was (action : Action) (within : Option LookbackSpan := none) :
+    Predicate :=
+  .did ⟨.any, action, within⟩
+/-- "if <action> was done <within>", the passive with no agent. -/
+semantic_template Condition.was (action : Action) (within : LookbackSpan) : Condition :=
+  .did ⟨.any, action, some within⟩
 /-- "if <cause> would cause <clause>" -/
 semantic_template causedBy (cause : Causing) (clause : WouldClause) : WouldClause :=
   .causedBy cause clause

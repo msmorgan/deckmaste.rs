@@ -179,7 +179,7 @@ def arbalestElite : Ability :=
 theorem okArbalestElite : Ability.check (DRS.ofList []) arbalestElite = [] := by decide
 def sizzlingBarrage : Action :=
   dealDamage (.lit 4) (target
-    (and [isCreature, happenedTo which block soFarThisTurn]))
+    (and [isCreature, did which block soFarThisTurn]))
         .noncombatOnly
 theorem okSizzlingBarrage : Action.check (DRS.ofList []) sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
@@ -853,11 +853,9 @@ def incinerate : Spelled := spelled <| .singleFaced
               establishThroughout (cant any
                                      (regeneration
                                         (a (and
-                                              [isCreature, did
-                                                 (⟨any,
-                                                   (dealDamage anyAmount
-                                                      which),
-                                        thisWay⟩)])))) thisTurn ]) ] } }
+                                              [ isCreature,
+                                                was (dealDamage anyAmount which) thisWay ]))))
+                thisTurn ]) ] } }
 
 def ashZealot : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -1069,7 +1067,7 @@ def searingBlaze : Ability :=
                                    (and
                                       [isCreature, controlledBy
                                          splitOverPlaneswalker])) .noncombatOnly ])
-        (doIf (happened enter (a (and [isLand, youControl])) soFarThisTurn)
+        (doIf (did (a (and [isLand, youControl])) enter soFarThisTurn)
           (instead
             (simultaneously
               [ dealDamage (.lit 3) thatJoin .noncombatOnly,
@@ -1265,9 +1263,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
             (replace
               (would
                 (a (and [ isCreature,
-                          happenedTo thisCreature
-                            (dealDamage anyAmount which)
-                            soFarThisTurn ]))
+                          did thisCreature (dealDamage anyAmount which) soFarThisTurn ]))
                 die)
               (instead (exile it))),
           activated tapSymbol
@@ -1286,8 +1282,7 @@ theorem okCracklingDoom : Action.check (DRS.ofList []) cracklingDoom = [] := by 
 def theFallen : Ability :=
   at_ (beginningOfYour .upkeep)
     (instruct thisCreature (dealDamage (.lit 1) (each (and [or [isOpponent, isPlaneswalker],
-                   happenedTo thisCreature (dealDamage anyAmount which)
-                       thisGame])) .noncombatOnly))
+                   did thisCreature (dealDamage anyAmount which) thisGame])) .noncombatOnly))
 theorem okTheFallen : Ability.check (DRS.ofList []) theFallen = [] := by decide
 /-- Cavalcade of Calamity -/
 def cavalcadeOfCalamity : Ability :=

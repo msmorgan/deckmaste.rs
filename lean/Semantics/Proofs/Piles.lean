@@ -179,7 +179,7 @@ theorem rippleRevealedCardsRemainAccessible :
         (some (.sequentially
           [ castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
-            (.move (allFromAmong (.not wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])))
+            (.move (allFromAmong (.not (was (cast which) thisWay)) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])))
       = [] := by
   decide
 
