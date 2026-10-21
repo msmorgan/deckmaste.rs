@@ -5,7 +5,7 @@
 *NounPhrase an artifacts
 *NounPhrase a mana
 *NounPhrase an mana
-+ Sacrifice an artifact
++Clause Sacrifice an artifact
 +NounPhrase an Aura
 +NounPhrase an amount of {G}
 +NounPhrase an 8/8 creature

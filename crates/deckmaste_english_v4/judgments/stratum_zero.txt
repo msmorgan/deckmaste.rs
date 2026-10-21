@@ -5,6 +5,10 @@
 + Vigilance; horsemanship (This creature can't be blocked except by creatures with horsemanship.) => KeywordPhrase "Vigilance"; KeywordPhrase "horsemanship"; readings 1
 + Ward {2}
 + Equip—Sacrifice a creature.
+# A standalone keyword line is unpunctuated; an imperative sentence ends in a period (oracle-style-guide §3, "Periods").
++ Equip {2} => KeywordPhrase "Equip {2}"; !Clause "Equip {2}"; readings 1
++ Choose a Background => KeywordPhrase "Choose a Background"; !Clause "Choose a Background"; readings 1
++ Cascade => KeywordPhrase "Cascade"; !Clause "Cascade"; readings 1
 + Equip legendary creature {1} => Quality "legendary creature"
 + Enchant creature without flying => PrepositionPhrase "without flying" as Modifier of creature
 + Swampwalk => KeywordPhrase "Swampwalk"

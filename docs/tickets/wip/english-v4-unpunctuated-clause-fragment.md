@@ -30,3 +30,6 @@ unpunctuated imperative clause commanding the player to "equip" the mana symbol
 - No face is lost, and all judgment files pass.
 
 Standard constraints apply.
+
+1. **Census delta** (vqvxsort): faces read 28709 → 28709; total Readings 344330 → 343515 (−815 across 813 units); lost faces: none.
+2. **Judgment set** (vqvxsort): `cargo test -p deckmaste_english_v4` passes (2921 enforced, 192 pending).

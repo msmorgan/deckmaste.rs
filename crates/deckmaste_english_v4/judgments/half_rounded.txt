@@ -13,4 +13,4 @@
 + Prevent double that damage.
 +NounPhrase half your life
 +Clause You lose half your life, rounded up => VerbPhrase "rounded up"
-+ Pay half your life, rounded up => NounPhrase "half your life" as Object of pay; VerbPhrase "rounded up"
++Clause Pay half your life, rounded up => NounPhrase "half your life" as Object of pay; VerbPhrase "rounded up"

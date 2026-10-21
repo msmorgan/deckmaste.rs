@@ -451,7 +451,6 @@
         // Sentences: a bare imperative or a declarative clause.
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
             equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked")]),
-        (name: "ClauseFragment", lhs: "Document", rhs: [Cat("head", "Clause")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
         (name: "SubjectPredicate", lhs: "Clause",
             rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
@@ -571,7 +570,6 @@
         (name: "PostCopularAdverbial", lhs: "VerbPhrase", rhs: [Class("head", "CopularVerb"), Cat("adjunct", "AdverbPhrase"), Cat("predicative_complement", "Predicative")],
             equations: [Require("adjunct.AdjunctPosition", "Central")]),
 
-        (name: "PrepositionFragment", lhs: "Document", rhs: [Cat("head", "PrepositionPhrase")]),
         (name: "MeasurePremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Measure"), Cat("head", "BareNominal")]),
         // *its {1}{G} kicker*.
         // *five {P} worth of modes*.
