@@ -9,7 +9,7 @@
 +DeterminerPhrase no fewer than two
 +AdverbPhrase more than twice => PrepositionPhrase "than twice"
 +AdverbPhrase no more than twice => PrepositionPhrase "than twice"
-+ Activate no more than twice each turn. => AdverbPhrase "twice" as Complement of than
++ Activate no more than twice each turn. => AdverbPhrase "twice" as Complement of than || AdverbPhrase "twice each turn" as Complement of than
 + Activate no more than three times each turn. => NounPhrase "three times" as Complement of than
 + <card=Judoon Enforcers> No more than two creatures can attack you each combat. => DeterminerPhrase "No more than two" as Determiner of creature
 + <card=Crawlspace> No more than one creature can attack you each combat. => DeterminerPhrase "No more than one" as Determiner of creature
