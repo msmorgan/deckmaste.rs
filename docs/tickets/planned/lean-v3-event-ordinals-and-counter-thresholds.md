@@ -7,6 +7,9 @@ Standard constraints apply. Provenance: `docs/evidence/mtg-rules-review-2026-10-
 #5, #21. Verified against head 2026-10-21. Latent in Lean; mirrors in `plugins_v2` and
 `deckmaste_semantics_v2/src/phrase.rs` as named.
 
+Boundary: `docs/decisions/semantics-v3.md` §0.1 item 4 (the checker models text meaning and rule data; runtime state is the engine's); triage in
+[lean-v3-checker-runtime-state-audit](lean-v3-checker-runtime-state-audit.md).
+
 ## 1. Moonlit Meditation: the ordinal belongs on the replaced event, not a Usage Limit
 
 *Moonlit Meditation* (`Cards/Choice.lean:1109-1114`) is `replace (would (by_ you) (createObject …))
@@ -29,6 +32,9 @@ landed shape; this ticket supersedes it. Pins: a token made before the Aura was 
 first creation after it is not replaced; declining the first replacement leaves the second
 creation unreplaced.
 
+These two pins replay a turn's history, which is runtime simulation: out of scope for Lean, they
+belong to engine tests (ADR §0.1 item 4). The `WouldClause` ordinal form stays.
+
 ## 2. "When the Nth counter is put on" fires on crossing N
 
 *Midnight Clock* (`Cards/Trigger.lean:511-512`, `nthOccurrence (.nth 12) (countersPut hourCounter
@@ -47,6 +53,9 @@ converted. Keep `nthOccurrence` for ordinal casts, draws and turn events. Move t
 counter-threshold uses of `plugins_v2/builtin/macros/events/nthOccurrence.ron` to the same form. Pins: twelve counters put one at a
 time with one removed in between still fires on reaching twelve; a batch of three from ten fires
 once.
+
+These pins replay counter placements and removals, which is runtime simulation: out of scope for
+Lean, they belong to engine tests (ADR §0.1 item 4). The threshold quantity stays.
 
 ## Verification
 

@@ -9,6 +9,9 @@ narrower than its cited rule (a false refusal) or a zone default the rule does n
 no lowering consumes the checker yet. Fix the gate, never the card, and add a witness the old
 gate refused.
 
+Boundary: `docs/decisions/semantics-v3.md` §0.1 item 4 (the checker models text meaning and rule data; runtime state is the engine's); triage in
+[lean-v3-checker-runtime-state-audit](lean-v3-checker-runtime-state-audit.md).
+
 ## 1. Text changes reach creature types
 
 `QualitySort.replaceable` (`Check/TextChanges.lean:11-13`) admits only `.color | .subtype .land`,
@@ -71,6 +74,8 @@ what zone" [CR#702.80c]. Oracle has *Sulfur Elemental*, *Hatchery Sliver*, *Chan
 true` for WebSlinging and Wither, regenerate `Facts.lean`, and correct the comment: class gates are
 corpus observations, not refusals, even where a CR "appears on" sentence exists.
 
+Removing these gates agrees with the boundary: they police no text meaning.
+
 ## 6. A revealed cost result is readable in place
 
 `publicCostResult` (`Check/Phrase.lean:1910-1914`) admits only referents in a public zone
@@ -81,6 +86,11 @@ fails for a card revealed from hand (*Charge of the Forever-Beast*, *Calamity of
 move objects. Also admit referents acted on in place (`Stamp.moved = false`, `Words.lean:253`) and
 keep the public-zone requirement for moved ones. Cite [CR#701.20a,701.20b,400.7j] and the *Charge of
 the Forever-Beast* ruling (2020-04-17), not [CR#608.2h]. Pin one of the three cards.
+
+**Superseded by Decision 3 (owner, 2026-10-22).** "Keep the public-zone requirement for moved ones"
+no longer holds: [lean-v3-ninjutsu-defender-lki](lean-v3-ninjutsu-defender-lki.md) removes the
+public-zone filter from `publicCostResult` and `linkedResult` altogether. Of this item only the
+*Charge of the Forever-Beast* pin remains.
 
 ## 7. "Enchanted creature card" is not on the battlefield
 

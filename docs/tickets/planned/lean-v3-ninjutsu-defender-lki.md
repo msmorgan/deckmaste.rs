@@ -5,8 +5,8 @@ needs: [lean-v3-combat-status-and-entry-riders]
 
 Standard constraints apply. Split from
 `lean-v3-combat-status-and-entry-riders` §2
-(provenance `docs/evidence/mtg-rules-review-2026-10-21/departures-lean.md` #15). **Blocked on an
-owner ruling** (below) before implementation.
+(provenance `docs/evidence/mtg-rules-review-2026-10-21/departures-lean.md` #15). The owner ruled
+on 2026-10-22 (Decision 3, below); the work is no longer blocked.
 
 ## Goal
 
@@ -58,16 +58,53 @@ Scratch `#eval Ability.check (DRS.ofList []) …` evidence at the split (2026-10
 effect that needs information from an object moved "from a public zone to a hidden zone" uses its
 last known information. The checker models the first and has no room for the second.
 
-## Options — pending owner ruling
+## Options (resolved 2026-10-22: Decision 3)
 
-- **(a)** Amend the ADR and checker: an object a cost (or a linked ability) moved from a public
-  zone to a hidden zone stays visible for last-known-information reads (characteristics and the
-  combat relation `attackedBy`), but is not actionable. Touches `publicOnly`, `linkedResult` and
-  the LKI paragraph.
-- **(b)** Bind the defender inside the cost, before the creature leaves the battlefield, so the
-  effect reads a public referent (the player, planeswalker or battle) rather than the returned
-  creature.
-- **(c)** Another encoding the owner prefers.
+Options considered: (a) an ADR and checker exception keeping an object a cost or linked ability
+moved to a hidden zone visible for last-known-information reads; (b) binding the defender inside
+the cost, before the creature leaves the battlefield; (c) another encoding.
+
+**Owner ruling (Decision 3).** Neither (a) nor (b). Remove `publicOnly` and hidden-zone visibility
+filtering from reference resolution instead of adding a last-known-information exception. "The
+creature returned this way" has a well-formed textual antecedent; whether last known information
+is available at runtime is the engine's concern [CR#608.2h]. This applies the engine boundary
+(`docs/decisions/semantics-v3.md` §0.1 item 4): the checker models the meaning of text, not
+runtime visibility. The ADR passages this contradicts are already marked superseded.
+
+## Work
+
+1. **Remove the public-zone filters from reference resolution.** This ticket owns this removal;
+   `lean-v3-checker-runtime-state-audit` inventories the rest and does not repeat it.
+   - `publicOnly` (`Check/Words.lean:1456`) and its call sites: the activated arm
+     (`Check/Phrase.lean:3761`), the special-action arm (`:3704`), and
+     `Ability.textContextWith`'s activated arm (`:2108`).
+   - The linked-result public-zone filter: drop the `zone.isPublic` test from `linkedResult`
+     (`Check/Phrase.lean:1928-1932`), keeping the deed-stamp (`prov.isSome`) condition
+     [CR#607.2a], and the `ref.isPublic` conjunct from `publicCostResult` (`:1920-1924`).
+   - `Zone.isPublic` and `Referent.isPublic` (`Check/Words.lean:954-963`) then have no consumer;
+     delete them.
+   - Proof helpers that mirror the checker with `publicOnly` (`Proofs/Turn.lean:127`,
+     `Proofs/Counters.lean:554`, `Proofs/ContrastAnchor.lean:289`,
+     `Proofs/LinkedReadback.lean:376`) drop it.
+   - Pins that assert the filter: `additionalCostDoesNotPublishAHiddenGroup`
+     (`Check/AbilityRules.lean:53`) is rewritten to assert that the group put from hand into the
+     library is published and readable (`[]`). `badHiddenCost` (`Proofs/Turn.lean:57`, "Return a
+     creature to its owner's hand: Tap it.") is rewritten so that its refusal comes from the
+     action slot: a card in a hand cannot be tapped (§1.5 `J1` item 4, a text-decidable zone).
+     If the checker then admits it, ticket that `J1` defect; do not keep the visibility filter
+     for it.
+   - Update the contract text that describes the filters: `lean/CONTRACTS.md` "Activated
+     abilities and special actions" and "Card text versus nested lists" rows (~564, ~566), the
+     `AbilitySeq` row (~714) and the linked-readback paragraph (~944-947). Then move the ADR's
+     superseded passages (`semantics-v3.md` §0.1 step 2, §1.3 box 1, §1.5 LKI paragraph, the
+     linked-readback bullet) from "superseded" notes to their new text.
+   - This supersedes `lean-v3-checker-rules-scope-refusals` §6's "keep the public-zone requirement
+     for moved ones"; that item keeps only its pin.
+2. **Land the ninjutsu and sneak defender drafts** below, unchanged unless the removal shows
+   otherwise.
+3. **Pin both** (`Proofs/Turn.lean`): the ninjutsu definition's activated effect and sneak's
+   second part, as stated under the drafts; and pin that the scratch rows above with
+   `returnToHand` now check `[]`.
 
 ## Drafts (validated up to the refusal)
 

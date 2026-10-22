@@ -7,6 +7,9 @@ Standard constraints apply. Provenance: `docs/evidence/mtg-rules-review-2026-10-
 #3 (Lean side), #13, #23, #56. Verified against head 2026-10-21. Latent in Lean except where a RON
 mirror is named.
 
+Boundary: `docs/decisions/semantics-v3.md` §0.1 item 4 (the checker models text meaning and rule data; runtime state is the engine's); triage in
+[lean-v3-checker-runtime-state-audit](lean-v3-checker-runtime-state-audit.md).
+
 ## 1. "It can't be regenerated" applies to the destruction it rides on
 
 `destroyCantRegenerate` (`Definitions/Actions.lean:139-140`) is `doAndForbid (destroy subject)
@@ -26,6 +29,9 @@ engine. Keep `doAndForbid` with `untilEndOfTurn` for printed "this turn" forms. 
 (it asserts the wrong order, so it is rewritten, not retired; see
 [lean-v3-proofs-and-docs-alignment](lean-v3-proofs-and-docs-alignment.md) §2). Add a pin that a
 shield created before the destroy does not apply.
+
+The pin that a shield created before the destroy does not apply is runtime simulation: out of
+scope for Lean, it belongs to engine tests (ADR §0.1 item 4). The rider's denotation stays.
 
 ## 2. A countered ability ceases to exist; only a spell moves to a graveyard
 
@@ -58,6 +64,9 @@ presence or type tests current state, with fight [CR#701.14b] as the witness and
 (`Condition::Matches` falling back to a snapshot) is
 [engine-condition-lki-context](../critical/engine-condition-lki-context.md); this item only fixes
 the Lean contract the lowering will read.
+
+The *Affectionate Indrik* pin is runtime simulation: out of scope for Lean, it belongs to engine
+tests (ADR §0.1 item 4). The contract statement stays.
 
 ## 4. Quenchable Fire's {U} is a Special Action, not an "unless" on resolution
 
