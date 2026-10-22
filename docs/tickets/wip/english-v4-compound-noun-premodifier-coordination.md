@@ -66,5 +66,63 @@ in the grammar. If it cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+## Resolution
+
+**Owner's rulings applied.** Round 6 (2026-10-22): proceed with this ticket,
+re-measuring first, and allow rises only with the intended Reading. The
+withdrawn `english-v4-premodifier-coordination-split` ruling keeps [*X*] or
+[*Y Z*] against [*X or Y*] *Z* as a genuine Ambiguity, so nothing is removed.
+Round 5, 7a: a fronted dependent scopes over a whole coordination, never its
+first conjunct.
+
+**Re-measured** on `vuurrwws` (before the change): the Noun Phrases have 2 and
+3 Readings, all wrong, as stated above. The units have 15 and 42.
+
+**Change** (`english.ron`, no new feature):
+
+- The `NounPremodifier` Coordination takes its conjuncts from a new
+  `NounPremodifierConjunct` Category. `NounConjunct` (cost 0, so existing
+  Ranking Keys are unchanged) makes any noun premodifier a conjunct.
+- A conjunct may take a preposed negative premodifier of its own through an
+  `Adjunct` schema: host `NounPremodifierConjunct`, adjunct
+  `NegativeNounPremodifier`, side `Before`. That yields [*artifact or
+  [non-Aura enchantment]*] *card*.
+- The schema is preposed, so the engine's existing first-conjunct rule
+  (`Summary::fronted`; `english-lexical-analysis.md` §2) keeps the negative
+  premodifier at the start of the first conjunct scoping over the whole
+  coordination: *non-Lesson [instant and sorcery] card* (Iroh, Grand Lotus)
+  gains no [[*non-Lesson instant*] *and sorcery*] *card*.
+
+**Measured alternative, rejected.** A first prototype let any conjunct be a
+compound of two noun premodifiers. 25 units rose; 23 of them gained only
+wrong Readings. Examples are [*Pegasus, Unicorn, or [Horse creature]*]
+*spell* (Thurid), *creature [[card or [Garruk planeswalker]] card]* (Garruk's
+Harbinger, 152 → 344), [[*noncreature artifact*] *or noncreature*]
+*enchantment* (Guerrilla Gorilla, Haywire Mite, Hulk's Thunderclap) and
+[[*non-Lesson instant*] *and sorcery*] *card* (Iroh). Restricting the
+conjunct's own premodifier to a negative one (`docs/oracle-style-guide.md` §7,
+Negation with non-), outside the first conjunct, admits the two witnesses and
+nothing else.
+
+**The wrong Readings stay.** [*artifact or non-Aura*] *enchantment card* has
+the same structure as the endorsed [*instant or sorcery*] *card*, and the
+split is the owner's genuine Ambiguity. No tightened structural rule removes
+either, so the Ranking Key orders them. Today it ranks the intended Reading
+second for Abuelo's Awakening (0/1/9, behind 0/0/9) and third for Excava.
+Puppet Crafting keeps its split Reading, pinned by a judgment.
+
+**Units that gain a Reading** (adjudicated):
+
+- Abuelo's Awakening, 15 → 21. The Noun Phrase gains exactly one Reading,
+  the intended one; the rest is the unit's other ambiguity multiplied by it.
+- Excava, the Risen Past, 42 → 57. Likewise: one Noun Phrase Reading,
+  [*artifact, creature, or [non-Aura enchantment]*] *card*.
+
+No other unit changed.
+
+1. **Census delta** (`vuurrwws` → this landing, full corpus): faces read
+   28,799 → 28,799; total Readings (product) 214,300 → 214,321; Surplus
+   88,560 → 88,581. Only the two witnesses rose, and none fell. Cheapest
+   tier: singleton in 14,800 of 16,562 ambiguous units, summed 18,929,
+   largest 8, unchanged. Lost faces: none.
+2. **Judgment set** (`vuurrwws`): 3,033 enforced, 207 pending; all hold.

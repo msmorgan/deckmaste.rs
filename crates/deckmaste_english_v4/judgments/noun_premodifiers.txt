@@ -20,3 +20,7 @@
 +Nominal nonland permanent card => Nominal "nonland" as Modifier of card; Nominal "permanent" as Modifier of card
 +Nominal permanent
 +NounPhrase target permanent => readings 1
++ <card=Abuelo's Awakening> Return target artifact or non-Aura enchantment card from your graveyard to the battlefield with X additional +1/+1 counters on it. It's a 1/1 Spirit creature with flying in addition to its other types. => Nominal "artifact or non-Aura enchantment" as Modifier of card; Nominal "non-Aura" as Modifier of enchantment
++ <card=Excava, the Risen Past> Whenever Excava attacks, return up to one target artifact, creature, or non-Aura enchantment card with mana value 3 or less from your graveyard to the battlefield with a finality counter on it. It's a 1/1 Spirit creature with flying in addition to its other types. => Nominal "artifact, creature, or non-Aura enchantment" as Modifier of card; Nominal "non-Aura" as Modifier of enchantment
++ <card=Puppet Crafting> Enchant artifact or non-Aura enchantment => Nominal "artifact"; Nominal "non-Aura enchantment"; Nominal "non-Aura" as Modifier of enchantment
++ <card=Iroh, Grand Lotus> During your turn, each non-Lesson instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost. => Nominal "non-Lesson" as Modifier of card; Nominal "instant and sorcery" as Modifier of card; !Nominal "non-Lesson instant and sorcery"

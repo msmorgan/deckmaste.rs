@@ -174,6 +174,10 @@
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
         "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "Conversion"], gap: true),
         "NounPremodifier": (category: Some("Nominal")),
+        // A conjunct of a coordination of noun premodifiers: a noun premodifier,
+        // with any negative premodifier of its own (*artifact or [non-Aura
+        // enchantment] card*).
+        "NounPremodifierConjunct": (category: Some("Nominal")),
         "PrepositionalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounDistribution"]),
         // A Number-transparent quantity's plural oblique whose determiner is
         // the Targeting Marker alone (*any number of target creatures*), and
@@ -1030,6 +1034,7 @@
         (name: "FusedLocative", lhs: "LocativeHead", rhs: [Class("head", "LocativeQuantifier")], equations: [Require("$.NounKind", "Locative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly"), Exclude("head.NounDistribution", "Valued")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
+        (name: "NounConjunct", lhs: "NounPremodifierConjunct", rhs: [Cat("head", "NounPremodifier")], cost: 0),
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
         (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
@@ -1390,6 +1395,15 @@
         Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
         Valence(head: Adjective, phrase: "AdjectivePhrase"),
         Valence(head: Determinative, phrase: "DeterminerPhrase", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
+        // A carrier noun distributes over a coordination of noun premodifiers
+        // (`docs/oracle-style-guide.md` §7, Card types are common nouns and
+        // attributive modifiers), and a later conjunct may carry its own
+        // negative premodifier (§7, Negation with non-): *artifact or non-Aura
+        // enchantment card* is an artifact card or a non-Aura enchantment
+        // card. A preposed dependent at the start of the first conjunct
+        // scopes over the whole coordination instead (*non-Lesson [instant and
+        // sorcery] card*; `english-lexical-analysis.md` §2).
+        Adjunct(host: "NounPremodifierConjunct", adjunct: "NegativeNounPremodifier", side: Before, host_kind: Nominal, cost: 1),
         // A complement costs nothing. A Preposition Phrase Adjunct costs the
         // same whether it postmodifies a Nominal or modifies a Predicate: the
         // Ranking Key's Right Association, not a Production Cost, prefers one
@@ -1499,7 +1513,7 @@
         // Interrogative clauses coordinate (*which creatures block and how
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
-        Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
+        Coordination(category: "NounPremodifier", conjunct: Some("NounPremodifierConjunct"), coordinators: "Coordinator"),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", unshared: ["DeterminativeDistribution"], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
