@@ -64,7 +64,7 @@ def awakenDefinition : List Ability :=
       (doIf (costWasPaid (.byKeyword (.named "awaken")) none .this)
         (.sequentially
           [ .putCounters 4 (.printed p1p1Counter)
-              (target (.and [isLand, .hasPossessor .controller .you])) true,
+              (target (.and [isLand, .hasPossessor .controller .you])),
             .establish
               (.characteristicChange (that (.type .land))
                 [ .typeLine .adds { types := some [.creature], subtypes := some [elemental] },

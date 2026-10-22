@@ -1186,7 +1186,7 @@ mutual
         (times : Option Quantity)
     /-- Move `subject` from `from_` to `to`, observed at `at_` [CR#603.6a,603.6c,603.10a,700.4]. -/
     | move (subject : NounPhrase) (from_ : Location) (to : Option Location)
-        (at_ : ObservationPoint) (cause : Option Causing) (riders : List MoveRider)
+        (at_ : ObservationPoint) (riders : List MoveRider)
     /-- Turn `subject` face down as `spec` lists: manifest's first step [CR#701.40a,708.2]. -/
     | turnFaceDown (subject : NounPhrase) (spec : FaceDown)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount)
@@ -1218,27 +1218,24 @@ mutual
     | storeResults (on : NounPhrase)
     | rerollStored (quantity : Quantity) (whose : NounPhrase)
     | establish (spec : StaticSpec) (duration : Option Duration)
-    /-- Create `count` objects as `spec` says. `byEffect` is whether an effect does it: one of a
-    resolving spell or ability, or a replacement or prevention effect [CR#609.1,614.16]. "If an
-    effect would create" watches only a creation with `byEffect`. -/
-    | createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool)
-        (under : Option NounPhrase)
+    /-- Create `count` objects as `spec` says. Whether an effect creates them follows from the
+    enclosing node; "if an effect would create" is `WouldClause.causedBy .anEffect`
+    [CR#609.1,614.16]. -/
+    | createObject (count : Amount) (spec : CreationSpec) (under : Option NounPhrase)
     /-- Put `amount` counters on `on`. As an event pattern, `amount` is what the text watches:
     "a counter is put" is `.lit 1`, matched by each counter put [CR#603.2c]; "one or more
     counters are put" is `.anyAmount`, matched by the event [CR#714.2b]; "the Nth counter is put"
-    is `.theNth`, matched by the put that crosses N [CR#122.7]. `byEffect` is whether an
-    effect does it: one of a resolving spell or ability, or a replacement or prevention effect
-    [CR#609.1,614.16]. "If an effect would put" watches only a put with `byEffect`; a
-    turn-based action is no effect [CR#703.1]. -/
+    is `.theNth`, matched by the put that crosses N [CR#122.7]. "If an effect would put" is
+    `WouldClause.causedBy .anEffect` [CR#609.1,614.16]; whether a put is an effect follows from
+    its enclosing node, and a turn-based action is no effect [CR#703.1]. -/
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
-        (byEffect : Bool)
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     /-- Remove `quantity` counters from `from_`, all of them if none is written. As an event
     pattern, `quantity` is what the text watches: "a counter is removed" is `exactly 1`, matched
     by each counter removed [CR#603.2c]; "one or more" is `orMore 1`, matched by the event; "the
     last" is `theLast` [CR#702.62a,310.12b]. -/
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
-        (from_ : NounPhrase) (byEffect : Bool)
+        (from_ : NounPhrase)
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/

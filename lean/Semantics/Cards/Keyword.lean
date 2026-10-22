@@ -286,7 +286,7 @@ def divineVisitation : Spelled := spelled <| singleFacedCard
   { name := "Divine Visitation", cost := [generic 3, pip .white, pip .white],
     types := [.enchantment],
     text :=
-      [ static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) (and [isCreature, isToken]))) []) false you)) (instead (createToken
+      [ static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) (and [isCreature, isToken]))) []) you)) (instead (createToken
             { characteristics :=
               { colors := [.white], types := [.creature], subtypes := [angel],
                 text := [flying,
@@ -299,7 +299,7 @@ def adrixAndNev : Spelled := spelled <| singleFacedCard
     subtypes := [merfolk, wizard],
     text :=
       [ ward [generic 2],
-        static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) false (some
+        static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) (some
             you))) (instead (create (times 2 groupSize) asThose []))) ],
     power := stat 2, toughness := stat 2 }
 
@@ -1133,7 +1133,7 @@ def pirDistributive : Ability :=
   static (replace
             (would any
                (putCounters anyAmount anyKind
-                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) false))
+                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))]))))
                       (instead (putCounters (plus thatMuch 1) thoseCounters (that permanent))))
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 

@@ -1024,8 +1024,8 @@ def moonlitMeditation : Spelled := spelled <| singleFacedCard
         static (replace
                   (nthOccurrence (.nth 1)
                      (would (by_ you)
-                        (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])
-                           false)) (some .turn))
+                        (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])))
+                     (some .turn))
                   (instead (may (create groupSize (copyOf (enchanted permanent)) [])))) ] }
 
 def discardUpToTwoThenDrawThatMany : Action :=

@@ -34,7 +34,7 @@ private def additionalHiddenGroup : Ability :=
     (.perform (.move
       (.described (.count (.range (some 0) none) none)
         (.and [.isCard, .in_ (.zone .hand none)]))
-      (.zone .hand none) (some (.zone .library none)) .arrival none []))
+      (.zone .hand none) (some (.zone .library none)) .arrival []))
     false .once)
 
 private theorem additionalCostPublishesTheActualGroupIdentity :
@@ -121,7 +121,7 @@ def UsageLimit.check (drs : DRS) (limit : UsageLimit) : List Refusal :=
   (stepUsageLimitWith (stepOps 64) drs limit).2
 
 private def announcedColor : Ability :=
-  .static (.replace (.would .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival none []))
+  .static (.replace (.would .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival []))
     (.also (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
     none .repeatedly none)
 private def readAnnouncedColor : Ability :=

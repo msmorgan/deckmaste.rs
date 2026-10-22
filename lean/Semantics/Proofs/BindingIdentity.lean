@@ -172,9 +172,9 @@ theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Loc
     lookAndSortSlice slice spill spillRiders =
       .sequentially
         [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation (some spill) .arrival none
+          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation (some spill) .arrival
             spillRiders,
-          .move (.theRest .object .many) .anyLocation (some onTop) .arrival none [(.inOrder .anyOrder)] ] :=
+          .move (.theRest .object .many) .anyLocation (some onTop) .arrival [(.inOrder .anyOrder)] ] :=
   rfl
 
 private def scryBy (amount : Amount) : Action :=
@@ -220,7 +220,7 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
     [ discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not isLand, .isCard,
         .did ⟨.any, discard .which, some .thisWay⟩]))
-        (.putCounters 1 (.printed p1p1Counter) (that .permanent) true) ]
+        (.putCounters 1 (.printed p1p1Counter) (that .permanent)) ]
 
 private def conniveBy (amount : Amount) : Action :=
   .enact (.action "connive") (instruct (controllerOf .actor)

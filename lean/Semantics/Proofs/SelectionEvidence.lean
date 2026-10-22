@@ -115,7 +115,7 @@ theorem playersCanSacrificeTheCollectedTargets :
         (.enact (.action "sacrifice")
           (.move (.pro (.word .permanent) .many)
             (.zone .battlefield none) (some (.zone .graveyard none))
-            .departure none []) none none)]) = [] := by decide
+            .departure []) none none)]) = [] := by decide
 
 private def afterPlayerLoop (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
@@ -141,7 +141,7 @@ theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
       .choose none (.firstMention "loop.target"
         (.described (.target (.range (some 1) (some 1))) (.hasType .creature))) .openly none,
       .move (.laterMention "loop.target" .any) .anyLocation
-        (some (.zone .graveyard none)) .arrival none []])
+        (some (.zone .graveyard none)) .arrival []])
     out.referents.map (·.id) = [4, 0] ∧
       (out.findById? 4).bind (·.zone) = some .graveyard ∧
       (out.findById? 4).map (·.idents) = some [] ∧
@@ -217,7 +217,7 @@ theorem linkedProhibitionStartsANewClauseAfterItsAction :
         [ .enact (.action "destroy")
             (.move (.described .all (.hasType .creature))
               (.zone .battlefield none) (some (.zone .graveyard none))
-              .departure none []) none none,
+              .departure []) none none,
           .establish (.cant .any
             (.ownScope (some (.action "regenerate"))
               (.enact (.action "regenerate") (.clearDamage (.inCaller (.pro .bare .many)))
@@ -286,7 +286,7 @@ theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
       Action.check (DRS.ofList [])
         (.triggerReflexively offered none
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
-            (.headed (.type .creature) .this) true)) = [] := by decide
+            (.headed (.type .creature) .this))) = [] := by decide
 
 theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
     let mana := Cost.mana [.simple (.generic 1)]

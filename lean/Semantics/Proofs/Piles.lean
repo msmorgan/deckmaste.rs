@@ -38,7 +38,7 @@ theorem badSingletonBallot : Ballot.check (DRS.ofList []) (.byLabel ["death"]) =
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
     Action.check (DRS.ofList [])
-      (.move (target (.and [isCreature, .in_ (graveyardOf .you)])) .anyLocation (some battlefield) .arrival none [.entersTransformed]) = [] := by
+      (.move (target (.and [isCreature, .in_ (graveyardOf .you)])) .anyLocation (some battlefield) .arrival [.entersTransformed]) = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
@@ -75,7 +75,7 @@ theorem okOnePileAfterPartition :
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anyLocation (some hand) .arrival none [])
+    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anyLocation (some hand) .arrival [])
       = [.kindLte .player (.join .object .pile)] := by decide
 
 /-- "Put one pile into your hand." -/
@@ -182,7 +182,7 @@ theorem rippleRevealedCardsRemainAccessible :
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
             (.move
               (allOf (and [isCard, was (reveal which) thisWay, not (was (cast which) thisWay)]))
-              .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])))
+              .anyLocation (some onBottom) .arrival [(.inOrder .anyOrder)]) ])))
       = [] := by
   decide
 
@@ -256,13 +256,13 @@ theorem oneWayResultShift :
 stack is an object [CR#109.1], so it may hold counters. -/
 theorem abilityCounterRecipient :
     Action.check (DRS.ofList [])
-      (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters 1 (.sameAs it) it true))
+      (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters 1 (.sameAs it) it))
       = [] := by
   decide
 
 /-- "Remove a counter of each kind you have from you": a player has counters too [CR#122.1]. -/
 theorem removeOwnCounterKinds :
-    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some (.sameAs .you)) .you true) = [] := by decide
+    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some (.sameAs .you)) .you) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
     Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) 1 none)

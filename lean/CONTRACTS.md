@@ -829,7 +829,7 @@ expected child kinds in the incoming `DRS`.
 | `RollWatch` | `RollWatch.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |
 | `CrimeSubject` | `Action.commitCrime` as an event pattern (`does subj commitCrime`) requires a singular performer (`singular`). |
 | `GameEvent` | `stepGameEvent` (`GameEvent.check`) steps it. |
-| `Causing` | `stepCausingWith` steps it. |
+| `Causing` | `stepCausingWith` steps it. "By an effect" and "if an effect would" are `GameEvent.causes .anEffect` and `WouldClause.causedBy .anEffect` (Template `byAnEffect`) [CR#609.1,614.16]; no Action carries an effect flag, since whether an Action is an effect follows from the node that encloses it (a turn-based action is none, [CR#703.1]). |
 | `TriggerWindow` | Merged into `Timing.inPart`; `stepTimingWith` steps the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
 | `Timing` | `stepTimingWith` (`Timing.check`) checks references and kinds only: whose turn is a player's, and the events, conditions and turn references it names. |
 | `AltEvent` | `stepTriggerHeaderWith` steps each alternative event, and `commonHeaderContext` keeps what every alternative introduces. The old header-word index is gone; the event determines its own event class. Header nontargeting is retired by `lean-checker-sweep-game-rules` (§7 charter ruling 2026-10-06). |

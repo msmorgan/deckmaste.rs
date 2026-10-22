@@ -618,7 +618,7 @@ def idolOfOblivion : Spelled := spelled <| singleFacedCard
   { name := "Idol of Oblivion", cost := [generic 2], types := [.artifact],
     text :=
       [ activatedOnlyIf tapSymbol (draw 1)
-          (did you (createObject anyAmount (token (copyOf (a isToken)) []) false) soFarThisTurn),
+          (did you (createObject anyAmount (token (copyOf (a isToken)) [])) soFarThisTurn),
         activated (compound [[generic 8], tapSymbol, sacrifice thisArtifact])
           (createToken (creatureToken 10 10 [] [eldrazi])) ] }
 

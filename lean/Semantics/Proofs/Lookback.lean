@@ -36,7 +36,7 @@ theorem gapRequiresLookback :
 theorem scopedCreatureDeath :
     relativeCheck .object
       ⟨.any, .move (.headed (.type .creature) .which)
-        (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [],
+        (.zone .battlefield none) (some (.zone .graveyard none)) .departure [],
         some withinThisTurn⟩ = [] := by decide
 
 theorem nestedLookbackBindsItsOwnParticipant :
@@ -47,7 +47,7 @@ theorem nestedLookbackBindsItsOwnParticipant :
             (.and [.hasType .creature, .in_ (.zone .stack none),
               .did ⟨.any, .move (.headed (.type .creature) .which)
                 (.zone .battlefield none) (some (.zone .graveyard none))
-                .departure none [], some withinThisTurn⟩]))
+                .departure [], some withinThisTurn⟩]))
           .itsOwnCost none none none,
         some withinThisTurn⟩ = [] := by decide
 
@@ -72,7 +72,7 @@ theorem innerGapDoesNotSupplyOuterParticipant :
           (some (.onlyIf (.exists_ (.described (.a .unmarked)
             (.and [.hasType .creature,
               .did ⟨.any, .move .which (.zone .battlefield none)
-                (some (.zone .graveyard none)) .departure none [], some withinThisTurn⟩]))))))⟩ =
+                (some (.zone .graveyard none)) .departure [], some withinThisTurn⟩]))))))⟩ =
       [.lookbackSubject] := by decide
 
 theorem participantCanOccurMoreThanOnce :

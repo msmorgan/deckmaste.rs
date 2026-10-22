@@ -500,7 +500,7 @@ theorem millThenPutFromAmongMilled :
               (fromAmong (exactly 1) isArtifact
                 (thePlural (and [isCard,
                   .did ⟨.any, .ownScope (some (.action "mill"))
-                    (.move (.inCaller .which) yourLibrary (some graveyard) .departure none []),
+                    (.move (.inCaller .which) yourLibrary (some graveyard) .departure []),
                     some .thisWay⟩])))
               hand) ]) = [] := by
   decide

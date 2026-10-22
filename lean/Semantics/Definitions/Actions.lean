@@ -27,15 +27,14 @@ semantic_definition create (count : Amount) (token : TokenSpec) (riders : List M
     Action :=
   .ownScope (some (.action "create"))
     (enact (.action "create")
-      (.createObject (.inCaller count) (.token (.inCaller token) (riders.map MoveRider.inCaller))
-        true none))
+      (.createObject (.inCaller count) (.token (.inCaller token) (riders.map MoveRider.inCaller)) none))
 /-- "counter <subject>": one labeled stack-to-graveyard move (`Definition`, [CR#701.6a]). -/
 semantic_definition counter (subject : NounPhrase) : Action :=
   .ownScope (some (.action "counter"))
     (enact (.action "counter")
       (.move (.firstMention "counter.subject" (.inCaller subject)) (.zone .stack none)
         (some (.zone .graveyard none))
-        .arrival none []))
+        .arrival []))
 
 /-! ## Actions -/
 
@@ -82,19 +81,19 @@ semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
     (enact (.action "destroy")
       (.move (.firstMention "destroy.subject" (.inCaller subject)) (.zone .battlefield none)
-        graveyard .departure none []))
+        graveyard .departure []))
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exile.subject" (.inCaller subject)) .anyLocation exileZone
-        .arrival none []))
+        .arrival []))
 /-- "exile <subject> face down" (`Definition`, [CR#701.13,406.3]). -/
 semantic_definition exileFaceDown (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileFaceDown.subject" (.inCaller subject)) .anyLocation
-        exileZone .arrival none
+        exileZone .arrival
         [.faceDown exiledFaceDown]))
 /-- "exile <subject> with N <kind> counters on it" (`Definition`, [CR#701.13]). -/
 semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount)
@@ -102,14 +101,14 @@ semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount)
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileWithCounters.subject" (.inCaller subject)) .anyLocation
-        exileZone .arrival none
+        exileZone .arrival
         [.withCounters (.inCaller amount) kind .fresh]))
 /-- "sacrifice <subject>" (`Definition`, [CR#701.21]). -/
 semantic_definition sacrifice (subject : NounPhrase) : Action :=
   .ownScope (some (.action "sacrifice"))
     (enact (.action "sacrifice")
       (.move (.firstMention "sacrifice.subject" (.inCaller subject)) (.zone .battlefield none)
-        graveyard .departure none []))
+        graveyard .departure []))
 /-- "transform <subject>" (`Definition`, [CR#701.27]). -/
 semantic_definition transform (subject : NounPhrase) : Action :=
   .ownScope (some (.action "transform"))
@@ -120,13 +119,13 @@ semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))
     (enact (.action "meld")
       (.move (.firstMention "meldInto.subject" (.inCaller subject)) .anyLocation battlefield
-        .arrival none [.entersMelded into]))
+        .arrival [.entersMelded into]))
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a]. -/
 semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (enact (.action "manifest")
       (.move (.firstMention "manifestPlacement.subject" (.inCaller subject)) .anyLocation
-        battlefield .arrival none []))
+        battlefield .arrival []))
 /-- "tap <subject>" (`Definition`, [CR#701.26a]). -/
 semantic_definition tap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "tap"))
@@ -163,7 +162,7 @@ semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (enact (.action "discard")
       (.move (.firstMention "discard.subject" (.inCaller subject)) (.zone .hand (some .actor))
-        graveyard .arrival none []))
+        graveyard .arrival []))
 /-- A bare "shuffle": the performer's own library (`Definition`, [CR#701.24a]). -/
 semantic_definition shuffle : Action :=
   .ownScope (some (.action "shuffle"))
@@ -179,14 +178,14 @@ semantic_definition mill (amount : Amount) : Action :=
   .ownScope (some (.action "mill"))
     (enact (.action "mill")
       (.move (.slice .top (.inCaller amount) (libraryOf .actor))
-        (.zone .library none) graveyard .arrival none []))
+        (.zone .library none) graveyard .arrival []))
 /-- "<cards> are milled": the mill whose patient is a card description, as an event a trigger
 watches ("Whenever one or more nonland cards are milled") (`Definition`, [CR#701.17a,701.17c]). -/
 semantic_definition millCards (cards : NounPhrase) : Action :=
   .ownScope (some (.action "mill"))
     (enact (.action "mill")
       (.move (.firstMention "millCards.cards" (.inCaller cards))
-        library graveyard .arrival none []))
+        library graveyard .arrival []))
 /-- "search <whose> graveyard, hand, and library for <for_>", the owner written once
 (`Definition`, [CR#701.23]). -/
 semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Action :=
@@ -225,7 +224,7 @@ semantic_definition shuffleInto (subject : NounPhrase) : Action :=
       [ enact (.action "shuffle")
           (.move (.firstMention "shuffleInto.subject" (.inCaller subject)) .anyLocation
             (some (.zone .library none))
-            .arrival none []),
+            .arrival []),
         .shuffle (.zone .library none) ])
 /-- "vote for <ballot> [<times> times]" (`Definition`, [CR#701.38]). -/
 semantic_definition vote (disclosure : Disclosure := .openly)
@@ -329,7 +328,7 @@ semantic_definition exileFrom (subject : NounPhrase) (from_ : Location) : Action
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileFrom.subject" (.inCaller subject)) (.inCaller from_)
-        exileZone .arrival none []))
+        exileZone .arrival []))
 /-- "exile <subject> from <from_> face down" (`Definition`, [CR#701.13,406.3]): a move that names
 its origin, so an ability whose cost or effect makes it functions only in that zone
 [CR#113.6m]. -/
@@ -337,7 +336,7 @@ semantic_definition exileFaceDownFrom (subject : NounPhrase) (from_ : Location) 
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileFaceDownFrom.subject" (.inCaller subject)) (.inCaller from_)
-        exileZone .arrival none [.faceDown exiledFaceDown]))
+        exileZone .arrival [.faceDown exiledFaceDown]))
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
 semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))
@@ -367,7 +366,7 @@ semantic_definition discover (amount : Amount) : Action :=
       [ exile (.run .top (and [non isLand, fits]) (libraryOf .actor)),
         .withContinuation .optional (castWithoutPaying (that .card) fits) none
           (putInto (that .card) hand),
-        .move (theRest .object) .anyLocation onBottom .arrival none
+        .move (theRest .object) .anyLocation onBottom .arrival
           [(.inOrder .randomOrder)] ]))
 /-- "<performer> incubates N" (`Definition`, [CR#701.53a,701.53b]). -/
 semantic_definition incubate (amount : Amount) : Action :=
@@ -396,14 +395,14 @@ semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (enact (.action "manifest") (sequentially
       [ .turnFaceDown (.firstMention "manifest.subject" (.inCaller subject)) faceDownCreature,
-        .move (that .card) .anyLocation battlefield .arrival none
+        .move (that .card) .anyLocation battlefield .arrival
           [(.faceDown faceDownCreature)] ]))
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
 semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (enact (.action "cloak") (sequentially
       [ .turnFaceDown (.firstMention "cloak.subject" (.inCaller subject)) faceDownWardedCreature,
-        .move (that .card) .anyLocation battlefield .arrival none
+        .move (that .card) .anyLocation battlefield .arrival
           [(.faceDown faceDownWardedCreature)] ]))
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
 semantic_definition manifestDread : Action :=
@@ -684,7 +683,7 @@ semantic_definition earthbend (amount : Amount) : Action :=
           putCounters (.inCaller amount) p1p1Counter (that land),
           delay (does (that land) die)
             (returnTo (that land) battlefield [.entersAs .tapped, .under .actor])
-            [does .any (.move (that land) battlefield exileZone .departure none [])] ]))
+            [does .any (.move (that land) battlefield exileZone .departure [])] ]))
 semantic_definition endure (amount : Amount) : Action :=
   .ownScope (some (.action "endure"))
     (enact (.action "endure")

@@ -113,9 +113,9 @@ theorem bareAndAllOfExpandToOneTree (p : Predicate) :
 ability that triggers when a card leaves a graveyard looks back in time [CR#603.10a]. -/
 theorem graveyardToHandObservedOnDeparture :
     returnToHand (target isCreature) yourGraveyard =
-      .move (target isCreature) yourGraveyard (some hand) .departure none [] ∧
+      .move (target isCreature) yourGraveyard (some hand) .departure [] ∧
     putInto (target isCreature) hand (some yourGraveyard) =
-      .move (target isCreature) yourGraveyard (some hand) .departure none [] :=
+      .move (target isCreature) yourGraveyard (some hand) .departure [] :=
   ⟨rfl, rfl⟩
 
 /-- "X and Y", "X or Y" and "X and/or Y" are three encodings of a noun phrase. -/

@@ -110,7 +110,7 @@ theorem typeViewRefusesMovedPronounWithoutChangingItsZone :
 
 private def moveOuter : Action :=
   .move (.laterMention "subject" .any) .anyLocation
-    (some (.zone .exile none)) .departure none []
+    (some (.zone .exile none)) .departure []
 
 theorem loopPreservesFreshSuccessorOfOuterReferent :
     let loop := Action.doForEach (.described .each .anyPlayer) moveOuter
@@ -137,7 +137,7 @@ theorem kindLoopPreservesFreshSuccessorOfOuterReferent :
 theorem consumingActionChecksThePreMoveZone :
     let destruction := Action.enact (.action "destroy")
       (.move (.laterMention "subject" .any) .anyLocation
-        (some (.zone .graveyard none)) .departure none []) none none
+        (some (.zone .graveyard none)) .departure []) none none
     let result := stepAction 64 .postEvent .obj original destruction
     result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 

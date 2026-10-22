@@ -57,7 +57,7 @@ def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bo
     match event with
     | .would _ action =>
       match action.scopeBody with
-      | .move src _ _ _ _ _ => src.namesThis
+      | .move src _ _ _ _ => src.namesThis
       | _ => false
     | .wouldAny _ | .causedBy .. | .nthOccurrence .. => false
   | n + 1, .conditional se _ _ => se.onInstantOrSorceryCardOk n

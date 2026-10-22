@@ -77,7 +77,7 @@ private def runeswordVictim : NounPhrase :=
     .did ⟨.actor (.laterMention "runesword.source" (target isCreature)),
       .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩]))
 private def runeswordWould : WouldClause :=
-  .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure none [])
+  .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure [])
 
 theorem runeswordRawDemonstrativeSelectsDyingCreature :
     selected (.type .creature)
@@ -161,7 +161,7 @@ private def scytheDeath : GameEvent :=
 private def scytheAfterDeath : DRS :=
   (stepGameEvent 64 (DRS.ofList []) scytheDeath).1
 private def scytheReturn : Action :=
-  .move (that .card) .anyLocation (some battlefield) .arrival none []
+  .move (that .card) .anyLocation (some battlefield) .arrival []
 private def scytheAfterReturn : DRS :=
   (stepAction 64 .postEvent .obj (nextClause scytheAfterDeath) scytheReturn).1
 
@@ -193,7 +193,7 @@ theorem vampiricDeadCreatureIsExcludedByZone :
 
 theorem vampiricCountersUseEnchantedCreature :
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause vampiricAfterDeath)
-      (.putCounters 1 (.printed p1p1Counter) (that (.type .creature)) true)
+      (.putCounters 1 (.printed p1p1Counter) (that (.type .creature)))
     let patients := (after.pendingRoles.filter (fun p => p.2 == .obj)).map (·.1)
     errors = [] ∧ patients.length = 1 ∧
       patients = (vampiricAfterDeath.referents.filter (·.attachmentHost)).map (·.id) ∧
@@ -208,7 +208,7 @@ private def cycloneFinalCard : NounPhrase :=
       (the (.and [.did ⟨.any, .enact (.ofAbility (.named "cycling")) (discard .which) none none, none⟩,
         .isCard]))])
 private def cycloneExile : Action :=
-  .move cycloneFinalCard (yourLibrary) (some exileZone) .arrival none []
+  .move cycloneFinalCard (yourLibrary) (some exileZone) .arrival []
 private def cycloneAfter : DRS :=
   (stepAction 64 .postEvent .obj (nextClause cycledContext) cycloneExile).1
 

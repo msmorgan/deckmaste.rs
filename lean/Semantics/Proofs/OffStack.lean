@@ -174,7 +174,7 @@ theorem okTributeWasntPaid :
 /-- "as that permanent is put onto the battlefield" from the stack, as the spell resolves
 [CR#608.3a,608.3g]. -/
 def putOntoTheBattlefieldAsItResolves : GameEvent :=
-  does .any (.move thisPermanent stack battlefield .arrival none [])
+  does .any (.move thisPermanent stack battlefield .arrival [])
 
 /-- The Off-Stack Statics of a keyword's body: their events and actions. -/
 def offStackStatics : Ability → List (GameEvent × Action)
@@ -233,7 +233,7 @@ theorem enchantReplacesTheEntering :
             doIf (not (exists_ (legalHostOf thisAura)))
               (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard)))),
           (would .any
-              (.move thisAura (not stack) battlefield .arrival none [.not (.attachedTo .any)]),
+              (.move thisAura (not stack) battlefield .arrival [.not (.attachedTo .any)]),
             doIf (exists_ (legalHostOf thisAura))
               (also (attachTo thisAura (a (legalHostOf thisAura))))),
           (would thisAura
@@ -247,7 +247,7 @@ names a host, and only such an entering keys [CR#303.4i]. The [CR#303.4g] enteri
 riders, so it watches every entering. -/
 theorem enchantChoiceExcludesANamedHost :
     ((replacements (enchant isCreature)).map (·.1)).filterMap (fun
-      | .would _ (.move _ _ _ _ _ riders) => some riders
+      | .would _ (.move _ _ _ _ riders) => some riders
       | _ => none)
       = [ [],
           [.not (.attachedTo .any)],

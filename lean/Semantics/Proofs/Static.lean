@@ -265,9 +265,7 @@ tapped" [CR#111.1,614.1d]. -/
 theorem okRidersOverATokenCreation :
     StaticSpec.check (DRS.ofList [])
       (replace
-        (would any
-          (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) true
-            (some you)))
+        (would you (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])))
         (withRiders [.entersAs .tapped])) = [] := by
   decide
 

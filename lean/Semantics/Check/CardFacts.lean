@@ -70,7 +70,7 @@ mutual
       | .onSpent _ _ _ body => body.namesThisDoor n | _ => false)
     | n + 1, .pay cost .. => cost.namesThisDoor n
     | n + 1, .applyResultsTable rows => rows.any (fun row => row.action.namesThisDoor n)
-    | n + 1, .createObject _ (.emblem _ abilities) _ _ => abilities.any (fun a => a.namesThisDoor n)
+    | n + 1, .createObject _ (.emblem _ abilities) _ => abilities.any (fun a => a.namesThisDoor n)
     | _, _ => false
   termination_by structural fuel
 
