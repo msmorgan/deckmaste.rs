@@ -55,6 +55,7 @@ An assertion is one of:
 | `... gap "surface"` | and it contains or binds a Gap whose Antecedent spans that surface |
 | `!<assertion>` | no Reading at all satisfies the assertion |
 | `readings N` | the expression has exactly N Readings |
+| `ranks first` | every Reading in the cheapest tier of the Ranking Key satisfies some group and no `!` assertion: the intended analysis ranks first |
 
 `LEMMA` is a lemma (`destroy`), a quoted multiword lemma (`"mana value"`) or,
 to tell homographs apart, a lexeme id (`action:counter`). Inside a quoted
@@ -62,10 +63,13 @@ surface or lemma, `\"` is a literal quotation mark. `FUNCTION` is one of `Subjec
 `IndirectObject`, `Complement`, `PredicativeComplement`, `Adjunct`,
 `Modifier`, `Determiner` (CGEL functions: a dependent of a clause or verb
 phrase that its head does not select is an `Adjunct`, of a nominal a
-`Modifier`). `!` and `readings` apply to the entry, wherever they are written.
+`Modifier`). `!`, `readings` and `ranks first` apply to the entry, wherever
+they are written.
 
 Assert a count only when the count is the claim: exactly one Reading, or
-exactly the set of analyses each of which is endorsed.
+exactly the set of analyses each of which is endorsed. Where English grammar admits a
+dispreferred analysis beside the intended one, assert `ranks first`, not that
+the other analysis is absent (`docs/decisions/english-v4.md` §4.4).
 
 ## What a negative entry may claim
 

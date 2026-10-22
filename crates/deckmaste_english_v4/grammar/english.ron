@@ -759,24 +759,27 @@
         // one comma (*For one spell this turn, ...*). The Preposition Phrase
         // has a Noun Phrase Complement: a Clause Complement runs to the comma
         // and keeps the temporal inside it (*When you next cast a spell this
-        // turn, ...*; oracle-style-guide checklist item 4; [CR#603.1]). The
-        // Preposition Phrase is unextended: a temporal that can belong inside
-        // it does, as a trigger's or header's bound (*At the beginning of each
-        // combat this turn, ...*; oracle-style-guide §8, Triggered abilities;
+        // turn, ...*; oracle-style-guide checklist item 4; [CR#603.1]). A
+        // temporal that can belong inside the Preposition Phrase, as a
+        // trigger's or header's bound (*At the beginning of each combat this
+        // turn, ...*; oracle-style-guide §8, Triggered abilities;
         // [CR#603.1,603.7]) or a relative clause's (*For each creature that
-        // entered this turn, ...*), never stranded before the comma.
-        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], unextended: ["adjunct"], cost: 2),
+        // entered this turn, ...*), ranks first there: the second of two
+        // preposed dependents violates an Attachment Class
+        // (`docs/decisions/english-v4.md` §4.3).
+        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
         // Two preposed Preposition Phrases set off by one comma, a delayed
         // trigger's timing and its duration (*At the beginning of each of
         // your upkeeps for the rest of the game, ...*; oracle-style-guide §8,
         // Delayed and reflexive triggers, and §11, Continuous and bounded
         // durations; [CR#603.7]). Both have a Noun Phrase Complement: a
         // Clause Complement keeps what follows it inside it (*If tapped for
-        // mana, ...*; *As many times as you choose, ...*). The first is
-        // unextended: a phrase that can belong inside it does, as in the fixed
-        // phrase *at the beginning of combat on your turn* (oracle-style-guide
-        // §11, Turn-structure names).
-        (name: "PreposedPrepositionPair", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], unextended: ["adjunct"], cost: 2),
+        // mana, ...*; *As many times as you choose, ...*). A phrase that can
+        // belong inside the first ranks first there, as in the fixed phrase
+        // *at the beginning of combat on your turn* (oracle-style-guide §11,
+        // Turn-structure names): the second of two preposed dependents
+        // violates an Attachment Class (`docs/decisions/english-v4.md` §4.3).
+        (name: "PreposedPrepositionPair", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],

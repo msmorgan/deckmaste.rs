@@ -34,7 +34,10 @@ It has no proc macros and no generated code: a grammar is data.
    Preposition Phrase, one whose `DeterminativeDistribution` is
    `Distributive` (*for each …*). The Attachment Class counts a coordination's
    last conjunct that ends in a dependent its first conjunct, which ends in its
-   head, lacks: that dependent belongs to the whole coordination. The chart
+   head, lacks: that dependent belongs to the whole coordination. It also
+   counts the second of two dependents before their head (`adjunct` or
+   `modifier`): it belongs inside the first where the first can hold it
+   (*At the beginning of each combat this turn, …*). The chart
    carries the first conjunct's `head_final` across the coordinator so that
    the last conjunct's item records it. `best_ranked(k)` returns the keys too,
    `CompiledGrammar::ranking_key` computes a given Reading's key, and
@@ -280,27 +283,21 @@ postmodifier) rather than in the head itself, through the last conjunct of a
 coordination (*power 3 or less*, *base power and toughness 4/4*, not *base
 power* or *power or toughness*), or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
-imperative Clauses). A last child can be `unextended`: it does not end, through
-its head line, in a Preposition Phrase dependent that a sibling Production, the
-same but for a trailing selected `PP` Complement, would take as that Complement
-(an existential's locative extension is a Complement of *be*, never also the
-Displaced Subject's postmodifier). A child right before a selected `PP`
-Complement of its own Production can be `unextended` the same way, closed to
-that Complement's prepositions (the Displaced Subject before the extension). A
-first child followed by a Constituent can
-be `unextended` too: it does not end where one Constituent of its own Category
-spans it and the child after it, so that child is never stranded outside a
-phrase it can belong to (a preposed Preposition Phrase and a temporal bound it
-can hold). A `fused_head` Production shares its right-hand side with one
+imperative Clauses). A child can be `unextended`: it does not end, through
+its head line, in a Preposition Phrase dependent that its Production, or a
+sibling with the same children up to and including it, selects as a `PP`
+Complement right after it (an existential's Extension is a Complement of
+*be*, never also the Displaced Subject's postmodifier). A `fused_head`
+Production shares its right-hand side with one
 sibling, its twin, whose Constituent is a dependent of a following `head`
 (a genitive as subject-determiner and as fused subject-determiner-head, CGEL
 Ch. 5 §16.3, pp. 467–468); where the twin over the same words is followed by
 its head, that nominal is the head, not an antecedent (CGEL Ch. 17 §6.1,
 pp. 1516–1517), and the fused-head Production forms no Constituent there.
-These two are chart closures: a longer analysis of the words that follow
-decides them, so they are applied once the chart is complete, removing the
+This is a chart closure: a longer analysis of the words that follow
+decides it, so it is applied once the chart is complete, removing the
 closed Derivations and every Constituent left without one. Admission of a
-Reading that uses either Production parses its realization to decide them. A verb without
+Reading that uses the Production parses its realization to decide it. A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 

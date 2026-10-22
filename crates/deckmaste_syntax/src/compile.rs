@@ -102,7 +102,7 @@ pub struct CompiledGrammar {
     /// only ones a Summary's `final_preposition` records.
     pub(crate) unextended_prepositions: BTreeSet<LexemeId>,
     /// Productions whose Constituents a closure decided on the whole chart
-    /// can rule out: an `unextended` first child or a fused head.
+    /// can rule out: a fused head.
     pub(crate) chart_closed: BTreeSet<Ident>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
@@ -778,9 +778,9 @@ impl<'a> Binder<'a> {
         Ok(())
     }
 
-    /// Closes child `name` of Production `id` to the prepositions of the
-    /// selected `PP` Complement right after it, or, as its last child, to
-    /// those its siblings' trailing selected `PP` Complement takes.
+    /// Closes child `name` of Production `id` to the prepositions of every
+    /// selected `PP` Complement that the Production, or a sibling with the
+    /// same children up to and including it, takes right after it.
     fn unextended(&mut self, id: Ident, name: &Ident) -> Result<(), LoadError> {
         let context = |e: &str| invalid(format!("production `{id}`: unextended `{name}` {e}"));
         let index = *self
@@ -789,62 +789,33 @@ impl<'a> Binder<'a> {
             .get(&id)
             .ok_or_else(|| context("names no production"))?;
         let production = &self.out.productions[index];
-        if let Some(at) = production.names.iter().position(|n| n == name)
-            && let Some(crate::step::Symbol::Cat {
-                prepositions: Some(list),
-                ..
-            }) = production.rhs.get(at + 1)
-        {
-            let closed: BTreeSet<_> = list.iter().copied().collect();
-            self.out
-                .unextended_prepositions
-                .extend(closed.iter().copied());
-            self.out.productions[index].unextended = Some((at, closed));
-            return Ok(());
-        }
-        let child = production.rhs.len() - 1;
-        if production.names[child] != *name {
-            return if production.names[0] == *name
-                && matches!(
-                    production.rhs[..],
-                    [
-                        crate::step::Symbol::Cat { .. },
-                        crate::step::Symbol::Cat { .. },
-                        ..
-                    ]
-                ) {
-                self.out.productions[index].unextended_first = true;
-                self.out.chart_closed.insert(id);
-                Ok(())
-            } else {
-                Err(context(
-                    "is neither the last child, a child followed by a selected PP, nor a first \
-                     child followed by a Constituent",
-                ))
-            };
-        }
+        let at = production
+            .names
+            .iter()
+            .position(|n| n == name)
+            .ok_or_else(|| context("names no child"))?;
+        let through = &production.rhs[..=at];
         let mut closed = BTreeSet::new();
-        for sibling in &self.out.by_lhs[production.lhs] {
-            let sibling = &self.out.productions[*sibling];
-            if let Some((
-                crate::step::Symbol::Cat {
+        for &sibling in &self.out.by_lhs[production.lhs] {
+            let sibling = &self.out.productions[sibling];
+            if sibling.rhs.get(..=at) == Some(through)
+                && let Some(crate::step::Symbol::Cat {
                     prepositions: Some(list),
                     ..
-                },
-                prefix,
-            )) = sibling.rhs.split_last()
-                && prefix == production.rhs.as_slice()
+                }) = sibling.rhs.get(at + 1)
             {
                 closed.extend(list.iter().copied());
             }
         }
         if closed.is_empty() {
-            return Err(context("has no sibling with a trailing selected PP"));
+            return Err(context(
+                "is followed by no selected PP Complement, in its Production or a sibling",
+            ));
         }
         self.out
             .unextended_prepositions
             .extend(closed.iter().copied());
-        self.out.productions[index].unextended = Some((child, closed));
+        self.out.productions[index].unextended = Some((at, closed));
         Ok(())
     }
 

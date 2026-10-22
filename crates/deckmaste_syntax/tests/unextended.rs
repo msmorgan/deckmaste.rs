@@ -1,9 +1,8 @@
-//! A Production's `unextended` last child does not end in a Preposition Phrase
-//! that a sibling Production, the same but for a trailing selected `PP`
-//! Complement, would take as that Complement (an existential's locative
-//! extension, CGEL Ch. 16 §6.2.1, p. 1394). A child right before a selected
-//! `PP` Complement of its own Production is closed the same way. A phrase the
-//! Complement cannot take stays a postmodifier.
+//! A Production's `unextended` child does not end in a Preposition Phrase that
+//! the Production, or a sibling with the same children up to and including
+//! it, selects as a `PP` Complement right after it (an existential's
+//! Extension after its Displaced Subject, CGEL Ch. 16 §6.2.1, p. 1394). A
+//! phrase the Complement cannot take stays a postmodifier.
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
@@ -129,4 +128,15 @@ fn a_child_before_a_selected_complement_does_not_end_in_one() {
 #[test]
 fn an_unextended_child_needs_a_sibling_with_a_selected_complement() {
     assert!(grammar(&lexicon(), "").is_err());
+}
+
+#[test]
+fn an_unextended_child_before_no_selected_complement_is_a_load_error() {
+    let lexicon = lexicon();
+    // A first child followed by a Constituent is not `unextended` unless a
+    // selected `PP` Complement follows it in some sibling.
+    let first = r#"(name: "Pair", lhs: "Sentence", rhs: [Cat("subject", "NounPhrase"), Cat("object", "NounPhrase"), Punct('.')], unextended: ["subject"]),"#;
+    assert!(grammar(&lexicon, &format!("{EXTENDED}{first}")).is_err());
+    let unknown = r#"(name: "Named", lhs: "Predicate", rhs: [Cat("subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In"])], unextended: ["nonesuch"]),"#;
+    assert!(grammar(&lexicon, unknown).is_err());
 }

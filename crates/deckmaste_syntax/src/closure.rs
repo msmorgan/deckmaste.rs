@@ -1,14 +1,9 @@
 //! Closures decided on the whole chart.
 //!
-//! Some Derivations are ruled out by a longer analysis of the words that
-//! follow them, which a left-to-right step cannot see when it completes them:
-//!
-//! - an `unextended` first child does not end where one Constituent of its
-//!   Category spans it and the child after it;
-//! - a fused-head Constituent is not formed where its twin over the same words
-//!   is followed by its head.
-//!
-//! Once the chart is complete, the closed Derivations are removed and every
+//! A fused-head Constituent is not formed where its twin over the same words
+//! is followed by its head: a longer analysis of the words that follow rules
+//! it out, which a left-to-right step cannot see when it completes it. Once
+//! the chart is complete, the closed Derivations are removed and every
 //! Constituent left without a Derivation goes with them.
 
 use std::collections::HashSet;
@@ -16,7 +11,6 @@ use std::collections::HashSet;
 use crate::chart::ChildRef;
 use crate::chart::PackedForest;
 use crate::compile::CompiledGrammar;
-use crate::step::Symbol;
 
 impl CompiledGrammar {
     /// Removes the Derivations a chart closure rules out from `forest`.
@@ -24,9 +18,8 @@ impl CompiledGrammar {
         if self.chart_closed.is_empty() {
             return;
         }
-        let dead_items = self.unextended_items(forest);
         let fused = self.headed_twins(forest);
-        if dead_items.is_empty() && fused.is_empty() {
+        if fused.is_empty() {
             return;
         }
         let closed_family = |node: usize, production: usize| {
@@ -44,7 +37,7 @@ impl CompiledGrammar {
         loop {
             let mut changed = false;
             for (index, item) in forest.items.iter().enumerate() {
-                if item_live[index] || dead_items.contains(&index) {
+                if item_live[index] {
                     continue;
                 }
                 if item.dot == 0
@@ -95,30 +88,6 @@ impl CompiledGrammar {
                 previous.is_none_or(|p| item_live[p]) && child_live(&node_live, child)
             });
         }
-    }
-
-    /// Items of a Production with an `unextended` first child, past the child
-    /// after it, where one Constituent of the first child's Category spans
-    /// both.
-    fn unextended_items(&self, forest: &PackedForest) -> HashSet<usize> {
-        let spans: HashSet<(usize, usize, usize)> = forest
-            .nodes
-            .iter()
-            .map(|n| (n.category, n.start, n.end))
-            .collect();
-        forest
-            .items
-            .iter()
-            .enumerate()
-            .filter(|(_, item)| {
-                let production = &self.productions[item.production];
-                item.dot == 2
-                    && production.unextended_first
-                    && matches!(production.rhs[0], Symbol::Cat { category, .. }
-                        if spans.contains(&(category, item.start, item.end)))
-            })
-            .map(|(index, _)| index)
-            .collect()
     }
 
     /// (fused-head Production, start, end) wherever its twin's Constituent is

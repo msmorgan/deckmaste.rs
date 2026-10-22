@@ -105,5 +105,11 @@ Judgments exercising them include `combat_intervals.txt:2–3`,
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+1. **Census delta** (measured on `xotkolrx` → `qwynkolz`): faces read
+   28,800 → 28,800; total Readings (product) 213,916 → 214,404; Surplus
+   88,285 → 88,401; lost faces: none. 32 units gain Readings; no unit's
+   verdict or cheapest-tier size changes. Cheapest tier: singleton in 14,798
+   of 16,558 → 14,807 of 16,567 ambiguous units; summed 18,913 → 18,922;
+   largest 8 → 8.
+2. **Judgment set** (`qwynkolz`): 3,037 enforced at `COMPLETED_STRATUM` 6,
+   all hold; 208 pending. No entry leaves an all-endorsed cheapest tier.

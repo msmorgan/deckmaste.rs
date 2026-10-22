@@ -668,6 +668,10 @@ impl CompiledGrammar {
     ///   Attachment Class when it ends in a dependent its first conjunct, which
     ///   ends in its head, lacks: that dependent belongs to the whole
     ///   coordination.
+    /// - A dependent that precedes its head after another dependent of that
+    ///   head violates an Attachment Class: it belongs inside the dependent
+    ///   before it, where that can hold it (*At the beginning of each combat
+    ///   this turn, …*).
     pub(crate) fn attachment_key(
         &self,
         production: usize,
@@ -712,6 +716,15 @@ impl CompiledGrammar {
                 }
             }
             _ => {}
+        }
+        let dependent = |name: &Ident| matches!(name.as_str(), "adjunct" | "modifier");
+        if dependent(&names[index])
+            && names[..index].iter().any(dependent)
+            && names[index + 1..]
+                .iter()
+                .any(|name| name.as_str() == "head")
+        {
+            key.attachment_class += 1;
         }
         key
     }

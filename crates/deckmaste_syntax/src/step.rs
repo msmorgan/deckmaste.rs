@@ -183,13 +183,9 @@ pub(crate) struct Production {
     pub weights: Vec<(usize, Weight)>,
     /// Children in the head line: the head, or a conjunct of a coordination.
     pub head_line: Vec<bool>,
-    /// The last child, and the prepositions of a Preposition Phrase it may
-    /// not end in (`ProductionDecl::unextended`).
+    /// The `unextended` child, and the prepositions of a Preposition Phrase
+    /// it may not end in (`ProductionDecl::unextended`).
     pub unextended: Option<(usize, std::collections::BTreeSet<LexemeId>)>,
-    /// The first child is `unextended`: it does not end where one
-    /// Constituent of its Category would span it and the child after it
-    /// (`ProductionDecl::unextended`), a closure decided on the whole chart.
-    pub unextended_first: bool,
     /// A fused-head Production's twin, the Production with the same
     /// right-hand side whose Constituent is a dependent of a following head
     /// (`ProductionDecl::fused_head`), a closure decided on the whole chart.
@@ -395,7 +391,6 @@ pub(crate) fn resolve(
         weights: Vec::new(),
         head_line,
         unextended: None,
-        unextended_first: false,
         fused_twin: None,
         adjunct_slot: None,
         predicative: None,

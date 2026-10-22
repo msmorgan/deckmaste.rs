@@ -106,18 +106,13 @@ pub struct ProductionDecl {
     /// *power equal to its toughness*, not *base power*).
     #[serde(default)]
     pub postdependent: Vec<Ident>,
-    /// A last child that does not end in a Preposition Phrase dependent which
-    /// a sibling Production, the same but for a trailing selected `PP`
-    /// Complement, would take as that Complement: the phrase is the sibling's
-    /// Complement, never the child's postmodifier (an existential's locative
-    /// extension, CGEL Ch. 16 §6.2.1, p. 1394). A child right before a
-    /// selected `PP` Complement of its own Production is closed the same way,
-    /// to that Complement's prepositions.
-    ///
-    /// A first child that is not the last, followed by a Constituent, can be
-    /// `unextended` too: it does not end where one Constituent of its own
-    /// Category would span it and the child after it, so that child is never
-    /// stranded outside a phrase it can belong to.
+    /// A child that does not end, through its head line, in a Preposition
+    /// Phrase dependent that this Production, or a sibling Production with
+    /// the same children up to and including it, selects as a `PP`
+    /// Complement right after it: the phrase is that Complement, never the
+    /// child's postmodifier (an existential's Extension after its Displaced
+    /// Subject, CGEL Ch. 16 §6.2.1, p. 1394). A child that no such Complement
+    /// follows is a load error.
     #[serde(default)]
     pub unextended: Vec<Ident>,
     /// A fused-head Production: it has the same right-hand side as one

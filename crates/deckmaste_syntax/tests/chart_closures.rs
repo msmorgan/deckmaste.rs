@@ -1,11 +1,8 @@
 //! Closures decided on the whole chart: a Derivation that a longer analysis of
-//! the words after it rules out.
-//!
-//! - A fused-head Production forms no Constituent where its twin, the
-//!   Production with the same right-hand side, is followed by its head: that
-//!   nominal is the head, not an antecedent (CGEL Ch. 17 §6.1, pp. 1516–1517).
-//! - An `unextended` first child does not end where one Constituent of its
-//!   Category spans it and the child after it.
+//! the words after it rules out. A fused-head Production forms no Constituent
+//! where its twin, the Production with the same right-hand side, is followed
+//! by its head: that nominal is the head, not an antecedent (CGEL Ch. 17 §6.1,
+//! pp. 1516–1517).
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
@@ -25,9 +22,6 @@ fn lexicon() -> Lexicon {
     };
     Lexicon::new([
         Lexeme::invariant("n:card", "card", Category::Noun, core()),
-        Lexeme::invariant("n:turn", "turn", Category::Noun, core()),
-        Lexeme::invariant("a:red", "red", Category::Adjective, core()),
-        Lexeme::invariant("d:this", "this", Category::Determinative, core()),
         Lexeme::invariant("d:own", "own", Category::Determinative, core()),
     ])
     .unwrap()
@@ -135,85 +129,4 @@ fn a_fused_head_needs_one_twin() {
     assert!(bind("").is_err());
     let twin = r#"(name: "Genitive", lhs: "NounPhrase", rhs: [Lex("possessor", Noun), Word("marker", "Own")]),"#;
     assert!(bind(twin).is_ok());
-}
-
-/// A preposed group and a temporal set off by one comma; a noun's group can
-/// take the temporal inside it (`Long`), an adjective's cannot.
-fn preposed_grammar(
-    lexicon: &Lexicon,
-    unextended: &str,
-) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
-    let text = format!(
-        r#"(
-        root: "Sentence",
-        categories: {{ "Sentence": (), "Group": (), "Temporal": (), "Clause": () }},
-        closed_words: {{ "This": "d:this" }},
-        productions: [
-            (name: "Statement", lhs: "Sentence", rhs: [Cat("head", "Clause"), Punct('.')]),
-            (name: "Plain", lhs: "Clause", rhs: [Lex("head", Noun)]),
-            (name: "Noun", lhs: "Group", rhs: [Lex("head", Noun)]),
-            (name: "Adjective", lhs: "Group", rhs: [Lex("head", Adjective)]),
-            (name: "Long", lhs: "Group", rhs: [Lex("head", Noun), Cat("modifier", "Temporal")]),
-            (name: "This", lhs: "Temporal", rhs: [Word("determiner", "This"), Lex("head", Noun)]),
-            (name: "Preposed", lhs: "Clause", rhs: [Cat("adjunct", "Group"), Punct(','), Cat("head", "Clause")]),
-            (name: "PreposedPair", lhs: "Clause", rhs: [Cat("adjunct", "Group"), Cat("adjunct", "Temporal"), Punct(','), Cat("head", "Clause")]{unextended}),
-        ],
-    )"#
-    );
-    CompiledGrammar::bind(
-        &Grammar::from_ron_str(&text).unwrap(),
-        lexicon,
-        &FrameCatalog::default(),
-    )
-}
-
-#[test]
-fn an_unextended_first_child_strands_nothing_it_can_hold() {
-    let lexicon = lexicon();
-    let open = preposed_grammar(&lexicon, "").unwrap();
-    assert_eq!(
-        open.parse(&lexicon, "Card this turn, card.")
-            .readings()
-            .len(),
-        2
-    );
-    let grammar = preposed_grammar(&lexicon, r#", unextended: ["adjunct"]"#).unwrap();
-    // The noun's group holds the temporal: it is never stranded.
-    let found = grammar.parse(&lexicon, "Card this turn, card.").readings();
-    assert_eq!(found.len(), 1, "{found:#?}");
-    assert!(uses(&found[0], "Long") && !uses(&found[0], "PreposedPair"));
-    // The adjective's group cannot: the pair keeps it.
-    let found = grammar.parse(&lexicon, "Red this turn, card.").readings();
-    assert_eq!(found.len(), 1, "{found:#?}");
-    assert!(uses(&found[0], "PreposedPair"));
-    assert_eq!(grammar.admit(&found[0], &lexicon), Ok(()));
-    // Admission agrees with the chart.
-    let stranded = open
-        .parse(&lexicon, "Card this turn, card.")
-        .readings()
-        .into_iter()
-        .find(|r| uses(r, "PreposedPair"))
-        .unwrap();
-    assert!(grammar.admit(&stranded, &lexicon).is_err());
-}
-
-#[test]
-fn an_unextended_child_is_first_last_or_before_a_selected_complement() {
-    let lexicon = lexicon();
-    let text = r#"(
-        root: "Sentence",
-        categories: { "Sentence": (), "Group": () },
-        productions: [
-            (name: "Noun", lhs: "Group", rhs: [Lex("head", Noun)]),
-            (name: "Three", lhs: "Sentence", rhs: [Cat("first", "Group"), Cat("middle", "Group"), Cat("last", "Group")], unextended: ["middle"]),
-        ],
-    )"#;
-    assert!(
-        CompiledGrammar::bind(
-            &Grammar::from_ron_str(text).unwrap(),
-            &lexicon,
-            &FrameCatalog::default()
-        )
-        .is_err()
-    );
 }
