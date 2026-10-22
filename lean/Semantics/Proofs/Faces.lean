@@ -596,14 +596,14 @@ theorem badThatMuchAfterFlip :
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
     Action.check (DRS.ofList [])
-      (.sequentially [flipCoins 1, doIf (.flipCalled .you .wins) (draw 1)])
+      (.sequentially [flipCoins 1, doIf (did you (flipCoins 1 (some .wins)) thisWay) (draw 1)])
       = [] := by
   decide
 
 /-- "If you win the flip, draw a card." -/
 theorem badFlipArmWithoutFlip :
-    Action.check (DRS.ofList []) (doIf (.flipCalled .you .wins) (draw 1))
-      = [.coinFlipInScope] := by
+    Action.check (DRS.ofList []) (doIf (did you (flipCoins 1 (some .wins)) thisWay) (draw 1))
+      = [.thisWayUngrounded] := by
   decide
 
 /-- "Roll a d6." -/

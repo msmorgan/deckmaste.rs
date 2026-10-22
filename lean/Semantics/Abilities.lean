@@ -475,11 +475,7 @@ mutual
     `Action.gameGains`. -/
     | gameHas (designation : DesignationLabel)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
-    | dealtThisWay (predicate : Predicate)
-    | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
     | preventedFromSource (predicate : Predicate)
-    | flipCalled (caller : NounPhrase) (call : FlipCall)
-    | flipFace (face : CoinFace)
     | voteLead (label : VoteLabel) (orTied : Bool)
     | anyResultIs (comparator : Comparator) (bound : Amount)
     | rolledDoubles
@@ -1276,12 +1272,9 @@ mutual
     /-- Create a delayed triggered ability that does `body` the next time `event` (or one of
     `alternatives`) occurs, or, with a stated `duration`, each time within it
     [CR#603.7a,603.7b]. No text mentions the ability created, so it is read only by its Binding
-    Identity, `delay.trigger` (`stopTriggering`). -/
+    Identity, `delay.trigger` (`delayUnlessPaid`). -/
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Action)
-    /-- Stop `ability`, a delayed triggered ability, from triggering: what a special action an
-    effect allows does to end that ability early [CR#116.2c]. -/
-    | stopTriggering (ability : NounPhrase)
     /-- A self-replacement: the spell's or ability's own `replaced` action, replaced by
     `replacement` [CR#614.15,616.1a]. -/
     | replace (replaced : Action) (replacement : Replacement)

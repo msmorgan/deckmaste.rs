@@ -93,9 +93,9 @@ def goblinArchaeologist : Ability :=
   activated (compound [[pip .red], tapSymbol])
     (sequentially
       [ flipCoins 1,
-        doIf (flipCalled you .wins)
+        doIf (did you (flipCoins 1 (some .wins)) thisWay)
           (sequentially [destroy (target isArtifact), untap thisCreature]),
-        doIf (flipCalled you .loses) (sacrifice thisCreature) ])
+        doIf (did you (flipCoins 1 (some .loses)) thisWay) (sacrifice thisCreature) ])
 theorem okGoblinArchaeologist : Ability.check (DRS.ofList []) goblinArchaeologist = [] := by decide
 
 def chanceEncounter : Spelled := spelled <| singleFacedCard

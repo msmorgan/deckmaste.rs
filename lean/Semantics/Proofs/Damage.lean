@@ -59,22 +59,49 @@ theorem quenchableFireStopsItsTriggerBySpecialAction :
               (instruct this_ (dealDamage 3 thatJoin)),
             .establish
               (.specialAction (some splitOverPlaneswalker) none [pip .blue]
-                (.stopTriggering (.laterMention "delay.trigger" thisAbility)))
+                (establish (cant (.actor (.laterMention "delay.trigger" thisAbility)) trigger) none))
               (some (untilEvent (beginningOf .upkeep you nextTime))) ] ] := rfl
 
-/-- The special action names the delayed trigger by its Binding Identity, the only reading of it:
-no text mentions the ability, so a word ("that ability") finds nothing, and with no delayed
-trigger the identity is unbound [CR#116.2c]. Quenchable Fire checks with it. -/
-theorem stopTriggeringReadsTheDelayedTriggerByIdentity :
+/-- The special action stops the delayed trigger by establishing that it can't trigger, naming it
+by its Binding Identity, the only reading of it: no text mentions the ability, so a word ("that
+ability") finds nothing, and with no delayed trigger the identity is unbound [CR#116.2c].
+Quenchable Fire checks with it. -/
+theorem cantTriggerReadsTheDelayedTriggerByIdentity :
     Action.check (DRS.ofList [])
       (.sequentially [delay (beginningOfNext .endStep) (draw 1),
-        .stopTriggering (.laterMention "delay.trigger" thisAbility)]) = [] ∧
+        establish (cant (.actor (.laterMention "delay.trigger" thisAbility)) trigger) none]) = [] ∧
     Action.check (DRS.ofList [])
-      (.sequentially [delay (beginningOfNext .endStep) (draw 1), .stopTriggering (that .ability)])
+      (.sequentially [delay (beginningOfNext .endStep) (draw 1),
+        establish (cant (.actor (that .ability)) trigger) none])
       = [.anaphor (.word .ability) .one 0] ∧
-    Action.check (DRS.ofList []) (.stopTriggering (.laterMention "delay.trigger" thisAbility)) =
+    Action.check (DRS.ofList [])
+      (establish (cant (.actor (.laterMention "delay.trigger" thisAbility)) trigger) none) =
       [.bindingIdentity "delay.trigger"] ∧
     Action.check (DRS.ofList []) Cards.quenchableFire = [] := by
+  decide
+
+/-- What "they" reads in the branch of Screaming Nemesis's triggered ability, as its referent's
+kind and determiner: the trigger's damage dealt to "any other target", then the condition, then
+"they" in the branch's clause. -/
+private def screamingNemesisThey : Option (List (Kind × Determiner)) :=
+  match (match Cards.screamingNemesis.card with
+      | .singleFaced face => face.characteristics.text
+      | _ => []) with
+  | [_, .triggered _ _ _ _ _ _ _ (.sequentially [first, .doIf condition _ _])] =>
+    let header := GameEvent.extend { DRS.ofList [] with sourceTypes := [.creature] }
+      (.does .any (dealDamage (to := thisCreature)))
+    let afterDamage := (stepAction 64 .postEvent .obj (nextClause header) first).1
+    let afterCondition := (stepCondition 64 (nextClause afterDamage) condition).1
+    let (read, ids, _) := stepNounPhrase 64 (nextClause afterCondition) .subj true they
+    some (ids.filterMap fun id => (read.findById? id).map fun ref => (ref.kind, ref.det))
+  | _ => none
+
+/-- Screaming Nemesis: "If a player is dealt damage this way, they can't gain life for the rest of
+the game." The condition reads back the damage dealt this way and publishes the player it was
+dealt to, and "they" reads that player, not the target, which may be a creature or planeswalker
+[CR#608.2c]. -/
+theorem screamingNemesisTheyReadsTheDamagedPlayer :
+    screamingNemesisThey = some [(.player, .a)] := by
   decide
 
 private def objectAntecedents (a : Action) : List Bool :=

@@ -699,7 +699,7 @@ def screamingNemesis : Spelled := spelled <| singleFacedCard
         whenever (does any (dealDamage (to := thisCreature)))
           (sequentially
             [ instruct it (dealDamage thatMuch (target isAnyOtherTarget)),
-              doIf (dealtThisWay isPlayer)
+              doIf (was (dealDamage anyAmount (a isPlayer)) thisWay)
                 (establishThroughout (cant they (gainLife anyAmount)) restOfGame) ]) ],
     power := stat 3, toughness := stat 3 }
 
@@ -712,7 +712,8 @@ def sonicShrieker : Spelled := spelled <| singleFacedCard
           (sequentially
             [ instruct it (dealDamage 2 (target isAnyTarget)),
               gainLife 2,
-              doIf (dealtThisWay isPlayer) (discard (a (cardIn (handOf they))))
+              doIf (was (dealDamage anyAmount (a isPlayer)) thisWay)
+                (discard (a (cardIn (handOf they))))
                   ]) ],
     power := stat 4, toughness := stat 4 }
 

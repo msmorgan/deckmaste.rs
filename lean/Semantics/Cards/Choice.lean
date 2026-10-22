@@ -1369,7 +1369,8 @@ def discipleOfCaelusNin : Spelled := spelled <| singleFacedCard
         static (cant (bare isPermanent) phaseIn) ],
     power := stat 3, toughness := stat 4 }
 
-/-- Sculpted Sunburst: "if you chose a creature this way" reads the earlier choice;
+/-- Sculpted Sunburst: "if you chose a creature this way" reads back the choice you made earlier
+in the spell (a `did` over `choose`);
 "not chosen by any player this way" excludes every player's chosen creature. -/
 def sculptedSunburst : Spelled := spelled <| singleFacedCard
   { name := "Sculpted Sunburst", cost := [generic 3, pip .white, pip .white],
@@ -1380,7 +1381,7 @@ def sculptedSunburst : Spelled := spelled <| singleFacedCard
             instruct eachOpponent (choose
               (a (comparesOwnStat .power (and [isCreature, controlledBy they])
                 .atMost (powerOf it)))),
-            doIf (choseThisWay you isCreature) (exile (each (and [isCreature, notChosen])))
+            doIf (did you (choose (a isCreature)) thisWay) (exile (each (and [isCreature, notChosen])))
                 ]) ] }
 
 /-- Loxodon Peacekeeper: "If two or more players are tied for lowest life total, you choose one

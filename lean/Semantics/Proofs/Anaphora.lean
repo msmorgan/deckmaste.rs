@@ -520,15 +520,16 @@ theorem okDealtThisWayAfterDamage :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct .this (.dealDamage 3 (target isAnyTarget)),
-          .doIf (.dealtThisWay .anyPlayer) (draw 1) none ]) = [] := by
+          .doIf (was (dealDamage anyAmount (a isPlayer)) thisWay) (draw 1) none ]) = [] := by
   decide
 
-/-- "You draw a card. If a player is dealt damage this way, you draw a card." -/
+/-- "You draw a card. If a player is dealt damage this way, you draw a card.": nothing earlier
+dealt damage, so "this way" reads back no event. -/
 theorem badDealtThisWayNoDamage :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ draw 1, .doIf (.dealtThisWay .anyPlayer) (draw 1) none ])
-      = [.damageDealtInScope] := by
+        [ draw 1, .doIf (was (dealDamage anyAmount (a isPlayer)) thisWay) (draw 1) none ])
+      = [.thisWayUngrounded] := by
   decide
 
 /-- "the number of creatures that died this turn" -/

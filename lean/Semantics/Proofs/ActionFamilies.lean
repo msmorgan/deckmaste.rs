@@ -287,7 +287,8 @@ theorem capturePreservesTheResolvedPermanentView :
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
     let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage 3 .you))
     Amount.check context .thatMuch = [] ∧
-      Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
+      Condition.check context (was (dealDamage anyAmount (a isPlayer)) thisWay) =
+        [.thisWayUngrounded] := by decide
 
 /-- A regeneration shield's application, not the shield, is the regeneration event: it acts on
 the object on the battlefield, and the shield introduces none [CR#701.19a,701.19c]. -/
