@@ -37,9 +37,9 @@
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
-        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // `Serial` has one holder, *time*, and that is the whole class: a
         // bounding frequency Noun Phrase has *times* as its head (*three
         // times*; CGEL, Ch. 8 §9, p. 715), and so does a cardinal multiplier
