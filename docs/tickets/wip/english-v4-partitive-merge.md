@@ -11,6 +11,20 @@ The owner ruled R4 in round 9.
 "Approve merging PartitiveNounPhrase into PartitiveHead, measured (0 faces
 lost)."
 
+## Owner's ruling (round 9, R4 follow-up: variant A)
+
+This overrides step 2 below. QuantityPartitive, ExceptivePartitive,
+ExceptiveMassPartitive and DegreePartitive keep their child named `head`, and
+so they agree on DeterminativeDistribution through it. They do not rename it
+to `quantifier`. The owner's reasons:
+- Variant A is corpus-neutral: census and judgment results are identical to
+  the renamed variant.
+- Its only extra admissions are synthetic probes that no card contains
+  (*more than that many of those tokens*, *at least two of them more than
+  you*). Excluding them would police strings no card has.
+- The audit flagged head renames as a nodule, and four more would grow it.
+- A renamed phrase loses its head lemma.
+
 ## Evidence
 
 PartitiveNounPhrase (`english.ron:140`) keeps PP postmodifiers off *each/any/all
@@ -55,5 +69,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on llsvxvxn → lvzxrqkt): faces read 28,800 → 28,800; total Readings 237,320 → 237,348; Surplus 101,963 → 101,990; cheapest tier singleton in 15,824 of 17,634 → 15,827 of 17,637; no verdict changed; lost faces: none.
+Judgment set: 3,039 enforced at `COMPLETED_STRATUM` 6, all hold; 208 pending.

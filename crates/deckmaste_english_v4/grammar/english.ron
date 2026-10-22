@@ -127,15 +127,13 @@
         // A symbol sequence as a Noun Phrase, which a Preposition Phrase may
         // postmodify (*{X} in its mana cost*).
         "SymbolHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
-        // A determinative with its partitive oblique, which a relative clause
-        // may postmodify (*each of those cards that has suspend*).
-        // A fused partitive carries its determinative's distribution: *each
-        // of X* has the same distributive head as *each X* (CGEL, Ch. 5 §9.1,
-        // p. 411).
-        "PartitiveNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
-        // A quantity with its partitive oblique, which a Preposition Phrase may
-        // postmodify (*one of them of their choice*).
-        "PartitiveHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        // A determinative or a quantity with its partitive oblique, which a
+        // Preposition Phrase may postmodify (*one of them of their choice*)
+        // and a relative clause may postmodify (*each of those cards that has
+        // suspend*). A fused partitive carries its determinative's
+        // distribution: *each of X* has the same distributive head as *each
+        // X* (CGEL, Ch. 5 §9.1, p. 411).
+        "PartitiveHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
         // A slash measure as a Noun Phrase (*gets +2/+2*), taken only where a
         // head selects one: never a general Object or bare singular term.
         "MeasureNounPhrase": (category: Some("NounPhrase")),
@@ -836,24 +834,24 @@
         // its Number from the oblique, a distributive head's singular from the
         // head, and *any* may be singular with a plural oblique (*if any of
         // those cards shares a card type*).
-        (name: "Partitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")],
+        (name: "Partitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase")],
             equations: [Require("head.ComplementKind", "PP"), Require("head.PrepositionMarking", "Oblique"), Exclude("head.DeterminativeDistribution", "Distributive"), Agree("$.Number", "head.ObliqueNumber"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "DistributivePartitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")],
+        (name: "DistributivePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase")],
             equations: [Require("head.ComplementKind", "PP"), Require("head.ObliqueNumber", "Plural"), Exclude("head.DeterminativeDistribution", "Dependent"), Exclude("head.DeterminativeDistribution", "Independent"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Distributive *each* with a plural oblique takes plural agreement
         // by synesis (*Each of X target creatures you control connive*;
         // CGEL, Ch. 5 §18.2, p. 504); its Number is the oblique's, not the
         // singular quantifier's.
-        (name: "SynesisDistributivePartitive", lhs: "PartitiveNounPhrase", rhs: [Word("quantifier", "Each"), Selected("complement", "PrepositionPhrase", ["Of"])],
+        (name: "SynesisDistributivePartitive", lhs: "PartitiveHead", rhs: [Word("quantifier", "Each"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("complement.Number", "Plural"), Carry("complement.Case", "Plain"), Require("$.Number", "Plural"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Nominative"), Require("$.Person", "Third")], cost: 3),
         // *Any* with a plural oblique leaves the Noun Phrase's Number open.
-        (name: "AnyPartitive", lhs: "PartitiveNounPhrase", rhs: [Word("head", "Any"), Selected("complement", "PrepositionPhrase", ["Of"])],
+        (name: "AnyPartitive", lhs: "PartitiveHead", rhs: [Word("head", "Any"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("complement.Number", "Plural"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "AnyMassPartitive", lhs: "PartitiveNounPhrase", rhs: [Word("head", "Any"), Selected("complement", "PrepositionPhrase", ["Of"])],
+        (name: "AnyMassPartitive", lhs: "PartitiveHead", rhs: [Word("head", "Any"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("complement.Number", "Singular"), Require("$.Number", "Singular"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A quantity with a partitive oblique (*up to two of them*, *that many
         // of those tokens*, *1 of that damage*).
-        (name: "MaximumPartitive", lhs: "PartitiveNounPhrase", rhs: [Selected("head", "PrepositionPhrase", ["Up"]), Selected("complement", "PrepositionPhrase", ["Of"])],
+        (name: "MaximumPartitive", lhs: "PartitiveHead", rhs: [Selected("head", "PrepositionPhrase", ["Up"]), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("$.NounKind", "Quantity"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "QuantityPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.DeterminativeDistribution", "Numerical"),
@@ -1051,7 +1049,6 @@
         (name: "LocativePhrase", lhs: "LocativeNounPhrase", rhs: [Cat("head", "FusedNounPhrase")], equations: [Require("head.NounKind", "Locative")]),
         (name: "LocativeFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "LocativeHead")]),
         (name: "PartitiveFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "PartitiveHead")]),
-        (name: "DeterminativePartitiveHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "PartitiveNounPhrase")]),
         (name: "FusedLocative", lhs: "LocativeHead", rhs: [Word("head", "Anywhere")], equations: [Require("$.NounKind", "Locative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
