@@ -45,18 +45,19 @@ the way of ergonomic authoring:
 ## Design
 
 1. **Loose peer files in `plugins_v3/` (`plugins_v3/builtin/` and `plugins_v3/canon/`):**
-   - Declarations and cards live in loose bundles of categorized `.lean` files:
-     `plugins_v3/builtin/` for definitions, rules, registries, and templates;
-     `plugins_v3/canon/` for printed cards.
-   - **Nothing about the filename or the folder it is in is semantically significant.**
-     Loose bundle files have no `import`, `namespace`, or `open` headers; a file may
-     contain one or many declarations of any category, in any order.
+   - Each declaration and card lives in its own individual `.lean` file, organized for human navigation by role and grammatical/domain category (replacing `plugins_v2/builtin/macros/`):
+     - `plugins_v3/builtin/definitions/{keyword_action,keyword_ability,counter,designation,relation,token,card_type,subtype/{creature,artifact,enchantment,land,planeswalker,battle,spell}}/<name>.lean`
+     - `plugins_v3/builtin/templates/{ability,ability_word,action,amount,condition,cost,determiner,duration,event,mana,noun,pile,predicate,pronoun,quantity,timing,zone}/<name>.lean`
+     - `plugins_v3/builtin/rules/{sba,conferral,...}/<name>.lean`
+     - `plugins_v3/canon/cards/<name>.lean` (one `.lean` file per card)
+   - **Folder and file names are for human organization only, never semantically significant.**
+     Loose bundle files have no `import`, `namespace`, or `open` headers; the loader never infers `Definition` vs. `Template` or grammatical category from the file path.
    - All files across the bundle directories are peers in one flat declaration
      namespace:
-     - Any `template` may reference any `action`, `keyword`, registry definition, or other `template`.
-     - Any `action` or `keyword` may reference any other `keyword` (e.g. `earthbendSpike` referencing
-       `hasteSpike` directly, `timeTravelSpike` referencing `suspendSpike` directly), `action`,
-       registry definition, or `template`.
+     - Any `template` may reference any `action`, `keyword`, `counter`, `subtype`, `designation`, `token`, or other `template`.
+     - Any `action` or `keyword` may reference any other `keyword` (e.g. `earthbend` referencing
+       `haste` directly, `timeTravel` referencing `suspend` directly), `action`,
+       `counter`, `subtype`, `designation`, `token`, or `template`.
 2. **Declaration-level dependency graph and deterministic topological sort:**
    - Both the Lean bundle loader (`load_bundle`) and the Rust loader (`deckmaste_semantics_v3`)
      walk all `.lean` files in a bundle directory, extract `(decl_name, referenced_idents)`, and

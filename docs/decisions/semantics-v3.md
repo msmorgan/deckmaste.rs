@@ -642,8 +642,12 @@ Rather than an ad-hoc, indentation-sensitive pseudo-DSL or separate RON catalog 
 ### 4.5 Loose-Bundle Topological DAG Loading and Authoring Coercions
 
 1. **Loose-Bundle Architecture (`plugins_v3/builtin/` and `plugins_v3/canon/`):**
-   - Declarations and cards live in loose bundles of categorized `.lean` files (`plugins_v3/builtin/` for definitions, rules, registries, and templates; `plugins_v3/canon/` for printed cards).
-   - **Nothing about the filename or folder is semantically significant.** Bundle files omit `import`, `namespace`, or `open` headers; a file may contain one or many declarations of any category in any order.
+   - Each declaration and card lives in its own individual `.lean` file, organized by role (`definitions/`, `templates/`, `rules/`, `cards/`) and category (replacing `plugins_v2/builtin/macros/`):
+     - `plugins_v3/builtin/definitions/{keyword_action,keyword_ability,counter,designation,relation,token,card_type,subtype/{creature,artifact,enchantment,land,planeswalker,battle,spell}}/<name>.lean`
+     - `plugins_v3/builtin/templates/{ability,ability_word,action,amount,condition,cost,determiner,duration,event,mana,noun,pile,predicate,pronoun,quantity,timing,zone}/<name>.lean`
+     - `plugins_v3/builtin/rules/{sba,conferral,...}/<name>.lean`
+     - `plugins_v3/canon/cards/<name>.lean`
+   - **Folder and file names are for human organization only, never semantically significant.** Bundle files omit `import`, `namespace`, or `open` headers, and the loader never infers `Definition` vs. `Template` or grammatical category from the file path.
    - Both the Lean bundle loader (`load_bundle`) and the Rust loader (`deckmaste_semantics_v3`) walk all `.lean` files in a bundle directory, extract `(decl_name, referenced_idents)`, and topologically sort **individual declarations** via Kahn's algorithm with a lexicographically ordered ready queue (`BTreeSet` by declaration name), reporting exact dependency cycles if any exist.
    - The working spike preserved on bookmark `archive-semantics-v3-peer-files-and-toposort` (`lean/Semantics/BundleSpike.lean` calling `load_bundle "../plugins_v3/builtin"` and `load_bundle "../plugins_v3/canon"`) proves cross-folder mutual dependencies, intra-file forward references, and cycle detection.
 

@@ -26,8 +26,12 @@ Standard constraints apply.
     `laterMention` (`List ReferentId`), `StepPhase.preEvent` vs `.postEvent`,
     and the `J1`, `J2`, `D′`, and `AC>R1` resolution gates.
 - **One language: Genuine Lean 4 `{ field := val, ... }` brace-and-comma declarations:**
-  - Every declaration lives as a loose file in `plugins_v3/` (`plugins_v3/builtin/`
-    for definitions, rules, registries, and templates; `plugins_v3/canon/` for printed cards).
+  - Every declaration and card lives in its own individual `.lean` file in `plugins_v3/`:
+    - `plugins_v3/builtin/definitions/{keyword_action,keyword_ability,counter,designation,relation,token,card_type,subtype/{creature,artifact,...}}/<name>.lean`
+    - `plugins_v3/builtin/templates/{ability,ability_word,action,amount,condition,cost,determiner,duration,event,mana,noun,pile,predicate,pronoun,quantity,timing,zone}/<name>.lean`
+    - `plugins_v3/builtin/rules/{sba,conferral,...}/<name>.lean`
+    - `plugins_v3/canon/cards/<name>.lean`
+  - Folder and file names are for human organization only and carry no semantic significance to the loader.
   - Command macros: `action`, `keyword`, `ability_word`, `counter`, `designation`,
     `subtype`, `card_type`, `relation`, `token`, `sba`, `conferral`, `template`, `card`.
   - Every declaration uses `{ field := val, ... }` brace-and-comma blocks — 100% valid
