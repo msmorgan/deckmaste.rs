@@ -66,5 +66,22 @@ two" as Determiner of land`, `comparative_quantity_than.txt`).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Owner ruling (round 6, on withdrawing `english-v4-excess-damage-relative-split`):
+the ticket stays planned and Nameless Race is not deferred. The 25 wrong
+Readings may be removed by structure, never by an engine closure that names
+features.
+
+Landed as three grammar changes, each from existing features:
+
+- `ComparativeDeterminedStandard`: *more*/*fewer* fused head with a *than*
+  standard that a dependent determinative determines.
+- `ComparativeQuantityCountDetermined` and `ComparativeQuantityMassDetermined`
+  now require a bare standard (CGEL, Ch. 5 §11(d), p. 432). This removes the
+  25 split Readings, and the same split in Nicol Bolas, the Arisen and Jace,
+  Reality Sculptor (*[all but the bottom] card*).
+- `ComparativePartitive`: *[more than one] of the same mana symbol*. Jegantha,
+  the Wellspring had read only through the split *[more than one of the same
+  mana] symbol*.
+
+Census delta (measured on `lqmuqwyn` → `nyvrznxw`): faces read 28,799 → 28,799; Readings 214,300 → 214,294; Surplus 88,560 → 88,555; lost faces: none. Nameless Race 25 → 21, Jegantha 2 → 3, Nicol Bolas 3 → 2, Jace 6 → 4.
+Judgment set: all hold (`cargo test -p deckmaste_english_v4`; `strata --check` passes).

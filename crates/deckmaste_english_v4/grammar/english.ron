@@ -848,6 +848,11 @@
             equations: [Require("head.ComplementKind", "PP"), Exclude("head.PrepositionMarking", "Oblique"), Exclude("head.PrepositionMarking", "Comparative"), Carry("head.Countability", "Count"), Agree("head.Countability", "complement.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ExceptiveMassPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "PP"), Exclude("head.PrepositionMarking", "Oblique"), Exclude("head.PrepositionMarking", "Comparative"), Carry("head.Countability", "Mass"), Carry("complement.Countability", "Mass"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A comparative determinative with a bare standard heads a partitive
+        // as an exceptive one does (*more than one of the same mana symbol*;
+        // CGEL, Ch. 5 §11(d), p. 432).
+        (name: "ComparativePartitive", lhs: "PartitiveHead", rhs: [Cat("quantifier", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Require("quantifier.ComplementKind", "PP"), Carry("quantifier.PrepositionMarking", "Comparative"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.ObliqueKind", "AdvP"), Agree("quantifier.Countability", "complement.Countability"), Agree("$.Number", "quantifier.ObliqueNumber"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "DegreePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Dependent"), Agree("head.Countability", "complement.Countability"),
                 Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
@@ -949,6 +954,15 @@
         // standard's Number, not the quantifier's (*more* is plural).
         (name: "ComparativeFusedHead", lhs: "NounPhrase", rhs: [Cat("quantifier", "DeterminerPhrase")],
             equations: [Require("quantifier.ComplementKind", "PP"), Require("quantifier.PrepositionMarking", "Comparative"), Exclude("quantifier.ObliqueKind", "AdvP"), Exclude("quantifier.ObliqueKind", "FiniteClause"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.Countability", "Mass"), Agree("$.Number", "quantifier.ObliqueNumber"), Agree("$.Countability", "quantifier.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A comparative determinative fused head whose standard a dependent
+        // determinative determines (*can't be more than the total number of
+        // ...*; CGEL, Ch. 13 §4.5(a), p. 1132): *more* is the head and its
+        // *than* phrase its Complement. A quantified standard is not one: *more
+        // than two* determines *lands* and *more than one* heads a partitive
+        // (Ch. 5 §11(d), p. 432). Predicative *less than* is the adjective's
+        // (Ch. 13 §4.1.1, p. 1126).
+        (name: "ComparativeDeterminedStandard", lhs: "NounPhrase", rhs: [Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("complement.ComplementKind", "NP"), Require("complement.Determination", "Overt"), Carry("complement.DeterminativeDistribution", "Dependent"), Exclude("quantifier.Countability", "Mass"), Agree("$.Countability", "quantifier.Countability"), Agree("$.Number", "complement.Number"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A fraction with its partitive oblique (*a third of their life*).
         (name: "FractionPartitive", lhs: "PartitiveHead", rhs: [Cat("determiner", "DeterminerPhrase"), Numeral("head", Ordinal), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("$.Number", "Singular"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
@@ -1087,11 +1101,14 @@
         // A comparative quantity determines a count head that agrees with its
         // *than* Complement (*more than one creature*), or a mass head (*less
         // than three mana*). A singular noun both count and mass carries no
-        // Countability of its own, so it is not a mass head here.
+        // Countability of its own, so it is not a mass head here. In a
+        // determiner the standard is a bare quantity (*than* + numeral): a
+        // determined standard comes after the head instead (CGEL, Ch. 5
+        // §11(d), p. 432), so *more than the total* determines nothing.
         (name: "ComparativeQuantityCountDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Require("determiner.ComplementKind", "PP"), Require("determiner.PrepositionMarking", "Comparative"), Require("head.Countability", "Count"), Agree("determiner.ObliqueNumber", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.ComplementKind", "PP"), Require("determiner.PrepositionMarking", "Comparative"), Require("determiner.ObliqueDetermination", "Bare"), Require("head.Countability", "Count"), Agree("determiner.ObliqueNumber", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComparativeQuantityMassDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Carry("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Require("determiner.ObliqueDetermination", "Bare"), Carry("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Free-choice *any* determines a nominal, but a quantificational noun
         // only without its oblique: with one, the Noun Phrase takes the
         // oblique's Number (*any number of target creatures become ...*).
