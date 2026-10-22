@@ -720,6 +720,11 @@ semantic_definition flanking : Ability :=
         (get (that creature) (.down 1) (.down 1) untilEndOfTurn) ]
 semantic_definition flash : Ability :=
   .keyword (.named "flash") [] [static (can you (play thisCard) (timing := asInstant))]
+/-- "as though <subject> had flash" ("as though they had flash", "as though it had flash"): a
+permission to cast that applies as though its objects had flash, so they may be cast any time an
+instant could [CR#702.8a]. -/
+semantic_template asThoughHadFlash (subject : NounPhrase) : AsThough :=
+  holds (is subject (hasKeyword flash))
 /-- "Flashback [cost]": "You may cast this card from your graveyard if the resulting spell is an
 instant or sorcery spell by paying [cost] rather than paying its mana cost" and "If the flashback
 cost was paid, exile this card instead of putting it anywhere else any time it would leave the

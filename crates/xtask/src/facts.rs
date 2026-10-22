@@ -731,7 +731,6 @@ fn overlay() -> Vec<Row> {
             label: "Replicate",
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
-            on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -780,7 +779,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "SplitSecond",
             functions_on_stack: true,
-            on_permanent_card: false,
             on_spell_card: true,
             ..D
         },
@@ -811,9 +809,13 @@ fn overlay() -> Vec<Row> {
         // keys on a spell cast and `AtResolution` where it modifies the damage
         // its source deals [CR#120.3], `functionsOnStack` where the ability
         // functions only while the object is on the stack [CR#113.6],
-        // `onPermanentCard` /
-        // `onSpellCard` from the entry's own card-type wording and the printed
-        // corpus, `wantsModes` for the modal-spell keywords [CR#702.172a,702.183a].
+        // `onPermanentCard` / `onSpellCard` admitting each card class the printed
+        // corpus puts the keyword on (these are corpus observations, never
+        // narrowed by the entry's wording, even where a CR sentence says what
+        // the keyword "appears on": an ability that functions while its spell
+        // is on the stack names no card class [CR#702.56a,702.61a,702.188a],
+        // and wither works from any zone [CR#702.80c]), `wantsModes` for the
+        // modal-spell keywords [CR#702.172a,702.183a].
         // No new row is a keyword counter [CR#122.1b].
         Row {
             label: "Absorb",
@@ -1309,12 +1311,14 @@ fn overlay() -> Vec<Row> {
             label: "WebSlinging",
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
+            on_spell_card: true,
             paid_cost: true,
             ..D
         },
         Row {
             label: "Wither",
             regime: Some(Regime::AtResolution),
+            on_spell_card: true,
             ..D
         },
     ]

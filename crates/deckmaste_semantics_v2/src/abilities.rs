@@ -143,8 +143,9 @@ pub enum Exchanged {
     },
 }
 
-/// A word a Text Change replaces where it is used in its rules sense: a color
-/// word or a basic land type word [CR#612.2].
+/// A word a Text Change replaces where it is used in its rules sense, such as a
+/// color word, a land type or a creature type, a creature type in a token's
+/// name included [CR#612.2,612.2a].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TextWord {
     Color { color: Color },

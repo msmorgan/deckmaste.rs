@@ -75,9 +75,9 @@ theorem okCastWindowOnSpell :
       = [] := by
   decide
 
-/-- The same sentence spelled as a static permitting the cast. A cast window is stated by the
-spell [CR#506.8], which is `okCastWindowOnSpell`'s window slot, not a permission a spell
-card's static ability grants. -/
+/-- The same sentence spelled as a static permitting the cast. A spell that "may be cast only
+[before/after]" a point in combat states its window [CR#506.8], which is
+`okCastWindowOnSpell`'s window slot, not a static ability of the spell card. -/
 theorem badCastWindowAsDeonticStatic :
     Card.check
       (one
@@ -86,6 +86,31 @@ theorem badCastWindowAsDeonticStatic :
             [ static
                 (partScope .declareAttackers none
                   (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
+              spell (draw 1) ] }) = [.cardText] := by
+  decide
+
+/-- Ghitu Fire: "You may cast this spell as though it had flash if you pay {2} more to cast it.
+This spell deals X damage to any target." A spell card's ability that modifies how that spell is
+cast functions wherever it could be cast [CR#113.6e], and a player may begin to cast it as though
+it had flash when that permission is conditioned on an added cost [CR#601.3c]. -/
+theorem okGhituFire :
+    Card.check
+      (one
+        { name := some "Ghitu Fire", cost := some [.variable, pip .red], types := [.sorcery],
+          text :=
+            [ static (gatedBy [generic 2] you (cast thisSpell) (asThough := asThoughHadFlash it)),
+              spell (instruct thisSpell (dealDamage (letter .x) (target isAnyTarget))) ] })
+      = [] := by
+  decide
+
+/-- The same permission without "as though it had flash" is no permission to cast this spell
+earlier than it could be: still refused on a spell card. -/
+theorem badSelfCastWithoutFlashOnSorcery :
+    Card.check
+      (one
+        { name := some "", cost := some [pip .red], types := [.sorcery],
+          text :=
+            [ static (gatedBy [generic 2] you (cast thisSpell)),
               spell (draw 1) ] }) = [.cardText] := by
   decide
 

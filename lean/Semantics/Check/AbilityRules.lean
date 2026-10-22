@@ -104,15 +104,15 @@ def MoveRider.checkAll (drs : DRS) (riders : List MoveRider) : List Refusal :=
     (out, errors ++ errs)) (drs, [])).2
 
 /-- The face of the pile a location names: a library face down [CR#401.2], a graveyard face up
-[CR#404.2], the cards exiled with a source face down [CR#406.4], and a made pile the face it was
-given. -/
+[CR#404.2], and a made pile the face it was given. The cards exiled with a source have no face of
+their own: exiled cards are kept face up by default [CR#406.3], and those exiled with a source
+are face down only if its linked ability exiled them so [CR#406.6,607.2a]. -/
 def Location.face (drs : DRS) (loc : Location) (fuel : Nat := 8) : Option PileFace :=
   match fuel, loc with
   | 0, _ => none
   | n + 1, .fromEnd _ _ inner => inner.face drs n
   | _ + 1, .zone .library _ => some .faceDown
   | _ + 1, .zone .graveyard _ => some .faceUp
-  | _ + 1, .exiledWith _ => some .faceDown
   | _ + 1, .pile _ => faceOfReach (.word .pile) .one drs
   | _ + 1, _ => none
 termination_by structural fuel

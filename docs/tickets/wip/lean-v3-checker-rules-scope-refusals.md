@@ -102,6 +102,16 @@ spell is on the stack [CR#109.2b]. *Animate Dead* and *Spellweaver Volute* encha
 enchant ability's zone) for `.card` and `.spell` heads, and add an *Animate Dead* or *Volute*
 witness.
 
+## Out of scope
+
+- `participialRead` does not prefer an object the current ability acted on over one carried in
+  linked (`linkedTextContext`): token or granted text that itself exiles a card and then reads
+  "the exiled card" finds two sites and is refused when its creating ability also exiled one. No
+  corpus card has that shape.
+- A move's Zone Change records the referent's known zone as its origin, not a written origin:
+  "the creature card returned to the battlefield from a graveyard this way" is refused when the
+  returned object's zone is unknown, as an enchanted card's now is.
+
 ## Verification
 
 `./lean/scripts/build`; `cargo test -p xtask` and `cargo clippy -p xtask --tests -- -D warnings`

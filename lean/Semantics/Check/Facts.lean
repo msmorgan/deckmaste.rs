@@ -156,12 +156,12 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "squad", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
     { word := .named "offspring", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
     { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true, paidCost := true },
-    { word := .named "replicate", argumentSchemas := [[⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true, onPermanentCard := false },
+    { word := .named "replicate", argumentSchemas := [[⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true },
     { word := .named "delve", argumentSchemas := [[]], onInstantOrSorceryCard := true },
     { word := .named "infect", argumentSchemas := [[]] },
     { word := .named "cascade", argumentSchemas := [[]], onInstantOrSorceryCard := true },
     { word := .named "prowess", argumentSchemas := [[]] },
-    { word := .named "splitSecond", argumentSchemas := [[]], onInstantOrSorceryCard := true, onPermanentCard := false },
+    { word := .named "splitSecond", argumentSchemas := [[]], onInstantOrSorceryCard := true },
     { word := .named "phasing", argumentSchemas := [[]] },
     { word := .named "decayed", argumentSchemas := [[]] },
     { word := .named "exalted", argumentSchemas := [[]] },
@@ -262,8 +262,8 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "undying", argumentSchemas := [[]] },
     { word := .named "unleash", argumentSchemas := [[]] },
     { word := .named "vanishing", argumentSchemas := [[⟨.number, none⟩]] },
-    { word := .named "webSlinging", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
-    { word := .named "wither", argumentSchemas := [[]] } ]
+    { word := .named "webSlinging", argumentSchemas := [[⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true },
+    { word := .named "wither", argumentSchemas := [[]], onInstantOrSorceryCard := true } ]
 
 def counterFacts : List CounterFacts :=
   [ ⟨"acornCounter", .object⟩,

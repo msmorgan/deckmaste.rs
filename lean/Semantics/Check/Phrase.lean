@@ -532,8 +532,9 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
     | some old =>
       if state.historicalReferentIds.contains oldId then state else
       let payload : Option Payload := match old.payload with
-        | .object ty oldZone _ orig size =>
-          some (.object ty destZone (some (moveStamp deed oldZone destZone)) orig size)
+        | .object ty oldZone oldProv orig size =>
+          let leftField := oldProv.any fun st => st.leftField || (st.moved && st.wasField)
+          some (.object ty destZone (some (moveStamp deed oldZone destZone leftField)) orig size)
         | .ability orig _ => some (.ability orig destZone)
         | _ => none
       match payload with
@@ -1387,7 +1388,7 @@ def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
 
 /-- The context a written granted ability is read in: its Source is whatever it is granted to,
 of unknown Card Types, and the granting text's objects are never its "other"'s Contrast Anchor,
-as in `choiceContext`. -/
+as in `linkedTextContext`. -/
 def grantedContext (drs : DRS) : DRS :=
   { drs with
     sourceTypes := []
@@ -1418,7 +1419,7 @@ def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicE
       | .keyword _ [.number (.inCaller (.letter l))] _ =>
         (introducedLetters l drs).foldl (fun d r => d.push r .other false) d
       | _ => d) drs
-    (out, (stepAbilityListWith ops (choiceContext drs) abs).2)
+    (out, (stepAbilityListWith ops (linkedTextContext drs) abs).2)
   | .addedAbilitiesOf src _ optEx =>
     let (drs1, _, e1) := ops.np drs .other false src
     let (drs2, e2) := match optEx with | some p => ops.pred drs1 p | none => (drs1, [])
@@ -1441,7 +1442,7 @@ def stepCopyExceptWith (ops : StepOps) (drs : DRS) (ce : CopyExcept) : DRS × Li
     let (_, es) := stepCharacteristicEditListWith ops drs eds
     (drs, es ++ refuse (!eds.isEmpty && eds.all CharacteristicEdit.writesLine) .lineNonEmpty ++
       CharacteristicEdit.shapeAll eds)
-  | .ability ab => (drs, ops.ab (choiceContext drs) ab)
+  | .ability ab => (drs, ops.ab (linkedTextContext drs) ab)
   | .thisAbility => (drs, [])
   | .entersWithCounters amt kind _ =>
     let (_, es) := ops.amt drs amt
@@ -1697,6 +1698,14 @@ def stepDamageOpWith (ops : StepOps) (drs : DRS) (dop : DamageOp) : DRS × List 
     let (out, errors) := ops.amt drs change.amount
     (out, errors ++ refuse (!change.isSet) .shiftSets)
 
+/-- A copy's source, read as a characteristic read: copying reads the original's copiable values
+[CR#707.2], a departed object's by its last known information [CR#608.2h], so "a copy of that
+creature" reads the creature that died. -/
+def stepCopySourceWith (ops : StepOps) (drs : DRS) (source : NounPhrase) :
+    DRS × List ReferentId × List Refusal :=
+  let (read, ids, errors) := ops.np { drs with characteristicRead := true } .other false source
+  ({ read with characteristicRead := drs.characteristicRead }, ids, errors)
+
 private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : MoveRider) : DRS × List Refusal :=
   match fuel with
   | 0 => (drs, [.recursionLimit])
@@ -1718,7 +1727,7 @@ private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : Move
     let (drs', _, errs) := ops.np drs .other false ctrl
     (drs', errs)
   | .asCopyOf _ src exs =>
-    let (drs1, _, e1) := ops.np drs .other false src
+    let (drs1, _, e1) := stepCopySourceWith ops drs src
     let (drs2, e2) := stepCopyExceptListWith ops drs1 exs
     (drs2, e1 ++ e2)
 
@@ -1796,7 +1805,7 @@ def stepCharacteristicsWith (ops : StepOps) (drs : DRS) (c : Characteristics) : 
     (fun (d, es) a => match a with
       | none => (d, es)
       | some a => let (d', e) := ops.amt d a; (d', es ++ e)) (drs, [])
-  let abilityErrors := (stepAbilityListWith ops (choiceContext drs) c.text).2
+  let abilityErrors := (stepAbilityListWith ops (linkedTextContext drs) c.text).2
   (out, errs ++ abilityErrors)
 
 def stepCharacteristicBundleWith (ops : StepOps) (drs : DRS)
@@ -1833,7 +1842,7 @@ def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
       let count := descriptions.length
       (drs, descriptions.headD [], refuse (count == 1) (.tokenSpecInScope count))
   | _ + 1, .copyOf source exceptions =>
-    let (selected, ids, errors) := ops.np drs .other false source
+    let (selected, ids, errors) := stepCopySourceWith ops drs source
     let sources : List Referent := ids.filterMap selected.findById?
     let types := match sources with
       | [] => []
@@ -1850,7 +1859,7 @@ def stepCreationSpecMetadataWith (ops : StepOps) (drs : DRS)
     let (out, riderErrors) := stepMoveRiderListWith ops afterToken riders
     (out, types, errors ++ riderErrors ++ spec.localChecks)
   | .emblem _ abilities =>
-    (drs, [], (stepAbilityListWith ops (choiceContext drs) abilities).2 ++ spec.localChecks)
+    (drs, [], (stepAbilityListWith ops (linkedTextContext drs) abilities).2 ++ spec.localChecks)
 
 /-- A play's payment: the cost is paid while casting or playing [CR#601.2h], not an argument of
 the play. The cost's mentions leave the clause's pending argument roles, and the enclosing frames'
@@ -3653,8 +3662,8 @@ def stepOps : Nat → StepOps
             CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>
           let (drs1, _, e1) := stepAgentNounWith ops drs .subj true subj
-            (fun d => (ops.np d .other false src).1)
-          let (drs2, _, e2) := ops.np drs1 .other false src
+            (fun d => (stepCopySourceWith ops d src).1)
+          let (drs2, _, e2) := stepCopySourceWith ops drs1 src
           let (drs3, e3) := stepCopyExceptListWith ops drs2 exs
           (drs3, e1 ++ e2 ++ e3)
         | .retention spec subj =>

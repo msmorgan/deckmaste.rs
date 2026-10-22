@@ -248,8 +248,8 @@ semantic_template bottomOf (loc : Location) : Location := .fromEnd .bottom (.nth
 semantic_template fromTop (n : Nat) (loc : Location) : Location := .fromEnd .top (.nth n) loc
 /-- "<n>th from the bottom of <loc>" -/
 semantic_template fromBottom (n : Nat) (loc : Location) : Location := .fromEnd .bottom (.nth n) loc
-/-- "exiled with <source>": the face-down cards exiled with it, kept as their own pile
-[CR#406.4]. -/
+/-- "exiled with <source>": the cards its linked ability exiled, face up unless that ability
+exiled them face down [CR#406.3,406.6,607.2a]. -/
 semantic_template exiledWith (source : NounPhrase) : Location := .exiledWith source
 /-- "on the bottom of its owner's library" -/
 semantic_template onBottom : Location := .fromEnd .bottom (.nth 1) (.zone .library none)

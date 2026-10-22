@@ -30,11 +30,25 @@ def keywordCardOk : CardClass → KeywordLabel → Bool
   | .permanentCard, k => (keywordFactsFor k).elim false (·.onPermanentCard)
   | .instantOrSorceryCard, k => (keywordFactsFor k).elim false (·.onInstantOrSorceryCard)
 
+/-- A permission to cast this very spell as though it had flash, gated by an added cost or not:
+an ability that modifies how its own object is cast functions in any zone it could be cast from
+and on the stack [CR#113.6e], and a player may begin to cast a spell as though it had flash when
+the permission is conditioned on an added cost [CR#601.3c]. -/
+def selfCastAsThoughFlash (action : Action) (mods : DeonticMods) : Bool :=
+  (match action.scopeBody with
+   | .procedure .cast subject _ _ _ _ => subject.namesThis
+   | _ => false) &&
+  (match mods.asThough with
+   | some (.condition (.matches _ (.hasKeyword (.the (.named "flash"))))) => true
+   | _ => false)
+
 def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bool :=
   match fuel, s with
   | n + 1, .inCaller b => b.onInstantOrSorceryCardOk n
   | _ + 1, .altCost .this _ | _ + 1, .costShift .this _ | _ + 1, .addedCost _ _ _
   | _ + 1, .modeChoice _ => true
+  | _ + 1, .can _ action mods | _ + 1, .gatedBy _ _ action mods =>
+    selfCastAsThoughFlash action mods
   | _ + 1, .cant _ action _ =>
     match action.scopeBody with
     | .enact (.action "counter") body _ _ => body.canonicalPatient.any (·.namesThis)

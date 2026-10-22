@@ -56,4 +56,22 @@ theorem okFlyingGuardedToPermanentCard :
       = [] := by
   decide
 
+/-! ## Card-class gates the CR doesn't impose
+
+A keyword's card-class columns admit each class the printed corpus puts it on. An ability that
+functions while its spell is on the stack names no card class [CR#702.56a,702.61a,702.188a], and
+wither works from any zone [CR#702.80c]. -/
+
+/-- Sulfur Elemental, a creature card with split second; a creature card with replicate. -/
+theorem okSpellKeywordsOnPermanentCards :
+    cardTextOk [.creature] [splitSecond] = true ∧
+      cardTextOk [.creature] [replicate (mana [generic 1, pip .green])] = true := by
+  decide
+
+/-- An instant card with web-slinging; Puncture Blast, an instant card with wither. -/
+theorem okPermanentKeywordsOnSpellCards :
+    cardTextOk [.instant] [webSlinging (mana [generic 1, pip .red])] = true ∧
+      cardTextOk [.instant] [wither] = true := by
+  decide
+
 end Semantics.Proofs.KeywordByCardClass

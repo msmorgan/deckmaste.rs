@@ -5,11 +5,13 @@ namespace Semantics
 
 def TextWord.sort : TextWord → QualitySort
   | .color _ => .color
-  | .basicLandType (.of host _) => .subtype host
-  | .basicLandType (.spell _) => .subtype .instant
+  | .subtype (.of host _) => .subtype host
+  | .subtype (.spell _) => .subtype .instant
 
+/-- The sorts of word a Text Change replaces: color words, land types and creature types
+[CR#612.2,612.2a]. -/
 def QualitySort.replaceable : QualitySort → Bool
-  | .color | .subtype .land => true
+  | .color | .subtype .land | .subtype .creature => true
   | _ => false
 
 def TextWord.sortCheck (sorts : List QualitySort) : Option TextWord → List Refusal

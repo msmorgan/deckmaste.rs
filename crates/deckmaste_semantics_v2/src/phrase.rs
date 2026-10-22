@@ -138,8 +138,8 @@ pub enum Pile {
     /// "that pile": the pile an instruction just made, with the face it was
     /// given.
     That,
-    /// The face-down cards exiled with `source`, kept as their own pile
-    /// [CR#406.4].
+    /// The cards exiled with `source`: those its linked ability exiled, face up
+    /// unless that ability exiled them face down [CR#406.3,406.6,607.2a].
     ExiledWith { source: Box<NounPhrase> },
 }
 

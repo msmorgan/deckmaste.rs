@@ -145,6 +145,43 @@ theorem okEnchantCreature : Ability.check (DRS.ofList []) (enchant isCreature) =
 /-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
 theorem okEnchantPlayer : Ability.check (DRS.ofList []) (enchant .anyPlayer) = [] := by decide
 
+/-! ## An enchanted card is not on the battlefield
+
+The battlefield default is for a description without "card", "spell", "source" or "scheme"
+[CR#109.2]: "enchanted creature" is a permanent, "enchanted creature card" is a card wherever its
+enchant ability puts it, as Animate Dead's and Spellweaver Volute's do ("enchant creature card in
+a graveyard"; the card Volute enchants "won't be on the battlefield", ruling 2007-05-01). -/
+
+/-- "enchanted creature" is on the battlefield; "enchanted creature card" is in no zone the
+checker fixes. -/
+theorem enchantedCardIsNotOnTheBattlefield :
+    [nounZone (DRS.ofList []) (enchanted (.ofType .card .creature)),
+      nounZone (DRS.ofList []) (enchanted creature)]
+      = [none, some .battlefield] := by
+  decide
+
+/-- Animate Dead: "Return enchanted creature card to the battlefield under your control and attach
+this Aura to it." -/
+theorem okAnimateDeadReturn :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ returnTo (enchanted (.ofType .card .creature)) battlefield [under you],
+          attachTo thisAura it ]) = [] := by
+  decide
+
+/-- Spellweaver Volute: "exile the enchanted card". The card leaves a graveyard, not the
+battlefield, so "the exiled instant", which names a permanent by what it was [CR#608.2h], does
+not read it back, while "the exiled instant card" does. -/
+theorem voluteExilesACardNotAPermanent :
+    let exileEnchanted := exile (enchanted (.ofType .card .instant))
+    Action.check (DRS.ofList [])
+        (sequentially [exileEnchanted, returnTo (the (and [was (exile which), isInstant, isCard]))
+          graveyard []]) = [] ∧
+      Action.check (DRS.ofList [])
+        (sequentially [exileEnchanted, returnTo (the (and [was (exile which), isInstant]))
+          graveyard []]) = [.participialDescription (.deed (.action "exile")) 0] := by
+  decide
+
 /-! ## Protection's attach rows -/
 
 /-- Protection from black, its five rows as its declaration writes them: can't be targeted by

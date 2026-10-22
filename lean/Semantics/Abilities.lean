@@ -27,11 +27,11 @@ inductive ManaHeld where
   | unspent (type : Option ColorOrColorless)
   deriving DecidableEq, Repr
 
-/-- A word a Text Change replaces where it is used in its rules sense: a color word or a basic
-land type word [CR#612.2]. -/
+/-- A word a Text Change replaces where it is used in its rules sense, such as a color word, a
+land type or a creature type, a creature type in a token's name included [CR#612.2,612.2a]. -/
 inductive TextWord where
   | color (color : Color)
-  | basicLandType (subtype : Subtype)
+  | subtype (subtype : Subtype)
   deriving DecidableEq, Repr
 
 inductive QualityOp where
@@ -99,7 +99,8 @@ mutual
     /-- The `ordinal`th place from one end of a pile: "on top of", "on the bottom of", "seventh
     from the top" [CR#401.7]. -/
     | fromEnd (end_ : PileEnd) (ordinal : Ordinal := .nth 1) (loc : Location)
-    /-- The face-down cards exiled with `source`, kept as their own pile [CR#406.4]. -/
+    /-- The cards exiled with `source`: those its linked ability exiled, face up unless that
+    ability exiled them face down [CR#406.3,406.6,607.2a]. -/
     | exiledWith (source : NounPhrase)
     /-- A pile an action made ("that pile"), with the face it was given. -/
     | pile (pile : NounPhrase)

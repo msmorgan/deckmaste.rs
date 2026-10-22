@@ -448,9 +448,16 @@ library" is one card per player, collected, so the slice is plural and reads bac
 one-card slice is one; a longer slice, a run and `oneEachOf` are plural.
 
 A nested ability's performer is its own controller: granted ability text, token
-characteristic text and emblem abilities are stepped in `choiceContext` (only chosen
-qualities and chosen players carry in, never a handoff frame), and a keyword ability
-body in its own Reference Scope (`enterOwnScope`).
+characteristic text and emblem abilities are stepped in `linkedTextContext` (only chosen
+qualities, chosen players and the objects the enclosing ability has acted on carry in, never
+a handoff frame), and a keyword ability body in its own Reference Scope (`enterOwnScope`).
+The acted-on objects carry in linked, read back by a Participial Description only ("return the
+exiled card"), never by a pronoun: abilities on a token, an emblem or a permanent and on the
+source of the ability that created it or put it onto the battlefield can be linked
+[CR#607.1d,607.2a], and an ability granted to the object the granting ability is printed on
+counts as printed on it [CR#607.1a]. A grant onto another object (*Massimo, the Magician*'s "that
+creature gains '… copy the exiled card'") is read as Oracle writes it (*Hofri Ghostforge*,
+*Timothar, Baron of Bats*; `Proofs/LinkedReadback.lean`).
 
 An object referent records no possessor. Whether a sacrificed permanent is one its
 performer controls, or a discarded card one in its performer's hand, is a game rule
@@ -570,7 +577,7 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `revealedAsCast` | Steps the spell the card is revealed as cast onto, then what it grants in a new clause, reading that spell; nothing either introduces escapes (only `nextId` advances). |
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
 | Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause after it and reads every mention the cost made, wherever the cost moved it: whether the engine can find the object at runtime is the engine's concern [CR#608.2h]. Timing and guard clauses read the body's output. A special action's `player`, when written (one an effect allows another player, [CR#116.2c]), is stepped first, as its subject. |
-| Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `choiceContext`: only chosen qualities and chosen players carry in, so its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
+| Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `linkedTextContext`: only chosen qualities, chosen players and, for Participial Descriptions only, the objects the enclosing ability acted on carry in: text on a token, emblem or permanent the source created or put onto the battlefield [CR#607.1d], an ability granted to the object the granting ability is printed on [CR#607.1a], and a grant onto another object, read as Oracle writes it (*Massimo, the Magician*). Its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
 | Card text versus nested lists | `Ability.checkText` threads line-level choices, additional- and alternative-cost results, added targets and the objects a printed triggered or activated ability acted on (`Ability.textContext`); a keyword's `body` is threaded the same way (`checkTextWith`); `Ability.checkAll` checks sibling abilities in one supplied context. |
 | Printed boxes | Literal-only; they do not read discourse. Effect-written stat slots instead step their Amount expressions. |
 | Named-card choice domain | The card-description predicate is stepped in its own Reference Scope (`enterOwnScope`) at object kind and publishes nothing. Other choice-domain payloads use the consumer's context. |
@@ -820,7 +827,7 @@ expected child kinds in the incoming `DRS`.
   step returns the output `DRS` and its refusals, with no separate profile record.
 - `TokenChars bs`: `stepCharacteristicBundleWith` and `stepCharacteristicsWith`
   step the carried expressions, power, toughness, loyalty and defense in slot order.
-  Nested characteristic text is stepped in `choiceContext`.
+  Nested characteristic text is stepped in `linkedTextContext`.
 - `Binding`'s kind/payload pair: the kind is now derived from the payload
   (`Referent.kind`), so there is no separate index to validate. Alternative arms keep what
   they share (`commonHeaderContext`).
@@ -910,7 +917,13 @@ share one mechanism"); there is no selector device.
 - Each half is checked as a term on every card, with no class context
   (`Ability.checkAll [] body`).
 - Against the card's class, `classAbilityOk` checks the keyword itself
-  (`keywordCardOk`: the row's `onPermanentCard` / `onInstantOrSorceryCard`).
+  (`keywordCardOk`: the row's `onPermanentCard` / `onInstantOrSorceryCard`). Those columns
+  admit each class the printed corpus puts the keyword on; a CR entry that says its ability
+  functions while the spell is on the stack names no card class, so split second and
+  replicate are admitted on permanent cards, web-slinging and wither on instant and sorcery
+  cards [CR#702.56a,702.61a,702.188a,702.80c]. A static ability of an instant or sorcery card
+  that permits casting that very spell as though it had flash, gated by an added cost or not,
+  is admitted (`selfCastAsThoughFlash`, *Ghitu Fire*) [CR#113.6e,601.3c].
   The parts of its definition are not checked against the row or the class:
   the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
   `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are

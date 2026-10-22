@@ -57,6 +57,20 @@ theorem okSacrificedCreaturesManaValue :
         spell (draw (statOf (.stat .manaValue) theSacrificed)) ] = [] := by
   decide
 
+/-- Charge of the Forever-Beast: "As an additional cost to cast this spell, reveal a creature card
+from your hand. This spell deals damage to target creature or planeswalker equal to the revealed
+card's power." Revealing a card leaves it in its zone [CR#701.20b] and it stays revealed while
+needed [CR#701.20a]: the effect reads the card the cost revealed in its owner's hand (ruling
+2020-04-17). -/
+theorem okChargeOfTheForeverBeast :
+    Ability.checkText (DRS.ofList [])
+      [ static (.addedCost (.perform (reveal (a (and [isCreature, isCard, in_ yourHand])))) false
+          .once),
+        spell (instruct thisSpell
+          (dealDamage (powerOf (the (and [was (reveal which), isCard])))
+            (target (or [isCreature, isPlaneswalker])))) ] = [] := by
+  decide
+
 /-- Required pin: "the exiled card" reads back the card the linked ability exiled [CR#607.2a]. -/
 theorem okExiledCardReadBack :
     Ability.checkText (DRS.ofList [])
@@ -376,6 +390,98 @@ theorem linkedTargetAnchorsNoBareOther :
     Ability.checkText (DRS.ofList []) [first, activated (mana [generic 1]) tapOther] = [] ∧
       (stepAction 64 .postEvent .obj (nextClause context) tapOther).1.contrastAnchors
         = [.source] := by
+  decide
+
+/-! ## Linked across a created token and its source
+
+Abilities on a token, an emblem or a permanent and on the source of the ability that created it
+or put it onto the battlefield can be linked [CR#607.1d], and an ability granted to the object
+the granting ability is printed on counts as printed on it [CR#607.1a]: so the text the creating
+ability puts on or grants to its token reads back "the exiled card" that ability exiled
+[CR#607.2a]. A grant onto another object ("that creature gains '… copy the exiled card'", Massimo,
+the Magician) is read as Oracle writes it. Only a Participial Description reads the exiled card
+there, never a pronoun. -/
+
+/-- "When this token leaves the battlefield, return the exiled card to its owner's graveyard." -/
+def hofriTokenAbility (exiled : NounPhrase) : Ability :=
+  when (does thisToken leave) (returnTo exiled (graveyardOf (ownerOf it)) [])
+
+/-- Hofri Ghostforge: "Whenever another nontoken creature you control dies, exile it. If you do,
+create a token that's a copy of that creature, except it's a Spirit in addition to its other
+types and it has 'When this token leaves the battlefield, return the exiled card to its owner's
+graveyard.'" -/
+def hofriGhostforge (exiled : NounPhrase) : Ability :=
+  whenever (does (a (and [isCreature, isNontoken, youControl, isOther])) die)
+    (doIfDone (exile it)
+      (some (create 1 (copyOf (that creature)
+        [isAlso [] [spirit], alsoHas (hofriTokenAbility exiled)]) [])))
+
+/-- Required pin: Hofri Ghostforge's trigger as printed. "A copy of that creature" reads the
+creature that died by its copiable values, its last known information, though it has since been
+exiled [CR#707.2,608.2h]; the token's ability reads back the card Hofri's ability exiled
+[CR#607.1d,607.2a], and "that card" finds nothing there. -/
+theorem okHofriGhostforge :
+    Ability.check (DRS.ofList []) (hofriGhostforge theExiledCard) = [] ∧
+      Ability.check (DRS.ofList []) (hofriGhostforge (that card)) =
+        [.anaphor (.word .card) .one 0] := by
+  decide
+
+/-- Brenard, Ginger Sculptor: "Whenever another nontoken creature you control dies, you may exile
+it. If you do, create a token that's a copy of that creature, except it's a 1/1 Food Golem
+artifact creature in addition to its other types and it has '{2}, {T}, Sacrifice this token: You
+gain 3 life.'" The copy reads the creature that died, exiled since [CR#707.2,608.2h]. -/
+theorem okBrenardGingerSculptor :
+    Ability.check (DRS.ofList [])
+      (whenever (does (a (and [isCreature, isNontoken, youControl, isOther])) die)
+        (may (exile it)
+          (some (create 1 (copyOf (that creature)
+            [ isAlso [.artifact, .creature] [food, golem], hasPT 1 1,
+              alsoHas (activated (compound [[generic 2], tapSymbol, sacrifice thisToken])
+                (gainLife 3)) ]) [])))) = [] := by
+  decide
+
+/-- Cemetery Puca: "Whenever a creature dies, you may pay {1}. If you do, this creature becomes a
+copy of that creature, except it has this ability." [CR#707.2,608.2h] -/
+theorem okCemeteryPuca :
+    Ability.check (DRS.ofList [])
+      (whenever (does (a isCreature) die)
+        (may (pay [generic 1] .once)
+          (some (.establish (copyChange thisCreature (that creature) [exceptThisAbility])
+            none)))) = [] := by
+  decide
+
+/-- Timothar, Baron of Bats: "Whenever another nontoken Vampire you control dies, you may pay {1}
+and exile it. If you do, create a 1/1 black Bat creature token with flying. It gains 'When this
+token deals combat damage to a player, sacrifice it and return the exiled card to the
+battlefield tapped.'" -/
+def timotharBaronOfBats : Ability :=
+  whenever (does (a (and [vampire, isNontoken, youControl, isOther])) die)
+    (may (sequentially [pay [generic 1] .once, exile it])
+      (some (sequentially
+        [ createToken { characteristics :=
+            { colors := [.black], types := [.creature], subtypes := [bat],
+              text := [flying], power := stat 1, toughness := stat 1 } },
+          gain it
+            (when (does thisToken (dealDamage (to := a isPlayer) (kind := some .combat)))
+              (sequentially
+                [ sacrifice it,
+                  returnTo theExiledCard battlefield [.entersAs .tapped] ])) ])))
+
+/-- Required pin: the ability the token gains reads back the card Timothar's ability exiled
+[CR#607.1a,607.1d,607.2a]. -/
+theorem okTimotharBaronOfBats : Ability.check (DRS.ofList []) timotharBaronOfBats = [] := by
+  decide
+
+/-- An emblem's abilities are linked to its creator's the same way [CR#607.1d]: "exile it. If
+you do, you get an emblem with 'When this leaves …, return the exiled card …'" reads the exiled
+card back, and not by a pronoun. -/
+theorem okEmblemReadsTheExiledCard :
+    let emblemOver (exiled : NounPhrase) : Ability :=
+      when (does thisCreature die) (doIfDone (exile it)
+        (some (getEmblem [whenever (does you (cast (a isSpell)))
+          (returnTo exiled (graveyardOf (ownerOf it)) [])])))
+    Ability.check (DRS.ofList []) (emblemOver theExiledCard) = [] ∧
+      Ability.check (DRS.ofList []) (emblemOver (that card)) = [.anaphor (.word .card) .one 0] := by
   decide
 
 end Semantics.Proofs.LinkedReadback

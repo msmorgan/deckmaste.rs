@@ -241,12 +241,14 @@ structure ZoneChange where
 battlefield then; the Zone Change that last moved it, if it changed zones, which a move records
 whether or not a deed names it ("put", "return" [CR#400.7]); and the deeds `verb` was done by
 (`through`), when a keyword ability's verb is done by doing another deed: devouring is
-sacrificing [CR#702.82b]. -/
+sacrificing [CR#702.82b]; and whether an earlier move took it off the battlefield
+(`leftField`), as the creature that died before it was exiled. -/
 structure Stamp where
   verb : Option Deed
   wasField : Bool
   zoneChange : Option ZoneChange
   through : List Deed := []
+  leftField : Bool := false
   deriving DecidableEq, Repr, BEq
 
 /-- Whether the stamped object changed zones. -/
@@ -1001,12 +1003,14 @@ def slotZoneOk : SlotCarrier → Option Zone → Bool
 /-- The stamp a deed leaves on an object it acts on where it is (`zone`); no deed, no stamp. -/
 def mkStamp : Option Deed → Option Zone → Option Stamp
   | none, _ => none
-  | some v, zone => some ⟨some v, onFieldZone zone, none, []⟩
+  | some v, zone => some { verb := some v, wasField := onFieldZone zone, zoneChange := none }
 
 /-- The stamp a move leaves on the object it moved from `origin` to `destination`, whether or not
-a deed names the move [CR#400.7]. -/
-def moveStamp (deed : Option Deed) (origin destination : Option Zone) : Stamp :=
-  ⟨deed, onFieldZone origin, some ⟨origin, destination⟩, []⟩
+a deed names the move [CR#400.7]; `leftField` when an earlier move took it off the battlefield. -/
+def moveStamp (deed : Option Deed) (origin destination : Option Zone) (leftField : Bool := false) :
+    Stamp :=
+  { verb := deed, wasField := onFieldZone origin, zoneChange := some ⟨origin, destination⟩,
+    leftField }
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
@@ -1150,13 +1154,14 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
 
-/-- A characteristic read may name a departed permanent by its former type
-[CR#608.2h]. This changes accessibility, not the referent's current zone. -/
+/-- A characteristic read may name a departed permanent by its former type, by its last known
+information [CR#608.2h], also after a later move ("exile it. If you do, create a token that's a
+copy of that creature"). This changes accessibility, not the referent's current zone. -/
 def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   reaches r pl b || match r, b.payload with
     | .word w, .object ty zn (some st) og _ =>
       b.det != .self && pl.isOne == b.plur.isOne && st.moved &&
-        stampedWordOk w st ty zn og
+        stampedWordOk w { st with wasField := st.wasField || st.leftField } ty zn og
     | _, _ => false
 
 /-- Stage 2 (`J2`): whether `id` is a clause-mate co-argument in the current clause. -/
@@ -1647,10 +1652,14 @@ def RelationLabel.right (label : RelationLabel) : Kind := (label.facts.map (·.r
 
 /-! ## Attachment, status, counters -/
 
+/-- Where the host an attachment word names is: on the battlefield for a description without
+"card" or "spell" [CR#109.2], on the stack for a spell [CR#109.2b], and nowhere in particular for
+a card, which its enchant ability places ("enchant creature card in a graveyard"; the card
+Spellweaver Volute enchants "won't be on the battlefield"). -/
 def NounWord.attachHostZone : NounWord → Option Zone
   | .ofType word _ | .copied word => word.attachHostZone
-  | .type _ | .subtype (.of ..) | .card | .spell | .permanent | .token => some .battlefield
-  | .copy => some .stack
+  | .type _ | .subtype (.of ..) | .permanent | .token => some .battlefield
+  | .spell | .copy => some .stack
   | _ => none
 
 def NounWord.attachHostTy : NounWord → List CardType

@@ -54,11 +54,35 @@ theorem okReplaceLandTypeWord :
       (.establish (textChange (target isPermanent) (replaceWord [.subtype .land])) none) = [] := by
   decide
 
+/-- Artificial Evolution: "Change the text of target spell or permanent by replacing all instances
+of one creature type with another." A creature type word used as a creature type is replaced
+like a color word or a land type [CR#612.2]. -/
+theorem okReplaceCreatureTypeWord :
+    Action.check (DRS.ofList [])
+      (.establish (textChange (target (.or [isSpell, isPermanent]))
+        (replaceWord [.subtype .creature])) none) = [] := by
+  decide
+
+/-- New Blood: "Change the text of that creature by replacing all instances of one creature type
+with Vampire." [CR#612.2] -/
+theorem okReplaceCreatureTypeWithVampire :
+    Action.check (DRS.ofList [])
+      (.establish (textChange (target isCreature)
+        (replaceWord [.subtype .creature] none (some (.subtype vampire)))) none) = [] := by
+  decide
+
+/-- "… one creature type with Swamp": a land type is not a creature type. -/
+theorem badReplaceCreatureTypeWithLandType :
+    Action.check (DRS.ofList [])
+      (.establish (textChange (target isCreature)
+        (replaceWord [.subtype .creature] none (some (.subtype swamp)))) none)
+      = [.kindMismatch (.quality (.subtype .creature)) (.quality (.subtype .land))] := by decide
+
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
 theorem badReplaceWordSort :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isPermanent)
-        (replaceWord [.color] none (some (.basicLandType (swamp))))) none)
+        (replaceWord [.color] none (some (.subtype swamp)))) none)
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
 /-- "Change the text of target spell or permanent by replacing all instances of one color word
@@ -71,7 +95,7 @@ theorem okReplaceColorOrLandTypeWord :
 /-- "… one color word with Swamp": a word replaced by a word of another kind is refused. -/
 theorem badReplaceAcrossKinds :
     TextChange.check (DRS.ofList []) (.replaceWord [.color, .subtype .land] (some (.color .black))
-      (some (.basicLandType (swamp))))
+      (some (.subtype swamp)))
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
 /-- A name is not a word a Text Change replaces [CR#612.2]. -/

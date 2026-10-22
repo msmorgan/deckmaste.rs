@@ -500,21 +500,17 @@ def foundingOfOmashu : Spelled := spelled <| singleFacedCard
         when (chapterMark [3])
           (get (allOf (and [isCreature, youControl])) (up 1) (up 0) untilEndOfTurn) ] }
 
-/-- "as though they had flash" -/
-def asThoughFlash : Option AsThough :=
-  (holds (is them (hasKeyword flash)))
-
 def vedalkenOrrery : Spelled := spelled <| singleFacedCard
   { name := "Vedalken Orrery", cost := [generic 4], types := [.artifact],
     text :=
-      [ static (can you (cast (allOf isSpell)) (asThough := asThoughFlash)) ] }
+      [ static (can you (cast (allOf isSpell)) (asThough := asThoughHadFlash them)) ] }
 
 def shimmerMyr : Spelled := spelled <| singleFacedCard
   { name := "Shimmer Myr", cost := [generic 3], types := [.artifact, .creature],
     subtypes := [myr],
     text :=
       [ flash,
-        static (can you (cast (allOf (and [isSpell, isArtifact]))) (asThough := asThoughFlash)) ],
+        static (can you (cast (allOf (and [isSpell, isArtifact]))) (asThough := asThoughHadFlash them)) ],
     power := stat 2, toughness := stat 2 }
 
 def quickSliver : Spelled := spelled <| singleFacedCard
@@ -523,7 +519,7 @@ def quickSliver : Spelled := spelled <| singleFacedCard
     text :=
       [ flash,
         static (can (a isPlayer) (cast (allOf (and [isSpell, sliver])))
-                  (asThough := asThoughFlash)) ],
+                  (asThough := asThoughHadFlash them)) ],
     power := stat 1, toughness := stat 1 }
 
 def vernalEquinox : Spelled := spelled <| singleFacedCard
@@ -531,14 +527,14 @@ def vernalEquinox : Spelled := spelled <| singleFacedCard
     text :=
       [ static
           (can (a isPlayer) (cast (allOf (and [isSpell, or [isCreature, isEnchantment]])))
-             (asThough := asThoughFlash)) ] }
+             (asThough := asThoughHadFlash them)) ] }
 
 def borneUponAWind : Spelled := spelled <| singleFacedCard
   { name := "Borne Upon a Wind", cost := [generic 1, pip .blue], types := [.instant],
     text :=
       [ spell
           (establishThroughout
-             (can you (cast (allOf isSpell)) (asThough := asThoughFlash)) thisTurn),
+             (can you (cast (allOf isSpell)) (asThough := asThoughHadFlash them)) thisTurn),
         spell (draw 1) ] }
 
 def gisaAndGeralf : Spelled := spelled <| singleFacedCard
