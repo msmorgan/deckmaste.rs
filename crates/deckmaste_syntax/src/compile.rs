@@ -37,6 +37,12 @@ use crate::step::Weight;
 const FORBIDDEN_SUFFIXES: [&str; 5] = ["Use", "Licence", "License", "Present", "Restriction"];
 
 /// Lexical features the engine projects onto leaves, by grammar feature name.
+///
+/// With [`crate::step::projected_values`] and `LeafFacts` projection
+/// ([`CompiledGrammar::leaf_facts`]), this is the lexicon feature-bundle
+/// mapping table: the one declared lexicon-to-syntax interface, and the only
+/// place the engine names a grammar feature or value
+/// (`docs/decisions/english-v4.md` §4.4, item 4).
 pub(crate) const PROJECTED: [&str; 8] = [
     "Number",
     "Person",
@@ -47,6 +53,15 @@ pub(crate) const PROJECTED: [&str; 8] = [
     "Countability",
     "Sign",
 ];
+
+/// The index in [`PROJECTED`] of a numeral's or noun's Number.
+pub(crate) const NUMBER: usize = 0;
+/// The index in [`PROJECTED`] of a word's inflectional Word Form.
+pub(crate) const INFLECTION: usize = 5;
+/// The index in [`PROJECTED`] of a noun's Countability.
+pub(crate) const COUNTABILITY: usize = 6;
+/// The index in [`PROJECTED`] of a numeral's Sign.
+pub(crate) const SIGN: usize = 7;
 
 /// The lexical facts a bound grammar keeps about one lexeme.
 #[derive(Debug, Clone)]
@@ -104,6 +119,9 @@ pub struct CompiledGrammar {
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
+    /// The grammar's `high_attachment` declarations: `(Category, feature,
+    /// value)`.
+    pub(crate) high_attachment: Vec<(Ident, Ident, Ident)>,
     pub(crate) prediction: crate::prediction::Prediction,
     report: LoadReport,
 }
@@ -222,6 +240,28 @@ struct Draft {
     internalised: Option<usize>,
     /// A noun's bare phrase, which omits its head's Complements.
     omits_complement: bool,
+}
+
+/// What a Valence schema declares its derived phrases carry, beyond their
+/// frames.
+struct Derivations<'d> {
+    /// The phrase's feature naming its first Frame Slot's Slot Kind.
+    complement_kind: Option<usize>,
+    /// Equations on every active phrase.
+    active: &'d [Equation],
+    passive: Option<PassiveDecl<'d>>,
+    /// The Adjectival Passive's Category and its equations.
+    adjectival: Option<(&'d str, &'d [Equation])>,
+}
+
+/// A Valence schema's passive derivations.
+struct PassiveDecl<'d> {
+    /// The Closed Word marking the Internalised Complement.
+    by: &'d str,
+    /// Equations on every verbal passive.
+    verbal: &'d [Equation],
+    /// Equations on every prepositional passive.
+    prepositional: &'d [Equation],
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -377,6 +417,22 @@ impl<'a> Binder<'a> {
             .iter()
             .position(|c| *c == grammar.root)
             .ok_or_else(|| invalid(format!("unknown root category `{}`", grammar.root)))?;
+        for (category, feature, value) in &grammar.high_attachment {
+            if !categories.contains(category) {
+                return Err(invalid(format!(
+                    "high attachment: unknown category `{category}`"
+                )));
+            }
+            let id = features
+                .iter()
+                .position(|f| f == feature)
+                .ok_or_else(|| invalid(format!("high attachment: unknown feature `{feature}`")))?;
+            if !values[id].contains(value) {
+                return Err(invalid(format!(
+                    "high attachment: unknown {feature} value `{value}`"
+                )));
+            }
+        }
         let projected = PROJECTED.map(|name| features.iter().position(|f| f == name));
         for (slot, name) in PROJECTED.iter().zip(projected) {
             let Some(id) = name else { continue };
@@ -420,7 +476,11 @@ impl<'a> Binder<'a> {
                         .collect::<Result<Vec<_>, _>>()?,
                     countability: match lexeme.properties.countability.as_slice() {
                         [value] => Some(Ident::new(&format!("{value:?}"))),
-                        _ => lexeme.properties.features.get("Countability").copied(),
+                        _ => lexeme
+                            .properties
+                            .features
+                            .get(PROJECTED[COUNTABILITY])
+                            .copied(),
                     },
                     countable_plural: lexeme
                         .properties
@@ -629,6 +689,7 @@ impl<'a> Binder<'a> {
                 classes,
                 unextended_prepositions: BTreeSet::new(),
                 projected,
+                high_attachment: grammar.high_attachment.clone(),
                 prediction: crate::prediction::Prediction::default(),
                 report,
             },
@@ -1378,6 +1439,79 @@ impl<'a> Binder<'a> {
         Ok(())
     }
 
+    /// A Valence schema's declared derivations, validated: a `passive` or
+    /// `adjectival` derivation needs its equations, and `complement_kind`
+    /// names a feature the phrase carries.
+    fn valence_derivations<'d>(
+        &self,
+        schema: &'d SchemaDecl,
+    ) -> Result<Derivations<'d>, LoadError> {
+        let SchemaDecl::Valence {
+            phrase,
+            complement_kind,
+            active,
+            passive,
+            verbal_passive,
+            prepositional_passive,
+            adjectival,
+            adjectival_passive,
+            ..
+        } = schema
+        else {
+            return Err(invalid("not a Valence schema"));
+        };
+        let lhs = self.category(phrase)?;
+        let complement_kind = complement_kind
+            .as_deref()
+            .map(|name| {
+                let feature = self.feature(name)?;
+                if self.out.category_features[lhs].contains(&feature) {
+                    Ok(feature)
+                } else {
+                    Err(invalid(format!(
+                        "Valence complement kind: `{phrase}` does not carry `{name}`"
+                    )))
+                }
+            })
+            .transpose()?;
+        let passive = passive
+            .as_deref()
+            .map(|by| {
+                if verbal_passive.is_empty() || prepositional_passive.is_empty() {
+                    Err(invalid(format!(
+                        "passive schema on `{phrase}` needs `verbal_passive` and \
+                         `prepositional_passive` equations"
+                    )))
+                } else {
+                    Ok(PassiveDecl {
+                        by,
+                        verbal: verbal_passive,
+                        prepositional: prepositional_passive,
+                    })
+                }
+            })
+            .transpose()?;
+        let adjectival = adjectival
+            .as_deref()
+            .map(|category| {
+                if adjectival_passive.is_empty() {
+                    Err(invalid(format!(
+                        "adjectival schema on `{phrase}` needs `adjectival_passive` \
+                         equations"
+                    )))
+                } else {
+                    Ok((category, adjectival_passive.as_slice()))
+                }
+            })
+            .transpose()?;
+        Ok(Derivations {
+            complement_kind,
+            active,
+            passive,
+            adjectival,
+        })
+    }
+
     fn schema(&mut self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         match schema {
             SchemaDecl::Premodification {
@@ -1386,7 +1520,8 @@ impl<'a> Binder<'a> {
                 host,
                 forms,
                 prefix,
-            } => self.premodification(*head, modifier, host, forms, *prefix),
+                equations,
+            } => self.premodification(*head, modifier, host, forms, *prefix, equations),
             SchemaDecl::Parameters {
                 head,
                 phrase,
@@ -1397,22 +1532,21 @@ impl<'a> Binder<'a> {
                 head,
                 phrase,
                 cost,
-                passive,
                 internalised,
-                adjectival,
                 interleaved,
                 heavy_shift,
                 postposed,
                 obligatory,
                 agree,
                 clusters,
+                ..
             } => {
+                let derivations = self.valence_derivations(schema)?;
                 let mut drafts = self.valence(
                     *head,
                     phrase,
                     *cost,
-                    passive.as_deref(),
-                    adjectival.as_deref(),
+                    &derivations,
                     *obligatory,
                     *heavy_shift,
                 )?;
@@ -1594,6 +1728,7 @@ impl<'a> Binder<'a> {
         host: &str,
         forms: &[deckmaste_lexical::WordForm],
         prefix: bool,
+        equations: &[(deckmaste_lexical::WordForm, Vec<Equation>)],
     ) -> Result<Vec<Draft>, LoadError> {
         let modifier_id = self.category(modifier)?;
         let host_id = self.category(host)?;
@@ -1621,24 +1756,22 @@ impl<'a> Binder<'a> {
             let past = *form == deckmaste_lexical::WordForm::PastParticiple;
             let test = if past { Test::FreeNotActiveOnly(head) } else { Test::FreeOptional(head) };
             let child = leaf.child("head", Symbol::Leaf(test), GapRule::Closed);
-            // A past participle spelled like a declared Adjective (*tapped*)
-            // has that Adjective as its Adjectival Passive, which premodifies
-            // in its place.
-            if past
-                && let Some(f) = self
-                    .out
-                    .features
-                    .iter()
-                    .position(|n| n == "AdjectivalPassive")
-            {
-                leaf.exclusions.push((child, f, self.value(f, "Lexical")?));
+            for (_, declared) in equations.iter().filter(|(f, _)| f == form) {
+                self.equations(&mut leaf, declared)?;
             }
-            let inflection = self.feature("Inflection")?;
+            // The leaf is of this Word Form: the lexicon feature-bundle
+            // mapping table projects it.
+            let inflection = self.feature(PROJECTED[INFLECTION])?;
             leaf.equations.push((
                 Path::Child(child, inflection),
-                Target::Value(self.value(inflection, &format!("{form:?}"))?),
+                Target::Value(self.value(inflection, &crate::step::inflection_name(*form))?),
             ));
             drafts.push(leaf);
+        }
+        if let Some((form, _)) = equations.iter().find(|(f, _)| !forms.contains(f)) {
+            return Err(invalid(format!(
+                "Premodification equations name {form:?}, which is not one of its forms"
+            )));
         }
         if prefix {
             let mut affixed = Draft::new(
@@ -1863,34 +1996,23 @@ impl<'a> Binder<'a> {
         vec![binary, serial, more, end]
     }
 
-    #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence(
         &self,
         head: LexicalCategory,
         phrase: &str,
         cost: u32,
-        passive: Option<&str>,
-        adjectival: Option<&str>,
+        derivations: &Derivations<'_>,
         obligatory: bool,
         heavy_shift: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(phrase)?;
         let gap_capable = self.out.category_gap[lhs] != 0;
         let mut drafts = Vec::new();
+        let complement_kind = derivations.complement_kind;
         if head == LexicalCategory::Preposition {
-            return self.preposition_valence(lhs, phrase, cost, gap_capable);
+            return self.preposition_valence(lhs, phrase, cost, gap_capable, complement_kind);
         }
         let used = self.used_frames(head)?;
-        // A non-verbal phrase's ComplementKind, where its Category carries
-        // one, names its Complement's Slot Kind, or `Intransitive` without one.
-        let complement_kind = self
-            .out
-            .features
-            .iter()
-            .position(|f| f == "ComplementKind")
-            .filter(|f| {
-                head != LexicalCategory::Verb && self.out.category_features[lhs].contains(f)
-            });
         if head != LexicalCategory::Verb {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
             let test = if obligatory { Test::FreeOptional(head) } else { Test::FreeLexical(head) };
@@ -1901,20 +2023,11 @@ impl<'a> Binder<'a> {
             // §14.1, pp. 439–441; §15, p. 454).
             bare.omits_complement = head == LexicalCategory::Noun;
             if let Some(f) = complement_kind {
-                let kind = self.value(f, "Intransitive")?;
+                let kind = self.value(f, &format!("{:?}", SlotFill::Intransitive.kind()))?;
                 bare.equations.push((Path::Mother(f), Target::Value(kind)));
             }
             drafts.push(bare);
         }
-        let voice = self.out.features.iter().position(|f| f == "Voice");
-        let voice_value = |name: &str| -> Result<Option<(usize, u16)>, LoadError> {
-            match voice {
-                Some(v) if self.out.category_features[lhs].contains(&v) => {
-                    Ok(Some((v, self.value(v, name)?)))
-                }
-                _ => Ok(None),
-            }
-        };
         for index in used {
             let frame = &self.out.frames[index];
             // A non-verbal head's Intransitive frame only makes its
@@ -1929,10 +2042,7 @@ impl<'a> Binder<'a> {
             // Raising (*the top or bottom of their library*).
             let gappable = gap_capable
                 && (head == LexicalCategory::Verb || frame.family == FrameFamily::NounComplement);
-            // Active, with every NP slot optionally extracted. Voice is a
-            // verb's; another head's phrase takes its Voice from
-            // the head (a declared Adjectival Passive).
-            let active = if head == LexicalCategory::Verb { voice_value("Active")? } else { None };
+            // Active, with every NP slot optionally extracted.
             let mut family = self.valence_family(
                 lhs,
                 &name,
@@ -1941,7 +2051,7 @@ impl<'a> Binder<'a> {
                 &slots,
                 0,
                 false,
-                active,
+                derivations.active,
                 gappable,
                 heavy_shift,
             )?;
@@ -1954,26 +2064,19 @@ impl<'a> Binder<'a> {
             drafts.extend(family);
             // A frame restricted to active voice derives no passive of any
             // kind: verbal, prepositional or adjectival.
-            let passive = passive.filter(|_| !frame.active_only);
-            if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
+            let passive = derivations.passive.as_ref().filter(|_| !frame.active_only);
+            if let (Some(passive), true) = (passive, head == LexicalCategory::Verb)
                 && matches!(slots.first(), Some(SlotFill::NP))
             {
-                let passive_voice = voice_value("Passive")?.ok_or_else(|| {
-                    invalid(format!(
-                        "passive schema on `{phrase}` needs a Voice feature"
-                    ))
-                })?;
-                let form = self.feature("VerbForm")?;
-                let participle = (form, self.value(form, "PastParticiple")?);
                 // The Internalised Complement is a `by` Preposition Phrase.
-                let by_pp = SlotFill::PP(vec![self.word(by)?]);
+                let by_pp = SlotFill::PP(vec![self.word(passive.by)?]);
                 for agent in [false, true] {
                     let mut rest: Vec<&SlotFill> = slots[1..].to_vec();
                     if agent {
                         rest.push(&by_pp);
                     }
                     let tag = if agent { "passive+by" } else { "passive" };
-                    for mut draft in self.valence_family(
+                    drafts.extend(self.valence_family(
                         lhs,
                         &format!("{name}/{tag}"),
                         index,
@@ -1981,39 +2084,24 @@ impl<'a> Binder<'a> {
                         &rest,
                         1,
                         agent,
-                        Some(passive_voice),
+                        passive.verbal,
                         gappable,
                         heavy_shift,
-                    )? {
-                        draft
-                            .equations
-                            .push((Path::Mother(participle.0), Target::Value(participle.1)));
-                        drafts.push(draft);
-                    }
+                    )?);
                 }
-                if let Some(adjectival) = adjectival
+                if let Some((adjectival, equations)) = derivations.adjectival
                     && slots.len() == 1
                 {
                     drafts.extend(
-                        self.adjectival_passive(
-                            adjectival, &name, index, cost, participle, &by_pp,
-                        )?,
+                        self.adjectival_passive(adjectival, &name, index, cost, equations, &by_pp)?,
                     );
                 }
             }
-            if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
+            if let (Some(passive), true) = (passive, head == LexicalCategory::Verb)
                 && frame.family == FrameFamily::Prepositional
                 && let [fill @ SlotFill::PP(_)] = slots.as_slice()
             {
-                drafts.extend(self.prepositional_passive(
-                    lhs,
-                    &name,
-                    index,
-                    cost,
-                    fill,
-                    by,
-                    voice_value("Passive")?,
-                )?);
+                drafts.extend(self.prepositional_passive(lhs, &name, index, cost, fill, passive)?);
             }
         }
         Ok(drafts)
@@ -2022,8 +2110,7 @@ impl<'a> Binder<'a> {
     /// The prepositional passive of a Prepositional frame, as in *each card
     /// looked at*: the preposition's object is the passive's subject, so the
     /// Preposition Phrase is stranded (CGEL, Ch. 4 §6.1.2, pp. 276–277;
-    /// Ch. 16 §10.1.2, pp. 1432–1433). An auxiliary verb derives none.
-    #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
+    /// Ch. 16 §10.1.2, pp. 1432–1433).
     fn prepositional_passive(
         &self,
         lhs: usize,
@@ -2031,18 +2118,9 @@ impl<'a> Binder<'a> {
         frame: usize,
         cost: u32,
         fill: &SlotFill,
-        by: &str,
-        voice: Option<(usize, u16)>,
+        passive: &PassiveDecl<'_>,
     ) -> Result<Vec<Draft>, LoadError> {
-        let voice = voice
-            .ok_or_else(|| invalid(format!("passive schema on `{name}` needs a Voice feature")))?;
-        let form = self.feature("VerbForm")?;
-        let participle = self.value(form, "PastParticiple")?;
-        let by_pp = SlotFill::PP(vec![self.word(by)?]);
-        let auxiliary = match self.out.features.iter().position(|n| n == "VerbKind") {
-            Some(f) => Some((0, f, self.value(f, "Auxiliary")?)),
-            None => None,
-        };
+        let by_pp = SlotFill::PP(vec![self.word(passive.by)?]);
         let relation = self.out.frames[frame].slots[0].relation;
         let mut drafts = Vec::new();
         for agent in [false, true] {
@@ -2050,22 +2128,17 @@ impl<'a> Binder<'a> {
             let mut draft = Draft::new(format!("{name}/{tag}"), lhs, cost);
             draft.frame = Some(frame);
             draft.child("head", Symbol::Leaf(Test::Frame(frame)), GapRule::Closed);
-            draft.child(
+            let child = draft.child(
                 relation_name(relation),
                 self.slot_symbol(fill)?,
                 GapRule::Require(Gap::NP),
             );
+            self.slot_equations(&mut draft, child, fill.kind())?;
             if agent {
                 draft.internalised =
                     Some(draft.child("complement", self.slot_symbol(&by_pp)?, GapRule::Closed));
             }
-            draft
-                .equations
-                .push((Path::Mother(voice.0), Target::Value(voice.1)));
-            draft
-                .equations
-                .push((Path::Mother(form), Target::Value(participle)));
-            draft.exclusions.extend(auxiliary);
+            self.equations(&mut draft, passive.prepositional)?;
             drafts.push(draft);
         }
         Ok(drafts)
@@ -2079,16 +2152,9 @@ impl<'a> Binder<'a> {
         phrase: &str,
         cost: u32,
         gap_capable: bool,
+        complement_kind: Option<usize>,
     ) -> Result<Vec<Draft>, LoadError> {
         let mut drafts = Vec::new();
-        // A Preposition Phrase's ComplementKind, where its Category
-        // carries one, names its Complement's Slot Kind.
-        let complement_kind = self
-            .out
-            .features
-            .iter()
-            .position(|f| f == "ComplementKind")
-            .filter(|f| self.out.category_features[lhs].contains(f));
         let used: BTreeSet<usize> = self
             .out
             .lexemes
@@ -2122,9 +2188,7 @@ impl<'a> Binder<'a> {
                     self.slot_symbol(&frame.complement)?,
                     GapRule::Transparent,
                 );
-                if frame.complement == SlotFill::NP {
-                    self.oblique_case(&mut draft, child)?;
-                }
+                self.slot_equations(&mut draft, child, frame.complement.kind())?;
             }
             drafts.push(draft);
             if gap_capable && matches!(frame.complement, SlotFill::NP | SlotFill::Amount) {
@@ -2149,8 +2213,9 @@ impl<'a> Binder<'a> {
                     GapRule::Closed,
                 );
                 stranded.introduces = if amount { Gap::Amount } else { Gap::NP };
+                // It names the Slot Kind of the Complement it strands.
                 if let Some(f) = complement_kind {
-                    let kind = self.value(f, if amount { "Amount" } else { "NP" })?;
+                    let kind = self.value(f, &format!("{:?}", frame.complement.kind()))?;
                     stranded
                         .equations
                         .push((Path::Mother(f), Target::Value(kind)));
@@ -2189,39 +2254,18 @@ impl<'a> Binder<'a> {
     }
 
     /// The Adjectival Passives of a frame whose passive leaves no Complement:
-    /// the participle, with or without its `by` phrase. A verb whose
-    /// Adjectival Passive is a declared Adjective (`AdjectivalPassive:
-    /// Lexical`) and an auxiliary verb (`VerbKind: Auxiliary`) derive none.
-    /// Each is `Voice: Passive` and `AdjectivePosition: Predicative` where
-    /// its Category carries those features.
+    /// the participle, with or without its `by` phrase, each with the
+    /// schema's `adjectival_passive` equations.
     fn adjectival_passive(
         &self,
         category: &str,
         name: &str,
         frame: usize,
         cost: u32,
-        participle: (usize, u16),
+        equations: &[Equation],
         by_pp: &SlotFill,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(category)?;
-        let mut exclusions = Vec::new();
-        for (feature, value) in [("AdjectivalPassive", "Lexical"), ("VerbKind", "Auxiliary")] {
-            if let Some(f) = self.out.features.iter().position(|n| n == feature) {
-                exclusions.push((0, f, self.value(f, value)?));
-            }
-        }
-        let position = self
-            .out
-            .features
-            .iter()
-            .position(|n| n == "AdjectivePosition")
-            .filter(|f| self.out.category_features[lhs].contains(f));
-        let voice = self
-            .out
-            .features
-            .iter()
-            .position(|n| n == "Voice")
-            .filter(|f| self.out.category_features[lhs].contains(f));
         let mut drafts = Vec::new();
         for agent in [false, true] {
             let tag = if agent { "adjectival+by" } else { "adjectival" };
@@ -2232,21 +2276,7 @@ impl<'a> Binder<'a> {
                 draft.internalised =
                     Some(draft.child("complement", self.slot_symbol(by_pp)?, GapRule::Closed));
             }
-            draft
-                .equations
-                .push((Path::Child(0, participle.0), Target::Value(participle.1)));
-            if let Some(f) = position {
-                draft.equations.push((
-                    Path::Mother(f),
-                    Target::Value(self.value(f, "Predicative")?),
-                ));
-            }
-            if let Some(f) = voice {
-                draft
-                    .equations
-                    .push((Path::Mother(f), Target::Value(self.value(f, "Passive")?)));
-            }
-            draft.exclusions.clone_from(&exclusions);
+            self.equations(&mut draft, equations)?;
             drafts.push(draft);
         }
         Ok(drafts)
@@ -2267,7 +2297,7 @@ impl<'a> Binder<'a> {
         slots: &[&SlotFill],
         first_slot: usize,
         agent: bool,
-        voice: Option<(usize, u16)>,
+        equations: &[Equation],
         gappable: bool,
         heavy_shift: bool,
     ) -> Result<Vec<Draft>, LoadError> {
@@ -2337,9 +2367,7 @@ impl<'a> Binder<'a> {
                     self.slot_symbol(fill)?,
                     GapRule::Transparent,
                 );
-                if **fill == SlotFill::NP {
-                    self.oblique_case(&mut draft, child)?;
-                }
+                self.slot_equations(&mut draft, child, fill.kind())?;
                 if **fill == SlotFill::Pred {
                     draft.predicative = Some(child);
                 }
@@ -2370,11 +2398,7 @@ impl<'a> Binder<'a> {
                     && later.iter().all(|fill| matches!(**fill, SlotFill::PP(_)));
                 draft.gap_followed = !later.is_empty() && !shiftable;
             }
-            if let Some((feature, value)) = voice {
-                draft
-                    .equations
-                    .push((Path::Mother(feature), Target::Value(value)));
-            }
+            self.equations(&mut draft, equations)?;
             drafts.push(draft);
         }
         Ok(drafts)
@@ -2514,15 +2538,21 @@ impl<'a> Binder<'a> {
         Ok(out)
     }
 
-    fn oblique_case(&self, draft: &mut Draft, child: usize) -> Result<(), LoadError> {
-        if let Some(case) = self.out.features.iter().position(|f| f == "Case")
-            && self.carries(&draft.children[child].symbol, case)
-        {
-            draft
-                .exclusions
-                .push((child, case, self.value(case, "Nominative")?));
-        }
-        Ok(())
+    /// Adds the grammar's `slot_equations` for a Frame Slot of this kind to
+    /// the draft's child that fills it, the child they call `slot`.
+    fn slot_equations(
+        &self,
+        draft: &mut Draft,
+        child: usize,
+        kind: SlotKind,
+    ) -> Result<(), LoadError> {
+        let Some(equations) = self.grammar.slot_equations.get(&kind) else {
+            return Ok(());
+        };
+        let name = std::mem::replace(&mut draft.children[child].name, Ident::new("slot"));
+        let result = self.equations(draft, equations);
+        draft.children[child].name = name;
+        result
     }
 
     fn slot_symbol(&self, fill: &SlotFill) -> Result<Symbol, LoadError> {

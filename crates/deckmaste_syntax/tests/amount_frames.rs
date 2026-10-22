@@ -88,7 +88,9 @@ const GRAMMAR: &str = r#"(
         (name: "Bare", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")]),
     ],
     schemas: [
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By")),
+        Valence(head: Verb, phrase: "VerbPhrase", active: [Require("$.Voice", "Active")], passive: Some("By"),
+            verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")]),
         Valence(head: Preposition, phrase: "PrepositionPhrase"),
         Valence(head: Noun, phrase: "Nominal"),
     ],

@@ -33,6 +33,17 @@ pub struct Grammar {
     /// The Category that fills each kind of Frame Slot.
     #[serde(default)]
     pub slot_categories: BTreeMap<SlotKind, Ident>,
+    /// Equations on every Frame Slot child of that kind in a derived valence
+    /// phrase, over the child `slot`: what fills the slot as a Complement
+    /// (a Noun Phrase Complement is never nominative).
+    #[serde(default)]
+    pub slot_equations: BTreeMap<SlotKind, Vec<Equation>>,
+    /// `(Category, feature, value)`: a dependent of that Category carrying
+    /// that value attaches high by its Attachment Class, as a comma-set
+    /// Supplement does (`docs/decisions/english-v4.md` §4.3): it counts its
+    /// distance from its host's head reversed.
+    #[serde(default)]
+    pub high_attachment: Vec<(Ident, Ident, Ident)>,
     #[serde(default)]
     pub productions: Vec<ProductionDecl>,
     #[serde(default)]
@@ -200,6 +211,11 @@ pub enum SchemaDecl {
         forms: Vec<deckmaste_lexical::WordForm>,
         #[serde(default)]
         prefix: bool,
+        /// Equations on the modifier one of the `forms` heads, over its
+        /// lexical child `head` (a past participle that a declared Adjective
+        /// spells is not one).
+        #[serde(default)]
+        equations: Vec<(deckmaste_lexical::WordForm, Vec<Equation>)>,
     },
     /// Catalog-declared ordered parameter patterns around a lexical head.
     Parameters {
@@ -218,10 +234,30 @@ pub enum SchemaDecl {
         phrase: Ident,
         #[serde(default)]
         cost: u32,
+        /// The feature, carried by the phrase, that names the Slot Kind of
+        /// its first Frame Slot: a non-verbal head's bare phrase names
+        /// `Intransitive`, and a stranded Preposition Phrase the Slot Kind of
+        /// the Complement it strands.
+        #[serde(default)]
+        complement_kind: Option<Ident>,
+        /// Equations on every active phrase of a frame, over `$` and the
+        /// lexical child `head` (a verb's Voice).
+        #[serde(default)]
+        active: Vec<Equation>,
         /// Derive passive phrases from active verb frames, naming the Closed
         /// Word that marks the Internalised Complement (verbs only).
         #[serde(default)]
         passive: Option<Ident>,
+        /// Equations on every derived verbal passive, over `$` and the lexical
+        /// child `head`: its Voice and its past participle. Required with
+        /// `passive`.
+        #[serde(default)]
+        verbal_passive: Vec<Equation>,
+        /// Equations on every derived prepositional passive, over `$` and the
+        /// lexical child `head` (*each card looked at*). Required with
+        /// `passive`.
+        #[serde(default)]
+        prepositional_passive: Vec<Equation>,
         /// Equations on the Internalised Complement of every derived
         /// passive, over the child `internalised`: what its Preposition
         /// Phrase may contain (CGEL, Ch. 16 §10.1.1, p. 1428).
@@ -231,6 +267,10 @@ pub enum SchemaDecl {
         /// passive leaves no Complement but the optional `by` phrase.
         #[serde(default)]
         adjectival: Option<Ident>,
+        /// Equations on every derived Adjectival Passive, over `$` and the
+        /// lexical child `head`. Required with `adjectival`.
+        #[serde(default)]
+        adjectival_passive: Vec<Equation>,
         /// Adjunct category permitted before a selected PP or shifted Object.
         #[serde(default)]
         interleaved: Option<Ident>,

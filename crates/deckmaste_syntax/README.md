@@ -30,9 +30,10 @@ It has no proc macros and no generated code: a grammar is data.
    coordination, plus the words between the host and it; the last conjunct of
    a coordination adds the difference between its length and its first
    conjunct's. A dependent whose Attachment Class attaches high counts that
-   distance reversed: a Supplement (`supplement`), and a distributive
-   Preposition Phrase, one whose `DeterminativeDistribution` is
-   `Distributive` (*for each …*). The Attachment Class counts a coordination's
+   distance reversed: a Supplement (`supplement`), and a dependent the
+   grammar's `high_attachment` declares by Category, feature and value (the
+   English grammar declares a distributive Preposition Phrase, *for each …*).
+   The Attachment Class counts a coordination's
    last conjunct that ends in a dependent its first conjunct, which ends in its
    head, lacks: that dependent belongs to the whole coordination. It also
    counts the second of two dependents before their head (`adjunct` or
@@ -101,7 +102,7 @@ checks compare characters without allocating another source string.
 
 Authors write active Subcategorization Frames once; the engine derives the rest.
 
-- `Valence { head, phrase, passive, internalised, adjectival, obligatory }`: for each frame of each head lexeme
+- `Valence { head, phrase, complement_kind, active, passive, verbal_passive, prepositional_passive, internalised, adjectival, adjectival_passive, obligatory }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant, a predicative-Gap variant of a `Copular` frame only (a
@@ -111,17 +112,27 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Phrase, which strands its preposition like any other. `internalised` equations
   constrain that Preposition Phrase in every derived passive, as the child
   `internalised` (the English grammar admits only *by* + a Noun Phrase that is
-  neither a fused-head quantity nor a braced symbol, so *reduced by {2}* is only its selected extent); a non-auxiliary `Prepositional` frame's passive strands its
-  Preposition Phrase (*each card looked at*). Only a verb's phrases are `Voice: Active`; another head's phrase
-  takes its Voice from the head (a declared Adjectival Passive is Passive). When `adjectival` names a Category, a frame whose passive leaves no
+  neither a fused-head quantity nor a braced symbol, so *reduced by {2}* is only its selected extent); a `Prepositional` frame's passive strands its
+  Preposition Phrase (*each card looked at*). What each derived phrase carries
+  is declared, as equations over `$` and its lexical `head`: `active` on every
+  active phrase, `verbal_passive` and `prepositional_passive` on every passive
+  (required with `passive`), and `adjectival_passive` on every Adjectival
+  Passive (required with `adjectival`). The English grammar makes a verb's
+  active phrases `Voice: Active` (another head's phrase takes its Voice from
+  the head), its passives `Voice: Passive` past participles, and excludes an
+  auxiliary from the prepositional passive. When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
-  without its `by` phrase), `Voice: Passive` and `AdjectivePosition:
-  Predicative`; a verb marked `AdjectivalPassive: Lexical` (a declared Adjective
-  spells it) or `VerbKind: Auxiliary` derives none. A preposition with an NP
+  without its `by` phrase); the English grammar makes them `Voice: Passive`
+  and `AdjectivePosition: Predicative`, and excludes a verb marked
+  `AdjectivalPassive: Lexical` (a declared Adjective spells it) or `VerbKind:
+  Auxiliary`. A preposition with an NP
   complement also strands; an Intransitive Preposition heads its phrase alone.
-  Where the phrase's Category carries `ComplementKind`, a phrase bears its
-  Complement's Slot Kind (`NP`, `AdjP`, ...); a non-verbal phrase without one
-  is `Intransitive`. `agree` pairs make a phrase's feature agree with that
+  With `complement_kind`, a feature its phrase must carry, a phrase bears its
+  first Complement's Slot Kind (`NP`, `AdjP`, ...); a non-verbal phrase without
+  one is `Intransitive`, and a stranded Preposition Phrase bears the Slot Kind
+  of the Complement it strands. The grammar's `slot_equations` constrain every
+  Frame Slot child of a kind in a derived phrase, as the child `slot` (the
+  English grammar's Noun Phrase Complement is never nominative). `agree` pairs make a phrase's feature agree with that
   feature of each Frame Slot child that carries it (a Preposition Phrase takes
   its Complement's Number; a determinative its oblique's).
   `obligatory: true` keeps the bare phrase to non-verbal heads that declare
@@ -144,6 +155,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   `active_only` (an Active-only Frame: *cost*, lexical *have*) derives no
   passive of any kind: verbal, prepositional or adjectival. A verb whose every
   frame is Active-only has no past participle in a `Premodification` either. A
+  `Premodification`'s `equations` hold of the modifier one of its `forms`
+  heads, over its lexical `head` (the English grammar's past participle is
+  not one a declared Adjective spells). A
   `Premodification` passes up its head's Gap, so a premodified conjunct shares
   its Complement (*the noted number and kind of counters*).
 - `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
@@ -231,6 +245,27 @@ finite (never *can't be \_\_*). An authored Production introduces one with `Requ
 `Require("child.Gap", ..)` fills the child's Gap within the mother, unless the
 child is also `transparent`: then the mother takes that Gap over (a purpose
 adjunct whose object a relative clause binds).
+
+## The lexicon-to-syntax interface
+
+The engine never names a grammar feature, value or Category
+(`docs/decisions/english-v4.md` §4.4, item 4), with one exception: the lexicon
+feature-bundle mapping table, the single declared interface through which
+lexical facts reach the grammar's features. It is `PROJECTED` in
+`compile.rs` (the grammar features the engine projects onto leaves: `Number`,
+`Person`, `Tense`, `VerbForm`, `Case`, `Inflection`, `Countability`, `Sign`),
+`projected_values` and `inflection_name` in `step.rs` (the values each takes),
+and `leaf_facts` in `step.rs`, which projects a word's inflection (its Word
+Form onto `VerbForm` and `Inflection`), a lexeme's Countability, and a
+numeral's `Number` and `Sign`. A grammar that declares one of those features
+must include every value projected onto it. A lexeme's own feature bundle
+reaches the grammar by the names it declares. Everything else a derivation
+carries, the grammar declares: Schema parameters (a Valence schema's voice
+and passive equations and `complement_kind`, a Premodification's
+`equations`) and grammar-level roles (`slot_equations`, `high_attachment`).
+A grammar without such a declaration gets no such derivation or a load
+error, never a default. Purely structural `Summary` bits, the engine's own
+Gap kinds and its reserved child names are not grammar names.
 
 ## Lexical classes and notation
 
