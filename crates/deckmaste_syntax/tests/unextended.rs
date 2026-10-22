@@ -1,8 +1,9 @@
 //! A Production's `unextended` last child does not end in a Preposition Phrase
 //! that a sibling Production, the same but for a trailing selected `PP`
 //! Complement, would take as that Complement (an existential's locative
-//! extension, CGEL Ch. 16 §6.2.1, p. 1394). A phrase the sibling cannot take
-//! stays a postmodifier.
+//! extension, CGEL Ch. 16 §6.2.1, p. 1394). A child right before a selected
+//! `PP` Complement of its own Production is closed the same way. A phrase the
+//! Complement cannot take stays a postmodifier.
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
@@ -34,7 +35,10 @@ const FRAMES: &str = r#"(
     },
 )"#;
 
-fn grammar(lexicon: &Lexicon, extended: &str) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
+fn grammar(
+    lexicon: &Lexicon,
+    extended: &str,
+) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
     let text = format!(
         r#"(
         root: "Sentence",
@@ -84,6 +88,42 @@ fn a_phrase_the_sibling_selects_is_its_complement_only() {
     let found = grammar.parse(&lexicon, "Card of card.").readings();
     let predicate = found[0].node().unwrap().children[0].node().unwrap();
     assert_eq!(predicate.production.as_str(), "Bare");
+}
+
+#[test]
+fn a_child_before_a_selected_complement_does_not_end_in_one() {
+    let lexicon = lexicon();
+    let closed = r#"(name: "Extended", lhs: "Predicate", rhs: [Cat("subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In"])], unextended: ["subject"]),"#;
+    let open = grammar(&lexicon, EXTENDED).unwrap();
+    let grammar = grammar(&lexicon, closed).unwrap();
+    // Open, *card in card* can be the subject before the extension *in card*.
+    assert_eq!(
+        open.parse(&lexicon, "Card in card in card.")
+            .readings()
+            .len(),
+        2
+    );
+    // Closed, the first *in* phrase begins the extension.
+    let found = grammar.parse(&lexicon, "Card in card in card.").readings();
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert_eq!(grammar.admit(&found[0], &lexicon), Ok(()));
+    let subject = found[0].node().unwrap().children[0]
+        .node()
+        .unwrap()
+        .children[0]
+        .node()
+        .unwrap();
+    assert_eq!(subject.production.as_str(), "Noun");
+    // A phrase the extension cannot take still ends the subject.
+    let found = grammar.parse(&lexicon, "Card of card in card.").readings();
+    assert!(
+        found.iter().any(|reading| {
+            let predicate = reading.node().unwrap().children[0].node().unwrap();
+            predicate.production.as_str() == "Extended"
+                && predicate.children[0].node().unwrap().production.as_str() != "Noun"
+        }),
+        "{found:#?}"
+    );
 }
 
 #[test]

@@ -768,8 +768,9 @@ impl<'a> Binder<'a> {
         Ok(())
     }
 
-    /// Closes the last child `name` of Production `id` to the prepositions
-    /// that its siblings' trailing selected `PP` Complement takes.
+    /// Closes child `name` of Production `id` to the prepositions of the
+    /// selected `PP` Complement right after it, or, as its last child, to
+    /// those its siblings' trailing selected `PP` Complement takes.
     fn unextended(&mut self, id: Ident, name: &Ident) -> Result<(), LoadError> {
         let context = |e: &str| invalid(format!("production `{id}`: unextended `{name}` {e}"));
         let index = *self
@@ -778,6 +779,19 @@ impl<'a> Binder<'a> {
             .get(&id)
             .ok_or_else(|| context("names no production"))?;
         let production = &self.out.productions[index];
+        if let Some(at) = production.names.iter().position(|n| n == name)
+            && let Some(crate::step::Symbol::Cat {
+                prepositions: Some(list),
+                ..
+            }) = production.rhs.get(at + 1)
+        {
+            let closed: BTreeSet<_> = list.iter().copied().collect();
+            self.out
+                .unextended_prepositions
+                .extend(closed.iter().copied());
+            self.out.productions[index].unextended = Some((at, closed));
+            return Ok(());
+        }
         let child = production.rhs.len() - 1;
         if production.names[child] != *name {
             return if production.names[0] == *name
@@ -794,7 +808,8 @@ impl<'a> Binder<'a> {
                 Ok(())
             } else {
                 Err(context(
-                    "is neither the last child nor a first child followed by a Constituent",
+                    "is neither the last child, a child followed by a selected PP, nor a first \
+                     child followed by a Constituent",
                 ))
             };
         }

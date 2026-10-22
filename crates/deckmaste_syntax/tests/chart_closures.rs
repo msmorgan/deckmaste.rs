@@ -198,7 +198,7 @@ fn an_unextended_first_child_strands_nothing_it_can_hold() {
 }
 
 #[test]
-fn an_unextended_child_is_first_or_last() {
+fn an_unextended_child_is_first_last_or_before_a_selected_complement() {
     let lexicon = lexicon();
     let text = r#"(
         root: "Sentence",

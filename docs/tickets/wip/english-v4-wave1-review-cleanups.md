@@ -75,3 +75,9 @@ the existing `unextended` mechanism; if it cannot, STOP and return to the
 owner.
 
 Standard constraints apply.
+
+1. **Census delta** (measured on `srporzyt`, items 1 and 2; item 3 open):
+   faces read 28,799 → 28,799; total Readings 214,080 → 213,878 (Surplus
+   88,371 → 88,248, over 75 units, none rising); lost faces: none.
+2. **Judgment set**: 3,032 enforced at `COMPLETED_STRATUM` 6, all hold; 208
+   pending.

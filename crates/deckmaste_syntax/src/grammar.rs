@@ -110,7 +110,9 @@ pub struct ProductionDecl {
     /// a sibling Production, the same but for a trailing selected `PP`
     /// Complement, would take as that Complement: the phrase is the sibling's
     /// Complement, never the child's postmodifier (an existential's locative
-    /// extension, CGEL Ch. 16 §6.2.1, p. 1394).
+    /// extension, CGEL Ch. 16 §6.2.1, p. 1394). A child right before a
+    /// selected `PP` Complement of its own Production is closed the same way,
+    /// to that Complement's prepositions.
     ///
     /// A first child that is not the last, followed by a Constituent, can be
     /// `unextended` too: it does not end where one Constituent of its own

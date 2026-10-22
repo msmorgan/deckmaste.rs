@@ -281,7 +281,10 @@ imperative Clauses). A last child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that a sibling Production, the
 same but for a trailing selected `PP` Complement, would take as that Complement
 (an existential's locative extension is a Complement of *be*, never also the
-Displaced Subject's postmodifier). A first child followed by a Constituent can
+Displaced Subject's postmodifier). A child right before a selected `PP`
+Complement of its own Production can be `unextended` the same way, closed to
+that Complement's prepositions (the Displaced Subject before the extension). A
+first child followed by a Constituent can
 be `unextended` too: it does not end where one Constituent of its own Category
 spans it and the child after it, so that child is never stranded outside a
 phrase it can belong to (a preposed Preposition Phrase and a temporal bound it

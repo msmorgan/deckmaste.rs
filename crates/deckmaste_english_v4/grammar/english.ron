@@ -592,7 +592,7 @@
         (name: "ExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase")],
             equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")], unextended: ["displaced_subject"]),
         (name: "LocatedExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In", "On", "Among", "Under", "Outside", "After"])],
-            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")]),
+            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")], unextended: ["displaced_subject"]),
 
         (name: "EndAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "EndAdverb")],
             equations: [Require("$.AdjunctPosition", "End")]),
@@ -1169,7 +1169,7 @@
         // creatures*, *each other target creature*, *up to one target
         // artifact or creature you control*). The nominal it determines takes
         // every modifier below it (CGEL, Ch. 5, pp. 330–332).
-        (name: "TargetingMarker", lhs: "TargetingMarker", rhs: [Cat("head", "DeterminerPhrase")],
+        (name: "BareTargetingMarker", lhs: "TargetingMarker", rhs: [Cat("head", "DeterminerPhrase")],
             equations: [Carry("head.DeterminativeDistribution", "Targeting")]),
         (name: "ModifiedTargetingMarker", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "TargetingMarker")],
             equations: [Require("$.ComplementKind", "Intransitive"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
