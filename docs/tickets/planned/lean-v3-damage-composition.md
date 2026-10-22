@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [lean-v3-this-way-and-stop-trigger-folds]
 ---
 # Damage rules by composition: `preventDamage`, `asEvent`, `replace` and `cant`
 
@@ -7,7 +7,8 @@ Standard constraints apply. Provenance: row B2 of
 [lean-v3-cr-structure-principle-audit](../done/lean-v3-cr-structure-principle-audit.md). This
 ticket supersedes `semantics-v3-damage-results` (the 2026-10-13 `DamageResult` / `ResultMode`
 row design, Q86-Q88), which is deleted in the same landing as this ticket's minting; its open
-items are carried below.
+items are carried below. The `needs` entry exists for the final step 6 (*Shadowbane*) alone; steps 1-5
+do not read that ticket.
 
 ## Ruling (owner, 2026-10-22)
 
@@ -50,7 +51,7 @@ arms, their checker, Templates and number slots, the pins, and `RulesTables.dama
 
 **The primitives**: `StaticSpec.asEvent (event) (does)` (`Abilities.lean:964`, Template
 `Templates.lean:1945`); `StaticSpec.replace (event : WouldClause) (replacement) (timing) (use :
-ReplUse) (limit)` (`Abilities.lean:934`; not the self-replacement `Action.replace`, `:1263`);
+ReplUse) (limit)` (`Abilities.lean:934`; not the self-replacement `Action.replace`, `:1280`);
 `StaticSpec.cant (subj) (action) (mods)` (`:890`, Template `Templates.lean:1045`).
 `Action.markDamage (subject) (amount)` exists (`Abilities.lean:1112`) and nothing but checker arms
 uses it (`Check/Events.lean:32,73`, `Check/NumberSlots.lean:155`, `Check/Phrase.lean:3035`).
@@ -107,27 +108,58 @@ Refusals these arms emit, all used elsewhere too: `.singular` (a redirect target
 `.kindLte` (`:1695`, `:3733`), `.shiftSets` (`:1700`), `.damageDealtInScope` (the ban's "that
 damage", `:3751`), `.outcomeInScope .damagePrevented`, `.quantOutcomeInScope`, `.knownCounter`.
 
-## Open items (STOP until ruled; the rest of the ticket proceeds)
+## Rulings (owner, 2026-10-22, second batch)
 
-1. **Partial redirection.** "The next N damage … is dealt to X instead" (*Ward of Piety*, *Carom*,
-   *Daughter of Autumn*, *Harm's Way*, *Shining Shoal*) is a redirection shield [CR#614.9,615.7].
-   `replace` with `ReplUse` has no shield amount. The ruling gives no spelling.
-2. **"Can't be prevented or dealt instead to another permanent or player"** (*Whippoorwill*,
-   `.noRedirectEither`). `cant` needs an Action head, and redirection is no Action under this
-   ruling.
-3. **Toxic's amount (Q89, carried from `semantics-v3-damage-results`).** The ruling routes toxic
-   through `asEvent` but does not say whether each `toxic N` instance is its own row giving N
-   counters (option A) or one row reading the total toxic value, the sum of every instance's N
-   (option B) [CR#702.164b,702.164c].
-   Do not implement toxic until ruled.
-4. **Redirect checks.** Rewriting redirection as `dealDamage` loses the `.singular` refusal on the
-   redirect target and the object-or-player `kindLte` (`Check/Phrase.lean:1694-1695`), because
-   `dealDamage` to a plural recipient is legal. Keep an equivalent check (CLAUDE.md "Assurance")
-   unless the owner rules otherwise; `badRedirectToPlural` and `badRedirectToGroup` assert it.
+The four open items and the noted question are ruled. Nothing in this ticket waits on the owner.
 
-Noted for the owner, not decided here: `preventedFromSource` (*Shadowbane*) was kept in B4
-"because prevention is no Action". `Action.preventDamage` removes that premise, so it could become
-`did … (preventDamage …) thisWay`.
+**4a. Partial redirection: an amount shield on the replacement's use.** Give `ReplUse` an amount
+shield, matching `PreventCut.shield`, so "the next N damage … is dealt to X instead" composes over
+`StaticSpec.replace` (*Ward of Piety*, *Carom*, *Daughter of Autumn*, *Harm's Way*, *Shining
+Shoal*) [CR#614.9,615.7]. VERIFY: the name is true, `ReplUse = repeatedly | nextTimeOnly`, but it
+is in `Events.lean:23-25`, not `Abilities.lean`. Layering consequence: `Events.lean` imports only
+`Words`, and `Amount` is `Abilities.lean:392`, so a constructor `shield (amount : Amount)` cannot
+sit there. Move `ReplUse` into `Abilities.lean`'s inductive block beside `StaticSpec.replace`
+(`:934-938`), its only user, and step the shield amount where `PreventCut.shield` is stepped
+(`stepPreventCutWith`). `PreventCut.shield` itself stays for `preventDamage`: prevention shields
+size through the cut, redirection shields through the use.
+
+**4b. No `Action.redirectDamage`.**
+
+- A redirection is `replace (would … dealDamage …) (instead (dealDamage thatMuch newRecipient))`.
+- *Whippoorwill*'s "can't be … dealt instead to another permanent or player" is a `cant` over the
+  existing `Action.replace (replaced : Action) (replacement : Replacement)` (VERIFY: true,
+  `Abilities.lean:1280`; the old text's `:1263` was stale):
+  ```lean
+  cant any (Action.replace (dealDamage anyAmount (that creature))
+    (instead (dealDamage thatMuch (a (and [or [isPermanent, isPlayer], isOther])))))
+  ```
+  `Action.deonticHeadOk` (`Check/Events.lean:46-61`) must admit `Action.replace` as a `cant` head.
+- The "can't be prevented" half is `cant any (preventDamage .all …)`, as already ruled.
+
+**4c. Toxic is option B:** one result reading the object's total toxic value, the sum of every
+toxic ability's N [CR#702.164b..702.164c]. Not one row per `toxic N` instance. If no `Amount`
+reads a total toxic value, add one (name per the glossary). The implementer places the single row
+(a rule conferred as a property, as in step 2, or in the keyword's definition) and states why.
+
+**4d. Redirect checks: which is true.** The ruling expected `dealDamage`'s own checks to give the
+redirect target's singular and object-or-player checks for free. VERIFY: half true.
+`dealDamage`'s arm (`Check/Phrase.lean:3033-3043`) refuses `.perMember` and `.kindLte`
+(`:3042-3043`), so the object-or-player kind check IS inherited. But the `.singular` check is not:
+`NounPhrase.perMemberOk` (`Check/Phrase.lean:358-359`) is `det == each || det == all || plur ==
+.one`, so a plural recipient with `each`/`all` is legal for `dealDamage` (as the ticket's earlier
+text said). Under the new spelling `badRedirectToPlural` (`Proofs/Damage.lean:415`, `allOf (and
+[isCreature, youControl])`, det `all`) would NOT be refused, and `badRedirectToGroup` (`:533`, a
+`youAnd` coordination) would be refused as `.perMember`, not `.singular`. So the singular check is
+kept explicitly, as a law on the redirection's instead-action: an `instead (dealDamage thatMuch r)`
+that replaces a damage would-clause, whether in `StaticSpec.replace` or in `Action.replace`, needs
+`r.plur == .one` (`.singular`) [CR#614.9]. The implementer confirms the two verdicts by evaluating
+the pins before and after (this was read from the code, not run).
+
+**4e. *Shadowbane*'s `Condition.preventedFromSource` folds into `did … (preventDamage …)
+thisWay`** once B2 (this ticket) and B4 (`lean-v3-this-way-and-stop-trigger-folds`) land. It is the
+final step 6 below and why this ticket `needs` that one. VERIFY: `preventedFromSource` is
+`Abilities.lean:477` (Template `Templates.lean:2123-2124`, checker `Check/Phrase.lean:2857`,
+*Shadowbane* `Cards/Damage.lean:502-505`); the other ticket's `:474` is stale.
 
 ## Reading of the ruling (confirm in step 1 before the bulk rewrite)
 
@@ -148,12 +180,13 @@ Noted for the owner, not decided here: `preventedFromSource` (*Shadowbane*) was 
    `Action.deonticHeadOk` (`Check/Events.lean:46-61`) and, if patterns read it, `eventHeadOk`
    (`:25-41`); number slots and `namesThisDoor`. Re-body `preventAll`/`preventNext`/`preventAllBy`,
    absorb and protection. Rewrite the prevention and ban cards, `sliceECopyAndPreventPin`, and
-   their pins. Needs open items 2 and 4 only for *Whippoorwill* and redirection.
+   their pins. *Whippoorwill* uses ruling 4b's `cant … Action.replace` form and redirection uses 4a's shield and
+   4d's singular law; both are ruled.
 2. **Results via `asEvent`.** Write the base [CR#120.3a] and [CR#120.3e] rows and move the
    planeswalker and battle rows [CR#120.3c,120.3h] off `damageResult`. These are rules, not
    abilities: confer them as a property (`Conferral.property`, `Rules.lean:69`), not as an
    Ability, so ability removal cannot switch them off. Give lifelink its body [CR#702.15b];
-   toxic waits on open item 3. Files: `Rules.lean`, `Check/Rules.lean`, `Proofs/Rules.lean`,
+   toxic is ruling 4c (one result reading the total toxic value). Files: `Rules.lean`, `Check/Rules.lean`, `Proofs/Rules.lean`,
    `Definitions/Keywords.lean`.
 3. **Wither and infect via `replace`.** `markDamage` publishes `damageMarked` (today it publishes
    no outcome, so "that much" after it is refused). Wither replaces marking with -1/-1 counters
@@ -164,7 +197,7 @@ Noted for the owner, not decided here: `preventedFromSource` (*Shadowbane*) was 
 4. **Redirection and scaling via `replace`.** `replace (would <src> (dealDamage …)) (instead
    (instruct <that source> (dealDamage …)))`. Writing "that source" waits on
    [lean-v3-that-source-noun-word](../wip/lean-v3-that-source-noun-word.md) (`it` falls back to the
-   Source: the *Deflecting Palm* defect). Needs open items 1 and 4.
+   Source: the *Deflecting Palm* defect). Uses 4a (shield use) and 4d (the explicit singular law).
 5. **Delete** the retired types, Templates, checker functions and arms, `RulesTables.damageResult`
    and `ScaleFactor`, and amend the docs: `lean/CONTRACTS.md:695-699,714,761,1174-1176`;
    `lean/README.md:83-90`; ADR `docs/decisions/semantics-v3.md:19` (the Contrast Anchor's
@@ -172,6 +205,14 @@ Noted for the owner, not decided here: `preventedFromSource` (*Shadowbane*) was 
    (Q86-Q88); glossary **Rules Table** (lists Damage Results as a row kind) and **Damage Result**
    (re-check "additive, not a replacement" against wither and infect replacing a result), and add
    **Redirection Effect** [CR#614.9] through `domain-modeling` if the landing uses the term.
+
+6. **Fold *Shadowbane*'s `preventedFromSource`** (ruling 4e; `needs`
+   `lean-v3-this-way-and-stop-trigger-folds`). Delete `Condition.preventedFromSource`
+   (`Abilities.lean:477`) and its Template and checker arm; write *Shadowbane*'s rider as `did …
+   (preventDamage …) thisWay` over the black-source prevention; rewrite its pins
+   (`okPreventedFromSourceAnnounced :428`, `okPreventedFromSourceInAClause :433`,
+   `badPreventedFromSourceUnannounced :438`) onto the `did` form with the same claims
+   ("announced" and "in a clause" in scope; unannounced refused), keeping `okPreventedThisWay*`.
 
 Order: steps 1 and 4 both rewrite `Cards/Damage.lean` and `Proofs/Damage.lean` (sequential);
 steps 2 and 3 both touch `Definitions/Keywords.lean` and `Proofs/Rules.lean` (sequential); 1 and 2
@@ -183,7 +224,7 @@ Every `spelled` card is a check at elaboration. Rewrite each to the new tree wit
 
 - `Cards/Damage.lean`: `okFog :136`, `okIndestructibleAura :140`, `okShieldmatesBlessing :143`,
   `okGlacialChasmShield :154`, `okInkshieldRider :440`, `okGlarecasterShield :573`;
-  `Cards/Deontic.lean`: `okWhippoorwillImmunity :287` (after open item 2).
+  `Cards/Deontic.lean`: `okWhippoorwillImmunity :287` (ruling 4b).
 - `Proofs/Damage.lean`: `okPreventDealtToPermanent :402`, `okRedirectToSingleCreature :409`,
   `badRedirectToPlural :415`, `okPreventedFromSourceAnnounced :428`,
   `okPreventedFromSourceInAClause :433`, `badPreventedFromSourceUnannounced :438`,
@@ -205,6 +246,13 @@ Every `spelled` card is a check at elaboration. Rewrite each to the new tree wit
   pins (`:119-130`), `badDamageResultUndeclaredCounter :133` (the `.knownCounter` check is still
   wanted), `builtinTables :476-479`, `okBuiltinTables :481`.
 - `Check.lean`: `slice_e_copy_and_prevent_pin_sound :283`.
+- `badRedirectToPlural` and `badRedirectToGroup` keep asserting `.singular` on the new spelling
+  (ruling 4d); they are not weakened to `.perMember`. Add `okShieldedRedirectionSizesItsUse`
+  (*Harm's Way*'s "the next 2 damage" is a `ReplUse` shield of 2, [CR#614.9,615.7]) and
+  `whippoorwillCantIsADeonticOverActionReplace` (the `cant any (Action.replace …)` tree checks
+  clean; a plural redirect target inside it is refused `.singular`).
+- Add `toxicIsOneResultReadingTheTotal` (ruling 4c: two toxic instances give one result row, not
+  two) and, with step 6, `shadowbaneRiderIsDidPreventDamageThisWay`.
 - Add: `witherAndInfectPutCountersOnce` (one `markDamage` replaced once [CR#614.6,120.3d]);
   `lifelinkIsAnAdditionalResult`; `cantBePreventedIsADeonticOverPreventDamage`;
   `planeswalkerDamageResultIsNotAnAbility`.
@@ -218,7 +266,11 @@ to lose life") and *Soul-Scar Mage* if they fit.
 ## Other tickets on the same files
 
 - `lean-v3-regeneration-rider-duration` cites *Pinpoint Avalanche* as a convention witness; this
-  ticket rewrites its tree (still `establish … none`).
+  ticket rewrites its tree. The duration is now `some .modifiesPrecedingAction` (second-batch
+  ruling 1), not `none`: `establish (cant any (preventDamage .all (damage := some thatDamage)))
+  (some .modifiesPrecedingAction)`. Whichever lands second carries the duration over.
+- `lean-v3-this-way-and-stop-trigger-folds` (B4): step 6 needs it, and it rewrites *Screaming
+  Nemesis* and *Sonic Shrieker* in the same file.
 - `lean-v3-cause-flag-fold` changes `loseCounters` (the planeswalker and battle rows) and adds the
   `.anEffect` Template; `Proofs/Rules.lean` is shared.
 - `lean-v3-this-way-and-stop-trigger-folds` rewrites *Screaming Nemesis* and *Sonic Shrieker* in

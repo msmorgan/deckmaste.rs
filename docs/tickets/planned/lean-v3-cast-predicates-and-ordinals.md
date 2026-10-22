@@ -54,29 +54,58 @@ Paths are under `lean/Semantics/`.
   *Once Upon a Time* (`:166`) is a predicate fragment `nthCastBy (.nth 1) you .game`; *Highspire
   Bell-Ringer* is `Cards/Cost.lean:154`.
 
-## STOP item (a ruling premise is false as a drop-in)
+## Ruling (owner, 2026-10-22, second batch): the deletion is in scope
+
+The first-batch STOP (the span-less `did` forms are refused today) is settled by a new span, not by
+exempting the checks. The old text is kept below for its evaluated findings.
+
+- Add `thisObject` to `LookbackSpan` (`Abilities.lean:135-144`), reusing the meaning of
+  `Period.thisObject` (`Words.lean:620-622`: the object's own existence, until it changes zones and
+  becomes a new object [CR#400.7]). VERIFY: true. `LookbackSpan` is `Abilities.lean:135`, and its
+  checker arm is `stepLookbackSpanWith` (`Check/Phrase.lean:932-940`): add `| .thisObject => (drs, [])`
+  beside `.thisWay | .triggering` (`:940`).
+- "Artifact spells you cast" (*Foundry Inspector*, *Fist of Suns*), "if you cast it from your hand"
+  (*Arcane Proxy*, *Mulldrifter*) and "spend this mana only to cast a spell from your graveyard" are
+  written as `did … (within := some .thisObject)` [CR#400.7]: the "proposed action" and "current
+  incarnation" regimes. A "historical window" ("a spell you cast this turn", *Cycle of Life*) keeps
+  its duration span.
+- `within = none` stays reserved for attributive participles (`DidClause` doc, `Abilities.lean:145-149`).
+- Then fold `castBy`, `castFrom` and `activatedBy` into `Predicate.did` within this ticket. The
+  castBy/castFrom stepping bug dies with them.
+
+**The three refusals, re-examined (each passes with `.thisObject`; no narrowed STOP remains).**
+Evaluated by reading the code; the implementer confirms by running the pins.
+
+1. `participialDescription`, through `DidClause.anchor?` (`Check/Phrase.lean:239-245`): the arm
+   `| some _ => none` returns no anchor for any written span, `.thisObject` included. Only
+   `none | some .thisWay` can anchor, so the bare form (no span) is still, correctly, a Participial
+   Description, and the `.thisObject` form is not.
+2. `unanchoredLookback`, through `stepRelativeDidWith` (`:1112`, and the same refusal at `:2735`,
+   `:2810`): the refusal is `refuse clause.within.isSome`, so any written span, `.thisObject`
+   included, passes. No change to the three call sites.
+3. `uniquifying`, through `uniquifies` (`Check/PredicateShape.lean:79-86`): a `the`-headed
+   description needs a uniquifying predicate (`Check/Phrase.lean:2458`). `.thisObject` forms are not
+   `the`-headed ("artifact spells you cast", "a spell"), so they never meet the check; a `the …
+   did … thisObject` would be refused, rightly, since the span does not single anything out. The
+   ordinal is what uniquifies ("the first spell you've cast this game"): `uniquifies` loses its
+   `castBy _ rank => rank.isSome` arm and gains `| .did clause => clause.ordinal.isSome`, reading
+   the new `DidClause.ordinal` field.
+
+### The first-batch STOP (history, kept for the evaluated findings)
 
 **The `did` forms without a span are refused today**, by design of the lookback reading
 (evaluated):
 
 - `allOf (and [isArtifact, isSpell, did you (cast which)])` → `participialDescription (.deed
-  (.action "cast"))`: with a Deed and no span, `DidClause.anchor?` (`Check/Phrase.lean:239-245`)
-  makes a `the`/`all`/`each` description a Participial Description.
+  (.action "cast"))`.
 - `target (and [isSpell, did any (cast which (from_ := some graveyard))])` →
-  `unanchoredLookback` (`stepRelativeDidWith`, `:1112`). `activate which` behaves the same.
+  `unanchoredLookback`. `activate which` behaves the same.
 - `the (and [isSpell, did you (cast which) thisTurn])` → `uniquifying`, where `nthCastBy` passes
   through `uniquifies`.
 
-Only spanned lookbacks pass today (`allOf … did you (cast which) (within soFarThisTurn)`;
-`Proofs/Anaphora.lean:243,250`). The bare forms in the ruling are the readings
-`lean-core-action-provenance` called "proposed action" (*Foundry Inspector*'s cost reduction on
-"artifact spells you cast"; *Fist of Suns*) and "current incarnation" ("if you cast it from your
-hand", *Arcane Proxy*, *Mulldrifter*; "spend this mana only to cast a spell from your graveyard"),
-as against a "historical window" ("a spell you cast this turn"). The deletion needs a way to write
-those two without a span: a `LookbackSpan` (or regime) for the object's own casting
-[CR#400.7,601.2], an exemption in `anchor?` and in `stepRelativeDidWith`, and `uniquifies` reading
-the new ordinal. That design is not in the ruling; the owner rules it before the predicates go.
-The ordinal unification below does not wait on it.
+Only spanned lookbacks passed (`Proofs/Anaphora.lean:243,250`). The bare forms were the readings
+`lean-core-action-provenance` called "proposed action" and "current incarnation", as against a
+"historical window".
 
 ## Change
 
@@ -95,7 +124,10 @@ The ordinal unification below does not wait on it.
    all ignore `per` (`Check/Phrase.lean:1152,1763,2938`, `Check/Events.lean:90`,
    `Check/CardFacts.lean:79,140`, `Check/NumberSlots.lean:218`, `Check/Card.lean:62`) and keep
    doing so.
-2. **Provenance**, after the STOP is ruled: rewrite every use to `did`, delete the three
+2. **Provenance**: first add `LookbackSpan.thisObject`, its Template (name at the implementer's
+   discretion; check the glossary first), the checker arm and the `uniquifies` arm above. Then
+   rewrite every use to `did` (proposed-action and current-incarnation uses take `(within := some
+   .thisObject)`; historical windows keep their duration span), delete the three
    predicates, their Templates and the name-table entry, `uniquifies`' `castBy` arm and
    `activatedBy` in `seedZone`/`seedsAbility` (`Check/Phrase.lean:158,461`; each use also has
    `abilityHead`, which seeds the same).
@@ -124,7 +156,13 @@ The ordinal unification below does not wait on it.
 - Rewrite `firstTimeEachTurnIsTheWatchedEventsOrdinal` (`Proofs/EventPatterns.lean:319-320`, `rfl`
   with `some .turn`) and `eventModifiersPreserveFacts` (`Proofs/Lookback.lean:141`, a `part :
   Option TurnPart` binder).
-- After the STOP: `okCastFromGraveyard` (`Proofs/Anaphora.lean:230`), `okBracketedDescription`
+- Add pins for the new span: `okArtifactSpellsYouCastReadsItsOwnCasting`,
+  `okCastItFromYourHandReadsItsOwnCasting`, `okSpendOnlyToCastFromYourGraveyard` (each `did …
+  (within := some .thisObject)` checks clean, [CR#400.7]); `badBareDidCastIsParticipial` (no span
+  keeps refusing as a Participial Description: `within = none` stays reserved); and
+  `okThisObjectPassesTheLookbackChecks` (anchor, `unanchoredLookback` and `uniquifying` all pass, as
+  above).
+- `okCastFromGraveyard` (`Proofs/Anaphora.lean:230`), `okBracketedDescription`
   (`Proofs/TextChanges.lean:32`), `cycleOfLifeKeepsItsCastCreatureTarget`
   (`Proofs/GetsBothDeltas.lean:178`, `rfl`), `okOnceUponATimeFirstCast` (`Cards/Trigger.lean:167`),
   and every card pin at the sites above (e.g. `okTroubleInPairsArms` `Cards/Trigger.lean:673`,
@@ -142,3 +180,6 @@ The ordinal unification below does not wait on it.
   HistoricalMove,DrtCards}.lean`: land after it.
 - `lean-v3-this-way-and-stop-trigger-folds` and `lean-v3-cause-flag-fold` share
   `Proofs/Anaphora.lean`, `Proofs/EventPatterns.lean` and `Templates.lean`.
+- `lean-v3-keyword-class-guards-and-observation` (second-batch ruling 3a) edits rebound's
+  replacement clause in `Definitions/Keywords.lean` (`:1294-1300`), which holds `castFrom` here
+  (`:1298`; the list above says `:1292`): whichever lands second adapts.

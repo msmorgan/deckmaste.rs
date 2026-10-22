@@ -12,8 +12,8 @@ Standard constraints apply. Provenance: row B7 of
   `semantic_template` producing ONE Ability [CR#113.2c]: a single `.triggered` whose action runs
   `sequentially` over the keywords, or a single `.static (conjunction …)`. *Odric, Lunarch
   Marshal*'s rulings of 2016-04-08 speak of "Odric's ability": one ability.
-- Rename `AbilityLost` to `SpecifiedAbility` (or `AbilitySpec`), and make
-  `CharacteristicEdit.addedAbilities` take it, so family terms (landwalk, protection) work.
+- ~~Rename `AbilityLost` to `SpecifiedAbility` and retype `addedAbilities`.~~ Dropped by the
+  second-batch ruling below (option B).
 - Delete the wrapper arms and the keyword-extension checker functions and refusals.
 
 "The same is true for" a list of keywords grants each variant of a keyword that has variants
@@ -82,21 +82,32 @@ inventory, all used only by `alsoForKeywords`):
   `keywordParamless` (`:97-98`), dead once the cluster goes.
 - Refusals `keywordExtendable` and `keywordListOk` (`Check/Refusal.lean:150-151`).
 
-## STOP item (a ruling premise needs the owner)
+## Ruling (owner, 2026-10-22, second batch): option B
 
-**A family term in `addedAbilities` names no variants.** The rulings above say the grant gives
-the variants that the condition's objects have ("those specific variants", "the landwalk and
-protection abilities of the cards"). `addedAbilities [.term (anyIn landwalk)]` says "landwalk"
-with no possessor; `addedSelectionOf source (.specified …)` already says "the abilities of X".
-Before retyping `addedAbilities`, the owner confirms which: the family term inside
-`addedAbilities` denotes the variants the triggering condition's objects have (and the engine
-reads them there), or the per-keyword body grants through `addedSelectionOf` over the objects
-the condition found. The Template and the bare-keyword cards do not wait on this.
+`alsoForKeywords` grants family terms (landwalk, protection, hexproof) through the existing
+`CharacteristicEdit.addedSelectionOf` (VERIFY: true, `Abilities.lean:804`, not `~615`) over the
+objects the condition found: "the abilities of X", as the 2020 ruling and *Death-Mask Duplicant*'s
+and *Cairn Wanderer*'s rulings read. `addedAbilities` does not carry unresolved family terms, so a
+family term never goes inside it.
 
-Related, and to fix in the same landing: *Odric*, *Bleeding Effect* and *Urborg Scavengers* write
-hexproof as `.the (.named "hexproof")`, but hexproof has variants
-(`Definitions/Keywords.lean:857-873`; [CR#702.11d]), so by [CR#702.1c] and the 2020 ruling their
-grant is a family term too.
+- Per keyword, the Template's body function maps a bare keyword to a plain grant, and a family term
+  to `addedSelectionOf <the objects the condition found> (.specified [.term <family>])`
+  (`AbilitySelection.specified (abilities : List AbilityLost)`, `Abilities.lean:805`, where
+  `AbilityLost.term` carries the `KeywordTerm.anyIn` family). *Concerted Effort*, *Death-Mask
+  Duplicant* and *Cairn Wanderer* (landwalk, protection) use it.
+- In the same landing, *Odric, Lunarch Marshal*, *Bleeding Effect* and *Urborg Scavengers* use the
+  hexproof family term [CR#702.11d] (they write `.the (.named "hexproof")` today): add
+  `hexproofAbilities : KeywordTerm := .anyIn ⟨hexproof, none⟩` beside `protectionAbilities` and
+  `landwalkAbilities` (`Cards/Keyword.lean:1162-1163`), and use it in their lists
+  (`Cards/Turn.lean:280,294`, `Cards/Counters.lean:745`).
+- **Is the `AbilityLost` → `SpecifiedAbility` rename needed? No.** Family terms already reach a
+  grant through `addedSelectionOf` (a `specified` selection holding `AbilityLost.term (anyIn …)`),
+  and nothing in the Template, the cards or the checker needs a new name or a new type for that.
+- **Is the `addedAbilities` retype needed? No.** Option B leaves `addedAbilities (abilities : List
+  Ability)` (`Abilities.lean:794`) as it is. The rename and the retype are dropped from this ticket.
+  (`AbilityLost` is also used for additions by `addedSelectionOf`, so its name is a pre-existing wart;
+  that is a naming question for a future glossary pass, not a prerequisite here, and not ticketed
+  by this ruling.)
 
 ## Change
 
@@ -106,17 +117,8 @@ grant is a family term too.
    Oracle order. Delete the constructor and every arm and function listed above.
 2. Rewrite the seven cards over the Template (their source may not change if the Template keeps
    its signature).
-3. Rename `AbilityLost` and retype `addedAbilities` as ruled (after the STOP for family terms).
-   Name: add the term to the glossary through the `domain-modeling` skill first; check it against
-   **Ability Selection** (one Game Model term per concept: if **Ability Selection** already covers
-   it, the identifier follows that entry instead), and honour **Ability Category**'s `_Avoid_`.
-   Consumers: `Check/Phrase.lean:1397-1404` (`stepAbilitySelectionWith`), `:1415-1422`, `:3643`;
-   `Primitives.lean:48-49` (`loses`, `adds`); `Definitions/Keywords.lean:280,629`;
-   `Definitions/Actions.lean:665`; `Templates.lean:51-52,351,1034,1413-1414,1922-1923,2273-2276`;
-   `Check/CardFacts.lean:102,205`; `Check/AbilityRules.lean:155,159`; cards
-   `Cards/Damage.lean:1231`, `Cards/Cost.lean:889,896-898,908-909`, `Cards/Mana.lean:1040-1041`.
-   If `addedAbilities` takes the new type, `.term (.the k)` beside `.written (.keyword k …)` is two
-   encodings of "has flying": give them a law (or restrict `.term` there to families).
+3. Family terms and the hexproof cards, as ruled above: the Template's family-term arm goes
+   through `addedSelectionOf`; no rename, no retype, no change to `addedAbilities`.
 4. `lean/CONTRACTS.md:724` (the `AbilityLost` row; it names `stepCharacteristicEditWith`, but the
    stepping is `stepAbilitySelectionWith`).
 
@@ -135,11 +137,14 @@ grant is a family term too.
 - Add `odricIsOneAbility`: the expansion for *Odric* is a single `.triggered` (the card has one
   ability line) whose action is `sequentially` over 12 steps.
 - Add `urborgScavengersIsOneStatic`: one `.static (conjunction …)`.
-- If `addedAbilities` is retyped: `specifiedAbilityRemoval` and `:180`
-  (`Proofs/CharacteristicEdits.lean:43`), `Proofs/SelectionEvidence.lean:229,236`,
+- Add `familyTermsGrantThroughAddedSelectionOf`: for *Death-Mask Duplicant* and *Cairn Wanderer*
+  the landwalk and protection entries are `addedSelectionOf` over the cards' objects with a `.term
+  (anyIn …)` selection, and no `addedAbilities` holds a family term. Add `odricGrantsHexproofVariants`
+  (hexproof is the family term in *Odric*, *Bleeding Effect* and *Urborg Scavengers*, [CR#702.11d]).
+- The retype's regression list (`specifiedAbilityRemoval` and `:180`
+  `Proofs/CharacteristicEdits.lean:43`, `Proofs/SelectionEvidence.lean:229,236`,
   `Proofs/Rules.lean:158`, `Proofs/KeywordAbilityCensus.lean:73`,
-  `grantedAbilityReadsChoicesButNotOrdinaryOuterObjects` (`Check/AbilityRules.lean:153`), claims
-  unchanged.
+  `grantedAbilityReadsChoicesButNotOrdinaryOuterObjects`) is not touched: nothing it pins changes.
 
 ## Other tickets on the same files
 

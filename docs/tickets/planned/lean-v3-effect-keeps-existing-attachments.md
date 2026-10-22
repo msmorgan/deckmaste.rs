@@ -37,13 +37,18 @@ Verified against the bench (2026-10-22), with corrections:
   removed because "can't be enchanted" makes their host illegal [CR#303.4c,704.5m]; its "already
   attached" reads like *Benevolent Blessing*'s but rests on those rules.
 
-**STOP (premise to confirm).** [CR#702.16p] fixes the exempt objects "when the protection effect
-starts to apply". `attachedTo it` as a filter reads the current state. They differ when an
-Equipment attached without the quality later gains it: by [CR#702.16p] it falls off, under the
-filter it stays. "No change" settles the encoding; the owner confirms that this onset-time reading
-is the engine's (the `retention` subject evaluated once, when the effect begins), so that the
-bullet "'Already attached' is a point in time" below becomes an engine note and not a term change.
-Until then, the test `alreadyAttachedIsReadWhenTheEffectStarts` below is not written.
+## Ruling (owner, 2026-10-22, second batch): 3c acknowledged
+
+The point-in-time note is **owner-acknowledged**, for the open 3a/3b design. [CR#702.16p]
+snapshots the Attachments when the protection effect starts to apply, while `attachedTo` reads
+current state; the two differ when an Equipment attached without the quality later gains it (by
+[CR#702.16p] it falls off, under the filter it stays). "No change" settles the encoding of the
+term; the onset-time reading is an engine note, not a term change, and the bullet "'Already
+attached' is a point in time" below is read that way. The test
+`alreadyAttachedIsReadWhenTheEffectStarts` below is therefore no longer waiting on the owner; it
+is written with the rest of the 3a/3b design. *Guardian Beast* rests on [CR#303.4c,704.5m] (an
+Aura on an artifact that can't be enchanted is illegal), not on [CR#702.16p], which is about
+protection only.
 
 ## Problem
 
@@ -112,7 +117,7 @@ that, not spelled around.
   exemption concerns only the "can't be enchanted" conjunct, not "indestructible" or "can't gain
   control". Decide whether the construct wraps the whole conjunction (as `retention` does today),
   or attaches to the conjunct it limits.
-- **(Ruled no change for the term, 2026-10-22; see the STOP above.)** **"Already attached" is a point in time, not a filter.** [CR#702.16p] reads the Attachments when
+- **(Ruled no change for the term, 2026-10-22; see the second-batch ruling above.)** **"Already attached" is a point in time, not a filter** (owner-acknowledged, second batch). [CR#702.16p] reads the Attachments when
   the effect starts to apply. `attachedTo it` as written in *Benevolent Blessing* reads the current
   state. The design must say which it models and pin the difference with an Aura attached after the
   effect began.
@@ -152,7 +157,7 @@ Each asserts the intended analysis, not a count (CLAUDE.md "Assurance").
   is still removed by a second protection effect of the same quality. If the checker cannot see
   this (it is an engine fact), the pin is on the construct's shape, and the engine consequence is
   noted in the Rust mirror ticket, not deferred silently.
-- (Waits on the STOP in the 2026-10-22 ruling section.) `alreadyAttachedIsReadWhenTheEffectStarts` ([CR#702.16p]): the *Benevolent Blessing* shape
+- `alreadyAttachedIsReadWhenTheEffectStarts` ([CR#702.16p]): the *Benevolent Blessing* shape
   distinguishes an Attachment present at the start from one attached later.
 - `guardianBeastExemptsOnlyTheEnchantProhibition`: the exemption does not reach "have
   indestructible" or "can't gain control of" (rewritten if the design wraps the whole

@@ -13,8 +13,8 @@ Standard constraints apply. Provenance: row B1 of
 - "By an effect" is written `GameEvent.causes .anEffect` / `WouldClause.causedBy .anEffect`
   [CR#614.16,703.1]. Whether an imperative, a cost or a turn-based action is an effect is already
   fixed by the node that encloses it.
-- Delete `eventVoiceChecks` and `Refusal.verbedVoiceOk`, with their two tests in
-  `Proofs/EventPatterns.lean`.
+- ~~Delete `eventVoiceChecks` and `Refusal.verbedVoiceOk`, with their two tests.~~ Superseded by
+  the second-batch ruling below: only the `byEffect` conjuncts go.
 - `lean-v3-saga-rules-fidelity` landed `sagaLoreIncrement` with `byEffect := false` and the pin
   `sagaLoreIncrementIsNoEffect`. Rewrite both so the turn-based row is no effect by its enclosing
   node.
@@ -66,19 +66,19 @@ Paths are under `lean/Semantics/`.
   .firstMain` (`:298-299`); `sagaLoreIncrementIsNoEffect` (`:313-314`) is an `rfl` on that tree,
   and its docstring (`:307-312`) explains it by "not `byEffect`".
 
-## STOP items (a ruling premise is false)
+## Ruling (owner, 2026-10-22, second batch)
 
-1. **`eventVoiceChecks` is not only the `byEffect` check.** Deleting it wholesale drops the
-   `.eventAgent`, `.tokenPhrase`, `under`-kind and plurality refusals, which have nothing to do
-   with `byEffect`, and the pins above that assert them (CLAUDE.md "Assurance"). Proceed by
-   deleting only the `byEffect` conjuncts: `causedByOk` and the `!(byEffect && agent.isSome)` part
-   of `verbedVoiceOk`. Renaming what remains (e.g. `verbedVoiceOk` to a plurality name) is fine.
-   Deleting the remaining checks needs the owner to confirm that they are what the ruling meant.
-2. **The rule `causedByOk` enforced has a new home or none.** It refused an event with both an
-   agent and an effect cause. After the fold, the same tree is `causedBy .anEffect (would (by …)
-   …)` or `causes .anEffect (does (by …) …)`. Whether that is still refused is an owner question;
-   until it is ruled, keep an equivalent refusal on the new form so nothing is weakened, and say
-   so in the landing.
+**2a.** Delete only the `byEffect` conjuncts of `eventVoiceChecks`: the `causedByOk` refusal
+(`Check/Phrase.lean:1022`, `Refusal.lean:137`) and the `!(byEffect && agent.isSome)` part of
+`verbedVoiceOk` (`Check/Phrase.lean:1029-1030`). Keep the `.eventAgent`, `.tokenPhrase`,
+`under`-kind and plurality checks. `eventVoiceChecks` itself stays, and so does the rest of
+`verbedVoiceOk` (renaming it to a plurality name is allowed). This settles the old STOP 1.
+
+**2b.** Drop the refusal of an event that has both a performer and an effect cause. The two are
+orthogonal. Witness: *Wilt-Leaf Liege*, "If a spell or ability an opponent controls causes you to
+discard a card, …": a performer (you discard) under a cause (a spell or ability an opponent
+controls). Pin that tree as accepted. This settles the old STOP 2, and removes the "keep an
+equivalent refusal" interim instruction: no refusal replaces `causedByOk`.
 
 ## Change
 
@@ -116,8 +116,10 @@ Paths are under `lean/Semantics/`.
    marked "by an effect" although a cost is no effect, which the fold fixes.
 6. The Saga row: `sagaLoreIncrement` is `.putCounters 1 (.printed (.named "loreCounter"))
    thisSaga`; it is no effect because the `turnBased` conferral carries it [CR#703.1,714.3c].
-7. Delete the `byEffect` conjuncts of `eventVoiceChecks` (STOP 1) and `causedByOk` if STOP 2 is
-   ruled that way.
+7. Delete the `byEffect` conjuncts of `eventVoiceChecks` (ruling 2a): the `causedByOk` refusal and
+   the `!(byEffect && agent.isSome)` part of `verbedVoiceOk`; keep every other check. Delete
+   `Refusal.causedByOk` (`Check/Refusal.lean:137`), which nothing else emits. No replacement
+   refusal for "performer and effect cause" (ruling 2b).
 8. ADR `docs/decisions/semantics-v3.md:360` (`move(patient, from, to, obs, cause)`) and `:413`
    (`zoneChange (… cause)`): drop `cause`. `:466` ("source, event, or effect", `causedBy`) gains
    the "if an effect would" use. `lean/CONTRACTS.md` says nothing about `byEffect`; record in the
@@ -134,11 +136,19 @@ Paths are under `lean/Semantics/`.
   say.
 - Add `doublingSeasonWatchesAnEffect`: both of *Doubling Season*'s replacement clauses are
   `causedBy .anEffect` (`rfl` or a shape match), and *Corpsejack Menace*'s is not.
-- `badTokensCreatedByCauserAndPlayer`, `badCausedCounterWithAgent`,
-  `badCounterEventAgentAndEffect`: rewrite onto the `causedBy .anEffect` form with the refusal
-  STOP 2 settles, or retire them with that ruling named.
+- `badTokensCreatedByCauserAndPlayer` (`Proofs/Trigger.lean:151`), `badCausedCounterWithAgent` and
+  `badCounterEventAgentAndEffect` (`Proofs/Counters.lean:372,534`): they pin the retired refusals
+  (`verbedVoiceOk`'s agent-with-`byEffect` clause, `causedByOk`), which ruling 2b removes. Retire
+  them and say so by name in the landing. Where the same trees stay wanted, rewrite them as `ok`
+  pins on the `causedBy .anEffect` / `causes .anEffect` form with an agent (performer and cause
+  together are accepted).
+- Add `okWiltLeafLiegeEffectCausedDiscard`: the *Wilt-Leaf Liege* tree, a performer (`you`) with
+  `causes`/`causedBy` over "a spell or ability an opponent controls", checks clean. The card is not
+  on the bench (VERIFY: no `Wilt-Leaf Liege` in `lean/Semantics`); spell the card or the trigger
+  or replacement fragment, and assert the intended tree, not a count.
 - Keep `badTokensCreatedUnderPlural`, `badTokensCreatedByMintingNoun`, `badAnnouncingRemovalAgent`,
-  `badNonTokenCreationSubject` asserting their refusals (renamed refusal allowed).
+  `badNonTokenCreationSubject` asserting their refusals (renamed refusal allowed): ruling 2a keeps
+  the agent, token-phrasing, `under`-kind and plurality checks.
 - Mechanical arity rewrites, claims unchanged: `Proofs/Trigger.lean` (`:60,65,92,98,139,145,250`),
   `Proofs/Counters.lean` (about 43 sites, including the `rfl` pins
   `theLastEncodesSuspendsLastCounterTrigger` `:698` and `theNthEncodesTheCounterThreshold`
