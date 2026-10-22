@@ -72,6 +72,30 @@ mandatory-loop fixture exists.
 **P0.W7 closeout: formally RE-DEFERRED** — blocked on a fixture that
 forces it; the working lean above stands.
 
+## UD-14 — "doesn't untap" — DECIDED (2026-10-22)
+
+**A prohibition, not a replacement.** "Doesn't untap during [an] untap step"
+forbids the untap: the CR does not classify the wording. [CR#614.17] covers
+effects that state that something can't happen, which this wording never
+says, and [CR#502.3]'s "keep … from untapping" is how [CR#122.1d] describes
+the stun counter's replacement effect. Deckmaste treats it as `cant`: the
+Lean template `doesntUntap` (`lean/Semantics/Definitions/Actions.lean`) is
+`cant any (untap subject)` during the untap step, and the engine's
+`Cant(Untap)` row (`crates/deckmaste_core/src/deontic.rs`) keeps the matching
+permanent out of the untap step's untapping
+(`crates/deckmaste_engine/src/step/mod.rs`), the selection-constraint reading,
+which agrees with `cant` unless something else tries to untap the permanent
+during that step.
+
+Observable with a stun counter: on a tapped permanent with a stun counter and
+a "doesn't untap" effect, the untap can't happen, so the stun counter's
+replacement can't apply [CR#614.17c] and **the counter stays**. A replacement
+reading would let the controller order the two [CR#616.1] and spend the
+counter in a step where the permanent stays tapped anyway. The Lean pin is
+`doesntUntapIsNoStunReplacement` (`lean/Semantics/Proofs/UntapStep.lean`); the
+engine has no stun counters yet. Cards that print "can't untap" (Winter Orb,
+Static Orb) are `cant` by [CR#614.17] and are unaffected.
+
 ## Assumed-category sweep (P0.W7, 2026-06-12) — UD-1 / UD-4 / UD-6 / UD-10
 
 None embodied by P0; each waits on its forcing machinery:

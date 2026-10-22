@@ -606,8 +606,12 @@ mutual
   /-- A cost shift raises (`up`) or lowers (`down`) a cost; it never sets one, which is an
   alternative cost [CR#118.9] (`shiftSets`). -/
   inductive CostShift where
-    /-- By an amount of generic mana: "costs {1} less", "costs {X} more"; `floor` the least a
-    reduction leaves ("to a minimum of {1}") [CR#601.2f]. -/
+    /-- By an amount of generic mana: "costs {1} less", "costs {X} more". `floor`: a card-text
+    floor on the mana left in the cost after this reduction ("This effect can't reduce the mana in
+    that cost to less than one mana"; *Training Grounds*, *Power Artifact*). It counts all mana in
+    the cost, colored included, not only the generic part this shift lowers: under *Training
+    Grounds* {2}{G} becomes {G} and {2} becomes {1} (*Training Grounds* ruling, 2025-10-02). With
+    no floor, only the rules floor of {0} applies [CR#601.2f]. -/
     | generic (change : Delta Amount) (floor : Option Amount)
     /-- By the symbols of a mana cost, each symbol of a type changing mana of that type.
     `coloredOnly` is "this effect reduces only the amount of colored mana you pay" (Edgewalker):
@@ -1276,9 +1280,10 @@ end
 @[match_pattern] abbrev NounPhrase.and (phrases : List NounPhrase) : NounPhrase := .coord .and phrases
 @[match_pattern] abbrev NounPhrase.or (phrases : List NounPhrase) : NounPhrase := .coord .or phrases
 
-/-- The positive locations `loc` names, as a list of its disjuncts, or none when it names a
-complement ("anywhere other than …") or anywhere. A move from a positive list of zones, observed
-on its departure, is read with its objects' last known information [CR#603.6c,603.10a]. -/
+/-- The positive locations `loc` names, as a list of its disjuncts, or none for a complement
+("anywhere other than …") or anywhere; a "from anywhere" move is never a leaves-the-battlefield
+trigger [CR#603.6c]. Callers decide whether a move is observed on departure [CR#603.10a]
+(`Location.observedOnDeparture`). -/
 def Location.positiveZones? (loc : Location) (fuel : Nat := 16) : Option (List Location) :=
   match fuel, loc with
   | 0, _ => none
@@ -1335,5 +1340,24 @@ def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
     if zone.isSome && rest.all (fun loc => loc.sort n == zone) then zone else none
   | _ + 1, .coord _ [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
 termination_by structural fuel
+
+/-- Whether a move from `from_` to `destination`, as a pattern, is observed on its departure.
+Some zone-change triggers look back in time: leaves-the-battlefield abilities, abilities that
+trigger when a card leaves a graveyard, and abilities that trigger when an object all players can
+see (here, from exile, the stack or the command zone) is put into a hand or library [CR#603.10a].
+The pattern's written origin decides, not an individual occurrence's: a positive origin list is
+observed on its departure when any of its origins is, since an ability that triggers when a
+permanent moves from the battlefield is a leaves-the-battlefield ability whatever else it watches
+[CR#603.6c]. A move from anywhere is never a leaves-the-battlefield ability [CR#603.6c]; it, and a
+move from a complement, is observed on its arrival.
+The put and return Templates write this classification into the move, and the checker reads a
+departure-observed move's battlefield patient as the permanent it was. -/
+def Location.observedOnDeparture (from_ destination : Location) : Bool :=
+  match from_.positiveZones? with
+  | some zones => zones.any fun zone =>
+      zone.sort == some .battlefield || zone.sort == some .graveyard ||
+        ((destination.sort == some .hand || destination.sort == some .library) &&
+          (zone.sort == some .exile || zone.sort == some .stack || zone.sort == some .command))
+  | none => false
 
 end Semantics

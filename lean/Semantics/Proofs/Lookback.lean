@@ -223,6 +223,64 @@ theorem okEachCardOfSeveralExiles :
             (createToken (creatureToken 1 1 [.red] [warrior])) ]) = [] := by
   decide
 
+/-- Sinister Concierge: "When this creature dies, you may exile it and put three time counters on
+it. If you do, exile up to one target creature and put three time counters on it. Each card
+exiled this way that doesn't have suspend gains suspend.": both exiles sit inside the optional
+body or its "if you do" arm, and "this way" ranges over the events that happened, so the
+description reads both exiled cards (owner ruling 2026-10-22). A singular "the" finds the two
+and is refused. (Granting a bare "suspend" has no Definition, so the pin reads the group with
+another body.) -/
+private def sinisterConcierge (rest : Action) : Ability :=
+  when (does thisCreature die)
+    (sequentially
+      [ may (sequentially [exile it, putCounters 3 timeCounter it])
+          (some (sequentially
+            [exile (targets (upTo 1) isCreature), putCounters 3 timeCounter it])),
+        rest ])
+
+theorem eachCardExiledThisWayReadsEveryExile :
+    Ability.check (DRS.ofList [])
+      (sinisterConcierge (doForEach (each (and [isCard, was (exile which) thisWay]))
+        (putCounters 1 timeCounter it))) = [] ∧
+    Ability.check (DRS.ofList [])
+      (sinisterConcierge (tap (the (and [isCard, was (exile which) thisWay])))) =
+      [.participialDescription (.deed (.action "exile")) 2] := by
+  decide
+
+/-- What an optional body acted on escapes it only to a Participial Description: after "you may
+exile a creature you control", "it" has no antecedent, while "the card exiled this way" reads the
+exiled creature (owner ruling 2026-10-22). -/
+theorem optionalBodyObjectEscapesOnlyToParticipialReads :
+    Action.check (DRS.ofList [])
+      (sequentially [may (exile (a (and [isCreature, youControl]))), tap it]) =
+      [.anaphor .bare .one 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [ may (exile (a (and [isCreature, youControl]))),
+        tap (the (and [isCard, was (exile which) thisWay])) ]) = [] := by
+  decide
+
+/-- One object is one candidate. When the optional body and its "if you don't" arm both exile
+the same earlier object, a singular "the card exiled this way" reads that one card; so does it
+when an object already exiled is exiled again in an optional body. -/
+theorem objectStampedOnTwoPathsIsReadOnce :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ destroy (target isCreature), may (exile it) none (some (exile it)),
+          tap (the (and [isCard, was (exile which) thisWay])) ]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ exile (target (cardIn graveyard)), may (exile it),
+          tap (the (and [isCard, was (exile which) thisWay])) ]) = [] := by
+  decide
+
+/-- "This way" reads what the ability's costs did as well as its effect: "Sacrifice a creature:
+You gain life equal to the power of the creature sacrificed this way." -/
+theorem thisWayReadsWhatItsCostDid :
+    Ability.check (DRS.ofList [])
+      (activated (sacrifice (a isCreature))
+        (gainLife (powerOf (the (and [isCreature, was (sacrifice which) thisWay]))))) = [] := by
+  decide
+
 /-- The agent of the deed must be one a stamp can stand for: "the card an opponent exiled" names
 an agent the checker cannot read back, so it is refused. "The card you exiled" is read. -/
 theorem participialAgentRead :

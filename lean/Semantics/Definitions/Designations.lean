@@ -5,6 +5,12 @@ import Semantics.Primitives
 
 The rules-defined designation labels: each declaration's name is its `DesignationLabel`. A leaf
 catalog, spelled over primitives only, so `Semantics.Templates` can name its entries.
+
+Two rules-defined designations are not here. The sector designations [CR#702.158b] exist only
+for space sculptor, on an Unfinity card, so they are deferred with the Un-sets. A battle's
+protector [CR#310.9] is a player designated by the battle, a link from an object to a player,
+which neither a designation label (one holder's marker) nor a Relation (two objects) writes; it
+is deferred until a bench card reads a battle's protector (the engine side is `engine-battles`).
 -/
 
 namespace Semantics.Definitions

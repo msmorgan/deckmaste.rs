@@ -6,7 +6,8 @@ import Semantics.Primitives
 The rules-defined subtypes: each declaration's name is its `Subtype`. A leaf catalog, spelled
 over the raw `Subtype` constructors, which have no primitive (the subtype-word templates live above
 it, in `Semantics.Templates`), so `Semantics.Templates` can name its entries. A card names these
-entries: `spelled` refuses a raw `Subtype` constructor in a card.
+entries: `spelled` refuses a raw `Subtype` constructor in a card. Attraction [CR#205.3g] is an
+Un-set artifact type, deferred with the Un-sets.
 -/
 
 namespace Semantics.Definitions
@@ -22,6 +23,7 @@ semantic_definition equipment : Subtype := .of .artifact "Equipment"
 semantic_definition food : Subtype := .of .artifact "Food"
 semantic_definition fortification : Subtype := .of .artifact "Fortification"
 semantic_definition gold : Subtype := .of .artifact "Gold"
+semantic_definition heartwood : Subtype := .of .artifact "Heartwood"
 semantic_definition incubator : Subtype := .of .artifact "Incubator"
 semantic_definition Subtype.infinity : Subtype := .of .artifact "Infinity"
 semantic_definition junk : Subtype := .of .artifact "Junk"
@@ -470,6 +472,7 @@ semantic_definition xenagos : Subtype := .of .planeswalker "Xenagos"
 semantic_definition yanggu : Subtype := .of .planeswalker "Yanggu"
 semantic_definition yanling : Subtype := .of .planeswalker "Yanling"
 semantic_definition zariel : Subtype := .of .planeswalker "Zariel"
+semantic_definition undercity : Subtype := .of .dungeon "Undercity"
 semantic_definition adventure : Subtype := .spell "Adventure"
 semantic_definition arcane : Subtype := .spell "Arcane"
 semantic_definition lesson : Subtype := .spell "Lesson"

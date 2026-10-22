@@ -61,8 +61,11 @@ inductive Conferral where
   /-- An ability the definition gives the object, in the ordinary ability hierarchy — a basic
   land type's mana ability is one [CR#305.6]. -/
   | ability (confer : Ability)
-  /-- A continuous property with no ability behind it [CR#113.12] — an Equipment's host rule
-  [CR#301.5], a keyword counter's grant [CR#122.1b]. -/
+  /-- A continuous property with no ability of the definition's own behind it: a quality the
+  rules state of an object [CR#113.12], as an Equipment's host rule is [CR#301.5], or a keyword
+  counter's grant. A keyword counter is no ability, but its bearer gains the keyword
+  [CR#122.1b] in layer 6 [CR#613.1f]; a gained ability can be removed by another effect
+  [CR#113.12], so an ability-removing effect removes it in timestamp order [CR#613.7,613.7c]. -/
   | property (spec : StaticSpec)
   /-- A state-based action the definition puts on every object that holds its subject
   [CR#704.1]: once per holder per check [CR#704.3], however many counters of the kind it holds,
@@ -87,8 +90,11 @@ inductive Definition where
   being defined. An `ability` or `property` conferral states what ONE counter of the kind
   confers, and the model applies it once per counter held: a +1/+1 counter confers "+1/+1"
   [CR#122.1a,613.4c], so N of them give +N/+N, and a keyword counter confers its keyword
-  [CR#122.1b,613.1f], so N of them grant it N times, which is having it once (flying's own rule:
-  [CR#702.9c]); such a conferral reads no count of its own kind. A `stateBased` conferral is
+  [CR#122.1b,613.1f], so N of them grant it N times [CR#122.1b,113.2c]; that is having it once
+  only where the keyword's own rule makes instances redundant (flying [CR#702.9c]), while each
+  exalted or decayed instance has its own triggered ability [CR#702.83a,702.147a] and triggers
+  separately [CR#113.2c], so a consumer counts instances per keyword. Such a conferral reads no
+  count of its own kind. A `stateBased` conferral is
   scoped to the permanent that holds the counters, applies once per holder per check [CR#704.3],
   and may read counts, its own kind's included: the +1/+1 and −1/−1 annihilation rule on the
   −1/−1 counter [CR#704.5q,122.3] (ruling 2026-10-10). The reading is the model's; the checker

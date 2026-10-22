@@ -72,6 +72,19 @@ and put three time counters on it. Each card exiled this way …"; *Rally the Ho
 Auction*). Rewrite `:227` to match `:299`, including events from paying the ability's costs, and
 add a *Sinister Concierge* pin that "each card exiled this way" reads both exiled cards.
 
+**Owner ruling (2026-10-22), option B.** At head the checker dropped everything a `may`
+(`withContinuation`) body introduced or stamped, so the pin was refused. Objects an action stamped
+inside an optional body or arm escape it, but only to Participial Descriptions ("… this way", "the
+exiled card"); pronoun scope is unchanged. This is discourse scope: "this way" ranges over the
+events that happened. Pin both the Concierge read and the contrast (a pronoun after the body still
+cannot reach its object).
+
+Out of scope, not accepted: exclusive paths are not yet reasoned about within one ability. "Sacrifice
+a creature. If you don't, sacrifice an artifact", then a singular "the permanent sacrificed this
+way", finds two candidates though exactly one sacrifice happens, and is refused. Fixing it needs
+path-exclusivity reasoning for the current ability's own arms (as `linkArms` gives linked
+abilities). No corpus card prints this.
+
 ## 6. `LinkedReadback` miscites the self-link rule
 
 `Proofs/LinkedReadback.lean:139-140` cites [CR#607.1c] for "the card exiled this way" not reaching

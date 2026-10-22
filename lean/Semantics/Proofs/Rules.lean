@@ -130,8 +130,9 @@ def chargeCounter : Definition := .counter (.named "chargeCounter") .object []
 theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
 
 /-- [CR#122.1b] "A keyword counter on a permanent … causes that object to gain that keyword."
-The grant states a quality of the bearer rather than giving it an ability of its own
-[CR#113.12], so it is the ability-free `property` flavor. -/
+The counter is not an ability, so its conferral is the ability-free `property` flavor; but its
+bearer gains the keyword in layer 6 [CR#613.1f], and that gained ability can be removed by
+another effect [CR#113.12], applied in timestamp order [CR#613.7,613.7c]. -/
 def flyingCounter : Definition :=
   .counter (.named "flyingCounter") .object [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide

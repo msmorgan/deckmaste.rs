@@ -1083,19 +1083,15 @@ semantic_template Status.become (status : Status) : Action := .setStatus status 
 /-- The Zone Change every put and return Template writes: `subject` moves from `from_` to
 `destination` with `riders` [CR#400.7]. "Put" and "return" name no deed, so the two verbs expand
 to the same move; each Template keeps its own wording. The written origin, not the verb, decides
-the Observation Point. Observation follows the pattern, not an individual occurrence's origin: a
-move from the battlefield or a graveyard (or, to a hand or library, from exile, the stack or the
-command zone) is observed on its departure, and "from anywhere" is not a leaves-the-battlefield
-trigger [CR#603.6c,603.10a]. -/
+the Observation Point (`Location.observedOnDeparture`): observation follows the pattern, not an
+individual occurrence's origin, so a move from the battlefield or a graveyard (or, to a hand or
+library, from exile, the stack or the command zone), or from a list naming one of them, is observed
+on its departure, and "from anywhere" is not a leaves-the-battlefield trigger
+[CR#603.6c,603.10a]. -/
 private semantic_template zoneChange (subject : NounPhrase) (destination : Location)
     (from_ : Location) (riders : List MoveRider) : Action :=
-  let before : Bool := match from_.positiveZones? with
-    | some zs => !zs.isEmpty && zs.all (fun z =>
-        z.sort == some .battlefield || z.sort == some .graveyard ||
-          ((destination.sort == some .hand || destination.sort == some .library) &&
-            (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
-    | none => false
-  .move subject from_ destination (if before then .departure else .arrival) none riders
+  .move subject from_ destination
+    (if from_.observedOnDeparture destination then .departure else .arrival) none riders
 /-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
 its owner's control". -/
 semantic_template putInto (subject : NounPhrase) (destination : Location)
@@ -2340,7 +2336,8 @@ semantic_template thatDamage : Unpreventable := .thatDamage
 
 /-! ## Cost shifts -/
 
-/-- "costs <amount> less [to a floor of <floor>]" -/
+/-- "costs <amount> less[. This effect can't reduce the mana in that cost to less than <floor>
+mana]" -/
 semantic_template less (amount : Amount) (floor : Option Amount := none) : CostShift :=
   .generic (.down amount) floor
 /-- "costs <amount> more" -/

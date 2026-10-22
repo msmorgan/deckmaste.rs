@@ -48,7 +48,7 @@ fn every_builtin_noun_declaration_inherits_its_class_semantics() {
         census,
         BTreeMap::from([
             ("counter kind", 218),
-            ("subtype", 461),
+            ("subtype", 462),
             ("turn part", 19),
             ("type", 10),
         ])

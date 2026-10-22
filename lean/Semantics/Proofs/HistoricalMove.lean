@@ -44,4 +44,17 @@ theorem historicalEligibilityRequiresItsWrittenOrigin :
         (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
+private def mixedOrigin : Location := .coord .or [.zone .battlefield none, .zone .hand none]
+
+/-- The move's own Observation Point decides the battlefield read. A departure-observed move
+from the battlefield or a hand reads the permanent the creature was [CR#603.6c,603.10a], as
+`Location.observedOnDeparture` classes it; the same move observed on arrival does not. -/
+theorem mixedOriginReadsThePermanentOnlyOnDeparture :
+    Location.observedOnDeparture mixedOrigin (.zone .graveyard none) = true ∧
+    Condition.check context (.did ⟨.any, .move creatureRead mixedOrigin
+      (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) = [] ∧
+    Condition.check context (.did ⟨.any, .move creatureRead mixedOrigin
+      (some (.zone .graveyard none)) .arrival none [], some .thisWay⟩) =
+      [.anaphor (.word (.type .creature)) .one 0] := by decide
+
 end Semantics.Proofs.HistoricalMove

@@ -4,9 +4,10 @@ needs: [lean-v3-action-clause-spine]
 **[port-required: semantics-v3] Port the CR rulings and enum-parity decisions
 below from the retired Idris mirror inventory into `lean/Semantics/` and
 `deckmaste_semantics_v3`.** Specifically preserve and verify in `semantics-v3`:
-- **`"Doesn't untap"` is `cant` (`CantHappen`), not a replacement effect**
-  ([CR#614.17,502.3]; Winter Orb, Static Orb, exert [CR#701.43a], Frost Titan
-  unify under `cant(any, untap(subject))` in `semantics-v3` §3.4).
+- **`"Doesn't untap"` is `cant` (`CantHappen`), not a replacement effect**: an
+  engine choice the CR leaves open (UD-14 in `docs/engine-adrs.md`), not a CR
+  mandate (Winter Orb, Static Orb, exert [CR#701.43a], Frost Titan unify under
+  `cant(any, untap(subject))` in `semantics-v3` §3.4).
 - **`EnterRider` inventory** (`Tapped`, `WithCounters`, `UnderControlOf`,
   `UnderOwnersControl`, `AsCopy` [CR#707.9], `Attacking`, and `FaceDown`).
 - **`Reference::Linked` (`exiledWith`)** [CR#607], **`Arrangement`**
@@ -63,10 +64,13 @@ executing; this ticket dates and drifts.
 
 ## Fix BOTH to the CR-correct primitive
 
-- **`DeonticAction::Untap` → `CantHappen(Becomes Untapped)`** [CR#614.17]. "Doesn't
-  untap" is a can't-happen effect (the untap event never *would* happen,
-  [CR#502.3] "keep from untapping"), NOT a replacement ([CR#614.17] "aren't
-  replacement effects") and not a player-action restriction. Idris: replace the
+- **`DeonticAction::Untap` → `CantHappen(Becomes Untapped)`**. "Doesn't untap"
+  is modeled as a can't-happen effect, not a replacement and not a
+  player-action restriction. The CR does not settle this: [CR#614.17] covers
+  effects that state something can't happen, which "doesn't untap" never says,
+  and [CR#502.3]'s "keep … from untapping" is the wording [CR#122.1d] uses for
+  the stun counter's replacement. It is the engine's choice, UD-14 in
+  `docs/engine-adrs.md`. Idris: replace the
   `Replaces [Becomes Untapped]` note/impl (`Semantics.idr:274`) with `CantHappen`
   (already exists, `Semantics.idr:2877`). Rust: retire `DeonticAction::Untap`, model
   via `StaticEffect::CantHappen(Becomes Untapped)` (already exists). Winter Orb /

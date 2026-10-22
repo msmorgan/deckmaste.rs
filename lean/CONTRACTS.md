@@ -235,8 +235,11 @@ remains Rust's responsibility. The fold does not claim an execution proof.
 
 A lookback is a `DidClause`: a `Subject`, an `Action` and an optional `LookbackSpan`,
 either a `duration` (with an optional `Timing` the action happened under) or an
-occurrence (`thisWay`, the event the enclosing action caused; `triggering`, the event that
-triggered the ability), which names no span. `Condition.did`, `Predicate.did` and
+occurrence (`thisWay`, every event of the named kind the current spell or ability caused, paying
+its costs included, read through the referents it stamped (Participial Descriptions, below), so
+*Rally the Horde*'s "each nonland card exiled this way" reads the cards all three of its exiles
+exiled, and *Sinister Concierge*'s "each card exiled this way" reads both cards its optional exile
+and its "if you do" exile exiled; `triggering`, the event that triggered the ability), which names no span. `Condition.did`, `Predicate.did` and
 `Amount.tally` carry one; the `did` and `was` (agentless) templates write it, and only
 `Predicate.did`/`Predicate.was` may leave the span unwritten. An unwritten span is refused
 `unanchoredLookback` everywhere but a Participial Description (below). With no agent
@@ -325,8 +328,12 @@ they name now. "Card" reads the zone the object is in now; a Card Type or "perma
 permanent it is, if it is on the battlefield now (one a move put there), or else the permanent it
 was when acted on, a departed one by its last known information [CR#608.2h], so "each permanent
 put into a graveyard this way" reads a destroyed permanent and no discarded card
-(`permanentPutIntoAGraveyardReadsItsOrigin`). `thisWay` reads only referents the current ability stamped
-[CR#607.1c]; no span written also reads those a linked ability published, and a singular
+(`permanentPutIntoAGraveyardReadsItsOrigin`). `thisWay` reads every referent the current ability
+stamped, inside an optional body or not (`okEachCardOfSeveralExiles`,
+`thisWayReadsWhatItsCostDid`, `eachCardExiledThisWayReadsEveryExile`), and none a linked ability
+published,
+since "this way" is no linking phrase [CR#607.1,607.2a]; no span written also reads those a linked
+ability published, and a singular
 `the` reads a published group [CR#607.3]. `participialRead` resolves: a group determiner
 reads every candidate (a Card Type picks members, asking nothing of the group); `the`
 reads one site, one object of the current ability or what one linked ability published,
@@ -552,7 +559,7 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `simultaneously` | Step each member after the previous one, withholding the new outcomes of earlier siblings from later ones. |
 | Predicate sibling modifiers, condition siblings | Step in the same containing context under the head's kind; conjunction does not open clauses. |
 | Alternatives, modes and result-table rows | Noun alternatives step each member from the enclosing context and merge what they introduce; cost alternatives publish nothing; trigger alternatives and joined headers keep what every header introduces (`commonHeaderContext`). Each mode branches from the enclosing context, its cost before its body, and publishes nothing (`stepModeListWith`); result-table rows check a nonzero literal range before each body (`stepRollRowListWith`). |
-| `withContinuation` (`may` / `doIfDone` templates) | The body, the success arm after the body, and the failure arm from before the body each open a clause; only the optional body's shortfall and repeat count, and the choice evidence, escape. |
+| `withContinuation` (`may` / `doIfDone` templates) | The body, the success arm after the body, and the failure arm from before the body each open a clause; only the optional body's shortfall and repeat count, the choice evidence, and the objects the body or an arm stamped escape. A stamped object escapes into `DRS.participialOnly` (an earlier object, moved or not, under its earlier id, read once however many paths stamped it, `objectStampedOnTwoPathsIsReadOnce`; one an arm introduced under a fresh id), read by a Participial Description alone ("each card exiled this way"), never by a pronoun, a group, a count or a Contrast Anchor (owner ruling 2026-10-22: "this way" ranges over the events that happened; `eachCardExiledThisWayReadsEveryExile`, `optionalBodyObjectEscapesOnlyToParticipialReads`). |
 | `doIf` (`doIf` / `doOnlyIf` templates) | `doIf` first announces the then-branch's targets, chosen as the spell or ability is put on the stack [CR#601.2c]; the condition reads them, wherever it is printed (`doOnlyIf`, "counter target spell if …"), but nothing else the branch would choose or create. It then steps the then-branch in a new clause after the condition, under the ids it announced its targets with, so a later line reads the target the condition read; the condition's referents take ids past those reserved for the branch, and should the branch, in the condition's context, need more ids than reserved, it takes fresh ones instead, so no two referents share an id (`conditionalBranchIdsNeverCollideWithTheCondition`); its output continues when there is no else-branch. The else-branch is stepped from the context before the `doIf`, plus the announced targets and the amounts the then-branch names ("otherwise, each opponent loses that much life"); an indefinite participant the then-branch would choose as it resolves is not in it (`badOtherwiseReadsIndefiniteThenArm`). With an else-branch, only the then-branch's targets escape. |
 | `doForEach`, `doForEachKind` | Push one singular loop referent (or one quality) at the header clause and step the body in the next clause; on exit keep only outer referents, with their updates, and publish the loop's choice history, explicit target results and created results as plural aggregates (`publishLoopTargetResults`, `publishLoopCreatedResults`); `doForEachKind` also publishes each outcome sort its body published, once and as a group (`publishLoopOutcomes`), so doubling each kind of counter puts counters. |
 | `enact` | The performer in context (`actorShape?`) is checked at the deed's agent kind; a deed performed by a permanent with no handoff to one gets a frame for the source permanent. Post-event, the body's patients receive the deed's stamp (`applyInPlaceStamp`). |
@@ -1183,6 +1190,15 @@ The verbs `die`, `leave` and `enter`, which move the clause's own subject
 departure patterns observe on departure; ordinary arrivals observe on arrival.
 In particular, graveyard arrival from anywhere is not a battlefield-departure
 pattern [CR#603.6c,603.10a]. The raw observation point retains the distinction.
+The put and return Templates take it from `Location.observedOnDeparture`, which
+classes a written origin list as departure-observed when any of its origins is
+(an ability that watches a permanent leave the battlefield is a
+leaves-the-battlefield ability whatever else it watches [CR#603.6c]), and the
+checker reads a move's own observation point: only a departure-observed move
+from the battlefield reads its patient as the permanent it was, so a mixed
+origin list cannot be read historically while it is classed as an arrival
+(`mixedOriginWithTheBattlefieldIsObservedOnDeparture`,
+`mixedOriginReadsThePermanentOnlyOnDeparture`).
 Interception publishes departure location; a triggered continuation publishes
 arrival location. Historical observation publishes mentions without moving current
 references or manufacturing an event outcome. Source and destination possessors

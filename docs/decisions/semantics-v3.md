@@ -459,7 +459,7 @@ structure DeonticMods where
 | Old `StaticSpec` Form | `semantics-v3` Form | Example |
 |---|---|---|
 | `deonticRule(s, .prohibit, deeds, .agent, ...)` | `cant(s, action, mods)` | `cant(this, block(any))` (*"This creature can't block."*) |
-| `deonticRule(s, .prohibit, deeds, .patient, .noPatient, ...)` | `cant(any, action, mods)` | `cant(any, sacrifice(this))` (*"This permanent can't be sacrificed."*), `cant(any, untap(this))` (*"doesn't untap"* `[CR#614.17,502.3]`) |
+| `deonticRule(s, .prohibit, deeds, .patient, .noPatient, ...)` | `cant(any, action, mods)` | `cant(any, sacrifice(this))` (*"This permanent can't be sacrificed."*), `cant(any, untap(this))` (*"doesn't untap"*: the CR leaves its classification open, and `cant` is the engine's choice, UD-14 in `docs/engine-adrs.md`) |
 | `deonticRule(s, .prohibit, deeds, .patient, .counterpart b, ...)` | `cant(by(b), action, mods)` | `cant(by(a(goblin)), block(this))` (*"This creature can't be blocked by Goblins."*) |
 | `deonticRule(s, .prohibit, [.core .haveCountersPutOn], .agent, ...)` | `cant(any, putCounters(any, any, s), mods)` | *"can't have counters put on it"* |
 | `deonticRule(s, .prohibit, [.target], .patient, .targetedBy src, ...)` | `cant(by(src), target(s), mods)` | *"can't be the target of spells or abilities your opponents control"* (shroud/hexproof/protection) |
@@ -518,7 +518,10 @@ or the bare plural, whose predicate has a conjunct `Predicate.did` with no span 
 referent in scope that deed stamped, filtered by the other conjuncts' Head Noun read as the object
 was when acted on (`card`, a battlefield location as "permanent", Card Types `[CR#608.2h]`), and
 refuses with `Refusal.participialDescription deed n` when `n ≠ 1`. `thisWay` reads only referents
-the current ability stamped `[CR#607.1c]`; no span also reads those a linked ability published
+the current ability stamped, since "this way" is no linking phrase `[CR#607.1,607.2a]`, including
+those stamped inside an optional (`withContinuation`) body or arm, which escape it to Participial
+Descriptions only, never to pronouns (owner ruling 2026-10-22: "this way" ranges over the events
+that happened); no span also reads those a linked ability published
 `[CR#607.2a]`, where a singular `the` reads a published group `[CR#607.3]`. `Reach.verbed`,
 `VerbedMarking` and `theVerbed` are retired; "it"/"them"/"that card" are ordinary pronouns.
 Linked and self-linked abilities share one authored AST (`deckmaste_spelling` needs one AST per

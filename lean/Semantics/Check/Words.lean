@@ -428,6 +428,9 @@ structure Referent where
   /-- Whether its description says "you control" (`some true`) or that an opponent, or not you,
   controls it (`some false`); `none` when it says neither. -/
   controlledByYou : Option Bool := none
+  /-- The ids this object's referent had before the Zone Changes the checker applied to it,
+  latest first: a move is a new object [CR#400.7], read under a fresh id. -/
+  movedFrom : List ReferentId := []
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -531,6 +534,13 @@ structure DRS where
   clauseParticipants : List Referent := []
   /-- Contrast Anchors resolved so far, latest first. -/
   contrastAnchors : List ContrastAnchor := []
+  /-- The objects a `withContinuation` body or arm stamped ("you may exile it"), escaping it only
+  to Participial Descriptions ("each card exiled this way"), which range over the events that
+  happened (owner ruling 2026-10-22). They are not `referents`, so no pronoun, group, count or
+  Contrast Anchor reads them; `DRS.participialReferents` does, and a Participial Description
+  that reads one mentions it, moving it into `referents` (in place of the earlier object of its
+  id, if it is one). -/
+  participialOnly : List Referent := []
   deriving DecidableEq, Repr
 
 def DRS.ofList (rs : List Referent) : DRS :=
@@ -553,6 +563,12 @@ def DRS.isVisible (drs : DRS) (id : ReferentId) : Bool :=
 /-- All referents currently visible in `drs` (excluding masked caller referents). -/
 def DRS.visibleReferents (drs : DRS) : List Referent :=
   drs.referents.filter fun r => drs.isVisible r.id
+
+/-- The referents a Participial Description reads: those an optional body stamped
+(`DRS.participialOnly`), then the visible ones. An earlier object the body stamped keeps its id,
+so it may appear twice, once as it stood before the body and once after. -/
+def DRS.participialReferents (drs : DRS) : List Referent :=
+  drs.participialOnly.filter (fun r => drs.isVisible r.id) ++ drs.visibleReferents
 
 def DRS.isEmpty (drs : DRS) : Bool := drs.visibleReferents.isEmpty
 
@@ -1228,13 +1244,17 @@ def Referent.anchoredBy (b : Referent) : ParticipialAnchor → Bool
 
 /-- The objects `anchor` reads back that a Participial Description admits: of its number (`plur`;
 none for a group determiner, which reads members of any number), within its span (`thisWay`:
-only objects the current ability stamped [CR#607.1c]; no span written: also those a linked
+only objects the current ability stamped, an optional body's included
+(`DRS.participialOnly`), since "this way" is no linking phrase
+[CR#607.1,607.2a]; no span written: also those a linked
 ability published, where a singular "the" reads a group the linked ability acted on
 [CR#607.2a,607.3]), named by `word` as `stampedWordOk` reads it, and in each of `zones`. -/
 def participialCandidates (anchor : ParticipialAnchor) (plur : Option Plurality)
     (word : Option NounWord) (thisWay : Bool) (drs : DRS) (zones : List Zone := []) :
     List Referent :=
-  drs.visibleReferents.filter fun b =>
+  -- One object is one candidate: an earlier object an optional body stamped again is read once,
+  -- as it stood after the body if that stamp reads it, else as it stood before.
+  let found := drs.participialReferents.filter fun b =>
     !b.isActorFrame && Kind.lte .object b.kind && b.anchoredBy anchor &&
       (!thisWay || !b.linked) &&
       (match plur with
@@ -1246,6 +1266,7 @@ def participialCandidates (anchor : ParticipialAnchor) (plur : Option Plurality)
        | some w, .object ty zn (some st) og _ => stampedWordOk w st ty zn og
        | some _, _ => false) &&
       zones.all (fun zone => b.zone == some zone)
+  found.foldr (fun b kept => b :: kept.filter (·.id != b.id)) []
 
 /-- How a Participial Description reads the candidates it found: the referents it denotes, or
 how many it found where it denotes none. A group determiner ("each creature exiled this way")

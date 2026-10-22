@@ -547,7 +547,8 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
               id := freshId
               idents := []
               payload := payload
-              librarySearchResult := false }
+              librarySearchResult := false
+              movedFrom := oldId :: r.movedFrom }
           else match r.payload with
             | .actor shape =>
               { r with payload := .actor { shape with refIds := shape.refIds.map remap } }
@@ -2132,6 +2133,26 @@ def checkTextWith (ops : StepOps) (drs : DRS) (abilities : List Ability) : List 
   (abilities.foldl (fun (context, errors) ability =>
     (Ability.textContextWith ops context ability, errors ++ ops.ab context ability)) (drs, [])).2
 
+/-- The objects a `withContinuation` body or arm, stepped from `before` to `after`, stamped: one
+it introduced with a stamp, or an earlier one whose stamp it changed ("you may exile it"), as it
+stands after the body, a moved one included (`Referent.movedFrom`). `stepOps` escapes each to
+Participial Descriptions only (`DRS.participialOnly`; owner ruling 2026-10-22): an earlier object
+under its earlier id, so that it is read once (`participialCandidates`), a new one under a fresh
+id. -/
+def continuationStamped (before after : DRS) : List Referent :=
+  after.participialReferents.filterMap fun ref =>
+    let stamped := match ref.payload with
+      | .object _ _ (some _) _ _ => true
+      | _ => false
+    if ref.isActorFrame || ref.linked || !stamped then none
+    else if ref.id < before.nextId then
+      if (before.findById? ref.id).any (·.payload.prov != ref.payload.prov) then some ref else none
+    else
+      -- A moved earlier object is that object after the body, under its earlier id.
+      match ref.movedFrom.find? (fun id => (before.findById? id).isSome) with
+      | some source => some { ref with id := source }
+      | none => some ref
+
 def stepOps : Nat → StepOps
   | 0 => {
       pred := fun drs _ => (drs, [.recursionLimit]),
@@ -2380,8 +2401,13 @@ def stepOps : Nat → StepOps
             let agentErrors := refuse (clause.participialAgentOk anchor) .participialAgent
             match participialRead plur found with
             | .ok read =>
-              -- Read back, an object a linked ability published is mentioned in this one.
+              -- Read back, an object a linked ability published, or one an optional body
+              -- stamped, is mentioned in this one.
               let mentioned := read.foldl (fun d ref =>
+                let d := if d.participialOnly.contains ref then
+                    { d with referents := ref :: d.referents.filter (·.id != ref.id),
+                             participialOnly := d.participialOnly.filter (· != ref) }
+                  else d
                 (d.updateById ref.id fun ref => { ref with linked := false }).recordMention ref.id
                   role inArgSlot) drs2
               (mentioned, read.map (·.id), e1 ++ e2 ++ agentErrors)
@@ -3152,8 +3178,10 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := stepBallotWith ops drs1 ballot
           let drs3 := drs2.push (outcomeB .voteHeld) .other false
           (drs3, e1 ++ e2 ++ refuse (first.isNone || actorPlurality drs == .many) .choiceOrder)
-        | .move subj from_ to _ optCause riders =>
-          let historicalOrigin := match from_.positiveZones? with
+        | .move subj from_ to at_ optCause riders =>
+          -- The move's own Observation Point (`Location.observedOnDeparture` for the put and
+          -- return Templates) decides whether its battlefield patient is the permanent it was.
+          let historicalOrigin := at_ == .departure && match from_.positiveZones? with
             | some zones => zones.any (fun zone => zone.sort == some .battlefield)
             | none => false
           let readContext := if drs.actionPattern && historicalOrigin then
@@ -3363,9 +3391,23 @@ def stepOps : Nat → StepOps
               ref.id >= drs.nextId && (ref.payload == .outcome .ceilingShortfall ||
                 (body.hasRepeatedPayment && ref.payload == .outcome .repeatCount)))
             else []
+          -- What the body and its arms stamped escapes them to Participial Descriptions only
+          -- (owner ruling 2026-10-22): "this way" ranges over the events that happened.
+          -- An earlier object keeps its id, and both paths stamping it escape it once; what an
+          -- arm introduced takes a fresh id, as the two arms number from the same `nextId`.
+          let armsNextId := max drs2.nextId drs3.nextId
+          let fromBody := continuationStamped drs drs2
+          let fromOther := (continuationStamped drs drs3).filter fun ref =>
+            ref.id >= drs.nextId || !fromBody.any (·.id == ref.id)
+          let stamped := fromBody ++ fromOther
+          let introduced := stamped.filter (·.id >= drs.nextId)
+          let renumbered := introduced.zipIdx.map fun (ref, index) =>
+            { ref with id := armsNextId + index }
           ({ drs with
               referents := shortfalls ++ drs.referents
-              nextId := max drs2.nextId drs3.nextId
+              participialOnly := stamped.filter (·.id < drs.nextId) ++ renumbered ++
+                drs.participialOnly
+              nextId := armsNextId + introduced.length
               nextSelectionScope := max drs2.nextSelectionScope drs3.nextSelectionScope
               selectionEvidence := evidence }, e1 ++ e2 ++ e3 ++ policyErrors)
         | .limited inst limit =>

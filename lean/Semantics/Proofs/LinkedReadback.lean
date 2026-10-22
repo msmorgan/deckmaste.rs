@@ -137,7 +137,8 @@ theorem okPronounAfterReadBack :
   decide
 
 /-- "With 'this way' written, only the current ability's own deed": "the card exiled this way"
-does not reach the linked ability's [CR#607.1c]. -/
+does not reach the linked ability's, because "exiled this way" is no linking phrase
+[CR#607.1,607.2a]. -/
 theorem badThisWayReadsNoLinkedObject :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,

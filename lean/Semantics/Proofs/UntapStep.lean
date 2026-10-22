@@ -36,6 +36,24 @@ theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) (whose : Option No
       (untap subject).inferredDeed = some (.action "untap") :=
   ⟨rfl, rfl⟩
 
+/-- The stun counter's replacement effect [CR#122.1d]: "If a permanent with a stun counter on it
+would become untapped, instead remove a stun counter from it." -/
+private def stunReplacement : Ability :=
+  static (replace (would any (untap (a (and [isPermanent, hasCounter (some stunCounter)]))))
+    (instead (removeCounters (exactly 1) stunCounter it)))
+
+/-- UD-14 (`docs/engine-adrs.md`): "doesn't untap" is a prohibition, the engine's choice where
+the CR is silent, not a replacement. It forbids, with `cant`, the very `untap` Deed the stun
+counter's replacement watches, so on a tapped permanent with both the untap can't happen, the
+stun replacement can't apply to it [CR#614.17c], and the stun counter stays; as a replacement
+it would instead be ordered against the stun counter's [CR#616.1]. -/
+theorem doesntUntapIsNoStunReplacement :
+    doesntUntap thisPermanent none = duringUntapStep none (cant any (untap thisPermanent)) ∧
+      (untap thisPermanent).inferredDeed =
+        (untap (a (and [isPermanent, hasCounter (some stunCounter)]))).inferredDeed ∧
+      Ability.check (DRS.ofList []) stunReplacement = [] :=
+  ⟨rfl, rfl, by decide⟩
+
 /-- "Untap <subject> during [<whose>] untap step" is the `must` Template over the `untap`
 Definition. -/
 theorem untapDuringIsMust (subject : NounPhrase) (whose : Option NounPhrase) :

@@ -350,7 +350,9 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   (`inOrder`, `faceDown`, `withCounters`) into a single `MoveRider` enum.
 - `Location.positiveZones? : Location → Option (List Location)` drives both LKI
   (`historicalMoveFrom := some .battlefield`) and `putInto` departure-vs-arrival
-  classification (`[CR#603.6c,603.10a]`).
+  classification (`[CR#603.6c,603.10a]`), through one classifier:
+  `Location.observedOnDeparture` writes the move's Observation Point, and the
+  checker reads that point, so a mixed origin list is classed one way for both.
 
 ---
 
