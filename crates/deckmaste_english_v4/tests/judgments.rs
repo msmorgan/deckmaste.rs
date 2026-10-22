@@ -169,7 +169,6 @@ fn false_judgments_fail() {
 + Search your library for a card. => PrepositionPhrase "for a card" as Modifier of library
 + Search your library for a card. => !NounPhrase "a card"
 + Exile target creature with a counter on it. => PrepositionPhrase "with a counter on it" as Adjunct of creature
-+ Exile target creature with a counter on it. => PrepositionPhrase "with a counter on it" as Adjunct of exile; ranks first
 + Exile the card you put into your hand. => Clause "you put into your hand" gap "hand"
 + Exile the card you put into your hand. => NounPhrase "the card"#2
 + Put the card.

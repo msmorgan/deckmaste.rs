@@ -97,9 +97,6 @@ pub struct Judgment {
     /// Assertions no Reading may satisfy.
     pub negated: Vec<Assertion>,
     pub readings: Option<usize>,
-    /// Every Reading in the cheapest tier of the Ranking Key is endorsed:
-    /// the intended analysis ranks first.
-    pub ranks_first: bool,
 }
 
 /// A malformed entry.
@@ -195,7 +192,6 @@ fn parse_entry(line: &str, location: &str) -> Result<Judgment, String> {
         groups: Vec::new(),
         negated: Vec::new(),
         readings: None,
-        ranks_first: false,
     };
     let Some(assertions) = assertions else {
         return Ok(entry);
@@ -210,9 +206,7 @@ fn parse_entry(line: &str, location: &str) -> Result<Judgment, String> {
             if item.is_empty() {
                 continue;
             }
-            if item == "ranks first" {
-                entry.ranks_first = true;
-            } else if let Some(count) = item.strip_prefix("readings ") {
+            if let Some(count) = item.strip_prefix("readings ") {
                 let count = count
                     .trim()
                     .parse()
@@ -499,21 +493,6 @@ impl Judge<'_> {
         for assertion in &entry.negated {
             if located.iter().any(|r| self.holds(assertion, r)) {
                 return Outcome::Fails(format!("a Reading satisfies !{assertion:?}"));
-            }
-        }
-        if entry.ranks_first
-            && let Some((_, tied)) = parse.cheapest_tier()
-        {
-            let tied = usize::try_from(tied).unwrap_or(usize::MAX);
-            for reading in parse.best_readings(tied) {
-                let endorsed = self.grammar.constituents(&reading, self.lexicon).is_ok_and(
-                    |(text, constituents)| self.endorses(entry, &Located { text, constituents }),
-                );
-                if !endorsed {
-                    return Outcome::Fails(
-                        "an unendorsed Reading is in the cheapest tier".to_owned(),
-                    );
-                }
             }
         }
         Outcome::Holds

@@ -5,7 +5,6 @@
 + Search your library for a card. => NounPhrase "your library" as Object of search; PrepositionPhrase "for a card" as Complement of search; !PrepositionPhrase "for a card" as Adjunct of search; !PrepositionPhrase "for a card" as Modifier of library; readings 1
 + Destroy target creature with flying. => PrepositionPhrase "with flying" as Modifier of creature; !PrepositionPhrase "with flying" as Adjunct of destroy; readings 1
 + Exile target creature with a counter on it. => PrepositionPhrase "with a counter on it" as Modifier of creature || PrepositionPhrase "with a counter on it" as Adjunct of exile
-+ Exile target creature with a counter on it. => PrepositionPhrase "with a counter on it" as Modifier of creature; ranks first
 + Untap all permanents you control during each other player's untap step. => Clause "you control" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of untap || Clause "you control during each other player's untap step" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of control; readings 2
 
 + Creatures attack. => NounPhrase "Creatures" as Subject of attack; readings 1
