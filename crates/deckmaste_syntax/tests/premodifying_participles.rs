@@ -80,7 +80,8 @@ const GRAMMAR: &str = r#"(
         (name: "Fragment", lhs: "Sentence", rhs: [Cat("head", "NounPhrase"), Punct(';')]),
     ],
     schemas: [
-        Premodification(head: Verb, modifier: "Participle", host: "Nominal", forms: [GerundParticiple, PastParticiple]),
+        Premodification(head: Verb, modifier: "Participle", host: "Nominal", forms: [GerundParticiple, PastParticiple],
+            equations: [(PastParticiple, [Exclude("head.AdjectivalPassive", "Lexical")])]),
         Valence(head: Noun, phrase: "Nominal"),
     ],
 )"#;

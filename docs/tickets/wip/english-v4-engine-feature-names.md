@@ -79,5 +79,5 @@ Out of scope: `gap_named` (the engine's own Gap kinds), `FORBIDDEN_SUFFIXES`
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `zqoxrvwo` → this landing, `qxxtsxny`): faces read 28,800 → 28,800, total Readings 237,320 → 237,320, Surplus 101,963 → 101,963; lost faces: none. The census report is identical unit for unit (all 92,934 units: verdict, derivations, segments, Surplus, cheapest tier).
+Judgment set: holds (every enforced judgment passes); `english-v4 parse --limit 8` over all 3,268 judgment entries prints byte-identical best Readings, trees and Ranking Keys before and after.

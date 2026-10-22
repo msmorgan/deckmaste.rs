@@ -1,7 +1,7 @@
-//! A Valence schema's `internalised` equations constrain the Internalised Complement
-//! of every derived passive: with them, *reduced by 2* is only the `PP[by]`
-//! extent its frame selects, and *reduced by Zombies* keeps its Internalised
-//! Complement (CGEL,
+//! A Valence schema's `internalised` equations constrain the Internalised
+//! Complement of every derived passive: with them, *reduced by 2* is only the
+//! `PP[by]` extent its frame selects, and *reduced by Zombies* keeps its
+//! Internalised Complement (CGEL,
 //! Ch. 8 §5.2, p. 692; Ch. 16 §10.1.1, p. 1428).
 
 use deckmaste_lexical::Category;
@@ -59,7 +59,10 @@ const FRAMES: &str = r#"(
 )"#;
 
 /// The grammar, with `internalised` spliced into its verb Valence schema.
-fn grammar(lexicon: &Lexicon, internalised: &str) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
+fn grammar(
+    lexicon: &Lexicon,
+    internalised: &str,
+) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
     let source = format!(
         r#"(
     root: "Sentence",
@@ -90,8 +93,10 @@ fn grammar(lexicon: &Lexicon, internalised: &str) -> Result<CompiledGrammar, dec
         (name: "Bare", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")]),
     ],
     schemas: [
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [{internalised}]),
-        Valence(head: Preposition, phrase: "PrepositionPhrase"),
+        Valence(head: Verb, phrase: "VerbPhrase", active: [Require("$.Voice", "Active")], passive: Some("By"),
+            verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")], internalised: [{internalised}]),
+        Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind")),
         Valence(head: Noun, phrase: "Nominal"),
     ],
 )"#
@@ -127,7 +132,10 @@ const BY_NP: &str = r#"Require("internalised.ComplementKind", "NP")"#;
 fn an_unconstrained_internalised_complement_doubles_a_selected_by_extent() {
     assert_eq!(
         families("", "Reduced by 2."),
-        [Some(FrameFamily::Monotransitive), Some(FrameFamily::TransitiveWithPP)]
+        [
+            Some(FrameFamily::Monotransitive),
+            Some(FrameFamily::TransitiveWithPP)
+        ]
     );
 }
 

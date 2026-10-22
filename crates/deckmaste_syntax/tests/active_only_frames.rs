@@ -88,7 +88,11 @@ const GRAMMAR: &str = r#"(
     ],
     schemas: [
         Premodification(head: Verb, modifier: "Participle", host: "Nominal", forms: [PastParticiple]),
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), adjectival: Some("AdjectivePhrase")),
+        Valence(head: Verb, phrase: "VerbPhrase", active: [Require("$.Voice", "Active")], passive: Some("By"),
+            verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            adjectival: Some("AdjectivePhrase"),
+            adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.Voice", "Passive")]),
         Valence(head: Preposition, phrase: "PrepositionPhrase"),
         Valence(head: Noun, phrase: "Nominal"),
     ],

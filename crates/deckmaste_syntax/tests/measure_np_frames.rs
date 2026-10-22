@@ -80,7 +80,9 @@ const GRAMMAR: &str = r#"(
         (name: "Bare", lhs: "NounPhrase", rhs: [Lex("head", Noun)]),
     ],
     schemas: [
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By")),
+        Valence(head: Verb, phrase: "VerbPhrase", active: [Require("$.Voice", "Active")], passive: Some("By"),
+            verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")]),
         Valence(head: Preposition, phrase: "PrepositionPhrase"),
     ],
 )"#;
@@ -109,7 +111,9 @@ fn only_reading(text: &str) -> Reading {
 /// The Object's fill in the verb phrase's Selected Frame.
 fn object_fill(reading: &Reading) -> SlotFill {
     let phrase = reading.node().unwrap().children[0].node().unwrap();
-    phrase.selected_frame.as_ref().unwrap().slots[0].fill.clone()
+    phrase.selected_frame.as_ref().unwrap().slots[0]
+        .fill
+        .clone()
 }
 
 #[test]
@@ -132,7 +136,10 @@ fn the_selecting_verb_keeps_its_general_object() {
 fn a_measure_noun_phrase_is_no_general_object() {
     let lexicon = lexicon();
     let grammar = grammar(&lexicon);
-    assert_eq!(grammar.parse(&lexicon, "Draw 2.").readings(), [] as [Reading; 0]);
+    assert_eq!(
+        grammar.parse(&lexicon, "Draw 2.").readings(),
+        [] as [Reading; 0]
+    );
     assert_eq!(grammar.parse(&lexicon, "Draw card.").readings().len(), 1);
 }
 

@@ -1375,7 +1375,7 @@ impl CompiledGrammar {
                     f.tense.map(|t| format!("{t:?}")),
                     verb_form.map(str::to_owned),
                     f.case.map(|c| format!("{c:?}")),
-                    Some(format!("{:?}", value.form)),
+                    Some(inflection_name(value.form)),
                     facts
                         .countability
                         .map(|c| c.as_str().to_owned())
@@ -1427,8 +1427,10 @@ impl CompiledGrammar {
                         std::cmp::Ordering::Greater => "Positive",
                     };
                     let mut features = [None; MAX_FEATURES];
-                    for (id, name) in [(self.projected[0], number), (self.projected[7], Some(sign))]
-                    {
+                    for (id, name) in [
+                        (self.projected[crate::compile::NUMBER], number),
+                        (self.projected[crate::compile::SIGN], Some(sign)),
+                    ] {
                         let (Some(id), Some(name)) = (id, name) else { continue };
                         if let Some(value) = self.values[id].iter().position(|v| v == name)
                             && let Ok(value) = u16::try_from(value)
@@ -1449,6 +1451,11 @@ impl CompiledGrammar {
             }),
         }
     }
+}
+
+/// The `Inflection` value the engine projects from a Word Form: its name.
+pub(crate) fn inflection_name(form: WordForm) -> String {
+    format!("{form:?}")
 }
 
 /// Every lexical value the engine projects onto a grammar feature of this name.

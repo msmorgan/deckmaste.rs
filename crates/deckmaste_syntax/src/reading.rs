@@ -257,7 +257,7 @@ impl Parse<'_> {
             words: self.words(node.start, node.end),
             coordination: node.summary.coordinator.is_some(),
             head_final: node.summary.head_final,
-            distributive: self.distributive(n),
+            high_attachment: self.high_attachment(n),
         };
         let head = || {
             let (at, head_item) = earlier("head")?;
@@ -293,11 +293,11 @@ impl Parse<'_> {
             })
     }
 
-    /// Whether a forest node is a Preposition Phrase whose Complement has a
-    /// `Distributive` determinative, which the Preposition Phrase carries.
-    fn distributive(&self, node: usize) -> bool {
+    /// Whether a forest node attaches high by its Attachment Class, by the
+    /// grammar's `high_attachment` declarations.
+    fn high_attachment(&self, node: usize) -> bool {
         let packed = &self.forest.nodes[node];
-        self.grammar.distributive_phrase(
+        self.grammar.attaches_high(
             &self.grammar.feature_map(packed.category, &packed.summary),
             packed.category,
         )
@@ -433,9 +433,10 @@ pub(crate) struct ChildFacts {
     pub coordination: bool,
     /// It ends in its head, not in a dependent.
     pub head_final: bool,
-    /// It is a Preposition Phrase whose Complement has a `Distributive`
-    /// determinative.
-    pub distributive: bool,
+    /// It attaches high by its Attachment Class, by the grammar's
+    /// `high_attachment` declarations (a distributive Preposition Phrase,
+    /// *for each …*).
+    pub high_attachment: bool,
 }
 
 /// What computing a Reading's key from its tree reads: its realized text
@@ -571,7 +572,7 @@ impl CompiledGrammar {
                 words: context.words(index),
                 coordination: self.is_coordination(child),
                 head_final: self.head_final(child),
-                distributive: self.is_distributive(child),
+                high_attachment: self.is_high_attachment(child),
             };
             key = key
                 + self.attachment_key(
@@ -618,27 +619,24 @@ impl CompiledGrammar {
         })
     }
 
-    /// Whether a Reading is a Preposition Phrase whose Complement has a
-    /// `Distributive` determinative.
-    fn is_distributive(&self, reading: &Reading) -> bool {
+    /// Whether a Reading attaches high by its Attachment Class.
+    fn is_high_attachment(&self, reading: &Reading) -> bool {
         reading.node().is_some_and(|node| {
             self.category_id(node.category.as_str())
-                .is_some_and(|category| self.distributive_phrase(&node.features, category))
+                .is_some_and(|category| self.attaches_high(&node.features, category))
         })
     }
 
-    /// Whether a Constituent of `category` with these features is a
-    /// Preposition Phrase whose Complement has a `Distributive` determinative
-    /// (*for each …*), which it carries as its `DeterminativeDistribution`.
-    pub(crate) fn distributive_phrase(
-        &self,
-        features: &BTreeMap<Ident, Ident>,
-        category: usize,
-    ) -> bool {
-        self.categories[category].as_str() == "PrepositionPhrase"
-            && features
-                .get(&Ident::from("DeterminativeDistribution"))
-                .is_some_and(|value| value.as_str() == "Distributive")
+    /// Whether a Constituent of `category` with these features attaches high
+    /// by its Attachment Class: the grammar declares its Category with a
+    /// value it carries in `high_attachment` (a Preposition Phrase whose
+    /// Complement has a distributive determinative, *for each …*).
+    pub(crate) fn attaches_high(&self, features: &BTreeMap<Ident, Ident>, category: usize) -> bool {
+        self.high_attachment
+            .iter()
+            .any(|(declared, feature, value)| {
+                self.categories[category] == *declared && features.get(feature) == Some(value)
+            })
     }
 
     /// The words a leaf realizes.
@@ -660,9 +658,9 @@ impl CompiledGrammar {
     ///   interleaved dependent).
     /// - A dependent whose class attaches high counts its distance from its
     ///   host's head reversed instead: a Supplement (`supplement`), and a
-    ///   distributive adjunct, whose Complement has a `Distributive`
-    ///   determinative (*for each …*), which also takes back what the head
-    ///   added for it.
+    ///   dependent the grammar declares in `high_attachment` (a distributive
+    ///   adjunct, *for each …*), which also takes back what the head added for
+    ///   it.
     /// - The last conjunct of a coordination adds the difference between its
     ///   length and its first conjunct's (conjunct balance), and violates an
     ///   Attachment Class when it ends in a dependent its first conjunct, which
@@ -700,7 +698,7 @@ impl CompiledGrammar {
                     let between = signed(before().saturating_sub(head_words));
                     key.right_association_words = if name == "supplement" {
                         -host - between
-                    } else if child.distributive {
+                    } else if child.high_attachment {
                         // The head added the host for it, unless the host is
                         // a coordination; this does not depend on which.
                         -2 * host - between
@@ -828,7 +826,10 @@ impl CompiledGrammar {
             .map(|offset| chars[offset.start]..chars[offset.end])
             .collect();
         let mut next = 0;
-        if self.atomic_reading(reading, &atoms, &atomic, &mut next)?.is_none() {
+        if self
+            .atomic_reading(reading, &atoms, &atomic, &mut next)?
+            .is_none()
+        {
             return Err(AdmissionError::Rejected {
                 production: "lexical atomicity".into(),
                 reason: "a declared multiword noun's words rebuild it".into(),

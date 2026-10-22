@@ -386,6 +386,16 @@
         Gerund: "Gerund",
         QuotedAbility: "QuotedAbility",
     },
+    // A Noun Phrase Complement of a verb, preposition or other head is never
+    // nominative.
+    slot_equations: {
+        NP: [Exclude("slot.Case", "Nominative")],
+    },
+    // A distributive adjunct, whose Complement has a Distributive
+    // determinative (*for each …*), anchors to the outermost eligible clause,
+    // as a comma-set Supplement does (`docs/decisions/english-v4.md` §4.3,
+    // AttachmentClass).
+    high_attachment: [("PrepositionPhrase", "DeterminativeDistribution", "Distributive")],
     productions: [
         (name: "TextMode", lhs: "Document", rhs: [Cat("head", "Mode")]),
         (name: "TextModalHeader", lhs: "Document", rhs: [Cat("head", "ModalHeader")]),
@@ -1388,7 +1398,11 @@
 
     ],
     schemas: [
-        Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true),
+        // A past participle spelled like a declared Adjective (*tapped*) has
+        // that Adjective as its Adjectival Passive, which premodifies in its
+        // place.
+        Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true,
+            equations: [(PastParticiple, [Exclude("head.AdjectivalPassive", "Lexical")])]),
         Parameters(head: Noun, phrase: "IndexedNominal"),
         Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator")),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
@@ -1397,16 +1411,32 @@
         // fused-head quantity or a symbol after *by* is an extent (*reduced
         // by {2}*, *increased by two*; Ch. 8 §5.2, p. 692); a *by* gerund is
         // a means Adjunct (p. 1428).
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")], adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"), clusters: Some("Coordinator")),
-        Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
-        Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
+        // Voice is a verb's: another head's phrase takes its Voice from the
+        // head (a declared Adjectival Passive). A passive is headed by a past
+        // participle. An auxiliary verb derives no
+        // prepositional passive and no Adjectival Passive, nor does a verb
+        // whose Adjectival Passive is a declared Adjective (*tapped*), which
+        // stands in its place; an Adjectival Passive is predicative.
+        Valence(head: Verb, phrase: "VerbPhrase",
+            active: [Require("$.Voice", "Active")],
+            passive: Some("By"),
+            verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
+            prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple"), Exclude("head.VerbKind", "Auxiliary")],
+            internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")],
+            adjectival: Some("AdjectivePhrase"),
+            adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
+            interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"), clusters: Some("Coordinator")),
+        // A non-verbal phrase names its first Complement's Slot Kind, or
+        // `Intransitive` without one.
+        Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
+        Valence(head: Noun, phrase: "BareNominal", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement
         // it selects (*until end of turn*, *on top of*, *in excess of*; CGEL,
         // Ch. 7 §3.1, pp. 618–620): a relational noun without it is no bare
         // count nominal (*the amount of [excess] damage dealt*).
         Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
-        Valence(head: Adjective, phrase: "AdjectivePhrase"),
-        Valence(head: Determinative, phrase: "DeterminerPhrase", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
+        Valence(head: Adjective, phrase: "AdjectivePhrase", complement_kind: Some("ComplementKind")),
+        Valence(head: Determinative, phrase: "DeterminerPhrase", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
         // A carrier noun distributes over a coordination of noun premodifiers
         // (`docs/oracle-style-guide.md` §7, Card types are common nouns and
         // attributive modifiers), and a later conjunct may carry its own
