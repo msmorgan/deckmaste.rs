@@ -98,6 +98,29 @@ theorem badConferralScopeKind :
       = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
 
+/-- [CR#702.170d] "A plotted card's owner may cast it from exile without paying its mana cost
+during their main phase while the stack is empty during any turn after the turn in which it became
+plotted. … A plotted card may be cast this way even if it doesn't have the plot ability while in
+exile." A rule for every plotted card, not part of plot's text [CR#702.170a]; "you" on a card in
+exile is its owner [CR#109.5]. -/
+def plottedCardCast : ConferralRule :=
+  { scope := .and [.isCard, hasDesignation plotted, in_ exileZone],
+    confer :=
+      static
+        (onlyUnless
+          (can you (cast this_ (from_ := exileZone) (payment := withoutPaying))
+            (timing := asSorcery))
+          (did any (gainDesignation this_ plotted) soFarThisTurn)) }
+theorem okPlottedCardCast : ConferralRule.check plottedCardCast = [] := by decide
+
+/-- [CR#702.143d] "That card's owner may look at that card as long as it remains in exile": the
+look right of every foretold card, whatever made it foretold. Its cast right, "for any foretell
+cost it has", needs a cost term naming a keyword's cost, which the grammar does not have. -/
+def foretoldCardLook : ConferralRule :=
+  { scope := .and [.isCard, hasDesignation foretold, in_ exileZone],
+    confer := static (visibility .lookAt you (objects this_)) }
+theorem okForetoldCardLook : ConferralRule.check foretoldCardLook = [] := by decide
+
 /-! ## Damage results -/
 
 /-- [CR#120.3c] "Damage dealt to a planeswalker causes that many loyalty counters to be removed
@@ -461,7 +484,7 @@ theorem badUnnamedPredefinedToken :
 lookback the grammar does not yet spell. -/
 def builtinTables : RulesTables :=
   { sba := [toughnessZero, loyaltyZero, battleDefenseZero],
-    conferral := [planeswalkerLoyalty, battleDefense],
+    conferral := [planeswalkerLoyalty, battleDefense, plottedCardCast, foretoldCardLook],
     damageResult := [planeswalkerLoyaltyDamage, battleDefenseDamage] }
 
 theorem okBuiltinTables : RulesTables.check builtinTables = [] := by decide

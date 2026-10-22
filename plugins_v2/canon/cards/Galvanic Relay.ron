@@ -11,7 +11,7 @@ SingleFaced(face: (
                 sequentially([
                     exile(slice(Top, 1, library(you))),
                     establish(
-                        mayPlayDeed(play, you, it, Play(None, None, None, false, ItsOwnCost)),
+                        mayPlayDeed(play, you, it, Play(None, None, None, false, ItsOwnCost, None)),
                         duringNextTurnOf(you),
                     ),
                 ]),

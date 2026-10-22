@@ -16,7 +16,7 @@ KeywordAbility(
                 cast,
                 you,
                 this,
-                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3]))),
+                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3])), None),
             ),
         ),
         static(specialAction(None, Param(0), setStatus(FaceUp, this))),

@@ -11,7 +11,7 @@ KeywordAbility(
     // instead of putting it anywhere else any time it would leave the stack."
     // [CR#702.34a]
     body: [
-        static(mayCastFor(you, Param(0), graveyardOf(you))),
+        static(mayCastFor(you, Param(0), graveyardOf(you), instantOrSorcery)),
         static(
             onlyWhile(
                 insteadOf(leavesZone(thisSpell, stack), exile(thisSpell)),

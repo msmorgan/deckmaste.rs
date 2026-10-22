@@ -3,4 +3,13 @@ KeywordAbility(
     params: [Cost],
     spelling: "multikicker <Param(0)>",
     grammar: FixedKeyword(surface: "multikicker"),
+    // "Multikicker [cost]" means "You may pay an additional [cost] any number of
+    // times as you cast this spell." A variant of kicker, so it carries kicker's
+    // label: a multikicker cost is a kicker cost [CR#702.33c], and a multikicked
+    // spell has been kicked [CR#702.33d]. The cost carries its repetition, as
+    // replicate's does.
+    label: kicker,
+    body: [
+        static(addedCost(Param(0), true, AnyNumberOfTimes)),
+    ],
 )

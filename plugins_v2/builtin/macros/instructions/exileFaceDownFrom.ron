@@ -1,0 +1,9 @@
+// "<performer> exiles <subject> from <from> face down" [CR#406.3]: the
+// face-down exile with its origin stated, so an ability whose cost or effect
+// makes it functions only in that zone [CR#113.6m].
+(
+    name: "exileFaceDownFrom",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "from": ZoneExpr},
+    body: Enact(verb: exile, instruction: Move(Param(subject), Param(from), exileZone, [Placement(FaceDown(exiledFaceDown))])),
+)

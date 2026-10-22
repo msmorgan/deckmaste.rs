@@ -25,7 +25,7 @@ KeywordAbility(
                     sequentially([
                         exile(becomes(thisSpell)),
                         establish(
-                            mayPlayDeed(cast, ownerOf(it), it, Play(exileZone, None, None, false, ItsOwnCost)),
+                            mayPlayDeed(cast, ownerOf(it), it, Play(exileZone, None, None, false, ItsOwnCost, None)),
                             onALaterTurn,
                         ),
                     ]),

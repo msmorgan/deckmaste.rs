@@ -311,6 +311,14 @@ semantic_definition exileFrom (subject : NounPhrase) (from_ : Location) : Action
     (enact (.action "exile")
       (.move (.firstMention "exileFrom.subject" (.inCaller subject)) (.inCaller from_)
         exileZone .arrival none []))
+/-- "exile <subject> from <from_> face down" (`Definition`, [CR#701.13,406.3]): a move that names
+its origin, so an ability whose cost or effect makes it functions only in that zone
+[CR#113.6m]. -/
+semantic_definition exileFaceDownFrom (subject : NounPhrase) (from_ : Location) : Action :=
+  .ownScope (some (.action "exile"))
+    (enact (.action "exile")
+      (.move (.firstMention "exileFaceDownFrom.subject" (.inCaller subject)) (.inCaller from_)
+        exileZone .arrival none [.faceDown exiledFaceDown]))
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
 semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))

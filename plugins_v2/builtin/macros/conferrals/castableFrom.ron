@@ -5,5 +5,5 @@
     name: "castableFrom",
     kinds: [Conferral],
     params: {"zone": ZoneExpr, "timing": Timing},
-    body: Property(spec: mayPlayDeed(cast, You, This, Play(Param(zone), None, Param(timing), false, ItsOwnCost))),
+    body: Property(spec: mayPlayDeed(cast, You, This, Play(Param(zone), None, Param(timing), false, ItsOwnCost, None))),
 )

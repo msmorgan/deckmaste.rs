@@ -1,10 +1,12 @@
 // "<performer> may cast <what> from <zone> [by paying <cost> rather than its
 // mana cost]": a cast permission whose permitted player is the actor (Lean
 // `Actor.mayCastFrom`). Lean takes no payment and writes `itsOwnCost`, the
-// default here; `exclusive` is the play rider's "and from no other zone".
+// default here; `exclusive` is the play rider's "and from no other zone", and
+// `resulting` what the resulting spell must be ("if the resulting spell is an
+// instant or sorcery spell" [CR#702.133a]).
 (
     name: "mayCastFrom",
     kinds: [StaticSpec],
-    params: {"what": NounPhrase, "zone": ZoneExpr, "paying": Default(Any, ItsOwnCost), "exclusive": Default(Any, false)},
-    body: mayPlayDeed(cast, actor, Param(what), Play(Param(zone), None, None, Param(exclusive), Param(paying))),
+    params: {"what": NounPhrase, "zone": ZoneExpr, "paying": Default(Any, ItsOwnCost), "exclusive": Default(Any, false), "resulting": Default(Any, None)},
+    body: mayPlayDeed(cast, actor, Param(what), Play(Param(zone), None, None, Param(exclusive), Param(paying), Param(resulting))),
 )

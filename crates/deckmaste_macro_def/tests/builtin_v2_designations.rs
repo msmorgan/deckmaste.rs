@@ -14,7 +14,7 @@ fn expected_recipe(name: &str) -> Option<GrammarRecipe> {
         "prepared" | "saddled" | "monstrous" | "renowned" | "solved" => {
             Some(GrammarRecipe::Adjective)
         }
-        "goaded" | "suspected" | "harnessed" => None,
+        "goaded" | "suspected" | "harnessed" | "foretold" | "plotted" => None,
         _ => Some(GrammarRecipe::FixedTerm),
     }
 }
@@ -39,6 +39,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             "commander",
             "dayNight",
             "enduringStory",
+            "foretold",
             "goaded",
             "harnessed",
             "initiative",
@@ -46,6 +47,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             "level",
             "monarch",
             "monstrous",
+            "plotted",
             "prepared",
             "renowned",
             "rightHalfUnlocked",
@@ -106,7 +108,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .contains("effectful: false")
     );
 
-    let monarch = &designations[9];
+    let monarch = &designations[10];
     assert_eq!(
         monarch.spelling(),
         [SpellingPart::Literal("the monarch".to_owned())]
@@ -154,7 +156,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     );
 
     // An object-held designation is read on the battlefield.
-    let goaded = &designations[4];
+    let goaded = &designations[5];
     assert!(
         goaded
             .body()
@@ -170,7 +172,16 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .contains("zone: Battlefield")
     );
 
-    let level = &designations[8];
+    // Foretold and plotted are states of a card in exile, which the CR never
+    // calls designations [CR#702.143d,702.170a]; the registry carries them as
+    // object-held designations read in exile.
+    for state in [&designations[4], &designations[12]] {
+        let body = state.body().unwrap().get_ron();
+        assert!(body.contains("scope: HeldBy(Object)"), "{}", state.identity());
+        assert!(body.contains("zone: Exile"), "{}", state.identity());
+    }
+
+    let level = &designations[9];
     assert!(
         level
             .body()

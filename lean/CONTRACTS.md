@@ -567,6 +567,7 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `ownScope`, `inCaller` | See "Binding identity and a keyword body's own scope" above. |
 | `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). |
 | `replace`, `holdUntil` | `replace` steps the replaced action as a pre-event pattern and the replacement after it in a new clause; `holdUntil` steps the held action, then its event. The static `replace` steps its `would` clause, then the replacement in a new clause, and publishes only the letters the clause and the replacement introduce, so a later "where X is" defines them [CR#107.3i]. A replacement steps what it makes of the event: `instead` and `also` step their action; `withRiders` steps its riders, refused (`riddenEntering`) unless the replaced event is an entering, a move to the battlefield or a token's creation, and (`entryRidersOnly`) for a Pile Placement among them [CR#614.1c,614.12]; `onlyIf` steps its condition, then its body in a new clause after it, as `doIf` steps its then-branch. A caller's replacement steps in one caller frame, its condition and action together. The static `replace` also publishes the choices its `also` action makes to later lines, as "As this enters, choose a color" [CR#614.1c]. |
+| `revealedAsCast` | Steps the spell the card is revealed as cast onto, then what it grants in a new clause, reading that spell; nothing either introduces escapes (only `nextId` advances). |
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
 | Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause after it and reads every mention the cost made, wherever the cost moved it: whether the engine can find the object at runtime is the engine's concern [CR#608.2h]. Timing and guard clauses read the body's output. |
 | Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `choiceContext`: only chosen qualities and chosen players carry in, so its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
@@ -948,8 +949,11 @@ The objects a linked ability acted on are read by a Participial Description, wri
 as the same ability would write it of its own deed ("the exiled card", "the
 sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AST.
 `Ability.textContext` publishes them `linked`: an additional or alternative cost's
-results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
-by targeting so mutate's "the target" is its own spell's [CR#702.140a], what a
+results (emerge, harmonize, offering, and a cast permission's added cost,
+`PlayPayment.plusAdditional`), the target `addsTarget` adds, stamped
+by targeting so mutate's "the target" is its own spell's [CR#702.140a] (a conditional static
+publishes what its spec does, so mutate's target, required only once its cost is chosen
+[CR#601.2c], is still read back), what a
 replacement does `also` (devour [CR#702.82b]), and the objects a printed triggered or
 activated ability itself introduces, in whatever zone it put them, never what its trigger
 event names [CR#607.1]. Each step is published once; at a branch point each arm is stepped from the

@@ -32,7 +32,6 @@ keywordFacts =
   , { word := "Indestructible", paramShapes := [NoParam], counterEligible := True } defaultKeywordFacts
   , { word := "Flash", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Kicker", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Multikicker", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "CumulativeUpkeep", paramShapes := [CostParam], paidCost := True, bodied := True } defaultKeywordFacts
   , { word := "Echo", paramShapes := [CostParam], paidCost := True, bodied := True } defaultKeywordFacts
   , { word := "Hexproof", paramShapes := [NoParam, QualityParam], counterEligible := True } defaultKeywordFacts
@@ -73,7 +72,6 @@ keywordFacts =
   , { word := "Mayhem", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Disturb", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Morph", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Megamorph", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Entwine", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Escalate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Fuse", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
@@ -151,7 +149,7 @@ keywordFacts =
   , { word := "Ingest", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Intimidate", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "JobSelect", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
-  , { word := "JumpStart", paramShapes := [NoParam], onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
+  , { word := "JumpStart", paramShapes := [NoParam], onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "LevelUp", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "LivingMetal", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "LivingWeapon", paramShapes := [NoParam], bodied := True } defaultKeywordFacts

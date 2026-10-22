@@ -737,13 +737,12 @@ def conquerorsFlailProhibition : StaticSpec :=
 theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquerorsFlailProhibition = [] := by
   decide
 
-/-- Retrace's permission: the land card discarded is the cost of casting, not what is cast
-[CR#702.81a,601.2h]. -/
+/-- Retrace's permission: the land card discarded is an additional cost of casting, not what is
+cast, added to the mana cost or an alternative cost [CR#702.81a,601.2f,601.2h]. -/
 def castFromGraveyardByDiscardingALand : StaticSpec :=
   can you
     (cast this_ (from_ := yourGraveyard)
-      (payment := payingInstead
-        (compound [itsManaCost, discard (a (and [isCard, isLand]))])))
+      (payment := plusAdditional (discard (a (and [isCard, isLand])))))
 theorem okCastFromGraveyardByDiscardingALand :
     StaticSpec.check (DRS.ofList []) castFromGraveyardByDiscardingALand = [] := by decide
 

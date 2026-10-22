@@ -622,6 +622,10 @@ semantic_template Predicate.attachment (side : AttachmentSide)
 semantic_template Predicate.bracketed (predicate : Predicate) : Predicate := .bracketed predicate
 semantic_template cardIn (zone : Location) : Predicate := .and [.isCard, .in_ zone]
 semantic_template castFrom (zone : Location) : Predicate := .castFrom zone
+/-- "<spell> was <designation>": the spell was a card holding it before it was cast, as "if this
+spell was foretold" [CR#702.143c]. -/
+semantic_template wasBeforeCast (designation : DesignationLabel) : Predicate :=
+  .heldBeforeCast designation
 semantic_template choseExtreme (op : AggregateOp) : Predicate := .choseExtreme op
 semantic_template coinCameUp (face : CoinFace) : Predicate := .coinCameUp face
 semantic_template colorCount (comparator : Comparator) (count : Nat) : Predicate :=
@@ -1963,6 +1967,9 @@ semantic_template itsOwnCost : PlayPayment := .itsOwnCost
 semantic_template withoutPaying : PlayPayment := .withoutPaying
 /-- "by paying <cost> rather than paying its mana cost": an alternative cost [CR#118.9]. -/
 semantic_template payingInstead (cost : Cost) : PlayPayment := .payingInstead cost
+/-- "by <cost> as an additional cost to cast it": the mana cost or an alternative cost, plus
+`cost` [CR#118.8,601.2f]. -/
+semantic_template plusAdditional (cost : Cost) : PlayPayment := .plusAdditional cost
 semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticSpec :=
   .letterDefinition letter amount
 semantic_template loyaltySymbol (change : Delta Amount) : Cost := .loyaltySymbol change

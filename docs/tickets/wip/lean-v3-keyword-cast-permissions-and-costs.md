@@ -34,6 +34,15 @@ never calls them designations; the plotted row cites [CR#702.170c] for the cast 
 cast and look permissions on the state, keep the Special Action distinct from the "becomes
 plotted/foretold" event, and add a was-foretold predicate on spells.
 
+Owner framing (2026-10-22): a decomposable rule is data. Plot's text ends at "It becomes a plotted
+card" [CR#702.170a]; the plotted card's cast right [CR#702.170d] is a rule row
+(`plottedCardCast`, `Proofs/Rules.lean`), as is the foretold card's look right [CR#702.143d]
+(`foretoldCardLook`). The foretold card's cast right "for any foretell cost it has" needs a cost
+term naming a keyword's cost, which the grammar lacks; foretell's own text keeps its look and cast
+rights [CR#702.143a]. The v2 mirror of `foretoldCardLook` is
+`plugins_v2/testing/rules/grant/foretold-card-look.ron`; `plottedCardCast` has none, since v2's
+lookback reads a `GameEvent` and no v2 event is an object gaining a designation.
+
 ## 3. Megamorph is a morph cost; multikicker is a kicker cost
 
 - Megamorph (`Definitions/Keywords.lean:957-962`) carries its own label `.named "megamorph"` and
@@ -65,6 +74,11 @@ No such condition exists: the only one is `keywordCostPaid` (`Templates.lean:202
 comes later [CR#601.2h], so a was-paid test is false when targets are chosen. Add a
 cost-chosen condition. Same change in `mutate.ron` and the doc at
 `crates/deckmaste_semantics_v2/src/abilities.rs:783-785`. Enchant stays unconditional.
+
+Coordinator decision (2026-10-22, under the owner's boundary), overriding the split above: one "If
+you do" is one condition, so the added target and the merge replacement both read
+`choiceWasTaken (.byKeyword mutate)` [CR#702.140a,601.2c]; the existing `LinkedFacet.taken` is
+the cost-chosen condition, and when it is evaluated is the engine's concern.
 
 ## 5. Retrace and jump-start pay their own cost plus an additional cost
 
@@ -99,6 +113,9 @@ after the main spell's text. `also` (`Templates.lean:1910-1912`) is not an accep
 keeps the cast but still fails [CR#702.47b]. Same in `splice.ron`. The routing of splice's raw
 `.expose .reveal` through a Definition in the fidelity ticket §2 is compatible and can land in
 either order.
+
+The order of several spliced cards' text is a choice made as the spell is cast [CR#702.47b]; it
+is deliberately not encoded in the term (`StaticSpec.revealedAsCast` documents it).
 
 ## 7. Aftermath: any graveyard; flashback: the resulting spell
 

@@ -1857,7 +1857,7 @@ clause), so they never stand as patients of the deed, as the land card retrace d
 def stepPlayPaymentWith (ops : StepOps) (drs : DRS) (pay : PlayPayment) : DRS × List Refusal :=
   match pay with
   | .itsOwnCost | .withoutPaying => (drs, [])
-  | .payingInstead c | .faceDown _ c =>
+  | .payingInstead c | .plusAdditional c | .faceDown _ c =>
     let (paid, errs) := ops.cost drs c
     let pending := if paid.currentClause == drs.currentClause then drs.pendingRoles else []
     let frames := if paid.scopeStack.length == drs.scopeStack.length then
@@ -2084,9 +2084,11 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, .addedCost cost _ _ => costTextContextWith ops drs cost
   | _+1, .can _ action _ =>
     match action.scopeBody with
-    | .procedure .cast _ (.payingInstead cost) .. => costTextContextWith ops drs cost
+    | .procedure .cast _ (.payingInstead cost) .. | .procedure .cast _ (.plusAdditional cost) .. =>
+      costTextContextWith ops drs cost
     | _ => drs
   | _+1, .addsTarget _ description => addedTargetContextWith ops drs description
+  | n+1, .conditional body _ _ => staticTextContextWith ops drs body n
   | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
     publishTextChoices drs (actionTextChoices action)
   | _+1, .replace event replacement _ _ _ =>
@@ -2267,6 +2269,8 @@ def stepOps : Nat → StepOps
               (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)))
           (out, refuse (label.holder == some kind) (.designationHolder label kind) ++
             refuse (holder.isNone || label.possessorOk) (.designationPossessorFits label) ++ errors)
+        | .heldBeforeCast label =>
+          (drs, refuse (label.holder == some .object) (.designationHolder label .object))
         | .inCombat relation (some cp) =>
           let (out, ids, errors) := ops.np drs .other false cp
           let head := drs.relativeKind.getD .object
@@ -3721,6 +3725,11 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := stepQuantityWith ops drs1 q
           (drs2, e1 ++ e2)
+        | .revealedAsCast spell grants =>
+          let (drs1, ids, e1) := ops.np drs .obj true spell
+          let spellErrors := kindCheck .object ((ids.head?.bind drs1.findById?).map (·.kind))
+          let (drs2, e2) := ops.spec (nextClause drs1) grants
+          ({ drs with nextId := Nat.max drs.nextId drs2.nextId }, e1 ++ spellErrors ++ e2)
         | .conditional spec cond _ =>
           let (drs1, e1) := ops.spec drs spec
           let (drs2, e2) := ops.cond (nextClause drs1) cond

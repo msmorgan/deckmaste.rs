@@ -8,6 +8,6 @@ KeywordAbility(
     // "Flash" means "You may play this card any time you could cast an instant."
     // [CR#702.8a] Instant speed is the play rider's timing (`asInstant`).
     body: [
-        static(mayPlayDeed(play, you, this, Play(None, None, asInstant, false, ItsOwnCost))),
+        static(mayPlayDeed(play, you, this, Play(None, None, asInstant, false, ItsOwnCost, None))),
     ],
 )

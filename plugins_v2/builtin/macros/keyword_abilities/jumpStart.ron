@@ -5,9 +5,28 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "jump-start",
     ),
-    // STOP (waits on: a play permission paying its own cost plus another).
     // "Jump-start" means "You may cast this card from your graveyard if the
     // resulting spell is an instant or sorcery spell by discarding a card as an
-    // ADDITIONAL cost to cast it" [CR#702.133a]. `PlayPayment` offers only the card's
-    // own cost, no cost, or a replacement cost — never its own cost plus another.
+    // additional cost to cast it" and "If this spell was cast using its jump-start
+    // ability, exile this card instead of putting it anywhere else any time it would
+    // leave the stack." [CR#702.133a] The discard is added to the mana cost or an
+    // alternative cost [CR#118.8,601.2f]; casting this way is taking the choice
+    // jump-start offers, which the second ability reads back.
+    body: [
+        static(
+            mayCastFrom(
+                this,
+                graveyardOf(you),
+                PlusAdditional(perform(discard(a(card)))),
+                false,
+                instantOrSorcery,
+            ),
+        ),
+        static(
+            onlyWhile(
+                insteadOf(leavesZone(thisSpell, stack), exile(thisSpell)),
+                choiceWasTaken(ByKeyword(jumpStart), thisSpell),
+            ),
+        ),
+    ],
 )

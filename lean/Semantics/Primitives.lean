@@ -63,6 +63,7 @@ def Ballot.inCaller : Ballot → Ballot
 /-- A play payment read in the caller's Reference Scope: its cost, when it names one. -/
 def PlayPayment.inCaller : PlayPayment → PlayPayment
   | .payingInstead cost => .payingInstead (.inCaller cost)
+  | .plusAdditional cost => .plusAdditional (.inCaller cost)
   | .faceDown spec cost => .faceDown spec (.inCaller cost)
   | payment => payment
 

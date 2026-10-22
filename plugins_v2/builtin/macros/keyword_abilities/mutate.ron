@@ -9,14 +9,21 @@ KeywordAbility(
     // "Mutate [cost]" means "You may pay [cost] rather than pay this spell's
     // mana cost. If you do, it becomes a mutating creature spell and targets a
     // non-Human creature with the same owner as this spell." [CR#702.140a]
-    // The target is the one the spell gains with its alternative cost
-    // (`addsTarget`), read back as the `objects` Linked Facet of that cost's
-    // targeting. As it resolves with a legal target it merges with that
-    // creature instead of entering, on top or under as its controller
-    // chooses [CR#702.140c,730.2].
+    // "If you do" is one condition, read by both: the choice of the mutate
+    // cost, taken as the cost is announced [CR#601.2b]. Only once it is
+    // taken does the spell gain its target (`addsTarget`) [CR#601.2c], read
+    // back as the `objects` Linked Facet of that cost's targeting, and become
+    // a mutating creature spell: as it resolves with a legal target it merges
+    // with that creature instead of entering, on top or under as its
+    // controller chooses [CR#702.140a,702.140c,730.2].
     body: [
         static(mayCastFor(you, Param(0))),
-        static(addsTarget(thisSpell, and([creature, not(hasSubtype(human)), ownedBy(ownerOf(thisSpell))]))),
+        static(
+            onlyWhile(
+                addsTarget(thisSpell, and([creature, not(hasSubtype(human)), ownedBy(ownerOf(thisSpell))])),
+                choiceWasTaken(ByKeyword(mutate), thisSpell),
+            ),
+        ),
         static(
             onlyWhile(
                 insteadOf(
@@ -26,7 +33,7 @@ KeywordAbility(
                         merge(thisSpell, linkedObject(TheAlternative, Target, thisSpell), Bottom),
                     ),
                 ),
-                keywordCostPaid(mutate, thisSpell),
+                choiceWasTaken(ByKeyword(mutate), thisSpell),
             ),
         ),
     ],

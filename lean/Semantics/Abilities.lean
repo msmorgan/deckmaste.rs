@@ -197,7 +197,8 @@ mutual
     /-- "was kicked" [CR#702.33d], optionally within a span ("this turn") -/
     | readback (which : LinkSource) (within : Option Duration)
     /-- Whether the choice `which` offered was taken: "if tribute wasn't paid" reads it false
-    [CR#702.104b]. -/
+    [CR#702.104b]. A cost's choice is taken as its payment is announced [CR#601.2b]: mutate's
+    "if you do" [CR#702.140a]. -/
     | taken (which : LinkSource)
 
   inductive Predicate where
@@ -219,6 +220,10 @@ mutual
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
     | castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))
     | castFrom (zone : Location)
+    /-- The spell was a card holding `designation` before it was cast: "if this spell was
+    foretold" reads a spell that was a foretold card before it was cast, even one cast for a cost
+    other than a foretell cost [CR#702.143c]. -/
+    | heldBeforeCast (designation : DesignationLabel)
     | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
     /-- A relative-clause event filter using `NounPhrase.which` in the relativized argument slot
     ("creatures that attacked this turn", "each card exiled this way"). -/
@@ -938,12 +943,20 @@ mutual
     /-- A Mode Change: modifies how the modes of the spell or ability it is printed with are
     chosen [CR#700.2,702.42a,702.120a]. -/
     | modeChoice (change : ModeChange)
-    /-- The spell gains a target, `description` saying what it may target, when its alternative
-    cost is chosen: mutate's "targets a non-Human creature with the same owner as this spell"
-    [CR#702.140a,601.2c]. -/
+    /-- The spell gains a target, `description` saying what it may target, for as long as the
+    static ability applies: an Aura spell always targets [CR#303.4a]. A target the spell requires
+    only when an alternative or additional cost is chosen [CR#601.2c] is this form under a
+    condition on that choice, as mutate's "if you do, it … targets a non-Human creature with the
+    same owner as this spell" [CR#702.140a]. -/
     | addsTarget (subject : NounPhrase) (description : Predicate)
     /-- A Text Change of the subject's rules text, applied in layer 3 [CR#612.1,613.1c]. -/
     | textChange (subject : NounPhrase) (change : TextChange)
+    /-- A cast-time option of a card in its owner's hand: as its owner casts `spell`, they may
+    reveal this card [CR#601.2b]; if they do, `grants` applies to that spell, an additional cost
+    and a text change (splice [CR#702.47a]). The cast is not replaced. Every card revealed this
+    way for one spell is revealed at once, and the caster chooses the order in which their text
+    follows the main spell's [CR#702.47b,702.47c]. -/
+    | revealedAsCast (spell : NounPhrase) (grants : StaticSpec)
 
   /-- How a Mode Change modifies its own spell's `chooseModes`. -/
   inductive ModeChange where
@@ -964,6 +977,10 @@ mutual
     | itsOwnCost
     | withoutPaying
     | payingInstead (cost : Cost)
+    /-- Pay the spell's mana cost or one alternative cost, chosen as it is cast [CR#601.2b], plus
+    `cost` as an additional cost to cast it this way [CR#118.8,601.2f]: retrace's and
+    jump-start's discard [CR#702.81a,702.133a]. -/
+    | plusAdditional (cost : Cost)
     /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
     disguise [CR#702.37a,702.168a,708.4]. -/
     | faceDown (spec : FaceDown) (cost : Cost)

@@ -6,17 +6,16 @@ KeywordAbility(
         surface: "retrace",
     ),
     // "Retrace" means "You may cast this card from your graveyard by discarding a land
-    // card as an additional cost to cast it." [CR#702.81a] The additional cost rides
-    // on the permitted cast itself, as `Cost::ItsManaCost` alongside the discard.
+    // card as an additional cost to cast it." [CR#702.81a] The discard is added to the
+    // mana cost or an alternative cost chosen as it is cast, so an alternative cost still
+    // applies [CR#118.9a,601.2b,601.2f]; a discard is from its owner's hand by definition
+    // [CR#701.9a].
     body: [
         static(
-            mayCastFor(
-                you,
-                compound([
-                    itsManaCost,
-                    perform(discard(a(and([card, land, inZone(yourHand)])))),
-                ]),
+            mayCastFrom(
+                this,
                 graveyardOf(you),
+                PlusAdditional(perform(discard(a(and([card, land]))))),
             ),
         ),
     ],

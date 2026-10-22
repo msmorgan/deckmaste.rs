@@ -7,22 +7,25 @@ KeywordAbility(
     ),
     // "Megamorph [cost]" is morph's two abilities and "As this permanent is turned face
     // up, put a +1/+1 counter on it if its megamorph cost was paid to turn it face up."
-    // [CR#702.37b] The counter is the special action's own, since only that action pays
-    // the megamorph cost.
+    // [CR#702.37b] A variant of morph, so it carries morph's label: a megamorph cost is
+    // a morph cost [CR#702.37b]. The counter is a replacement effect on turning face up
+    // [CR#614.1e], an Off-Stack Static as the permanent turns face up, so it is on the
+    // permanent as it turns face up rather than put on after.
+    label: morph,
     body: [
         static(
             mayPlayDeed(
                 cast,
                 you,
                 this,
-                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3]))),
+                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3])), None),
             ),
         ),
+        static(specialAction(None, Param(0), setStatus(FaceUp, this))),
         static(
-            specialAction(
-                None,
-                Param(0),
-                sequentially([setStatus(FaceUp, this), putCounters(1, p1p1Counter, this)]),
+            asEvent(
+                statusEvent(thisPermanent, FaceUp),
+                doIf(keywordCostPaid(morph, thisPermanent), putCounters(1, p1p1Counter, thisPermanent)),
             ),
         ),
     ],

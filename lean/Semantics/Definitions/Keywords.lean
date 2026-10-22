@@ -203,13 +203,19 @@ semantic_definition afterlife (amount : Amount) : Ability :=
   .keyword (.named "afterlife") [.number (.inCaller amount)]
     [ when (does thisPermanent die)
         (createToken (creatureToken 1 1 [.white, .black] [spirit] [flying]) (.inCaller amount)) ]
+/-- "Aftermath": "You may cast this half of this split card from your graveyard," "This half of
+this split card can't be cast from any zone other than a graveyard," and "If this spell was cast
+from a graveyard, exile it instead of putting it anywhere else any time it would leave the stack"
+[CR#702.127a]. The restriction excludes every zone but a graveyard, any player's, so another
+player's graveyard permission still reaches the half; "your" in the permission is its would-be
+caster [CR#109.5]. -/
 semantic_definition aftermath : Ability :=
   .keyword (.named "aftermath") []
     [ static
         (can theActor (cast this_ (from_ := yourGraveyard))),
       static
         (cant theActor
-          (cast this_ (from_ := some (not yourGraveyard)))),
+          (cast this_ (from_ := some (not graveyard)))),
       static
         (replace (would thisSpell (leave stack))
           (doIf (is thisSpell (.castFrom graveyard)) (instead (exile thisSpell)))) ]
@@ -694,11 +700,16 @@ semantic_definition flanking : Ability :=
         (get (that creature) (.down 1) (.down 1) untilEndOfTurn) ]
 semantic_definition flash : Ability :=
   .keyword (.named "flash") [] [static (can you (play thisCard) (timing := asInstant))]
+/-- "Flashback [cost]": "You may cast this card from your graveyard if the resulting spell is an
+instant or sorcery spell by paying [cost] rather than paying its mana cost" and "If the flashback
+cost was paid, exile this card instead of putting it anywhere else any time it would leave the
+stack" [CR#702.34a]. -/
 semantic_definition flashback (cost : Cost) : Ability :=
   .keyword (.named "flashback") [.cost (.inCaller cost)]
     [ static
         (can you
-          (cast this_ (from_ := yourGraveyard) (payment := .payingInstead (.inCaller cost)))),
+          (cast this_ (from_ := yourGraveyard) (payment := .payingInstead (.inCaller cost))
+            (resulting := some isInstantOrSorcery))),
       static
         (replace (would thisSpell (leave stack))
           (doIf (keywordCostPaid (.named "flashback") thisSpell) (instead (exile thisSpell)))) ]
@@ -712,17 +723,26 @@ semantic_definition forecast (ability : Ability) : Ability :=
   .keyword (.named "forecast") [.ability (.inCaller ability)]
     [ .qualified (.inCaller ability) (duringPart .upkeep (some (ownerOf this_)))
         oncePerTurn none (some .hand) ]
+/-- "Foretell [cost]": any time its owner has priority during their turn, they may pay {2} and
+exile this card from their hand face down, a special action [CR#702.143a,702.143b]; it becomes a
+foretold card, which its owner may look at as long as it stays one, and may cast after the
+current turn has ended by paying [cost] rather than its mana cost [CR#702.143a,702.143c]. The
+exile names the hand, so the ability functions only there [CR#113.6m]; the special action and the
+card's becoming foretold are separate events, and both permissions are keyed on the state. -/
 semantic_definition foretell (cost : Cost) : Ability :=
   .keyword (.named "foretell") [.cost (.inCaller cost)]
     [ static
         (specialAction (duringPart .turn you) (mana [generic 2])
           (sequentially
-            [ exileFaceDown thisCard,
+            [ exileFaceDownFrom thisCard yourHand,
+              gainDesignation it foretold,
               establishThroughout (visibility .lookAt you (objects it))
-                (forAsLongAs (is it (in_ exileZone))),
+                (forAsLongAs (is it (hasDesignation foretold))),
               establishThroughout
-                (can you
-                  (cast it (from_ := exileZone) (payment := payingInstead (.inCaller cost))))
+                (onlyWhile
+                  (can you
+                    (cast it (from_ := exileZone) (payment := payingInstead (.inCaller cost))))
+                  (is it (hasDesignation foretold)))
                 onALaterTurn ])) ]
 semantic_definition fortify (cost : Cost) : Ability :=
   .keyword (.named "fortify") [.cost (.inCaller cost)]
@@ -904,7 +924,22 @@ semantic_definition jobSelect : Ability :=
         (sequentially
           [ createToken (creatureToken 1 1 [] [hero]),
             attachTo thisEquipment thatToken ]) ]
-semantic_definition jumpStart : Ability := keyword (.named "jumpStart")
+/-- "Jump-start": "You may cast this card from your graveyard if the resulting spell is an
+instant or sorcery spell by discarding a card as an additional cost to cast it" and "If this
+spell was cast using its jump-start ability, exile this card instead of putting it anywhere else
+any time it would leave the stack" [CR#702.133a]. The discard is added to the mana cost or an
+alternative cost [CR#118.8,601.2f]; casting this way is taking the choice jump-start offers. -/
+semantic_definition jumpStart : Ability :=
+  .keyword (.named "jumpStart") []
+    [ static
+        (can you
+          (cast this_ (from_ := yourGraveyard)
+            (payment := plusAdditional (.perform (discard (a .isCard))))
+            (resulting := some isInstantOrSorcery))),
+      static
+        (replace (would thisSpell (leave stack))
+          (doIf (choiceWasTaken (.byKeyword (.named "jumpStart")) thisSpell)
+            (instead (exile thisSpell)))) ]
 semantic_definition kicker (cost : Cost) : Ability :=
   .keyword (.named "kicker") [.cost (.inCaller cost)]
     [static (.addedCost (.inCaller cost) true .once)]
@@ -954,12 +989,18 @@ semantic_definition mayhem (cost : Cost) : Ability :=
             (cast thisCard (from_ := yourGraveyard)
               (payment := .payingInstead (.inCaller cost))))
           (did you (discard thisCard) soFarThisTurn)) ]
+/-- "Megamorph [cost]", a variant of morph: morph's abilities and "As this permanent is turned
+face up, put a +1/+1 counter on it if its megamorph cost was paid to turn it face up"
+[CR#702.37b]. A megamorph cost is a morph cost, so it carries morph's label; the counter is a
+replacement effect on the turning face up [CR#614.1e], on as the permanent turns. -/
 semantic_definition megamorph (cost : Cost) : Ability :=
-  .keyword (.named "megamorph") [.cost (.inCaller cost)]
+  .keyword (.named "morph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
+      static (.specialAction none (.inCaller cost) (turnFaceUp this_)),
       static
-        (.specialAction none (.inCaller cost)
-          (sequentially [turnFaceUp this_, putCounters 1 p1p1Counter this_])) ]
+        (replace (would any (turnFaceUp thisPermanent))
+          (doIf (keywordCostPaid (.named "morph") thisPermanent)
+            (also (putCounters 1 p1p1Counter thisPermanent)))) ]
 semantic_definition melee : Ability :=
   .keyword (.named "melee") []
     [ whenever (does thisCreature (.attack none))
@@ -997,18 +1038,28 @@ semantic_definition morph (cost : Cost) : Ability :=
   .keyword (.named "morph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
       static (.specialAction none (.inCaller cost) (turnFaceUp this_)) ]
+/-- "Multikicker [cost]": "You may pay an additional [cost] any number of times as you cast this
+spell", a variant of kicker. A multikicker cost is a kicker cost, so it carries kicker's label
+and a multikicked spell is kicked [CR#702.33c,702.33d]. -/
 semantic_definition multikicker (cost : Cost) : Ability :=
-  keywordCosting (.named "multikicker") (.inCaller cost)
+  .keyword (.named "kicker") [.cost (.inCaller cost)]
+    [static (.addedCost (.inCaller cost) true .anyNumberOfTimes)]
+/-- "Mutate [cost]": "You may pay [cost] rather than pay this spell's mana cost. If you do, it
+becomes a mutating creature spell and targets a non-Human creature with the same owner as this
+spell" [CR#702.140a]. One "if you do" gates the added target [CR#601.2c] and the merge alike:
+the mutate cost's choice was taken. -/
 semantic_definition mutate (cost : Cost) : Ability :=
   .keyword (.named "mutate") [.cost (.inCaller cost)]
     [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
       static
-        (.addsTarget thisSpell
-          (and
-            [isCreature, not (.hasSubtype human), ownedBy (ownerOf thisSpell)])),
+        (onlyWhile
+          (.addsTarget thisSpell
+            (and
+              [isCreature, not (.hasSubtype human), ownedBy (ownerOf thisSpell)]))
+          (choiceWasTaken (.byKeyword (.named "mutate")) thisSpell)),
       static
         (.replace (would thisSpell enter)
-          (doIf (keywordCostPaid (.named "mutate") thisSpell)
+          (doIf (choiceWasTaken (.byKeyword (.named "mutate")) thisSpell)
             (instead
               (chooseOne
                 (.merge thisSpell (the (was (target which))) .top)
@@ -1096,16 +1147,17 @@ semantic_definition persist : Ability :=
         (returnTo thisPermanent battlefield
           [.under (ownerOf thisPermanent), .withCounters 1 m1m1Counter .fresh]) ]
 semantic_definition phasing : Ability := keyword (.named "phasing")
+/-- "Plot [cost]": "Any time you have priority during your main phase while the stack is empty,
+you may exile this card from your hand and pay [cost]. It becomes a plotted card." [CR#702.170a]
+The exile names the hand, so the ability functions only there [CR#113.6m]; exiling it is the
+special action [CR#702.170b], and its becoming plotted a separate event. The plotted card's cast
+right is no part of plot's text: it is the rule for every plotted card, with plot or without
+[CR#702.170d]. -/
 semantic_definition plot (cost : Cost) : Ability :=
   .keyword (.named "plot") [.cost (.inCaller cost)]
     [ static
         (specialAction asSorcery (.inCaller cost)
-          (sequentially
-            [ exile thisCard,
-              establishThroughout
-                (can you (cast it (from_ := exileZone) (payment := withoutPaying))
-                  (timing := asSorcery))
-                onALaterTurn ])) ]
+          (sequentially [exileFrom thisCard yourHand, gainDesignation it plotted])) ]
 semantic_definition poisonous (amount : Amount) : Ability :=
   .keyword (.named "poisonous") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
@@ -1236,14 +1288,15 @@ semantic_definition replicate (cost : Cost) : Ability :=
         (sequentially
           [ copyOnStack thisSpell (timesPaid (.byKeyword (.named "replicate")) thisSpell),
             may (.chooseNewTargets (those .copy)) ]) ]
+/-- "Retrace": "You may cast this card from your graveyard by discarding a land card as an
+additional cost to cast it" [CR#702.81a]. The discard is added to the mana cost or an alternative
+cost, so an alternative cost still applies [CR#118.9a,601.2b]. -/
 semantic_definition retrace : Ability :=
   .keyword (.named "retrace") []
     [ static
         (can you
           (cast this_ (from_ := yourGraveyard)
-            (payment := .payingInstead
-              (.compound
-                [.itsManaCost, .perform (discard (a (and [.isCard, isLand, .in_ yourHand])))])))) ]
+            (payment := plusAdditional (.perform (discard (a (and [.isCard, isLand]))))))) ]
 semantic_definition riot : Ability :=
   .keyword (.named "riot") []
     [ static
@@ -1348,24 +1401,20 @@ semantic_definition spectacle (cost : Cost) : Ability :=
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
           (did anOpponent (loseLife .anyAmount) soFarThisTurn)) ]
-/-- "Splice onto [quality] [cost]" [CR#702.47a]. Named in its sort, `Ability.splice`, as a
-declaration whose bare name is taken is (`Subtype.army`, `DesignationLabel.solved`): `splice` is
-the authoring syntax's word for a supplied body. -/
+/-- "Splice onto [quality] [cost]": "You may reveal this card from your hand as you cast a
+[quality] spell. If you do, that spell gains the text of this card's rules text and you pay [cost]
+as an additional cost to cast that spell" [CR#702.47a]. The reveal is a step of casting that
+spell [CR#601.2b], which it does not replace; the cards spliced onto one spell are revealed at
+once and their text follows the main spell's in the order chosen [CR#702.47b,702.47c]. Named in
+its sort, `Ability.splice`, as a declaration whose bare name is taken is (`Subtype.army`,
+`DesignationLabel.solved`): `splice` is the authoring syntax's word for a supplied body. -/
 semantic_definition Ability.splice (quality : Predicate) (cost : Cost) : Ability :=
   .keyword (.named "splice") [.quality (.inCaller quality), .cost (.inCaller cost)]
     [ static
-        (.replace
-          (.would you
-            (cast (a (and [isSpell, .inCaller quality]))))
-          (instead
-            (may (.expose .reveal (.cards this_))
-              (some
-                (.establish
-                  (.conjunction none
-                    [ .addedCost (.inCaller cost) false .once,
-                      .textChange (that .spell) (.appendTextOf this_) ])
-                  none))))
-          none .repeatedly none) ]
+        (.revealedAsCast (a (and [isSpell, .inCaller quality]))
+          (.conjunction none
+            [ .addedCost (.inCaller cost) false .once,
+              .textChange (that .spell) (.appendTextOf this_) ])) ]
 semantic_definition splitSecond : Ability :=
   .keyword (.named "splitSecond") []
     [ static

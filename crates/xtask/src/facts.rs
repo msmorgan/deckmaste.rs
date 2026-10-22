@@ -344,15 +344,6 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
-            label: "Multikicker",
-            extra: &[Shape::Cost],
-            regime: Some(Regime::AtCasting),
-            functions_on_stack: true,
-            on_spell_card: true,
-            paid_cost: true,
-            ..D
-        },
-        Row {
             label: "CumulativeUpkeep",
             paid_cost: true,
             ..D
@@ -574,13 +565,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Morph",
-            on_spell_card: true,
-            paid_cost: true,
-            ..D
-        },
-        Row {
-            // A megamorph cost is a morph cost [CR#702.37b].
-            label: "Megamorph",
             on_spell_card: true,
             paid_cost: true,
             ..D
@@ -1064,6 +1048,9 @@ fn overlay() -> Vec<Row> {
             label: "JumpStart",
             on_permanent_card: false,
             on_spell_card: true,
+            // Its discard is an additional cost [CR#702.133a], which its
+            // "if this spell was cast using its jump-start ability" reads back.
+            paid_cost: true,
             ..D
         },
         Row {
@@ -1425,12 +1412,17 @@ fn render(root: &Path) -> anyhow::Result<String> {
             .flat_map(|declared| std::iter::once(&declared.params).chain(&declared.general_forms))
         {
             let params = signature.iter().map(String::as_str).collect::<Vec<_>>();
-            shapes.push(Shape::from_params(&params).with_context(|| {
+            let shape = Shape::from_params(&params).with_context(|| {
                 format!(
                     "{}: parameter signature outside the workbench vocabulary: {params:?}",
                     row.label
                 )
-            })?);
+            })?;
+            // A general form whose signature is the keyword's own (multikicker
+            // [cost] under kicker's label [CR#702.33c]) adds no shape.
+            if !shapes.contains(&shape) {
+                shapes.push(shape);
+            }
         }
         for extra in row.extra {
             if !shapes.contains(extra) {
@@ -1583,7 +1575,7 @@ const REGIME_AXIS: &str = "regime and functionsOnStack are two columns because t
                            facts: Effect.keywordBodyFits reads regime as `the keyword's \
                            triggered body keys on a spell cast`, Effect.grantSubjectFits reads \
                            functionsOnStack as `the keyword's ability functions only while its \
-                           object is on the stack` [CR#113.6,113.6d,113.6e]. The 46 cost, \
+                           object is on the stack` [CR#113.6,113.6d,113.6e]. The 45 cost, \
                            alternative-cast and cast-trigger keywords carry both; prowess, \
                            extort and increment carry regime alone, because each is a triggered \
                            ability of a permanent [CR#702.108a,702.101a,702.191a] and so \
@@ -1659,10 +1651,26 @@ const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[Exempt {
     reason: "a special form of banding [CR#702.22b], spelled through the Banding stub",
 }];
 
-/// Designation stubs with no `Words.Designation` constructor. Every stub has
-/// one, so the list is empty; a stub the CR made a non-object property would
-/// be recorded here rather than rowed.
-const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[];
+/// Designation stubs with no `Words.Designation` constructor: the states the
+/// registry carries as designations though the CR never calls them one, which
+/// the deletion-bound Idris reference (`semantics-v1-cutover`) never gains.
+const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[
+    Exempt {
+        label: "foretold",
+        reason: STATE_OF_AN_EXILED_CARD,
+    },
+    Exempt {
+        label: "plotted",
+        reason: STATE_OF_AN_EXILED_CARD,
+    },
+];
+
+const STATE_OF_AN_EXILED_CARD: &str = "a state of a card in exile the CR never calls a \
+                                       designation [CR#702.143c,702.143d,702.170a,702.170c], \
+                                       declared so the generated Lean `designationTable` can \
+                                       row it; the Idris reference is deletion-bound \
+                                       (`semantics-v1-cutover`) and gains no `Designation` \
+                                       constructor";
 
 /// `Words.Designation` constructors with no declaration. The sector
 /// designations [CR#702.158b] exist only for space sculptor, whose one card,

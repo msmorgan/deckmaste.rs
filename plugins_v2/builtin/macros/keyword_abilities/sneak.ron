@@ -26,6 +26,7 @@ KeywordAbility(
                         Param(0),
                         perform(returnToHand(a(and([creature, unblocked, youControl])))),
                     ])),
+                    None,
                 ),
             ),
         ),

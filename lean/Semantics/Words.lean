@@ -220,7 +220,9 @@ it, verbatim (`goaded`, `monarch`, `ringBearer`), or, where a declaration lists 
 the member's own name (`dayNight` lists `day` and `night`). The name is not English: the phrase
 a card prints ("the monarch", "Ring-bearer") is the declaration's spelling. Which designations
 exist, and what each holds and does, is the designation facts table generated from the
-declarations' definitions (`Definition.designation`); the grammar carries only the mechanism. -/
+declarations' definitions (`Definition.designation`); the grammar carries only the mechanism.
+Two labels are states of a card in exile that the CR never calls designations: plotted
+[CR#702.170a,702.170c] and foretold [CR#702.143c,702.143d]. -/
 inductive DesignationLabel where
   | named (name : String)
   deriving DecidableEq, Repr

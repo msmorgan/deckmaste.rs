@@ -24,6 +24,11 @@ semantic_definition commander : DesignationLabel := .named "commander"
 semantic_definition day : DesignationLabel := .named "day"
 semantic_definition night : DesignationLabel := .named "night"
 semantic_definition enduringStory : DesignationLabel := .named "enduringStory"
+/-- Foretold, a state of a card in exile: the CR never calls it a designation, but a card put
+into exile by the foretell special action is a foretold card, an effect may make a card in exile
+become one, and its owner may look at it and cast it for a foretell cost on a later turn
+[CR#702.143a,702.143c,702.143d]. The registry carries it as a designation. -/
+semantic_definition foretold : DesignationLabel := .named "foretold"
 semantic_definition goaded : DesignationLabel := .named "goaded"
 semantic_definition harnessed : DesignationLabel := .named "harnessed"
 semantic_definition initiative : DesignationLabel := .named "initiative"
@@ -31,6 +36,11 @@ semantic_definition leftHalfUnlocked : DesignationLabel := .named "leftHalfUnloc
 semantic_definition level : DesignationLabel := .named "level"
 semantic_definition monarch : DesignationLabel := .named "monarch"
 semantic_definition monstrous : DesignationLabel := .named "monstrous"
+/-- Plotted, a state of a card in exile: the CR never calls it a designation, but a card exiled
+by the plot special action "becomes a plotted card", an effect may make a card in exile become
+one, and its owner may cast it without paying its mana cost on a later turn
+[CR#702.170a,702.170c,702.170d]. The registry carries it as a designation. -/
+semantic_definition plotted : DesignationLabel := .named "plotted"
 semantic_definition prepared : DesignationLabel := .named "prepared"
 semantic_definition renowned : DesignationLabel := .named "renowned"
 semantic_definition rightHalfUnlocked : DesignationLabel := .named "rightHalfUnlocked"

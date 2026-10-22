@@ -325,7 +325,7 @@ An Action a Player may take while they have priority that does not use the stack
 Turn-Based Action and a State-Based Action. One that an ability or effect
 grants is a cost paid and an Action carried out, any time its Player has
 priority within an optional Timing — foretell's is paying {2} and exiling the
-card face down during its owner's turn ([CR#116.2c,116.2h]).
+card from its owner's hand face down during their turn ([CR#116.2c,116.2h,702.143a]).
 
 **Off-Stack Static** (project term):
 A Static Ability that carries out an Action without using the stack,
@@ -904,7 +904,9 @@ each Designation on its own — goaded ([CR#701.15b]), the city's blessing
 ([CR#702.131c]) — rather than defining the class. A Designation is identified
 by its name, the name the registry declares it under (`monarch`), not by the
 phrase a card prints ("the monarch"); one declaration may declare several,
-as day and night are two Designations [CR#731.1].
+as day and night are two Designations [CR#731.1]. Plotted and foretold, states of
+a card in exile that the CR never calls designations, are carried as Designations
+too ([CR#702.170a,702.143c]).
 
 **The Game** (as a holder):
 The game itself, as the holder of the Designations it can have: "it becomes

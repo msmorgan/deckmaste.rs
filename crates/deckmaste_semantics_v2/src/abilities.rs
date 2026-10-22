@@ -781,8 +781,12 @@ pub enum StaticSpec {
         change: ModeChange,
     },
     /// The spell gains a target, `description` saying what it may target,
-    /// when its alternative cost is chosen: mutate's "targets a non-Human
-    /// creature with the same owner as this spell" [CR#702.140a,601.2c].
+    /// for as long as the static ability applies: an Aura spell always
+    /// targets [CR#303.4a]. A target the spell requires only when an
+    /// alternative or additional cost is chosen [CR#601.2c] is this form
+    /// under a condition on that choice, as mutate's "if you do, it …
+    /// targets a non-Human creature with the same owner as this spell"
+    /// [CR#702.140a].
     AddsTarget {
         subject: NounPhrase,
         description: Predicate,
@@ -792,6 +796,16 @@ pub enum StaticSpec {
     TextChange {
         subject: NounPhrase,
         change: TextChange,
+    },
+    /// A cast-time option of a card in its owner's hand: as its owner casts
+    /// `spell`, they may reveal this card [CR#601.2b]; if they do, `grants`
+    /// applies to that spell: an additional cost and a text change (splice
+    /// [CR#702.47a]). Every card revealed this way for one spell is revealed
+    /// at once, and the caster chooses the order in which their text follows
+    /// the main spell's [CR#702.47b,702.47c].
+    RevealedAsCast {
+        spell: NounPhrase,
+        grants: Box<StaticSpec>,
     },
 }
 
@@ -832,6 +846,13 @@ pub enum PlayPayment {
     PayingInstead {
         cost: Box<Cost>,
     },
+    /// Pay the spell's mana cost or one alternative cost, chosen as it is
+    /// cast [CR#601.2b], plus `cost` as an additional cost to cast it this
+    /// way [CR#118.8,601.2f]: retrace's and jump-start's discard
+    /// [CR#702.81a,702.133a].
+    PlusAdditional {
+        cost: Box<Cost>,
+    },
     /// Cast face down as `spec` says, paying `cost` rather than the mana
     /// cost: morph and disguise [CR#702.37a,702.168a,708.4].
     FaceDown {
@@ -852,6 +873,10 @@ pub enum DeonticRider {
         timing: Option<Timing>,
         exclusive: bool,
         payment: Box<PlayPayment>,
+        /// What the spell the permitted play produces must be, as the
+        /// procedure's `resulting` says: flashback's "if the resulting spell
+        /// is an instant or sorcery spell" [CR#702.34a].
+        resulting: Option<Predicate>,
     },
 }
 

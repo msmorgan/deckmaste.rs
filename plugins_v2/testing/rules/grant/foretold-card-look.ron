@@ -1,0 +1,14 @@
+// [CR#702.143d]: "That card's owner may look at that card as long as it
+// remains in exile": the look right of every foretold card in exile, whatever
+// made it foretold. "You" on a card in exile is its owner [CR#109.5]. Mirrors
+// the Lean rule row `foretoldCardLook` (`lean/Semantics/Proofs/Rules.lean`).
+[
+    ConferralRule(
+        scope: And(conjuncts: [
+            IsCard,
+            HasDesignation(designation: foretold, holder: None),
+            InZone(zone: Zone(zone: Exile, scope: Bare)),
+        ]),
+        confer: Static(Visibility(verb: LookAt, player: You, what: Objects(objects: This))),
+    ),
+]

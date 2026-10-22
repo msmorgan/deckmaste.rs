@@ -24,6 +24,7 @@ use deckmaste_semantics_v2::phrase::NounPhrase;
 use deckmaste_semantics_v2::phrase::ObservationPoint;
 use deckmaste_semantics_v2::phrase::Predicate;
 use deckmaste_semantics_v2::phrase::Quantity;
+use deckmaste_semantics_v2::phrase::VisibleThing;
 use deckmaste_semantics_v2::phrase::ZoneExpr;
 use deckmaste_semantics_v2::phrase::ZoneScope;
 use deckmaste_semantics_v2::reader::Plugin;
@@ -34,6 +35,7 @@ use deckmaste_semantics_v2::words::CoreDeed;
 use deckmaste_semantics_v2::words::CounterKind;
 use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationLabel;
+use deckmaste_semantics_v2::words::ExposeVerb;
 use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
@@ -184,12 +186,13 @@ fn a_token_reads_as_a_named_catalog_entry() {
     );
 }
 
-/// All three rules tables load, one row each.
+/// All three rules tables load: one SBA row, the two conferral rows, one
+/// damage-result row.
 #[test]
 fn the_three_rules_tables_load() {
     let plugin = testing_plugin();
     assert_eq!(plugin.rules.sba.len(), 1);
-    assert_eq!(plugin.rules.conferral.len(), 1);
+    assert_eq!(plugin.rules.conferral.len(), 2);
     assert_eq!(plugin.rules.damage_result.len(), 1);
 
     let sba = &plugin.rules.sba[0];
@@ -215,7 +218,17 @@ fn the_three_rules_tables_load() {
     // [CR#306.5b]: the planeswalker's intrinsic "enters with a number of
     // loyalty counters equal to its printed loyalty number", a replacement
     // effect [CR#614.1c] observed after the move onto the battlefield.
-    let conferral = &plugin.rules.conferral[0];
+    let conferral = plugin
+        .rules
+        .conferral
+        .iter()
+        .find(|rule| {
+            rule.scope
+                == Predicate::HasType {
+                    r#type: CardType::Planeswalker,
+                }
+        })
+        .expect("the planeswalker loyalty row loads");
     let Ability::Static { spec } = &conferral.confer else {
         panic!("expected a static ability, got {:?}", conferral.confer);
     };
@@ -261,6 +274,51 @@ fn the_three_rules_tables_load() {
                 },
             },
             on: NounPhrase::This,
+        }
+    );
+
+    // [CR#702.143d]: the owner of a foretold card in exile may look at it,
+    // whatever made it foretold. "You" on a card in exile is its owner
+    // [CR#109.5].
+    let foretold = Predicate::HasDesignation {
+        designation: DesignationLabel::Named {
+            name: "foretold".to_string(),
+        },
+        holder: None,
+    };
+    let look = plugin
+        .rules
+        .conferral
+        .iter()
+        .find(|rule| {
+            matches!(&rule.scope, Predicate::And { conjuncts } if conjuncts.contains(&foretold))
+        })
+        .expect("the foretold card look row loads");
+    assert_eq!(
+        look.scope,
+        Predicate::And {
+            conjuncts: vec![
+                Predicate::IsCard,
+                foretold.clone(),
+                Predicate::InZone {
+                    zone: Box::new(ZoneExpr::Zone {
+                        zone: Zone::Exile,
+                        scope: Box::new(ZoneScope::Bare),
+                    }),
+                },
+            ],
+        }
+    );
+    assert_eq!(
+        look.confer,
+        Ability::Static {
+            spec: Box::new(StaticSpec::Visibility {
+                verb: ExposeVerb::LookAt,
+                player: NounPhrase::You,
+                what: VisibleThing::Objects {
+                    objects: NounPhrase::This,
+                },
+            }),
         }
     );
 
