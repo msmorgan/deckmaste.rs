@@ -590,9 +590,11 @@
             equations: [Require("adjunct.AdjunctPosition", "Front")], transparent: ["head"], cost: 2),
         // A comma-set passive participial Supplement (*there is an additional
         // combat phase after this phase, followed by an additional main
-        // phase*; CGEL, Ch. 14 §9.1, p. 1265; Ch. 15 §5.1, p. 1350).
+        // phase*; CGEL, Ch. 14 §9.1, p. 1265; Ch. 15 §5.1, p. 1350). It
+        // supplements one conjunct, never a whole coordination (*X is …,
+        // rounded down, and Y is …, rounded up*).
         (name: "ParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
-            equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], transparent: ["head"], heavy: ["supplement"], cost: 3),
+            equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], transparent: ["head"], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],

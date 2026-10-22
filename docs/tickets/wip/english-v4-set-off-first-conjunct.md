@@ -77,18 +77,49 @@ Aspect of Wolf also needs rulings on:
 2. the stacking order of shape (c), [[C, where X], rounded down] against
    [C, where [X, rounded down]].
 
+## Owner rulings
+
+**Round 5, item 7a (verbatim):** "set-off-first-conjunct: NO VerbForm
+carve-out. Replace set_off with fronted on the first-conjunct check; accept [C,
+except A] and B and C, except [A and B] as both valid scope trees and let the
+ranking key rank C, except [A and B] first. On Aspect of Wolf keep only the
+structural canonicalizations: uncoordinated: ["head"] on ParticipialSupplement
+(`, rounded up` doesn't wrap a coordination whose first conjunct already has `,
+rounded down`), and ParticipialSupplement ordered inside Supplement ([C, where
+[X, rounded down]] not [[C, where X], rounded down])."
+
+**Round 6 (verbatim):** "Go with (A): Close a preposition's Clause complement
+(when, whenever, if, etc.) against comma-set post-adjuncts (OSG §8, checklist
+4; [CR#603.1,603.4]), keeping ParticipialSupplement `, rounded down` admissible
+inside `, where …` for Aspect of Wolf. If any face is lost when measured, bring
+it back. Confirmed: leave the 5 copy-except units un-tuned, and leave the
+*Search … Then that player shuffles* judgment pending for Stratum 7 (Then)."
+
+These rulings answer the open question above and supersede the Done-when below
+where they differ. Rises from the newly admitted scope trees are allowed. Shape
+(a) is kept as a scope tree. The *Search* entry stays pending until sentence-initial
+*Then* reads (Stratum 7).
+
 ## Done when
 
-- The *Search* entry holds.
-- Aspect of Wolf reads, every Reading with the intended analysis; its deferral
-  is removed; its pending judgment holds, and a `+` judgment asserts `Clause "X
-  is half the number of Forests you control, rounded down, and Y is half the
-  number of Forests you control, rounded up"` inside the *where* phrase.
+- Aspect of Wolf reads with its intended analysis among its Readings and
+  cheapest; its deferral is removed; its pending judgment holds, and a `+`
+  judgment asserts `Clause "X is half the number of Forests you control,
+  rounded down, and Y is half the number of Forests you control, rounded up"`.
+- No Reading puts a comma-set post-adjunct inside a preposition's Clause
+  Complement (an intervening *if* inside *when …*).
 - No new feature in `english.ron`. If the fix needs one, STOP and return to the
   owner.
-- No face is lost, and no unit other than the witnesses gains a Reading.
+- No face is lost.
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`kzzovunt`, full corpus): faces read 28,798 → 28,799
+   (Aspect of Wolf); total Readings (product) 219,746 → 216,788 and Surplus
+   92,028 → 90,205; 37 units rose (29 copy *except* scope trees, 5 cost
+   alternatives, 3 *where* coordinations including Aspect of Wolf) and 869 fell
+   (782 trigger conditions and 33 other preposition Complements lost a
+   comma-set post-adjunct inside them; 54 fronted dependents no longer head a
+   first conjunct). Cheapest tier: singleton in 14,383 of 16,960 ambiguous
+   units, summed 20,250, largest 8. Lost faces: none.
+2. **Judgment set** (`kzzovunt`): 3,021 enforced, 205 pending; all hold.

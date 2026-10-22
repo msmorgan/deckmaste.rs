@@ -146,6 +146,8 @@ pub struct ProductionDecl {
     /// coordinator (two independent clauses joined by *, and*) only within a
     /// comma-set post-dependent (*, except [A, and B]*): the mother carries
     /// it up through the phrases it is the Complement of to that dependent.
+    /// Nor are they a Clause with a comma-set post-adjunct (a preposition's
+    /// Clause Complement: *when [this creature dies], if …*).
     #[serde(default)]
     pub undelimited: Vec<Ident>,
 }

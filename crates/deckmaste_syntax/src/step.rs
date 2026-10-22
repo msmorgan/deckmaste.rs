@@ -220,8 +220,10 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
-    /// Children that may be a delimited coordination only within a comma-set
-    /// post-dependent (`Summary::delimited_complement`).
+    /// A preposition's Clause Complement: a delimited coordination only
+    /// within a comma-set post-dependent (`Summary::delimited_complement`),
+    /// and never a Clause with a comma-set post-adjunct
+    /// (`Summary::post_adjunct`).
     pub undelimited: Vec<usize>,
     /// It is a coordination delimited before its coordinator.
     pub delimits: bool,
@@ -450,6 +452,7 @@ pub(crate) fn resolve(
             host_extensions: 0,
             adjunct_extension: None,
             delimited_complement: false,
+            post_adjunct: false,
         },
     })
 }
@@ -505,21 +508,30 @@ pub(crate) struct Summary {
     pub hosts: u8,
     /// It is a coordination delimited before its coordinator.
     pub delimited: bool,
-    /// It begins with a dependent set off by a comma (*When …, …*), which
-    /// scopes over a whole coordination, never over its first conjunct.
-    pub set_off: bool,
     /// It begins with a fronted dependent of its head, which is its last
     /// child: one set off by a comma (*When …, …*, *Until end of turn, …*)
     /// or a preposed Adjunct without one (*instead put …*). Such a Clause
     /// hosts no comma-set post-dependent, which attaches inside the fronted
-    /// one (`english-lexical-analysis.md` §2).
+    /// one, and is never a first conjunct: the fronted dependent scopes over
+    /// the whole coordination (`english-lexical-analysis.md` §2).
     pub fronted: bool,
+    /// It is a Clause with a comma-set Supplement (*…, where X is its
+    /// power*). A Supplement is the outermost comma-set post-dependent of its
+    /// Clause: a later one attaches inside it (*where [X is half …, rounded
+    /// down]*).
+    pub supplemented: bool,
     /// It is, or selects as its Complement, a Clause coordination delimited
     /// before its coordinator (*except [it's an artifact, and it has
     /// flying]*). Only a comma-set post-dependent, which runs to the end of
     /// its sentence, takes one (`docs/oracle-style-guide.md` §3, Commas and
     /// the serial comma; §12, Copies).
     pub delimited_complement: bool,
+    /// It is a Clause with a comma-set post-adjunct or Supplement Preposition
+    /// Phrase (*…, if you control a Desert*), through its head line. A
+    /// preposition's Clause Complement is closed against one: an intervening
+    /// *if* follows the trigger condition, never inside it
+    /// (`docs/oracle-style-guide.md` §8, checklist 4; [CR#603.1,603.4]).
+    pub post_adjunct: bool,
     /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
@@ -596,6 +608,8 @@ pub(crate) struct State {
     adjunct_extension: Option<Extension>,
     /// A child so far carries `Summary::delimited_complement` up.
     delimited_complement: bool,
+    /// A head-line child so far carries `Summary::post_adjunct` up.
+    post_adjunct: bool,
 }
 
 impl Production {
@@ -968,17 +982,20 @@ impl Production {
         }
     }
 
-    /// Whether a fronted dependent's scope rules this child out: one set off
-    /// by a comma scopes over a whole coordination, never its first conjunct,
-    /// and any scopes over a comma-set post-dependent of its Clause, never
-    /// inside the post-dependent's host (`english-lexical-analysis.md` §2).
+    /// Whether a fronted dependent's or a Supplement's scope rules this child
+    /// out: a fronted dependent scopes over a whole coordination, never its
+    /// first conjunct, and over a comma-set post-dependent of its Clause,
+    /// never inside the post-dependent's host; a Supplement is never inside
+    /// a later comma-set post-dependent's host (`english-lexical-analysis.md`
+    /// §2).
     fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
         let first_conjunct = self.coordinator.is_some() && self.names[position] == "first";
         let post_host = position == 0
             && self.head == Some(0)
             && self.rhs.len() > 2
             && matches!(self.rhs[1], Symbol::Punct(',', _));
-        (summary.set_off && first_conjunct) || (summary.fronted && post_host)
+        (summary.fronted && first_conjunct)
+            || ((summary.fronted || summary.supplemented) && post_host)
     }
 
     /// Whether child `position` is a comma-set post-dependent: the last child
@@ -1127,6 +1144,12 @@ impl Production {
                 if self.undelimited.contains(&position) && summary.delimited {
                     next.delimited_complement = true;
                 }
+                if summary.post_adjunct {
+                    if self.undelimited.contains(&position) {
+                        return None;
+                    }
+                    next.post_adjunct |= self.head_line[position];
+                }
                 if summary.delimited_complement {
                     if self.names[position] == "complement" {
                         next.delimited_complement = true;
@@ -1264,15 +1287,19 @@ impl Production {
                 _ => state.conjunct_hosts,
             },
             delimited: self.delimits,
-            set_off: !coordinated
-                && matches!(self.rhs.get(1), Some(Symbol::Punct(',', _)))
-                && self.rhs.len() > 2,
             fronted: !coordinated
                 && self.head == Some(self.rhs.len() - 1)
                 && ((self.rhs.len() > 2
                     && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)))
                     || self.host_check.is_some_and(|(host, adjunct, _)| adjunct < host)),
             delimited_complement: state.delimited_complement,
+            post_adjunct: state.post_adjunct
+                || self.host_check.is_some_and(|(host, adjunct, _)| {
+                    host < adjunct && matches!(self.rhs[host + 1], Symbol::Punct(',', _))
+                }),
+            supplemented: self.host_check.is_some_and(|(host, adjunct, kind)| {
+                kind == HostKind::Supplement && host < adjunct
+            }),
             auxiliary: self
                 .auxiliary
                 .is_some_and(|(at, value)| values[at].get() == Some(value)),
