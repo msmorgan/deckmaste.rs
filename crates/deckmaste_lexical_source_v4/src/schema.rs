@@ -355,10 +355,6 @@ pub enum AdverbPosition {
 pub struct AdverbEntry {
     pub lemma: String,
     pub positions: Vec<AdverbPosition>,
-    /// An interrogative adverb, which introduces an interrogative content
-    /// clause (*how each player votes*).
-    #[serde(default)]
-    pub interrogative: bool,
 }
 
 /// One complement frame of a preposition with its Host Category.
@@ -497,6 +493,8 @@ pub struct BoundEntry {
 pub struct ClosedClass {
     pub determinatives: Vec<DeterminativeEntry>,
     pub pronouns: Vec<PronounEntry>,
+    /// Closed-class adverbs: the interrogative *how*.
+    pub adverbs: Vec<AdverbEntry>,
     pub coordinators: Vec<String>,
     pub subordinators: Vec<String>,
     /// Auxiliaries and modals, including their negative forms.

@@ -280,6 +280,8 @@ pub fn lexicon() -> Lexicon {
     // pronouns.
     lexemes.push(invariant("sub", "that", Category::Subordinator, Core));
     lexemes.push(invariant("sub", "whether", Category::Subordinator, Core));
+    // Interrogative *how*, a Closed Word of the grammar.
+    lexemes.push(invariant("adv", "how", Category::Adverb, Core));
     for lemma in ["which", "who"] {
         let mut relative = pronoun(lemma, Third, None);
         relative

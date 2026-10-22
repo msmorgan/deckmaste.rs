@@ -173,7 +173,8 @@ open-class core words reach the grammar through typed lexical classes and
 subcategorization frames, never by name in the grammar data file.
 
 Core closed-class words (determinatives, prepositions, coordinators,
-subordinators, auxiliaries, pronouns, negators) may be referenced directly, by
+subordinators, auxiliaries, pronouns, negators, the interrogative adverb *how*;
+CGEL, Ch. 10 §7, p. 902) may be referenced directly, by
 lexeme id, never by a string. A direct reference is used when exactly one
 lexeme can fill a slot; a typed class is used when two or more can. A class
 with one member, or a feature with one holder, is reported as a finding.

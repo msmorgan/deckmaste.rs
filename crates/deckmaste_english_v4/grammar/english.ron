@@ -328,6 +328,8 @@
         "Whichever": "det:whichever",
         "Which": "det:which",
         "Whether": "sub:whether",
+        // Interrogative *how* (CGEL, Ch. 10 §7, p. 902).
+        "How": "adv:how",
         "Target": "det:target",
         "Most": "det:most",
         "Anywhere": "det:anywhere",
@@ -349,7 +351,7 @@
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "InterrogativeAdverb"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -1375,13 +1377,13 @@
             equations: [Require("$.Person", "Third")]),
         // *How many* / *how much* determine an interrogative phrase as
         // *which* does (*note how many cards you've drafted*).
-        (name: "DegreeInterrogativeDeterminer", lhs: "InterrogativePhrase", rhs: [Class("degree", "InterrogativeAdverb"), Class("determiner", "DegreeQuantifier"), Cat("head", "Nominal")],
+        (name: "DegreeInterrogativeDeterminer", lhs: "InterrogativePhrase", rhs: [Word("degree", "How"), Class("determiner", "DegreeQuantifier"), Cat("head", "Nominal")],
             equations: [Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Person", "Third")]),
         (name: "SubjectInterrogative", lhs: "InterrogativeClause", rhs: [Cat("subject", "InterrogativePhrase"), Cat("head", "VerbPhrase")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")]),
         (name: "GapInterrogative", lhs: "InterrogativeClause", rhs: [Cat("marker", "InterrogativePhrase"), Cat("clause", "Clause")],
             equations: [Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite")]),
-        (name: "AdverbialInterrogative", lhs: "InterrogativeClause", rhs: [Class("marker", "InterrogativeAdverb"), Cat("clause", "AdjunctGapClause")],
+        (name: "AdverbialInterrogative", lhs: "InterrogativeClause", rhs: [Word("marker", "How"), Cat("clause", "AdjunctGapClause")],
             equations: [Require("clause.Gap", "Adjunct")]),
 
         (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive")]),
