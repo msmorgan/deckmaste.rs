@@ -6,12 +6,13 @@ KeywordAbility(
         surface: "exalted",
     ),
     // "Exalted" means "Whenever a creature you control attacks alone, that creature
-    // gets +1/+1 until end of turn." [CR#702.83a] "Attacks alone" is the
-    // intervening-if: exactly one creature is attacking [CR#702.83b,506.5].
+    // gets +1/+1 until end of turn." [CR#702.83a] A creature attacks alone when it
+    // is the only creature declared as an attacker [CR#702.83b,506.5], so the
+    // trigger event is you attacking with exactly one creature, not a condition
+    // checked again on resolution.
     body: [
-        triggeredIf(
-            attacks(a(creatureYouControl)),
-            compareAmt(countOf(and([creature, attacking])), Eq, 1),
+        triggered(
+            attacksWith(you, counted(exactly(1), and([creature, youControl]))),
             getsBoth(that(Creature), up(1), untilEndOfTurn),
         ),
     ],

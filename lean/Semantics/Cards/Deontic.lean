@@ -129,7 +129,7 @@ theorem okTrumpetingArmodon : Ability.check (DRS.ofList []) trumpetingArmodon = 
 
 def loathsomeCatoblepas : Ability :=
   activated [generic 2, pip .green]
-    (establishThroughout (must (by_ (allOf isCreature)) (block thisCreature)) thisTurn)
+    (establishThroughout (must any (block thisCreature)) thisTurn)
 theorem okLoathsomeCatoblepas : Ability.check (DRS.ofList []) loathsomeCatoblepas = [] := by decide
 
 def hipparion : Ability :=
@@ -139,7 +139,7 @@ def hipparion : Ability :=
 theorem okHipparion : Ability.check (DRS.ofList []) hipparion = [] := by decide
 
 def frodoBaggins : Ability :=
-  static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
+  static (onlyWhile (must any (block thisCreature))
     (is thisCreature (hasDesignation ringBearer you)))
 theorem okFrodoBaggins : Ability.check (DRS.ofList []) frodoBaggins = [] := by decide
 
@@ -200,7 +200,7 @@ def brainwash : Spelled := spelled <| singleFacedCard
         static (gatedBy [generic 3] (enchanted creature) attack) ] }
 
 def enkiraHostileScavenger : Ability :=
-  static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
+  static (onlyWhile (must any (block thisCreature))
     (is thisCreature (isAttached (some .equipped))))
 theorem okEnkiraHostileScavenger : Ability.check (DRS.ofList []) enkiraHostileScavenger = [] := by decide
 

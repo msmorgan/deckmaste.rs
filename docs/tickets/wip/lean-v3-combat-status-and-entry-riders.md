@@ -50,18 +50,9 @@ creature whose only blocker left combat stays `isBlocked`; sneak refuses a non-a
 
 ## 2. Ninjutsu and sneak entry riders
 
-- Ninjutsu (`Definitions/Keywords.lean:1039-1046`) ends in
-  `putOntoBattlefieldTappedAttacking this_ yourHand`, which expands to `.entersAttacking none`
-  (`Templates.lean:1167-1169`), leaving the attack target to the controller's choice [CR#508.4].
-  [CR#702.49c]: the Ninja "enters attacking the same player, planeswalker, or battle as the
-  creature that was returned". Bind the defender to the returned creature's attack target, read
-  by last known information at the moment the cost is paid.
-- Sneak (`Definitions/Keywords.lean:1286-1295`) is a bare `can you (cast thisSpell (payment :=
-  payingInstead …))` with no Entry Rider, so the permanent does not enter tapped and attacking.
-  [CR#702.190b] gives it "enters the battlefield tapped and attacking", attacking the same target.
-  Add the rider, gated on the sneak cost having been paid (`keywordCostPaid`).
-- Nothing in the repository cites [CR#702.49c] or [CR#702.190b] today. The Rust `Attacking(Option<Reference>)`
-  (`crates/deckmaste_core/src/action.rs:67-70`) can already carry the defender.
+Split out to [lean-v3-ninjutsu-defender-lki](../planned/lean-v3-ninjutsu-defender-lki.md): reading
+the returned creature's attack target is refused by the checker's public-zone rule and needs an
+owner ruling.
 
 ## 3. Exalted's RON mirror still uses an intervening "if"
 

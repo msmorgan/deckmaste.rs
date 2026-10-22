@@ -568,6 +568,14 @@ theorem okFlash : Ability.check (DRS.ofList []) flash = [] := by decide
 blockers step, paying {U} and returning an unblocked creature you control. -/
 theorem okSneak : Ability.check (DRS.ofList []) (sneak (.mana [pip .blue])) = [] := by decide
 
+/-- "Unblocked" is its own combat status, not "not blocked": an attacking creature is neither
+blocked nor unblocked until blockers are declared [CR#509.1h], so neither ninjutsu nor sneak can
+return an attacker before then, and sneak cannot return a creature that is not attacking. -/
+theorem unblockedIsItsOwnStatus :
+    (isUnblocked : Predicate) = .inCombat .unblocked none ∧
+      (isUnblocked : Predicate) ≠ .not isBlocked :=
+  ⟨rfl, fun h => by cases h⟩
+
 /-- Mystic Veil: "If you cast it any time a sorcery couldn't have been cast" [CR#307.5a], the
 timing qualifier on a lookback. -/
 theorem okCastWhenASorceryCouldNotHaveBeen :

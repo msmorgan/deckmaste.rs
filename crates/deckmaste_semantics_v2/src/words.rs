@@ -218,12 +218,23 @@ pub enum PossessorAxis {
 /// How an object stands in combat, optionally toward a counterpart: "attacking"
 /// is `attackerOf` with none, "creature blocking it" is `blockerOf` with one.
 /// `declaredAttacker` is the declare-attackers moment [CR#508.1].
+///
+/// `BlockedBy` with no counterpart ("blocked") and `Unblocked` are the two
+/// statuses an attacking creature gets when blockers are declared, and neither
+/// is the other's negation: before then an attacking creature is neither
+/// [CR#509.1h]. Both are sticky: a blocked creature stays blocked when every
+/// creature blocking it is removed from combat [CR#509.1h], and a creature put
+/// onto the battlefield attacking during the declare blockers step or later
+/// enters unblocked [CR#508.4d]. Either ends when the creature is removed from
+/// combat [CR#506.4] or the combat phase ends, or when an effect says it
+/// becomes blocked or unblocked [CR#509.1h].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CombatRelation {
     AttackerOf,
     DeclaredAttacker,
     BlockerOf,
     BlockedBy,
+    Unblocked,
     AttackedBy,
     CouldBlock,
     CouldBeBlockedBy,

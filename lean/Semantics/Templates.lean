@@ -466,8 +466,13 @@ semantic_template isAttached (word : Option AttachWord := none) : Predicate :=
   .attachment .host word none
 semantic_template isAttacking : Predicate := .inCombat .attackerOf none
 semantic_template isBlocking : Predicate := .inCombat .blockerOf none
+/-- "blocked": an attacking creature that blockers were declared for, or that an effect made
+blocked, until it is removed from combat [CR#509.1h,506.4]. -/
 semantic_template isBlocked : Predicate := .inCombat .blockedBy none
-semantic_template isUnblocked : Predicate := not isBlocked
+/-- "unblocked": an attacking creature once no blocker was declared for it [CR#509.1h], or one
+that entered attacking after blockers were declared [CR#508.4d]. Not `not isBlocked`: before
+blockers are declared an attacking creature is neither. -/
+semantic_template isUnblocked : Predicate := .inCombat .unblocked none
 /-- "colorless": an object of no color [CR#105.2c]. -/
 semantic_template isColorless : Predicate := .colorCount .eq 0
 /-- "monocolored" -/
@@ -1030,7 +1035,11 @@ semantic_template can (subj : Subject) (action : Action)
     (asThough : Option AsThough := none)
     (except : Option DeonticExcept := none) : StaticSpec :=
   .can subj action { timing, asThough, except }
-/-- "<subj> <action>s if able", "<subj> must <action>" -/
+/-- "<subj> <action>s if able", "<subj> must <action>". A requirement with the unspecified agent
+`any` is one requirement on the whole clause: "this creature must be blocked if able" is one
+requirement on the declaration of blockers [CR#509.1c], met when at least one creature blocks it.
+`by_ (allOf …)` instead puts a requirement on each creature ("must be blocked by all creatures
+able to block it"). -/
 semantic_template must (subj : Subject) (action : Action)
     (timing : Option Timing := none)
     (asThough : Option AsThough := none)

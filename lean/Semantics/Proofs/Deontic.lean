@@ -377,5 +377,17 @@ theorem badAsThoughPronounWithoutParticipant :
         { asThough := some (.condition (.matches them (.hasKeyword (.the (.named "flash"))))) }) =
       [.anaphor .bare .many 0] := by decide
 
+/-- "This creature must be blocked if able": one requirement on the declaration of blockers,
+met when at least one creature blocks it [CR#509.1c]. It is not Lure's "must be blocked by all
+creatures", a requirement on each creature able to block it. -/
+theorem okMustBeBlocked :
+    StaticSpec.check (DRS.ofList []) (must any (block thisCreature)) = [] := by decide
+
+theorem mustBeBlockedIsNotLure :
+    (must any (block thisCreature) : StaticSpec) ≠
+      must (by_ (allOf isCreature)) (block thisCreature) := by
+  intro h
+  cases h
+
 end Semantics.Proofs.Deontic
 

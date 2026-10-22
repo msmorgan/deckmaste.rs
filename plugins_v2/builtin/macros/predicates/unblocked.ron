@@ -1,6 +1,10 @@
+// "unblocked": an attacking creature once no blocker was declared for it, or
+// one that entered attacking after blockers were declared [CR#509.1h,508.4d].
+// Not `Not(blocked)`: before blockers are declared an attacking creature is
+// neither.
 (
     name: "unblocked",
     kinds: [Predicate],
     params: [],
-    body: Not(blocked),
+    body: InCombat(Unblocked, None),
 )
