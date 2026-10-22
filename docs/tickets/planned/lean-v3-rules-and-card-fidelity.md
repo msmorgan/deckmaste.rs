@@ -113,6 +113,57 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
   Squirrel-Whacker* (`Cards/Anaphora.lean:264`), and *Purging Scythe*
   (`Cards/Damage.lean:227-234`).
 
+### 4. Printed move text dropped by the move-deeds landing (wave review, 2026-10-21)
+
+Reviews of [lean-v3-move-deeds-and-verbs](lean-v3-move-deeds-and-verbs.md) found two kinds of
+printed text that the rewritten move sites do not carry. Line numbers verified 2026-10-21
+against the Lean source and the Oracle text in `data/derived/cards.jsonl`.
+
+- **"under its owner's control" is missing (`[CR#110.2a]`).** An effect that puts an object onto
+  the battlefield puts it under the instructing player's control unless the effect states
+  otherwise, so these three read as the caster (or ability controller) taking control. Write the
+  rider as *Flickering Spirit* (`Cards/Anaphora.lean:38`) and *Another Round* (`:192`) do,
+  `[(under (ownerOf …))]`, with the referent each card names:
+  - *Turn to Mist* `Cards/Turn.lean:33`: `returnToBattlefield (that card)`. Oracle: "Return that
+    card to the battlefield under its owner's control at the beginning of the next end step."
+  - *Voyager Staff* `Cards/Turn.lean:40`: "Return the exiled card to the battlefield under its
+    owner's control at the beginning of the next end step."
+  - *Graceful Reprieve* `Cards/Trigger.lean:19`: "return that card to the battlefield under its
+    owner's control."
+  A sweep of the authored cards whose Oracle text prints "under its/their owner's control" found
+  no others (*Daydream*, *Infernal Vessel* and *Yedora, Grave Gardener* already write it).
+- **"from your graveyard" (or "from a graveyard") is not the move's origin.** The sites below
+  print the origin in the move clause and write only a target restriction (`in_ yourGraveyard`)
+  or nothing at all. A move written without an origin is observed on arrival, not on departure,
+  so a "leaves a graveyard" trigger would not see it (`zoneChange` in `Templates.lean` decides
+  the Observation Point from the written origin, `[CR#603.6c,603.10a]`). Writing the origin makes
+  these moves departure-observed, which is harmless for the effects themselves. Write the origin
+  with the Template's own parameter (`returnToHand subject yourGraveyard`,
+  `returnToBattlefield subject riders (from_ := some yourGraveyard)`), as `dredge` and `recover`
+  already do (`Definitions/Keywords.lean:534,1216`):
+  - Origin missing on a "this card" or all-cards subject: *Hammer of Bogardan* `Cards/Turn.lean:77`
+    (`returnToHand this_`), *Storm of Souls* `Cards/Keyword.lean:857`, *Eerie Ultimatum*
+    `Cards/Static.lean:868`.
+  - Origin written only as the target's `in_ yourGraveyard`: *Ever After* `Cards/Anaphora.lean:176`,
+    *Rogues' Gallery* `Cards/Description.lean:351`, *Blood Spatter Analysis*
+    `Cards/Counters.lean:1074`, *The Last Ronin* `Cards/Damage.lean:1347`.
+  - Same pattern, found while verifying: *Bond of Revival* `Cards/Anaphora.lean:44`, *Midnight
+    Scavengers* `Cards/Faces.lean:405`, and "from a graveyard" on *Rise from the Grave*
+    `Cards/Anaphora.lean:169` and *Hymn of Rebirth* `Cards/Static.lean:38`. The last two use
+    `putOntoBattlefieldUnderYourControl`, which has no origin parameter; give the
+    `putOntoBattlefield*` Templates the optional `from_` that `putOntoBattlefieldTappedAttacking`
+    already has.
+  - Not in scope: restrictions that are the noun phrase's own modifier ("creature cards in your
+    graveyard", as *Continue?*, *Faith's Reward*, *Death or Glory*) are not move origins.
+  - Proposed, not ruled: keep the `in_` restriction on a target where it is what makes the
+    target legal, and add the origin beside it. If the checker refuses the pair as redundant,
+    that is a checker question for an owner ruling, not a reason to drop either.
+
+Tests to add (in `Proofs/` beside the existing move pins): for each rider site, a pin that the
+authored action's move carries `.under` the owner; for each origin site, a pin that the move is
+departure-observed from the graveyard; and a refusal pin that a bare `returnToBattlefield` with
+no rider and no origin stays observed on arrival. Update any pin that names the old tree.
+
 ## Verification
 
 - `./lean/scripts/build` (`lake build --wfail`) passes with zero warnings and
