@@ -916,8 +916,7 @@ each Designation on its own — goaded ([CR#701.15b]), the city's blessing
 by its name, the name the registry declares it under (`monarch`), not by the
 phrase a card prints ("the monarch"); one declaration may declare several,
 as day and night are two Designations [CR#731.1]. Plotted and foretold, states of
-a card in exile that the CR never calls designations, are carried as Designations
-too ([CR#702.170a,702.143c]).
+a card in exile, are Designations ([CR#702.170a,702.143c]).
 
 **The Game** (as a holder):
 The game itself, as the holder of the Designations it can have: "it becomes

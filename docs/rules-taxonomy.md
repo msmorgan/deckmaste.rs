@@ -460,8 +460,8 @@ The Ends column lists only expirations *earlier* than object identity.
 | level N | [CR#716.2b] | gates Class abilities | **number** | "becomes level N" (Class) | persists even if it stops being a Class |
 | sector (alpha/beta/gamma) | [CR#702.158b] | grouping ("in the same sector" [CR#702.158e]) | **enum(3)** | space sculptor SBA choice ([CR#704.5u]) | while any space-sculptor source exists |
 | left/right half unlocked | [CR#709.5c..709.5i] | half's name/cost/text active ([CR#709.5]) | **set of 2 flags** | cast that half; unlock cost (special action [CR#116.2m]); unlock effects | lock effects ([CR#709.5g]) |
-| foretold (the CR never calls it a designation; the registry carries it as one) | [CR#702.143c,702.143d] | may be cast for its foretell cost (which the granting effect may supply) | flag (+ optional attached Cost) | foretell special action ([CR#116.2h]); "becomes foretold" effects | — (object identity: cast / leaves exile) |
-| plotted (the CR never calls it a designation; the registry carries it as one) | [CR#702.170d] | castable later without paying its mana cost | flag | plot special action ([CR#116.2k]); "becomes plotted" effects ([CR#702.170c]) | — (object identity) |
+| foretold | [CR#702.143c,702.143d] | may be cast for its foretell cost (which the granting effect may supply) | flag (+ optional attached Cost) | foretell special action ([CR#116.2h]); "becomes foretold" effects | — (object identity: cast / leaves exile) |
+| plotted | [CR#702.170d] | castable later without paying its mana cost | flag | plot special action ([CR#116.2k]); "becomes plotted" effects ([CR#702.170c]) | — (object identity) |
 
 Suspended ([CR#702.62b]) belongs to the vocabulary but not the table: it's a
 **derived designation** — defined as a predicate, never granted or stored.

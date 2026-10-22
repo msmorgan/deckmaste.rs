@@ -45,7 +45,8 @@ Obliterator*, *Reaper of Sheoldred*, *Belltower Sphinx*, *Archfiend of Spite*, *
 ## Proposed fix (direction from the owner; shape to confirm)
 
 - Governing principle (owner, 2026-10-21): printed wording lives on Templates, and a Core AST
-  distinction exists only where the CR or anaphora resolution needs it.
+  distinction exists only where the CR or anaphora resolution needs it. Refined 2026-10-22 as
+  `semantics-v3.md` §0.1 item 5.
 - "Source" is wording. Add a `thatSource` Template (spelling "that source") that expands to a
   demonstrative over a generic Noun Word. That word filters only by kind (object), not by card
   type or zone, because a source can be a permanent, a spell, an object an effect refers to, or

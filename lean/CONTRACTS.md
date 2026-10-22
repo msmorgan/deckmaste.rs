@@ -1033,6 +1033,15 @@ Counter supplies stack removal and a spell's graveyard destination [CR#701.6a];
 this uniform expansion is the workbench's chosen representation, not an added
 runtime lifetime model.
 
+Owner ruling (2026-10-22): the 2026-09-06 ruling stands, and Counter is not split
+by subject. An ability on the stack behaves as a token does: it stops existing
+once it leaves its home zone, however that zone change happens [CR#608.2n,704.5d].
+That an ability countered to the graveyard then ceases is the engine's lifetime
+rule, so one stack-to-graveyard enactment serves a spell and an ability alike, and
+engine consistency outweighs a subject-dependent special case for [CR#701.6a]'s
+"A countered spell is put into its owner's graveyard". This answers the
+question `lean-v3-countered-ability-ceases` put: its split is not made.
+
 An ability referent stores its zone, initially the stack. Movement updates that
 zone while retaining its ability identity and copy origin. A stack reference
 resolves on actual stack evidence; counter and copy check no zone. Element referents and
@@ -1178,8 +1187,10 @@ grammar projects no marked damage and has no "since state-based actions were
 last checked" lookback. `Stat.loyalty` and `Stat.defense` read by zone:
 counters on the battlefield [CR#306.5c,310.4c], the printed number elsewhere
 [CR#306.5a,310.4a]. The state-based and damage rows read the counters
-directly; the entry conferrals read the printed number through
-`ProjAxis.printed` [CR#306.5b,310.4b] (owner ruling 2026-10-22).
+directly; the entry conferrals [CR#306.5b,310.4b] read the stat,
+`statOf (.stat .loyalty|.defense) .this`, which off the battlefield already is
+the printed number. There is no printed-number projection: when an entering
+object is read is the engine's concern (owner ruling 2026-10-22; ADR §0.1 item 5).
 
 ## Shared event patterns and static applicability
 

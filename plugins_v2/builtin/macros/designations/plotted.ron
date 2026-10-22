@@ -1,9 +1,8 @@
 // Plotted is a state of a card in exile: "It becomes a plotted card"
 // [CR#702.170a], and some spells and abilities cause a card in exile to become
 // plotted [CR#702.170c]; its owner may cast it on a later turn [CR#702.170d].
-// The CR never calls plotted a designation; the registry carries it as one so
-// "becomes plotted" and "plotted card" have a state to read. The plot keyword's
-// grammar owns the "plotted" adjective, so this declaration writes none.
+// The plot keyword's grammar owns the "plotted" adjective, so this declaration
+// writes none.
 Designation(
     name: "plotted",
     params: [],

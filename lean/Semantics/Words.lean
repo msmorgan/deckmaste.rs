@@ -221,8 +221,8 @@ the member's own name (`dayNight` lists `day` and `night`). The name is not Engl
 a card prints ("the monarch", "Ring-bearer") is the declaration's spelling. Which designations
 exist, and what each holds and does, is the designation facts table generated from the
 declarations' definitions (`Definition.designation`); the grammar carries only the mechanism.
-Two labels are states of a card in exile that the CR never calls designations: plotted
-[CR#702.170a,702.170c] and foretold [CR#702.143c,702.143d]. -/
+Plotted [CR#702.170a,702.170c] and foretold [CR#702.143c,702.143d], states of a card in exile, are
+designations like the rest. -/
 inductive DesignationLabel where
   | named (name : String)
   deriving DecidableEq, Repr
@@ -571,10 +571,6 @@ inductive CounterKind where
 
 inductive ProjAxis where
   | stat (stat : Stat)
-  /-- The number printed on the card for a stat, in any zone and whatever counters the object
-  has: "its printed loyalty number" [CR#306.5b] and "its printed defense number" [CR#310.4b],
-  which the zone-aware `stat` read gives only off the battlefield [CR#306.5a,310.4a]. -/
-  | printed (stat : Stat)
   | playerStat (stat : PlayerStat)
   | counter (kind : CounterKind)
   | anyCounter (kind : Kind)

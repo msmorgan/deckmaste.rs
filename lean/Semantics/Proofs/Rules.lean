@@ -60,36 +60,27 @@ theorem badSbaScopeKind :
 
 /-- [CR#306.5b] "A planeswalker has the intrinsic ability 'This permanent enters with a number
 of loyalty counters on it equal to its printed loyalty number.'" A replacement effect
-[CR#614.1c] whose count is the printed loyalty number [CR#209.1], read as printed (owner ruling
-2026-10-22). -/
+[CR#614.1c] whose count is the planeswalker's loyalty, `statOf (.stat .loyalty) .this`: off the
+battlefield a planeswalker card's loyalty is its printed number [CR#306.5a], so the printed
+number needs no projection of its own. When the entering object is read is the engine's
+concern, not the term's (ADR §0.1 items 4 and 5; owner ruling 2026-10-22). -/
 def planeswalkerLoyalty : ConferralRule :=
   { scope := .hasType .planeswalker,
     confer :=
       .static
-        (entersWithCounters .this (.statOf (.printed .loyalty) .this) (.named "loyaltyCounter")) }
+        (entersWithCounters .this (.statOf (.stat .loyalty) .this) (.named "loyaltyCounter")) }
 theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := by decide
 
 /-- [CR#310.4b] "A battle has the intrinsic ability 'This permanent enters with a number of
 defense counters on it equal to its printed defense number.'" The battle row of the same shape
-[CR#614.1c], counting the printed defense number [CR#210.1]. -/
+[CR#614.1c], counting the battle's defense, which off the battlefield is its printed number
+[CR#310.4a]. -/
 def battleDefense : ConferralRule :=
   { scope := .hasType .battle,
     confer :=
       .static
-        (entersWithCounters .this (.statOf (.printed .defense) .this) (.named "defenseCounter")) }
+        (entersWithCounters .this (.statOf (.stat .defense) .this) (.named "defenseCounter")) }
 theorem okBattleDefense : ConferralRule.check battleDefense = [] := by decide
-
-/-- Each entry conferral counts the printed number [CR#306.5b,310.4b] through the printed
-projection, not the zone-aware stat, which is the printed number only off the battlefield
-[CR#306.5a,310.4a] and the counter count on it [CR#306.5c,310.4c]. -/
-theorem entryConferralsReadPrinted :
-    planeswalkerLoyalty.confer =
-        .static (entersWithCounters .this (.statOf (.printed .loyalty) .this)
-          (.named "loyaltyCounter")) ∧
-      battleDefense.confer =
-        .static (entersWithCounters .this (.statOf (.printed .defense) .this)
-          (.named "defenseCounter")) :=
-  ⟨rfl, rfl⟩
 
 /-- A conferral scopes what can have an ability — an object, or a player granted one
 [CR#113.1a,113.1b] — and a color is neither. -/

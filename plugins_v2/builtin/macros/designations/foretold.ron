@@ -1,7 +1,5 @@
 // Foretold is a state of a card in exile: the card the foretell special action
-// exiles, or one an effect says becomes foretold [CR#702.143c,702.143d]. The CR
-// never calls foretold a designation; the registry carries it as one so
-// "becomes foretold" and "foretold card" have a state to read.
+// exiles, or one an effect says becomes foretold [CR#702.143c,702.143d].
 Designation(
     name: "foretold",
     params: [],

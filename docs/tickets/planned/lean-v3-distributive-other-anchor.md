@@ -36,8 +36,9 @@ Run is not authored in `Cards/`; the probe above is the only encoding so far.
   phrase is in an unrelated clause, step 1 is unchanged.
 - Representation is the implementer's choice: an anchor variant that says "member of mention
   N", or evaluating the `Amount` once per member. The Core AST gains a distinction only if the CR
-  or anaphora resolution needs it (owner, 2026-10-21); here the checker and the later engine
-  both need to know which reading, so a variant is expected. Escalate if it is not.
+  or anaphora resolution needs it (owner, 2026-10-21; refined 2026-10-22 as `semantics-v3.md`
+  §0.1 item 5); here the checker and the later engine both need to know which reading, so a
+  variant is expected. Escalate if it is not.
 - If a card needs an anchor the amended steps do not pick, STOP for an owner ruling (ADR §0.1).
 
 ## Tests to add (in `Proofs/ContrastAnchor.lean`)
