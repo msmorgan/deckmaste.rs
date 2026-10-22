@@ -567,18 +567,6 @@ selected Complements (*put a number of +1/+1 counters on it [equal to the
 result]*) (CGEL, Ch. 5 §14.2, p. 445; Ch. 12 §4, p. 1066).
 _Avoid_: extraposed modifier
 
-**Present Clause** (project term):
-A finite Clause in the present tense that a Preposition selects as its
-Complement where Oracle English never refers to past time: a repeated trigger
-event (*whenever you cast a spell*), a state (*while you control an
-artifact*), an endpoint (*until a player casts a creature spell*) or a
-supplementary definition (*, where X is its power*). The present there is the
-serial-state or pragmatically unrestricted present of a subordinate clause
-(CGEL, Ch. 3 §4.2.1, p. 128; §4.2.5, pp. 134–135). Other clausal
-Prepositions take any finite Clause, since a condition can be on past events
-(*if an opponent cast a spell this turn*, *as long as it entered this turn*).
-_Avoid_: tensed clause for this term (a preterite Clause is tensed too)
-
 **Verbless Clause**:
 A Clause whose Predicate contains no verb; a reducible Clause Complement of a
 Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
@@ -1113,16 +1101,6 @@ article or genitive it is an ordinary Noun Phrase (*End the turn*). Serial
 *time* forms one with any Determinative (*any time*, *an additional time*,
 *three times*), and either kind does with a Relative Clause (*the next time you
 cast a spell*) (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).
-
-**Period Noun Phrase** (project term):
-A period noun with a Deictic or Distributive Determinative (*that turn*, *each
-end step*) as a Noun Phrase, occurring only where a head selects one: the
-Object of *skip* (*that player skips that turn instead*) or the Complement of
-*of*, *after*, *before* or *during* (*at the beginning of each end step*). It is
-never a general Object: *this turn* in *can't block this turn* is only a
-Temporal Noun Phrase Adjunct, which, unlike an Object, has no personal-pronoun
-or *what* counterpart (CGEL, Ch. 4 §1.2, p. 224).
-_Avoid_: Object for a Temporal Noun Phrase Adjunct
 
 **Duration Phrase**:
 An Adjunct that bounds how long the effect of its Clause lasts, such as *until

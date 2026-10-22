@@ -53,5 +53,19 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+## Resolution (owner ruling, round 10)
+
+Closed without a grammar change of its own. The owner kept both FreeChoice
+Excludes (`docs/decisions/english-v4.md` §4.4, item 10, closed list), so
+`DeterminativeDistribution` `FreeChoice` keeps its readers and is a justified
+single-holder value on *any*, as `NounDistribution` `Serial` is on *time*: it
+routes *any* to the Productions that carry number transparency (CGEL, Ch. 5
+§3.3, pp. 349–351) and keeps a second tree of one analysis out
+(`docs/decisions/english-lexical-analysis.md` §2). Change 2 is not made: a
+`Word("Any")` in place of the value would not let Determined and
+DeterminedModifiedQuantity tell *any* apart. The justification is documented
+on the value in `english.ron` and in `deckmaste_lexical_source_v4`'s
+`schema.rs`, landed with `english-v4-gate-review` in xmzmyptl.
+
+Census delta (measured on xmzmyptl): none of its own; resolved by the keep ruling, with the grammar unchanged; lost faces: none.
+Judgment set: unchanged from `english-v4-gate-review`'s landing (xmzmyptl), all holding.

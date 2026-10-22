@@ -1,7 +1,7 @@
-# A period noun with a deictic or distributive determinative is a Temporal Noun Phrase Adjunct (*this turn*, *each combat*), and a Noun Phrase only where a head selects one: the Object of *skip*, the Complement of *of*, *after*, *before* or *during*. It is never a general Object (CGEL, Ch. 4 §1.2, p. 224; Ch. 8 §6.3, p. 698).
-+ Target creature can't block this turn. => NounPhrase "this turn" as Adjunct of block || NounPhrase "this turn" as Adjunct of can; !NounPhrase "this turn" as Object of block
-+ This creature attacks each combat if able. => NounPhrase "each combat" as Adjunct of attack; !NounPhrase "each combat" as Object of attack
-+ Prevent all combat damage that would be dealt this turn. => NounPhrase "this turn" as Adjunct of deal; !NounPhrase "this turn" as Object of deal
+# A period noun with a deictic or distributive determinative is a Temporal Noun Phrase Adjunct (*this turn*, *each combat*; CGEL, Ch. 8 §6.3, p. 698), and an ordinary Noun Phrase where a head selects one: the Object of *skip*, the Complement of *of*, *after*, *before* or *during*. An Object Reading of an Adjunct (*can't block [this turn]*) is well-formed English that semantics rejects (CGEL, Ch. 4 §1.2, p. 224), so these entries assert the Adjunct, not its absence.
++ Target creature can't block this turn. => NounPhrase "this turn" as Adjunct of block || NounPhrase "this turn" as Adjunct of can
++ This creature attacks each combat if able. => NounPhrase "each combat" as Adjunct of attack
++ Prevent all combat damage that would be dealt this turn. => NounPhrase "this turn" as Adjunct of deal
 + At the beginning of each upkeep, if no spells were cast last turn, transform this creature. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
 + <card=Gerrard's Hourglass Pendant> If a player would begin an extra turn, that player skips that turn instead. => NounPhrase "that turn" as Object of skip
 + If you would begin your draw step, you may skip that step instead. If you do, you gain 2 life. => NounPhrase "that step" as Object of skip

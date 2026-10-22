@@ -107,5 +107,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on the refreshed tvwxssow → xmzmyptl): faces read 28,801 → 28,801; total Readings 238,531 → 245,825; Surplus 102,458 → 106,859; lost faces: none.
+Judgment set: 3,052 enforced and 206 pending, all holding; ranking tally S/A/P/F 708/232/11/93 on the first base (a statistic, §4.4 item 7).

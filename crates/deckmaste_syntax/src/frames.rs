@@ -52,8 +52,6 @@ pub enum SlotRelation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum ClauseKind {
     Finite,
-    /// A finite Clause in the present tense (*whenever you cast a spell*).
-    Present,
     Verbless,
     /// An interrogative content clause (*whether ...*, *which creatures
     /// attack*, *how each player votes*).
@@ -75,9 +73,6 @@ pub enum SlotFill {
     /// A slash measure as a Noun Phrase, taken only where a head selects
     /// one (*gets +2/+2*).
     MeasureNP,
-    /// A Period Noun Phrase, taken only where a head selects one (*skips
-    /// that turn*, *the beginning of each end step*).
-    PeriodNP,
     Clause(ClauseKind),
     ToInf,
     /// A *to*-infinitival with an object Gap its verb's Subject fills
@@ -113,9 +108,7 @@ pub enum SlotKind {
     AdvP,
     LocativeNP,
     MeasureNP,
-    PeriodNP,
     FiniteClause,
-    PresentClause,
     VerblessClause,
     InterrogativeClause,
     ToInf,
@@ -141,9 +134,7 @@ impl SlotFill {
             Self::AdvP => SlotKind::AdvP,
             Self::LocativeNP => SlotKind::LocativeNP,
             Self::MeasureNP => SlotKind::MeasureNP,
-            Self::PeriodNP => SlotKind::PeriodNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
-            Self::Clause(ClauseKind::Present) => SlotKind::PresentClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
             Self::ToInf => SlotKind::ToInf,
@@ -199,7 +190,6 @@ impl Frame {
                         | SlotFill::KeywordPhrase
                         | SlotFill::QuotedAbility
                         | SlotFill::MeasureNP
-                        | SlotFill::PeriodNP
                 )]
             ),
             FrameFamily::Ditransitive => matches!(
