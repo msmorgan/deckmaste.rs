@@ -213,7 +213,12 @@ fn ranking_key_ranks_a_higher_component_over_any_amount_of_a_lower_one() {
             .len()
     );
     for (key, reading) in &ranked {
-        assert_eq!(*key, s.grammar.ranking_key(reading, &s.lexicon).unwrap());
+        assert_eq!(
+            *key,
+            s.grammar
+                .ranking_key(reading, &s.lexicon, &std::collections::BTreeSet::new())
+                .unwrap()
+        );
         assert_eq!(key.attachment_class, 0);
     }
     assert!(ranked.windows(2).all(|w| w[0] < w[1]));

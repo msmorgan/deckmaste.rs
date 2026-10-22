@@ -1,6 +1,7 @@
 //! Engine core: loading, feature agreement, packing, Admission and both
 //! round-trip laws, over a small hand-written grammar.
 
+use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use deckmaste_lexical::Category;
@@ -163,8 +164,12 @@ fn cheaper_attachment_ranks_first() {
         "nominal attachment first"
     );
     assert!(
-        grammar.ranking_key(&readings[0], &lexicon).unwrap()
-            < grammar.ranking_key(&readings[1], &lexicon).unwrap()
+        grammar
+            .ranking_key(&readings[0], &lexicon, &BTreeSet::new())
+            .unwrap()
+            < grammar
+                .ranking_key(&readings[1], &lexicon, &BTreeSet::new())
+                .unwrap()
     );
 }
 
@@ -370,7 +375,12 @@ fn best_ranked_orders_by_key_then_reading() {
     let ranked = parse.best_ranked(usize::MAX);
     assert_eq!(ranked.len(), parse.readings().len());
     for (key, reading) in &ranked {
-        assert_eq!(*key, grammar.ranking_key(reading, &lexicon).unwrap());
+        assert_eq!(
+            *key,
+            grammar
+                .ranking_key(reading, &lexicon, &BTreeSet::new())
+                .unwrap()
+        );
     }
     assert!(
         ranked.windows(2).all(|w| w[0] < w[1]),

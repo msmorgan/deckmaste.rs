@@ -65,6 +65,9 @@ pub struct AnalyzedText {
     pub normalized: Option<String>,
     pub tokens: Vec<char>,
     pub matches: Vec<LexicalMatch>,
+    /// The card-name Lexemes the text was analyzed in the scope of: the
+    /// names of the face whose text it is.
+    pub scope: BTreeSet<crate::LexemeId>,
 }
 
 impl AnalyzedText {
@@ -515,6 +518,22 @@ impl Lexicon {
         registered.first().map(|value| (*value).clone())
     }
 
+    /// Whether a value is a card-scoped spelling of its Lexeme, which
+    /// analysis admits only within a card's own scope: a Shortened Name
+    /// [CR#201.5c], an Introduced Name or an Anchor Word.
+    #[must_use]
+    pub fn is_card_scoped(&self, value: &LexicalValue) -> bool {
+        let declared = LexicalValue {
+            capitalization: SurfaceCase::Declared,
+            ..value.clone()
+        };
+        self.surfaces.get(&declared).is_some_and(|surface| {
+            self.lexemes
+                .get(&value.lexeme)
+                .is_some_and(|lexeme| lexeme.card_scoped_surfaces.contains(surface))
+        })
+    }
+
     /// Whether a card in `scope` admits the card-scoped spellings of
     /// `lexeme`: one of its `card_scope`, or the Lexeme itself when that is
     /// empty.
@@ -629,6 +648,7 @@ impl Lexicon {
             normalized: normalized.map(str::to_owned),
             tokens,
             matches,
+            scope: scope.clone(),
         }
     }
 }

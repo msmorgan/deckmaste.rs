@@ -138,6 +138,13 @@ pub struct ProductionDecl {
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,
+    /// Lexical children that cost one more where analysis did not admit
+    /// their leaf through the scope of the face whose text is parsed (one of
+    /// the face's own names, or a card-scoped spelling such as its Shortened
+    /// Name [CR#201.5c]): another card's full name. A Production Cost
+    /// preference, never an admission condition.
+    #[serde(default)]
+    pub scoped: Vec<Ident>,
     /// Children that are not themselves a coordination, where a coordination
     /// one level up is the same analysis (a chain of bare imperatives).
     #[serde(default)]

@@ -506,7 +506,12 @@
         // multicolored*): a colour word there names the colour, a noun
         // (CGEL, Ch. 19 §3.3, p. 1642; Ch. 5 §9.3, p. 417).
         (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.Conversion", "Converted")]),
-        (name: "NamedParameter", lhs: "Name", rhs: [Lex("head", Catalog)]),
+        // Another card's full name costs one more than the face's own name,
+        // so the face's own Shortened Name [CR#201.5c] ranks first where the
+        // two are spelled alike (*Nicol Bolas* on Nicol Bolas, the Ravager).
+        // Both stay Readings: full names are in scope everywhere
+        // (english-lexical-analysis.md §1).
+        (name: "NamedParameter", lhs: "Name", rhs: [Lex("head", Catalog)], scoped: ["head"]),
         (name: "SlashMeasure", lhs: "Measure", rhs: [Cat("first", "SignedAmount"), Mark('/', Bound), Cat("second", "SignedAmount")]),
         (name: "MeasureHeader", lhs: "Header", rhs: [Cat("head", "Measure")]),
         (name: "RangeHeader", lhs: "Header", rhs: [Class("marker", "RangeMarker"), Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")], equations: []),

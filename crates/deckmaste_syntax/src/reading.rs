@@ -216,7 +216,8 @@ impl Parse<'_> {
             };
             let here = match child {
                 ChildRef::Node(n) => self.tier_node(n, memo),
-                ChildRef::Leaf(_) | ChildRef::Punct => Some((RankingKey::default(), 1)),
+                ChildRef::Leaf(l) => Some((self.leaf_key(item, l), 1)),
+                ChildRef::Punct => Some((RankingKey::default(), 1)),
             };
             let edge = self.edge_key(item, previous, child);
             if let (Some((k1, n1)), Some((k2, n2))) = (before, here) {
@@ -227,6 +228,13 @@ impl Parse<'_> {
             memo.items.insert(item, best);
         }
         best
+    }
+
+    /// The key leaf `leaf` adds as the child that `item` took last.
+    fn leaf_key(&self, item: usize, leaf: usize) -> RankingKey {
+        let it = &self.forest.items[item];
+        self.grammar
+            .leaf_key(it.production, it.dot - 1, self.forest.leaves[leaf].scoped)
     }
 
     /// The Ranking Key a child adds where an item takes it after `previous`:
@@ -392,7 +400,7 @@ impl Parse<'_> {
                     .map(|(k, r)| (k, Some(r)))
                     .collect(),
                 ChildRef::Leaf(l) => vec![(
-                    RankingKey::default(),
+                    self.leaf_key(item, l),
                     Some(Reading::Leaf(self.forest.leaves[l].reading.clone())),
                 )],
                 ChildRef::Punct => vec![(RankingKey::default(), None)],
@@ -434,6 +442,8 @@ pub(crate) struct ChildFacts {
 /// and Constituents.
 struct KeyContext<'r> {
     lexicon: &'r Lexicon,
+    /// The card-name Lexemes the Reading's text is in the scope of.
+    scope: &'r BTreeSet<LexemeId>,
     text: &'r str,
     constituents: &'r [Constituent],
 }
@@ -483,7 +493,8 @@ fn truncate<T: Ord>(set: BTreeSet<(RankingKey, T)>, limit: Option<usize>) -> Vec
 impl CompiledGrammar {
     /// A Reading's Ranking Key, computed from the tree: the sum of its
     /// Productions' keys and of the Right Association words each of its
-    /// children adds, counted on the Reading's realized text.
+    /// children adds, counted on the Reading's realized text. `scope` is the
+    /// card-name scope its text was analyzed in.
     ///
     /// # Errors
     /// The Reading cannot be realized with this lexicon.
@@ -491,10 +502,12 @@ impl CompiledGrammar {
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
+        scope: &BTreeSet<LexemeId>,
     ) -> Result<RankingKey, AdmissionError> {
         let (text, constituents) = self.constituents(reading, lexicon)?;
         let context = KeyContext {
             lexicon,
+            scope,
             text: &text,
             constituents: &constituents,
         };
@@ -533,6 +546,11 @@ impl CompiledGrammar {
             .filter(|(_, symbol)| !matches!(symbol, Symbol::Punct(..)))
             .map(|(i, _)| i)
             .collect();
+        for (child, &at) in node.children.iter().zip(&positions) {
+            if let Reading::Leaf(leaf) = child {
+                key = key + self.leaf_key(production, at, self.scoped(leaf, context.scope));
+            }
+        }
         let first = names
             .iter()
             .position(|name| name.as_str() == "first")
@@ -707,6 +725,29 @@ impl CompiledGrammar {
             production_cost: u64::from(self.productions[production].cost),
             ..RankingKey::default()
         }
+    }
+
+    /// The key a leaf adds as the child at right-hand-side position `at`:
+    /// one more Production Cost where the Production declares it `scoped`
+    /// and the leaf was not admitted through the face's scope, so that
+    /// another card's full name ranks after the face's own name spelled
+    /// alike.
+    pub(crate) fn leaf_key(&self, production: usize, at: usize, scoped: bool) -> RankingKey {
+        RankingKey {
+            production_cost: u64::from(
+                self.productions[production].scoped.contains(&at) && !scoped,
+            ),
+            ..RankingKey::default()
+        }
+    }
+
+    /// Whether a leaf was admitted through the scope of the face whose text
+    /// is parsed: one of the face's own names (`scope`), or a card-scoped
+    /// spelling, which analysis admits only within its card's scope.
+    pub(crate) fn scoped(&self, leaf: &LexicalReading, scope: &BTreeSet<LexemeId>) -> bool {
+        matches!(leaf, LexicalReading::Word(value)
+            if scope.contains(&value.lexeme)
+                || self.card_scoped.contains(&(value.lexeme, value.variant)))
     }
 
     pub(crate) fn feature_map(&self, category: usize, summary: &Summary) -> BTreeMap<Ident, Ident> {

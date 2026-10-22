@@ -29,7 +29,8 @@ fn forest_keys_equal_tree_keys_over_the_judgment_set() {
             }
             for (key, reading) in parse.best_ranked(usize::MAX) {
                 checked += 1;
-                if grammar.ranking_key(&reading, &env.lexicon) != Ok(key) {
+                let scope = deckmaste_english_v4::judgment::scope(entry);
+                if grammar.ranking_key(&reading, &env.lexicon, &scope) != Ok(key) {
                     failures.push(format!("{}: {}", entry.location, entry.text));
                     break;
                 }
@@ -61,4 +62,34 @@ fn a_distributive_adjunct_attaches_to_the_outermost_predicate() {
     let (text, constituents) = grammar.constituents(&best, &env.lexicon).unwrap();
     let located = deckmaste_english_v4::judgment::Located { text, constituents };
     assert!(judge.endorses(entry, &located));
+}
+
+/// On Nicol Bolas, the Deceiver, *Nicol Bolas* is the face's own Shortened
+/// Name and also the full name of another card. Both stay Readings; the
+/// face's own name ranks first, in the forest and on the tree alike.
+#[test]
+fn a_face_s_own_name_ranks_before_another_card_s_name_spelled_alike() {
+    let env = LexicalEnvironment::load().unwrap();
+    let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
+    let own = deckmaste_english_v4::corpus::card_name_lexeme("Nicol Bolas, the Deceiver");
+    let scope = std::collections::BTreeSet::from([own]);
+    let text = "Nicol Bolas deals 7 damage to each opponent.";
+    let parse = grammar.parse_analyzed(&env.lexicon.analyze_source_scoped(text, None, &scope));
+    let names = |reading: &deckmaste_syntax::Reading| {
+        let (_, constituents) = grammar.constituents(reading, &env.lexicon).unwrap();
+        constituents
+            .iter()
+            .filter_map(|c| c.head)
+            .filter(|h| h.as_str().starts_with("name:"))
+            .collect::<Vec<_>>()
+    };
+    let ranked = parse.best_ranked(usize::MAX);
+    assert_eq!(ranked.len(), 2);
+    let other = deckmaste_english_v4::corpus::card_name_lexeme("Nicol Bolas");
+    assert!(names(&ranked[0].1).iter().all(|h| *h == own));
+    assert!(names(&ranked[1].1).iter().all(|h| *h == other));
+    assert!(ranked[0].0 < ranked[1].0);
+    for (key, reading) in &ranked {
+        assert_eq!(grammar.ranking_key(reading, &env.lexicon, &scope), Ok(*key));
+    }
 }

@@ -220,6 +220,9 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
+    /// Lexical children that cost one more where their leaf was not admitted
+    /// through the face's scope (`ProductionDecl::scoped`).
+    pub scoped: Vec<usize>,
     /// A preposition's Clause Complement: a delimited coordination only
     /// within a comma-set post-dependent (`Summary::delimited_complement`),
     /// and never a Clause with a comma-set post-adjunct
@@ -398,6 +401,7 @@ pub(crate) fn resolve(
         predicative: None,
         paired_coordinator: None,
         uncoordinated: Vec::new(),
+        scoped: Vec::new(),
         undelimited: Vec::new(),
         delimits: false,
         chained: None,

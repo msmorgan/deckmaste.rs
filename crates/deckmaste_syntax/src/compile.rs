@@ -87,6 +87,9 @@ pub struct CompiledGrammar {
     pub(crate) by_lhs: Vec<Vec<usize>>,
     pub(crate) root: usize,
     pub(crate) lexemes: BTreeMap<LexemeId, LexemeFacts>,
+    /// The card-scoped spellings of the lexicon, as (Lexeme, spelling
+    /// variant), which analysis admits only within their card's scope.
+    pub(crate) card_scoped: BTreeSet<(LexemeId, usize)>,
     pub(crate) frames: Vec<Frame>,
     pub(crate) preposition_frames: Vec<PrepositionFrame>,
     /// Prepositions whose `PP` slot would extend a head's selected frame,
@@ -202,6 +205,7 @@ struct Draft {
     /// The coordinator a correlative coordination's serial tail must end with.
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
+    scoped: Vec<usize>,
     undelimited: Vec<usize>,
     /// A binary coordination with a delimiter before its coordinator.
     delimits: bool,
@@ -257,6 +261,7 @@ impl Draft {
             requires_coordination: None,
             paired_coordinator: None,
             uncoordinated: Vec::new(),
+            scoped: Vec::new(),
             undelimited: Vec::new(),
             delimits: false,
             chained: None,
@@ -611,6 +616,11 @@ impl<'a> Binder<'a> {
                 by_lhs,
                 root,
                 lexemes,
+                card_scoped: lexicon
+                    .values()
+                    .filter(|value| lexicon.is_card_scoped(value))
+                    .map(|value| (value.lexeme, value.variant))
+                    .collect(),
                 frames,
                 preposition_frames,
                 extensions,
@@ -984,6 +994,18 @@ impl<'a> Binder<'a> {
                 .ok_or_else(|| context(invalid(format!("unknown uncoordinated child `{name}`"))))?;
             draft.uncoordinated.push(child);
         }
+        for name in &declaration.scoped {
+            let child = draft
+                .children
+                .iter()
+                .position(|c| c.name == *name && matches!(c.symbol, Symbol::Leaf(_)))
+                .ok_or_else(|| {
+                    context(invalid(format!(
+                        "scoped child `{name}` is not a lexical child"
+                    )))
+                })?;
+            draft.scoped.push(child);
+        }
         self.equations(&mut draft, &declaration.equations)
             .map_err(context)?;
         Ok(draft)
@@ -1300,6 +1322,7 @@ impl<'a> Binder<'a> {
         production.predicative = draft.predicative;
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
+        production.scoped = draft.scoped;
         production.undelimited = draft.undelimited;
         production.delimits = draft.delimits;
         production.chained = draft.chained;

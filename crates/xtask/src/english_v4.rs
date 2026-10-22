@@ -236,7 +236,14 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         }
         for (index, reading) in parse.best_readings(args.limit).iter().enumerate() {
             parse.admit(reading, &env.lexicon)?;
-            dump_reading(&grammar, &env, reading, index + 1, output)?;
+            dump_reading(
+                &grammar,
+                &env,
+                reading,
+                &judgment::scope(&entry),
+                index + 1,
+                output,
+            )?;
         }
         writeln!(output)?;
     }
@@ -247,6 +254,7 @@ fn dump_reading(
     grammar: &deckmaste_syntax::CompiledGrammar,
     env: &LexicalEnvironment,
     reading: &deckmaste_syntax::Reading,
+    scope: &std::collections::BTreeSet<deckmaste_lexical::LexemeId>,
     number: usize,
     output: &mut dyn Write,
 ) -> Result<()> {
@@ -255,7 +263,7 @@ fn dump_reading(
         output,
         "Reading {} (ranking key {}): {text:?}",
         number,
-        format_key(grammar.ranking_key(reading, &env.lexicon)?)
+        format_key(grammar.ranking_key(reading, &env.lexicon, scope)?)
     )?;
     let mut nodes = Vec::new();
     preorder_nodes(reading, &mut nodes);

@@ -42,6 +42,9 @@ pub(crate) struct Leaf {
     pub end: usize,
     pub reading: LexicalReading,
     pub facts: LeafFacts,
+    /// It was admitted through the scope of the face whose text is parsed:
+    /// one of the face's own names, or a card-scoped spelling.
+    pub scoped: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -288,6 +291,7 @@ impl CompiledGrammar {
                     end: found.end,
                     reading: found.reading.clone(),
                     facts,
+                    scoped: self.scoped(&found.reading, &analyzed.scope),
                 });
             }
         }
