@@ -158,9 +158,9 @@ that is never also the Displaced Subject's postmodifier; and predicative Complem
 complex-transitive verbs, including Preposition Phrases that could modify a
 nominal (*face down*, *of the chosen type*). Locatives after `be` and `remain`
 are Locative Complements, not predicatives. Passives carry their `by` phrase as
-a Complement; it is *by* plus a Noun Phrase that is neither a fused-head
-quantity (*two*) nor a braced symbol (*{2}*), so a selected *by* extent (*reduced by
-{2}*, *increased by two*) is never also the Internalised Complement. Adjectival Passives come from frames whose passive leaves no
+a Complement; it is *by* plus a Noun Phrase. A selected *by* extent (*reduced
+by {2}*, *increased by two*) is also an Internalised Complement Reading, which
+semantics rejects by type. Adjectival Passives come from frames whose passive leaves no
 other Complement; they are predicative Complements only.
 
 The profiler assigns reduced relatives and `named` postmodifiers to Stratum 3,
@@ -198,10 +198,10 @@ determinative and no postmodifier (*this turn*, *each combat*, *this game*),
 serial *time* with any determinative (*any time*, *an additional time*, *three
 times*), or a temporal nominal with a relative clause (*the next time you cast a
 spell*); *the turn* and *your turn* are ordinary Noun Phrases. A period noun
-with a deictic or distributive determinative is otherwise a Period Noun Phrase,
-only where a head's frame selects one (*skips that turn*, *the beginning of each
-end step*, *after this phase*), so it is never a general Object (*can't block
-this turn* has no Object). A marked relative
+with a deictic or distributive determinative is also an ordinary Noun Phrase
+(*skips that turn*, *the beginning of each end step*, *after this phase*), so
+*can't block this turn* has an Object Reading beside the Adjunct one, which
+semantics rejects. A marked relative
 clause may be postposed past a predicate adjunct, its Antecedent the Object that
 fills the verb's Gap (*Choose a card at random that was exiled with ...*),
 ranked behind the relative in place. A postpositive Adjective Phrase with its

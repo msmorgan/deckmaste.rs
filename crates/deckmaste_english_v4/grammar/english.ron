@@ -37,9 +37,9 @@
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
-        "ComplementKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PeriodNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "PresentClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // `Serial` has one holder, *time*, and that is the whole class: a
         // bounding frequency Noun Phrase has *times* as its head (*three
         // times*; CGEL, Ch. 8 §9, p. 715), and so does a cardinal multiplier
@@ -57,6 +57,16 @@
         "AdjectivePosition": ["Attributive", "Predicative"],
         "Sign": ["Negative", "Zero", "Positive"],
         "PronounKind": ["Personal", "Existential", "Relative"],
+        // `FreeChoice` has one holder, *any*, and that is the whole class, as
+        // `Serial` is *time*. Determined and DeterminedModifiedQuantity
+        // exclude it, two kept admission gates (`docs/decisions/english-v4.md`
+        // §4.4, item 10): Determined's routes *any* to FreeChoiceDetermined,
+        // TransparentQuantity and TemporalQuantity, which carry number
+        // transparency (CGEL, Ch. 5 §3.3, pp. 349–351: never *any number of
+        // target creatures becomes*); and with
+        // DeterminedModifiedQuantity's, neither Production builds a second
+        // tree of an analysis FreeChoiceDetermined or AgreeingModifiedQuantity
+        // builds (`docs/decisions/english-lexical-analysis.md` §2).
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
@@ -149,19 +159,21 @@
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
-        // A period noun with a deictic or distributive determinative (*this
-        // turn*, *each combat*), which is a Noun Phrase only where a head
-        // selects one (*skips that turn*, *the beginning of each end step*):
-        // never a general Object (*can't block this turn*; CGEL, Ch. 4 §1.2,
-        // p. 224).
-        "PeriodNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
         "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], gap: true),
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
-        // A temporal nominal bounded by a relative clause (*next time you cast a spell*).
+        // A temporal nominal bounded by a relative clause (*next time you cast a
+        // spell*). A kept admission gate (`docs/decisions/english-v4.md` §4.4,
+        // item 10), a formation rule: a Noun Phrase is a temporal Adjunct only
+        // in restricted forms (CGEL, Ch. 8 §6.3, p. 698), and a temporal
+        // nominal in one takes a *when*-less adverbial relative clause, then at
+        // most a temporal bound, and no other postmodifier (*the next time
+        // [event] this turn*, `docs/oracle-style-guide.md` §11, Continuous and
+        // bounded durations). RelativeTime and RelativeTimePostmodifier
+        // restate NominalPostmodifier and TemporalPostmodifier for that reason.
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
         "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind"], gap: true),
         "NounPremodifier": (category: Some("Nominal")),
@@ -176,6 +188,14 @@
         "TargetedOblique": (category: Some("PrepositionPhrase"), features: ["Number", "NounKind"]),
         "TargetedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "NounKind", "Countability"]),
         "BareNominalComplement": (category: Some("Nominal")),
+        // A genitive's possessor: a Noun Phrase that ends in its head. A kept
+        // admission gate (`docs/decisions/english-v4.md` §4.4, item 10), a
+        // register formation rule: English has the phrasal genitive (*the King
+        // of England's daughter*; CGEL, Ch. 5 §16.6, p. 479), but Oracle never
+        // postmodifies a possessor, and fronts the player noun instead "to
+        // avoid a dangling possessive" (`docs/oracle-style-guide.md` §6,
+        // Controller and owner). Its Productions restate the Noun Phrase ones
+        // over BareNominal, which takes no postmodifier.
         "Possessor": (category: Some("NounPhrase"), features: ["Number", "Person", "Case"]),
         // A single genitive over coordinated nominals (*target artifact or
         // creature's owner*; CGEL, Ch. 15 §3.4, p. 1331).
@@ -230,9 +250,21 @@
         "PostmodifierConjunct": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "PostmodifierCoordination": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
+        // An asyndetic chain of premodifiers. A kept admission gate
+        // (`docs/decisions/english-v4.md` §4.4, item 10), a register formation
+        // rule: Oracle sets off with commas only independent *non-*
+        // premodifiers of one head (`docs/oracle-style-guide.md` §6,
+        // Determiners and modifier order), so the chain never holds an
+        // uncoordinated non-negative attribute.
         "AttributeChain": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
         // A premodifier in an asyndetic chain, and the negative premodifier
-        // that fills it.
+        // that fills it. The three negative Categories restate
+        // PrefixedNounPremodifier, the Premodification `prefix` Production and
+        // NegativeAdjective, and the chain cannot share those: nothing in
+        // NounPremodifier, Participle or AdjectivePhrase records that a
+        // premodifier is negative. Sharing them would take a polarity feature
+        // on all three, read only by the chain, or a unary node added to the
+        // Reading of every *non-* premodifier.
         "NegativeAttribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
         "NegativeNounPremodifier": (category: Some("Nominal")),
         "NegativeParticiple": (category: Some("VerbPhrase"), features: ["Inflection"]),
@@ -264,10 +296,6 @@
         "SignedAmount": (),
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
-        // A finite Clause in the present tense, which a Preposition selects
-        // where Oracle English never refers to past time (*whenever you cast
-        // a spell*, *while you control an artifact*).
-        "PresentClause": (category: Some("Clause")),
         "VerblessClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
         // a bare infinitival or gerund-participial its Verb Phrase.
@@ -360,7 +388,6 @@
         AdvP: "Adverbial",
         LocativeNP: "LocativeNounPhrase",
         MeasureNP: "MeasureNounPhrase",
-        PeriodNP: "PeriodNounPhrase",
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
         Amount: "Amount",
@@ -372,7 +399,6 @@
         // a keyword's Cost (*Equip abilities you activate cost {2} less*).
         Cost: "SymbolCosts",
         FiniteClause: "FiniteClause",
-        PresentClause: "PresentClause",
         VerblessClause: "VerblessClause",
         InterrogativeClause: "InterrogativeClause",
         ToInf: "ToInf",
@@ -435,7 +461,7 @@
 
         (name: "BoundKeywordItem", lhs: "KeywordParameters", rhs: [Cat("head", "BoundKeyword")]),
         (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.NounKind", "Manner"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], transparent: ["head"]),
+        (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], transparent: ["head"]),
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
         (name: "FusedQuantifierNominalPhrase", lhs: "NounPhrase", rhs: [Class("head", "FusedQuantifier")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
@@ -558,7 +584,6 @@
                 Require("head.VerbForm", "Finite"),
                 Exclude("subject.Case", "Accusative"),
                 Exclude("subject.Case", "Genitive"),
-                Exclude("subject.NounKind", "Manner"),
                 Require("$.ClauseMarking", "Unmarked"),
             ],
             transparent: ["head"]),
@@ -1091,15 +1116,7 @@
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"),
-                ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Deictic")]),
-                ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Distributive")])]),
-        // A period noun with a deictic or distributive determinative is a
-        // Period Noun Phrase instead (*that turn*, *each end step*).
-        (name: "DeicticPeriod", lhs: "PeriodNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Carry("head.NounKind", "Temporal"), Carry("head.NounDistribution", "Ordinary"), Carry("determiner.DeterminativeDistribution", "Deictic"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "DistributivePeriod", lhs: "PeriodNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Carry("head.NounKind", "Temporal"), Carry("head.NounDistribution", "Ordinary"), Carry("determiner.DeterminativeDistribution", "Distributive"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         // A distributive determiner over an *and*-coordination of singular
         // nominals makes a singular Noun Phrase (*each creature and
         // planeswalker you control gets ...*; CGEL, Ch. 5 §18.4, p. 508).
@@ -1164,9 +1181,7 @@
         // *its controller's next two untap steps*.
         (name: "GenitiveModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "ModifiedQuantifiedNominal")],
             equations: [Carry("determiner.Case", "Genitive"), Agree("$.Number", "head.QuantityNumber"), Require("$.Countability", "Count"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // A noun's *of* Complement is a Noun Phrase, never a gerund-participial
-        // (*the number of attacking creatures*).
-        (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Exclude("head.ObliqueKind", "Gerund"), Agree("$.ConjunctNumber", "$.Number")], transparent: ["head"]),
+        (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Agree("$.ConjunctNumber", "$.Number")], transparent: ["head"]),
         // The Targeting Marker is a determiner on its own (*target creature*),
         // singular as the lexicon gives it; after an adjective (*other target
         // creatures*, *second target*); or the last word of a determiner with
@@ -1273,7 +1288,7 @@
         // SubjectInitialClause is declared: no card coordinates two bare
         // relatives under one head.)
         (name: "RelativeSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
-            equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Exclude("subject.Case", "Accusative"), Exclude("subject.Case", "Genitive"), Exclude("subject.NounKind", "Manner")],
+            equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Exclude("subject.Case", "Accusative"), Exclude("subject.Case", "Genitive")],
             transparent: ["head"]),
         (name: "RelativeCliticSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Attached("head", "VerbPhrase", Suffix)],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("subject.Case", "Nominative")],
@@ -1353,12 +1368,6 @@
         // verbless Clause without its Subject (*if able*; Ch. 14 §10(b), p. 1267).
         (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")], undelimited: ["head"],
             equations: [Require("head.VerbForm", "Finite")]),
-        // A present-tense Clause Complement: the serial-state present of a
-        // repeated trigger event, a state or an endpoint (*whenever*, *while*,
-        // *until*, supplementary *where*; CGEL, Ch. 3 §4.2.1, p. 128; §4.2.5,
-        // pp. 134–135).
-        (name: "PresentComplementClause", lhs: "PresentClause", rhs: [Cat("head", "Clause")], undelimited: ["head"],
-            equations: [Require("head.VerbForm", "Finite"), Require("head.Inflection", "Present")]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
 
         // Interrogative content clauses: closed (*whether ...*), with an
@@ -1399,9 +1408,11 @@
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
         // The Internalised Complement is *by* plus a Noun Phrase, the
         // active's Subject (CGEL, Ch. 16 §10.1.1, p. 1428). An amount, a
-        // fused-head quantity or a symbol after *by* is an extent (*reduced
-        // by {2}*, *increased by two*; Ch. 8 §5.2, p. 692); a *by* gerund is
-        // a means Adjunct (p. 1428).
+        // fused-head quantity or a symbol after *by* is also an extent, which
+        // *reduce* and *increase* select (*reduced by {2}*, *increased by
+        // two*; Ch. 8 §5.2, p. 692): both Readings are well-formed, and
+        // semantics rejects the agent one by type (`docs/decisions/english-v4.md`
+        // §4.4, item 10). A *by* gerund is a means Adjunct (p. 1428).
         // Voice is a verb's: another head's phrase takes its Voice from the
         // head (a declared Adjectival Passive). A passive is headed by a past
         // participle. An auxiliary verb derives no
@@ -1413,7 +1424,7 @@
             passive: Some("By"),
             verbal_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple")],
             prepositional_passive: [Require("$.Voice", "Passive"), Require("$.VerbForm", "PastParticiple"), Exclude("head.VerbKind", "Auxiliary")],
-            internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")],
+            internalised: [Require("internalised.ComplementKind", "NP")],
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
             interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"), clusters: Some("Coordinator")),

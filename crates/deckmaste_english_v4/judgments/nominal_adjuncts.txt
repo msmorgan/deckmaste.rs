@@ -2,8 +2,8 @@
 +PrepositionPhrase until end of turn
 +PrepositionPhrase during combat
 +PrepositionPhrase until end of combat
-+VerbPhrase blocks this combat => NounPhrase "this combat" as Adjunct of block; !NounPhrase "this combat" as Object of block
-+VerbPhrase attacks each combat => NounPhrase "each combat" as Adjunct of attack; !NounPhrase "each combat" as Object of attack
++VerbPhrase blocks this combat => NounPhrase "this combat" as Adjunct of block
++VerbPhrase attacks each combat => NounPhrase "each combat" as Adjunct of attack
 +VerbPhrase entered this turn => NounPhrase "this turn" as Adjunct of enter
 +NounPhrase this way
 *NounPhrase this turns

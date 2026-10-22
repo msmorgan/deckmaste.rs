@@ -8,7 +8,7 @@
 +NounPhrase the next time you would draw a card this turn => RelativeClause "you would draw a card this turn" as Modifier of time gap "next time"
 +Clause This turn, each creature you control enters with an additional +1/+1 counter on it => NounPhrase "This turn" as Adjunct of enter; RelativeClause "you control" gap "creature"
 +NounPhrase each time
-+VerbPhrase attacked this turn => NounPhrase "this turn" as Adjunct of attack; !NounPhrase "this turn" as Object of attack
++VerbPhrase attacked this turn => NounPhrase "this turn" as Adjunct of attack
 +VerbPhrase triggers only once each turn => NounPhrase "each turn" as Adjunct of trigger
 +NounPhrase this way
 +NounPhrase the first time you cast a spell each turn => RelativeClause "you cast a spell each turn" as Modifier of time gap "first time"

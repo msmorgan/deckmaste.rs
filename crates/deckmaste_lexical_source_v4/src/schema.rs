@@ -79,12 +79,7 @@ pub enum FillSpec {
     LocativeNP,
     /// A slash measure as a Noun Phrase (*gets +2/+2*).
     MeasureNP,
-    /// A period noun with a deictic or distributive determinative as a Noun
-    /// Phrase (*skips that turn*).
-    PeriodNP,
     FiniteClause,
-    /// A finite Clause in the present tense (*whenever you cast a spell*).
-    PresentClause,
     VerblessClause,
     ToInf,
     /// A *to*-infinitival with an object Gap the Subject fills.
@@ -429,7 +424,13 @@ pub enum DeterminativeDistribution {
     SingularOrQuantified,
     /// Free-choice *any* (CGEL, Ch. 5 §7.5, p. 381): with a quantificational
     /// noun the Noun Phrase takes the Number of its oblique (*any number of
-    /// target creatures become ...*).
+    /// target creatures become ...*). It has one holder, *any*, and that is
+    /// the whole class, as `NounDistribution::Serial` is *time*: the value
+    /// routes *any* to the Productions that carry number transparency (CGEL,
+    /// Ch. 5 §3.3, pp. 349–351), which keeps out *any number of target
+    /// creatures becomes*, and keeps it out of the general ones, which would
+    /// build a second tree of the same analysis
+    /// (`docs/decisions/english-lexical-analysis.md` §2).
     FreeChoice,
     /// A fraction or multiplier before a determined Noun Phrase (*half their
     /// life*, *double that damage*; CGEL, Ch. 5 §7.3, p. 434).

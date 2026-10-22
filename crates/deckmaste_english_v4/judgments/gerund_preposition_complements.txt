@@ -10,4 +10,4 @@
 *PrepositionPhrase without paid its mana cost
 +NounPhrase creatures without flying => PrepositionPhrase "without flying" as Modifier of creature
 +PrepositionPhrase instead of any other type
-+ {3}{W}{W}: Attacking creatures you control get +X/+X until end of turn, where X is the number of attacking creatures. => PrepositionPhrase "of attacking creatures" as Complement of number; !VerbPhrase "attacking creatures"
++ {3}{W}{W}: Attacking creatures you control get +X/+X until end of turn, where X is the number of attacking creatures. => PrepositionPhrase "of attacking creatures" as Complement of number; NounPhrase "attacking creatures" as Complement of of
