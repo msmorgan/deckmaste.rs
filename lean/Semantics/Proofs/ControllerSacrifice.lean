@@ -281,7 +281,11 @@ private theorem laterMention_step (fuel : Nat) (drs : DRS)
     stepNounPhrase (fuel + 1) drs role arg (.laterMention name fallback) =
       let matching := drs.visibleReferents.filter (fun ref => ref.idents.elem name)
       match matching with
-      | [] => (drs, [], if drs.unboundIdentities.contains name then [] else [.bindingIdentity name])
+      | [] =>
+        match drs.delayedTriggers.find? (·.idents.elem name) with
+        | some delayed => (drs, [delayed.id], [])
+        | none =>
+          (drs, [], if drs.unboundIdentities.contains name then [] else [.bindingIdentity name])
       | refs =>
         let ids := refs.map (·.id)
         let out := if arg then ids.foldl (fun state id => state.recordMention id role true) drs

@@ -30,7 +30,7 @@ def components : Ability → List Ability
 
 /-- The steps of the special action a keyword's first component takes. -/
 def specialActionSteps : Ability → List Action
-  | .keyword _ _ (.static (.specialAction _ _ (.sequentially steps)) :: _) => steps
+  | .keyword _ _ (.static (.specialAction _ _ _ (.sequentially steps)) :: _) => steps
   | _ => []
 
 /-! ## Plot and foretell exile from the hand -/

@@ -541,6 +541,12 @@ structure DRS where
   that reads one mentions it, moving it into `referents` (in place of the earlier object of its
   id, if it is one). -/
   participialOnly : List Referent := []
+  /-- The delayed triggered abilities a resolving `delay` created, latest first, each recorded
+  under the Binding Identity `delay.trigger`. They are not `referents`: no card prints a mention
+  of one, so no pronoun, word, group or count reads them; only a later mention of that identity
+  does (`laterMention`), as the special action that stops one from triggering names it
+  [CR#116.2c]. -/
+  delayedTriggers : List Referent := []
   deriving DecidableEq, Repr
 
 def DRS.ofList (rs : List Referent) : DRS :=

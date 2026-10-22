@@ -531,7 +531,7 @@ semantic_definition disguise (cost : Cost) : Ability :=
   .keyword (.named "disguise") [.cost (.inCaller cost)]
     [ static
         (can you (cast thisCard (payment := .faceDown faceDownWardedCreature (mana [generic 3])))),
-      static (.specialAction none (.inCaller cost) (turnFaceUp this_)) ]
+      static (.specialAction none none (.inCaller cost) (turnFaceUp this_)) ]
 semantic_definition disturb (cost : Cost) : Ability :=
   keywordCosting (.named "disturb") (.inCaller cost)
 semantic_definition doctorsCompanion : Ability := keyword (.named "doctorsCompanion")
@@ -1026,7 +1026,7 @@ replacement effect on the turning face up [CR#614.1e], on as the permanent turns
 semantic_definition megamorph (cost : Cost) : Ability :=
   .keyword (.named "morph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
-      static (.specialAction none (.inCaller cost) (turnFaceUp this_)),
+      static (.specialAction none none (.inCaller cost) (turnFaceUp this_)),
       static
         (replace (would any (turnFaceUp thisPermanent))
           (doIf (keywordCostPaid (.named "morph") thisPermanent)
@@ -1067,7 +1067,7 @@ semantic_definition moreThanMeetsTheEye (cost : Cost) : Ability :=
 semantic_definition morph (cost : Cost) : Ability :=
   .keyword (.named "morph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
-      static (.specialAction none (.inCaller cost) (turnFaceUp this_)) ]
+      static (.specialAction none none (.inCaller cost) (turnFaceUp this_)) ]
 /-- "Multikicker [cost]": "You may pay an additional [cost] any number of times as you cast this
 spell", a variant of kicker. A multikicker cost is a kicker cost, so it carries kicker's label
 and a multikicked spell is kicked [CR#702.33c,702.33d]. -/

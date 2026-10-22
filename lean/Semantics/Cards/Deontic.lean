@@ -520,7 +520,7 @@ theorem okBerserkersFrenzyLowRoll : Action.check (DRS.ofList []) berserkersFrenz
 
 /-- Damn -/
 def damnDestroyLine : Action :=
-  doAndForbid (destroy (target isCreature))
+  doUnderProhibition (destroy (target isCreature))
     (regeneration (a (and [isCreature, was (destroy which) thisWay])))
 theorem okDamnDestroyLine : Action.check (DRS.ofList []) damnDestroyLine = [] := by decide
 
@@ -530,7 +530,7 @@ def nekrataalWhole : Spelled := spelled <| singleFacedCard
     text :=
       [ firstStrike,
         when (does thisCreature enter)
-          (doAndForbid (destroy (target (and [isCreature, non isArtifact, not (hasColor
+          (doUnderProhibition (destroy (target (and [isCreature, non isArtifact, not (hasColor
               .black)])))
             (regeneration (that creature))) ],
     power := stat 2, toughness := stat 1 }

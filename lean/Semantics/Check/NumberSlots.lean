@@ -127,7 +127,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .characteristicChange _ edits | _n + 1, .characteristicDefining _ edits => edits.flatMap CharacteristicEdit.numberSlots
   | _n + 1, .combatant _ | _n + 1, .textChange _ _ => []
   | _n + 1, .costShift _ shift => shift.numberSlots
-  | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ | _n + 1, .modeChoice _
+  | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ _ | _n + 1, .modeChoice _
   | _n + 1, .addsTarget _ _ | _n + 1, .asEvent _ _ | _n + 1, .whileHolds _ _
   | _n + 1, .revealedAsCast _ _ | _n + 1, .rollModifier _ _ _ => []
   -- The letter X, defined by the text [CR#107.3c]: a definition is a calculation, not a result,
@@ -199,7 +199,8 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []
   | _n + 1, .repeat_ repetition => repetition.numberSlots
   | _n + 1, .sequentially _ | _n + 1, .simultaneously _ | _n + 1, .chooseModes _ _ => []
-  | _n + 1, .delay _ _ _ _ | _n + 1, .replace _ _ | _n + 1, .holdUntil _ _ => []
+  | _n + 1, .delay _ _ _ _ | _n + 1, .stopTriggering _ | _n + 1, .replace _ _
+  | _n + 1, .holdUntil _ _ => []
   | _n + 1, .triggerReflexively _ _ _ => []
   | _n + 1, .skipUntap _ steps => [(steps, .clamped)]
   | _n + 1, .skipPart _ count => [(count, .clamped)]

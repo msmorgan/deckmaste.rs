@@ -903,6 +903,7 @@ def stepDurationWith (ops : StepOps) (drs : DRS) (d : Duration) : DRS × List Re
     (drs2, e1 ++ e2 ++ refuse (boundaryPossessorOk s && boundaryPossessorOk e)
       .durationPossessor)
   | .forAsLongAs c => ops.cond (nextClause drs) c
+  | .modifiesPrecedingAction => (drs, [])
 
 def stepTimingWith (ops : StepOps) (drs : DRS) (tm : Timing) (fuel : Nat := 8) : DRS × List Refusal :=
   match fuel, tm with
@@ -2371,7 +2372,10 @@ def stepOps : Nat → StepOps
         | .laterMention id _ =>
           let matching := drs.visibleReferents.filter (fun r => r.idents.elem id)
           match matching with
-          | [] => (drs, [], if drs.unboundIdentities.contains id then [] else [.bindingIdentity id])
+          | [] =>
+            match drs.delayedTriggers.find? (·.idents.elem id) with
+            | some delayed => (drs, [delayed.id], [])
+            | none => (drs, [], if drs.unboundIdentities.contains id then [] else [.bindingIdentity id])
           | rs =>
             let ids := rs.map (·.id)
             let drs' := if inArgSlot then ids.foldl (fun d rid => d.recordMention rid role true) drs else drs
@@ -3055,6 +3059,9 @@ def stepOps : Nat → StepOps
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
           (drs2, e1)
         | .trigger => (drs, triggerActorRefusals drs)
+        | .stopTriggering ability =>
+          let (drs1, _, e1) := ops.np drs patientRole true ability
+          (drs1, e1)
         | .crew host | .saddle host | .fullyUnlock host =>
           let expected := match inst with | .fullyUnlock _ => Kind.player | _ => Kind.object
           let actorErrors := actionActorRefusals drs expected
@@ -3545,7 +3552,17 @@ def stepOps : Nat → StepOps
           let (_, eAlts) := stepGameEventListWith ops drs alts
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           let (drs3, e3) := ops.inst phase .obj (nextClause (settleTargets drs2)) body
-          ({ drs with nextId := drs3.nextId, contrastAnchors := drs3.contrastAnchors },
+          -- The delayed triggered ability it creates is no card and in no zone, and no text
+          -- mentions it: only its Binding Identity reads it, as the special action that stops it
+          -- from triggering does [CR#116.2c].
+          let after := { drs with nextId := drs3.nextId, contrastAnchors := drs3.contrastAnchors }
+          let delayed : Referent := {
+            det := .the, plur := .one, payload := .ability none none, id := after.nextId,
+            idents := ["delay.trigger"], clause := after.currentClause }
+          (if phase == .postEvent then
+              { after with nextId := after.nextId + 1
+                           delayedTriggers := delayed :: after.delayedTriggers }
+            else after,
             e1 ++ eAlts ++ e2 ++ e3)
         | .replace repld repl =>
           let (drs1, e1) := ops.inst .preEvent patientRole drs repld
@@ -3751,11 +3768,14 @@ def stepOps : Nat → StepOps
               | _ => []
             (d', es ++ e' ++ shapeErrors)) (drs1, [])
           (drs2, e1 ++ e2 ++ refuse (!parts.isEmpty) .nonEmpty)
-        | .specialAction tm cost does =>
-          let (drs1, e1) := match tm with | some t => stepTimingWith ops drs t | none => (drs, [])
+        | .specialAction player tm cost does =>
+          let (drs0, e0) := match player with
+            | some p => let (d, _, e) := ops.np drs .subj true p; (d, e)
+            | none => (drs, [])
+          let (drs1, e1) := match tm with | some t => stepTimingWith ops drs0 t | none => (drs0, [])
           let (drs2, e2) := ops.cost drs1 cost
           let (drs3, e3) := ops.inst .postEvent .obj (nextClause drs2) does
-          (drs3, e1 ++ e2 ++ e3)
+          (drs3, e0 ++ e1 ++ e2 ++ e3)
         | .asEvent ev does =>
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) does

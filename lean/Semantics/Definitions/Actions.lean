@@ -135,9 +135,11 @@ semantic_definition regeneration (subject : NounPhrase) : Action :=
             (removeFromCombat (.laterMention "regeneration.subject" (.inCaller subject)))
             none ]))
 /-- "Destroy <subject>. It can't be regenerated." / "… They can't be regenerated.": the
-regeneration the prohibition forbids is of the object or objects just destroyed [CR#701.19c]. -/
+regeneration the prohibition forbids is of the object or objects just destroyed, and the
+prohibition rides that destruction, so no regeneration shield replaces it
+[CR#608.2c,701.19c]. -/
 semantic_template destroyCantRegenerate (subject : NounPhrase) : Action :=
-  doAndForbid (destroy subject) (regeneration (.pro .bare subject.plur))
+  doUnderProhibition (destroy subject) (regeneration (.pro .bare subject.plur))
 /-- "<performer> discards <subject>": a move from the performer's own hand, the card's owner's,
 to the graveyard (`Definition`, [CR#701.9a]). -/
 semantic_definition discard (subject : NounPhrase) : Action :=

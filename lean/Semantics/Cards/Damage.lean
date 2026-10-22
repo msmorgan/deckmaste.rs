@@ -996,8 +996,8 @@ theorem okGoblinLyreLoseFlip : Action.check (DRS.ofList []) goblinLyreLoseFlip =
 def quenchableFire : Action :=
   sequentially
     [ instruct this_ (dealDamage 3 targetPlayerOrPlaneswalker),
-      delay (beginningOf .upkeep you nextTime)
-        (instruct splitOverPlaneswalker (doUnless (instruct this_ (dealDamage 3 thatJoin)) [pip .blue])) ]
+      delayUnlessPaid (beginningOf .upkeep you nextTime) (instruct this_ (dealDamage 3 thatJoin))
+        splitOverPlaneswalker [pip .blue] ]
 theorem okQuenchableFire : Action.check (DRS.ofList []) quenchableFire = [] := by decide
 /-- Searing Blaze, both sentences -/
 def searingBlaze : Ability :=

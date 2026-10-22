@@ -185,6 +185,11 @@ mutual
     only a start [CR#702.170d]. A history window ends at `GameEvent.now`. -/
     | between (start : Option GameEvent) (end_ : Option GameEvent)
     | forAsLongAs (condition : Condition) -- [CR#611.2b]
+    /-- Later text that modifies the meaning of the action before it, the step just before it in
+    a `sequentially`: in force only while that action's event happens. "Destroy target creature.
+    It can't be regenerated." makes that destroy one no regeneration shield replaces; it is no
+    separate continuous effect [CR#608.2c,701.19c]. -/
+    | modifiesPrecedingAction
 
   /-- A Linked Facet: what a linked ability reads back about its Link Source [CR#607.2a]. -/
   inductive LinkedFacet where
@@ -942,10 +947,13 @@ mutual
     alternative cost, applied once the spell's total cost is locked
     [CR#702.51b,702.66b,702.126b]. -/
     | paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute)
-    /-- A special action: any time you have priority, within `when`, you may pay `cost` and do
-    `does`, without using the stack [CR#116.1,116.2c]. Morph's turning face up, foretell's and
-    plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
-    | specialAction (when : Option Timing) (cost : Cost) (does : Action)
+    /-- A special action: any time `player` has priority, within `when`, they may pay `cost` and
+    do `does`, without using the stack [CR#116.1,116.2c]. With no `player` written, it is you:
+    morph's turning face up, foretell's and plot's exiling are each one
+    [CR#116.2b,116.2h,116.2k]. An effect may allow another player one ("unless that player
+    pays {U} before that step") [CR#116.2c]. -/
+    | specialAction (player : Option NounPhrase) (when : Option Timing) (cost : Cost)
+        (does : Action)
     /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
     using the stack, as a static ability is [CR#113.9]. A static ability of a resolving permanent
     spell that creates a delayed trigger creates it as the permanent is put onto the battlefield,
@@ -1240,8 +1248,15 @@ mutual
     tiered's priced bullets [CR#700.2h]), its weight (a pawprint mode's count of {P}
     [CR#700.2i]) and its action. -/
     | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Action))
+    /-- Create a delayed triggered ability that does `body` the next time `event` (or one of
+    `alternatives`) occurs, or, with a stated `duration`, each time within it
+    [CR#603.7a,603.7b]. No text mentions the ability created, so it is read only by its Binding
+    Identity, `delay.trigger` (`stopTriggering`). -/
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Action)
+    /-- Stop `ability`, a delayed triggered ability, from triggering: what a special action an
+    effect allows does to end that ability early [CR#116.2c]. -/
+    | stopTriggering (ability : NounPhrase)
     /-- A self-replacement: the spell's or ability's own `replaced` action, replaced by
     `replacement` [CR#614.15,616.1a]. -/
     | replace (replaced : Action) (replacement : Replacement)

@@ -269,15 +269,25 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
-      (doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature)))
+      (doUnderProhibition
+        (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature)))
         (regeneration (bare (and [was (sacrifice which), isPermanent])))) = [] := by
   decide
 
-/-- "Destroy target creature. It can't be regenerated.": the destroy, then a prohibition until
-end of turn of the regeneration of what it destroyed [CR#701.19c]. -/
-theorem destroyCantRegenerateIsDestroyThenProhibition :
+/-- "Destroy target creature. It can't be regenerated.": later text that modifies the destroy, a
+prohibition of the regeneration of what it destroys in force only for the destroy's own event
+rather than following it, so no regeneration shield replaces that destruction; its own clause,
+"It" read back from the destroy [CR#608.2c,701.19c]. -/
+theorem destroyCantRegenerateRidesTheDestroy :
     destroyCantRegenerate (target isCreature) =
       .sequentially [destroy (target isCreature),
+        .establish (.cant .any (regeneration it) {}) (some .modifiesPrecedingAction)] := rfl
+
+/-- "This deals 3 damage to target creature. It can't be regenerated this turn.": a printed
+"this turn" keeps its duration, the damage and then a prohibition until end of turn. -/
+theorem printedThisTurnProhibitionLastsTheTurn :
+    doAndForbid (instruct .this (.dealDamage 3 (target isCreature))) (regeneration it) =
+      .sequentially [instruct .this (.dealDamage 3 (target isCreature)),
         .establish (.cant .any (regeneration it) {}) (some untilEndOfTurn)] := rfl
 
 /-- The prohibition binds the destroyed object: "it" reads the one destroyed creature and "them"
@@ -286,7 +296,7 @@ theorem regenerationProhibitionBindsTheDestroyed :
     Action.check (DRS.ofList []) (destroyCantRegenerate (target isCreature)) = [] ∧
       Action.check (DRS.ofList []) (destroyCantRegenerate (allOf isCreature)) = [] ∧
       Action.check (DRS.ofList [])
-        (doAndForbid (destroy (target isCreature)) (regeneration them)) =
+        (doUnderProhibition (destroy (target isCreature)) (regeneration them)) =
         [.anaphor .bare .many 0] := by
   decide
 

@@ -1340,6 +1340,17 @@ semantic_template delay (event : GameEvent) (action : Action)
 semantic_template delayWithin (event : GameEvent) (duration : Duration) (action : Action)
     (alternatives : List GameEvent := []) : Action :=
   .delay event alternatives duration action
+/-- "<action> at <event> unless <player> pays <cost> before that step": the delayed trigger, and a
+special action `player` may take until it would trigger, paying `cost` to stop it from triggering
+[CR#116.2c]. Once it has triggered, paying no longer stops it. The text names the delayed trigger
+nowhere, so the special action reads it by its Binding Identity (`delay.trigger`). -/
+semantic_template delayUnlessPaid (event : GameEvent) (action : Action) (player : NounPhrase)
+    (cost : Cost) : Action :=
+  .sequentially
+    [ .delay event [] none action,
+      .establish
+        (.specialAction (some player) none cost (.stopTriggering (.laterMention "delay.trigger" thisAbility)))
+        (some (.between none (some event))) ]
 /-- "<subject> phases out until <event>" -/
 semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (.setStatus .phasedOut subject) event
@@ -1506,6 +1517,13 @@ semantic_template distribute (verb : DividedVerb) (amount : Amount) (among : Nou
 regenerated"). -/
 semantic_template doAndForbid (action forbidden : Action) : Action :=
   .sequentially [action, .establish (.cant .any forbidden {}) untilEndOfTurn]
+/-- "<action>. <forbidden> can't happen", with no duration printed: later text that modifies the
+meaning of `action` (`Duration.modifiesPrecedingAction`), a prohibition in force only for that
+action's event, its subject a mention of its own read back from the action ("It can't be
+regenerated"). A destroy with this rider is one no regeneration shield replaces
+[CR#608.2c,701.19c]. -/
+semantic_template doUnderProhibition (action forbidden : Action) : Action :=
+  .sequentially [action, .establish (.cant .any forbidden {}) (some .modifiesPrecedingAction)]
 semantic_template doForEach (group : NounPhrase) (body : Action) : Action := .doForEach group body
 semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : Action)
     (domain : Option NounPhrase := none) : Action :=
@@ -2040,7 +2058,7 @@ semantic_template retention (spec : StaticSpec) (subject : NounPhrase) : StaticS
 semantic_template scaled (cost : Cost) (amount : Amount) : Cost := .scaled cost amount
 semantic_template setQuantity (quantity : Quantity) : ModeChange := .setQuantity quantity
 semantic_template specialAction (when : Timing) (cost : Cost) (does : Action) : StaticSpec :=
-  .specialAction when cost does
+  .specialAction none when cost does
 /-- An instant or sorcery's spell ability: `body`, as it resolves [CR#113.3a]. -/
 semantic_template spell (body : Action) (timing : Option Timing := none) : Ability :=
   .spell timing body

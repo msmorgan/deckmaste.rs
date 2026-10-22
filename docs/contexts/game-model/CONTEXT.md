@@ -844,10 +844,13 @@ _Avoid_: separate gain/lose and raise/lower vocabularies per property
 **Duration** (project term):
 The span a Continuous Effect created by a one-shot lasts, and the span for which
 a Static Spec is put in force. A stated Duration is what ends the Effect; with
-none stated it lasts until the game ends ([CR#611.2a]). It is either bounded by
+none stated it lasts until the game ends ([CR#611.2a]). It is bounded by
 two optional Events — "until end of turn" has only an end, "on a later turn"
 only a start ([CR#702.170d]) — or lasts for as long as a condition holds
-([CR#611.2b]). A history window is a Duration that ends now ("this turn", "this
+([CR#611.2b]), or lasts only for the Event of the Action before it, when it is
+later text that modifies the meaning of that Action: "Destroy target creature.
+It can't be regenerated." makes regeneration shields not apply to that
+destruction, and is no separate Continuous Effect ([CR#608.2c,701.19c]). A history window is a Duration that ends now ("this turn", "this
 game"), or at the end of the Turn it names when that Turn is over ("last turn").
 "The cards exiled this way" and the event that triggered an ability name an
 occurrence, not a span, and are not Durations.

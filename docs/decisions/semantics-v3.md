@@ -200,6 +200,16 @@ The same information-read boundary covers possessors: after destroying a permane
 instruction acts on that player; the lookup does not make the destroyed permanent available
 to a later battlefield action. *Destructive Revelry* exercises this distinction.
 
+A resolution-time guard is no characteristic read. Fight's guard (`matches … isCreature` on both
+participants) tests them as they are when the fight happens: if either is no longer on the
+battlefield or no longer a creature, neither fights ([CR#701.14b]; `lean/CONTRACTS.md`, "Template
+and definition parameters and expanded actions"). That is fight's rule, not a general one: the
+general rule is [CR#608.2h]. Elsewhere a present-tense guard over a description that names no
+zone and no "card" (“if it's a creature”) reads the permanent as it is, since Oracle text writes
+a departed object's information in the past tense (“if it was a creature”); a description that
+names a zone or “card” tests the object where it is, so *Bioplasm*'s “if it's a creature card”
+holds of the exiled creature card. Evaluating a guard at runtime is the engine's (item 4 of §0.1).
+
 A historical movement pattern such as “that creature dies this way” reads a previously
 introduced participant against the movement's written origin zone when selecting the movement
 patient in a `DidClause` (without a dedicated one-purpose flag on `DRS`). The selected referent
@@ -564,11 +574,11 @@ Because `docs/archive/` is excluded from agent search, the domain mechanisms and
 - **Temporal Suite (`Timing`, `Duration`, `UsageLimit`, `TurnRef`, `[CR#307.5,117.1d,611.2b,602.5b]`):**
   - `TurnRef = current | previous | next (player) | each (player) | later | that`.
   - `Timing` combines `inPart (part) (whose) (which)`, `relativeToEvent (before | after) (event)`, `whileDoing (event)`, and `onlyIf (condition)` under `and`/`or`/`not` (with `asSorcery` over priority + main phase + your turn + empty stack `[CR#307.5]`, and instant speed `onlyIf(hasPriority(you))` `[CR#117.1d]`).
-  - `Duration` is `between (start : Option GameEvent) (end : Option GameEvent)` (using `beginningOf`, `endOf`, `now`, `stateBasedActionsChecked`) or `forAsLongAs (condition)` `[CR#611.2b]`.
+  - `Duration` is `between (start : Option GameEvent) (end : Option GameEvent)` (using `beginningOf`, `endOf`, `now`, `stateBasedActionsChecked`) or `forAsLongAs (condition)` `[CR#611.2b]`, or `modifiesPrecedingAction`, later text that modifies the meaning of the action before it, in force only for that action's event and no separate continuous effect ("Destroy target creature. It can't be regenerated." `[CR#608.2c,701.19c]`; owner ruling 2026-10-22).
   - `UsageLimit` is `(times) (per : Period)` where `Period = turn | yourTurn | game | part (TurnPart) | thisObject` `[CR#602.5b,702.177a]`.
 - **Face-Down Specs, Special Actions, and Move Riders (`[CR#406.3a,708.2,702.37a,702.168a,116.1,614.1c]`):**
   - `FaceDown (characteristics : Option Characteristics)` is `none` for face-down exile and `some` for face-down spells/permanents (morph, disguise, manifest, cloak), used by `Instruction.turnFaceDown`, `EntryRider.faceDown`, `PilePlacement.faceDown`, and `PlayPayment.faceDown`.
-  - `StaticSpec.specialAction (when : Option Timing) (cost : Cost) (does : Instruction)` models special actions `[CR#116.1]`.
+  - `StaticSpec.specialAction (player : Option NounPhrase) (when : Option Timing) (cost : Cost) (does : Instruction)` models special actions `[CR#116.1]`; `player` is written when an effect allows a player other than you one, and `Instruction.stopTriggering` stops a delayed triggered ability `delay` created from triggering (*Quenchable Fire*, `[CR#116.2c]`).
   - `MoveRider = entry (EntryRider) | placement (PilePlacement)` separates battlefield entry riders from non-battlefield pile placements (`[CR#614.1c,401.4,406.3]`).
 - **Modal Choices (`StaticSpec.modeChoice`, `[CR#700.2d,700.2h,700.2i,702.42a,702.120a,702.172a,702.183a]`):**
   - `chooseModes` carries mode quantity, per-mode costs (spree, tiered), and optional pawprint weights (`Quantity.worth`). `StaticSpec.modeChoice (change : ModeChange)` modifies a spell's `chooseModes` via `allInstead` (entwine), `extraModesCost` (escalate), `setQuantity` (spree, tiered), `repeatable`, and `notChosenBefore`.

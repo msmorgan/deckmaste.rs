@@ -36,6 +36,65 @@ theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
       fightParticipantPairs (fight (target isCreature)) =
         [("fight.source", "fight.other"), ("fight.other", "fight.source")] := by decide
 
+private def fightGuard : Action → Option Condition
+  | .ownScope _ (.enact _ (.doIf guard _ none) _ _) => some guard
+  | _ => none
+
+/-- Fight's guard tests both participants as creatures, a present-tense guard that reads them as
+they are when the fight happens: if either has left the battlefield or is no longer a creature,
+neither fights or deals damage [CR#109.2,701.14b]. -/
+theorem fightGuardTestsBothCreaturesNow :
+    fightGuard (fight (target isCreature)) = some (.and [
+      .matches (.firstMention "fight.other" (.inCaller (target isCreature))) isCreature,
+      .matches (.firstMention "fight.source" .actor) isCreature]) := rfl
+
+/-- Quenchable Fire's delayed trigger is unconditional: once it triggers, paying {U} no longer
+stops it. Until it would trigger, "that player or that planeswalker's controller" may take a
+special action, paying {U} to stop it from triggering [CR#116.2c]. -/
+theorem quenchableFireStopsItsTriggerBySpecialAction :
+    Cards.quenchableFire = .sequentially
+      [ instruct this_ (dealDamage 3 Cards.targetPlayerOrPlaneswalker),
+        .sequentially
+          [ .delay (beginningOf .upkeep you nextTime) [] none
+              (instruct this_ (dealDamage 3 thatJoin)),
+            .establish
+              (.specialAction (some splitOverPlaneswalker) none [pip .blue]
+                (.stopTriggering (.laterMention "delay.trigger" thisAbility)))
+              (some (untilEvent (beginningOf .upkeep you nextTime))) ] ] := rfl
+
+/-- The special action names the delayed trigger by its Binding Identity, the only reading of it:
+no text mentions the ability, so a word ("that ability") finds nothing, and with no delayed
+trigger the identity is unbound [CR#116.2c]. Quenchable Fire checks with it. -/
+theorem stopTriggeringReadsTheDelayedTriggerByIdentity :
+    Action.check (DRS.ofList [])
+      (.sequentially [delay (beginningOfNext .endStep) (draw 1),
+        .stopTriggering (.laterMention "delay.trigger" thisAbility)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (.sequentially [delay (beginningOfNext .endStep) (draw 1), .stopTriggering (that .ability)])
+      = [.anaphor (.word .ability) .one 0] ∧
+    Action.check (DRS.ofList []) (.stopTriggering (.laterMention "delay.trigger" thisAbility)) =
+      [.bindingIdentity "delay.trigger"] ∧
+    Action.check (DRS.ofList []) Cards.quenchableFire = [] := by
+  decide
+
+private def objectAntecedents (a : Action) : List Bool :=
+  (resolveCandidates .bare .one (nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) a).1)).map
+    fun r => match r.payload with | .object .. => true | _ => false
+
+/-- The Obzedat and Whip of Erebos shape, "… exile it at the beginning of the next end step. It
+…": a delayed trigger is no antecedent, so a later "it" still reads the creature. -/
+theorem pronounAfterDelayReadsTheCreature :
+    objectAntecedents (.sequentially [tap (target isCreature),
+      delay (beginningOfNext .endStep) (exile it)]) = [true] := by
+  decide
+
+/-- "At the beginning of the next end step, draw a card. Exile it.": nothing for "it" to read. -/
+theorem badPronounAfterDelayedDraw :
+    Action.check (DRS.ofList [])
+      (.sequentially [delay (beginningOfNext .endStep) (draw 1), exile it]) =
+      [.anaphor .bare .one 0] := by
+  decide
+
 /-- "Target creature fights two target creatures.": the group is the other creature, refused by
 the singular power read and the per-member damage check. Handed the deed, a group performer
 distributes it instead (`BindingIdentity.okFightHandedToEachOfAGroup`). -/

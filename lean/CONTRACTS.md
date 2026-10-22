@@ -565,11 +565,11 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `enact` | The performer in context (`actorShape?`) is checked at the deed's agent kind; a deed performed by a permanent with no handoff to one gets a frame for the source permanent. Post-event, the body's patients receive the deed's stamp (`applyInPlaceStamp`). |
 | `instruct` (handoff) | See "The performer and the handoff" above. |
 | `ownScope`, `inCaller` | See "Binding identity and a keyword body's own scope" above. |
-| `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). |
+| `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). A resolving `delay` records the delayed triggered ability it creates, an ability in no zone, in `DRS.delayedTriggers` under the Binding Identity `delay.trigger`: no text mentions it, so no pronoun, word, group or count reads it, and only a later mention of that identity does, as the special action that stops it from triggering (`stopTriggering`, `delayUnlessPaid`, [CR#116.2c]; `stopTriggeringReadsTheDelayedTriggerByIdentity`, `pronounAfterDelayReadsTheCreature`, `badPronounAfterDelayedDraw`). |
 | `replace`, `holdUntil` | `replace` steps the replaced action as a pre-event pattern and the replacement after it in a new clause; `holdUntil` steps the held action, then its event. The static `replace` steps its `would` clause, then the replacement in a new clause, and publishes only the letters the clause and the replacement introduce, so a later "where X is" defines them [CR#107.3i]. A replacement steps what it makes of the event: `instead` and `also` step their action; `withRiders` steps its riders, refused (`riddenEntering`) unless the replaced event is an entering, a move to the battlefield or a token's creation, and (`entryRidersOnly`) for a Pile Placement among them [CR#614.1c,614.12]; `onlyIf` steps its condition, then its body in a new clause after it, as `doIf` steps its then-branch. A caller's replacement steps in one caller frame, its condition and action together. The static `replace` also publishes the choices its `also` action makes to later lines, as "As this enters, choose a color" [CR#614.1c]. |
 | `revealedAsCast` | Steps the spell the card is revealed as cast onto, then what it grants in a new clause, reading that spell; nothing either introduces escapes (only `nextId` advances). |
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
-| Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause after it and reads every mention the cost made, wherever the cost moved it: whether the engine can find the object at runtime is the engine's concern [CR#608.2h]. Timing and guard clauses read the body's output. |
+| Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause after it and reads every mention the cost made, wherever the cost moved it: whether the engine can find the object at runtime is the engine's concern [CR#608.2h]. Timing and guard clauses read the body's output. A special action's `player`, when written (one an effect allows another player, [CR#116.2c]), is stepped first, as its subject. |
 | Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `choiceContext`: only chosen qualities and chosen players carry in, so its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
 | Card text versus nested lists | `Ability.checkText` threads line-level choices, additional- and alternative-cost results, added targets and the objects a printed triggered or activated ability acted on (`Ability.textContext`); a keyword's `body` is threaded the same way (`checkTextWith`); `Ability.checkAll` checks sibling abilities in one supplied context. |
 | Printed boxes | Literal-only; they do not read discourse. Effect-written stat slots instead step their Amount expressions. |
@@ -1093,14 +1093,37 @@ The `fight` Definition binds the other creature and its performer at their first
 mentions inside an ordinary creature guard (`doIf` over `matches … isCreature` for
 both), then has each deal damage equal to its power to the other simultaneously
 [CR#701.14a..701.14c]. Group subjects are rejected by the singular power read
-and per-member damage checks. It writes no battlefield guard: that demand is the
-rules' [CR#701.14b].
+and per-member damage checks. The creature guard is also its battlefield guard:
+"creature" with no zone or "card" names a creature on the battlefield [CR#109.2].
+
+Fight's guard reads its participants as they are when the fight happens: if either
+is no longer on the battlefield or no longer a creature, neither fights or deals
+damage [CR#701.14b] (`fightGuardTestsBothCreaturesNow`). That is fight's rule; the
+general rule for an effect's information about an object is [CR#608.2h]. A
+present-tense `doIf` condition (and a `doOnlyIf`'s postposed one) over a
+description that names no zone and no "card" ("if it's a creature") reads the
+permanent as it is, since Oracle text writes a departed object's information in
+the past tense ("if it was a creature"). A description that names a zone or "card"
+tests the object where it is: *Bioplasm*'s `is itCard isCreature` holds of the
+exiled creature card (`okBioplasmCardTest`). The checker does not evaluate a guard;
+this is what the lowering reads it as, and evaluating it is the engine's.
 
 Regeneration installation creates a next-time-this-turn destruction replacement.
 The Regenerate label belongs to its application: clear marked damage, have the
 controller tap the permanent, and remove it from combat if applicable. A static
 regeneration replacement uses that application repeatedly; it does not install
 a further shield [CR#701.19a..701.19c].
+
+"It can't be regenerated", printed with no duration after a destroy, is later text
+that modifies the meaning of the destroy (`doUnderProhibition`,
+`Duration.modifiesPrecedingAction`): a prohibition in force only for the destroy's
+own event, so regeneration shields do not apply to that destruction
+[CR#608.2c,701.19c] (`destroyCantRegenerateRidesTheDestroy`; owner ruling
+2026-10-22). It is no separate continuous effect, and it stays its own clause, so
+its subject ("It", "That creature", "A creature destroyed this way") is a mention
+read back from the destroy. A printed "this turn" keeps its duration
+(`doAndForbid`, `printedThisTurnProhibitionLastsTheTurn`). Which shields exist
+when the destroy happens is the engine's.
 
 The `counter` Definition expands to one labeled stack-to-graveyard move in its
 own scope, `ownScope (enact counter (move subject stack graveyard …))`.

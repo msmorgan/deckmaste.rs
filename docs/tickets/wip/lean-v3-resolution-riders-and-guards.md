@@ -30,23 +30,20 @@ engine. Keep `doAndForbid` with `untilEndOfTurn` for printed "this turn" forms. 
 [lean-v3-proofs-and-docs-alignment](lean-v3-proofs-and-docs-alignment.md) §2). Add a pin that a
 shield created before the destroy does not apply.
 
+Owner ruling (2026-10-22): the rider is event-local. [CR#608.2c] gives "Destroy target creature.
+It can't be regenerated" as later text modifying the earlier action, so it is no standalone
+continuous effect and [CR#611.2a]'s default duration does not apply. Keep an explicit marker
+(`Duration.modifiesPrecedingAction`), not `duration := none`, which elsewhere means until the end
+of the game. The rider stays its own clause, so its subject phrase ("It", "They", "That creature",
+"A creature destroyed this way") stays a real mention. The engine's event-only scope is right.
+
 The pin that a shield created before the destroy does not apply is runtime simulation: out of
 scope for Lean, it belongs to engine tests (ADR §0.1 item 4). The rider's denotation stays.
 
-## 2. A countered ability ceases to exist; only a spell moves to a graveyard
+## 2. A countered ability ceases to exist
 
-`counter` (`Definitions/Actions.lean:32-38`) is always "one labeled stack-to-graveyard move", even
-for abilities (*Stifle*, `Cards/Damage.lean:1362-1366`; pin `okCounterAbility`,
-`Proofs/Zone.lean:566-568`). Countering a spell or ability is "removing it from the stack", and
-only "A countered spell is put into its owner's graveyard" [CR#701.6a]; an ability on the stack is
-no card and has a controller, not an owner [CR#113.8], as a resolved ability simply "ceases to
-exist" [CR#608.2n]. The engine already makes a countered ability
-cease (`crates/deckmaste_engine/src/resolve/action.rs:117-125`).
-
-Change: make `counter` depend on its subject: a spell moves to its owner's graveyard, an ability
-ceases with no zone move. Pin that *Stifle* introduces no graveyard referent. [CR#404.1]'s "Any
-object that's countered" is looser than [CR#701.6a]; record that as an underdetermined wording
-(a UD entry in `docs/engine-adrs.md`) and follow [CR#701.6a].
+Ruled B (2026-10-22): no change; counter stays uniform; see `lean/CONTRACTS.md`, "Movement
+destinations".
 
 ## 3. A resolution-time guard reads current state (fight)
 
@@ -81,6 +78,18 @@ that planeswalker's controller", available until the trigger would trigger, cost
 effect stops that delayed trigger. This needs two things that do not exist: an Action that stops a
 named delayed trigger from triggering, and a way to grant `specialAction` (`Templates.lean:1982`,
 which takes a bare `Timing`) to a player other than the controller.
+
+## Out of scope
+
+The v2 mirrors of `StaticSpec.specialAction` (`crates/deckmaste_semantics_v2/src/abilities.rs`
+`SpecialAction`, and `plugins_v2/builtin/macros/abilities/specialAction.ron`) still have three
+fields; Lean's now has `player` first. The v2 crates are deletion-bound and nothing checks parity,
+so they are left to drift. `plugins_v2/builtin/macros/instructions/doAndForbid.ron` likewise
+mirrors only `doAndForbid`; it has no counterpart of `doUnderProhibition`.
+
+*Quenchable Fire*'s ruling (2009-02-01) lets the special action be taken only once. Lean does not
+model that limit; it is harmless, since after the first payment the delayed trigger is already
+stopped.
 
 ## Verification
 

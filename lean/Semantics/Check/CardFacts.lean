@@ -105,7 +105,7 @@ mutual
     | n + 1, .gatedBy cost _ i _ => cost.namesThisDoor n || i.namesThisDoor n
     | n + 1, .replace event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .whileHolds condition i => condition.namesThisDoor n || i.namesThisDoor n
-    | n + 1, .specialAction timing cost i => cost.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
+    | n + 1, .specialAction _ timing cost i => cost.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .damageRule _ _ (.prevent _ also) _ _ => also.any (fun i => i.namesThisDoor n)
     | n + 1, .paySubstitute _ substitute => substitute.action.namesThisDoor n
     | n + 1, .asEvent ev i | n + 1, .rollModifier ev i _ => ev.namesThisDoor n || i.namesThisDoor n
