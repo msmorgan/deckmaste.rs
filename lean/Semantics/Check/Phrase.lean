@@ -2275,7 +2275,7 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | n+1, .inCaller body => staticTextContextWith ops drs body n
   | n+1, .conjunction _ parts =>
     parts.foldl (fun context part => staticTextContextWith ops context part n) drs
-  | _+1, .addedCost cost _ _ => costTextContextWith ops drs cost
+  | _+1, .addedCost cost _ _ | _+1, .altCost _ (some cost) => costTextContextWith ops drs cost
   | _+1, .can _ action _ =>
     match action.scopeBody with
     | .procedure .cast _ (.payingInstead cost) .. | .procedure .cast _ (.plusAdditional cost) .. =>

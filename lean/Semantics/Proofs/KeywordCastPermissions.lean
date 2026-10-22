@@ -251,4 +251,70 @@ theorem flashbackResultingSpellIsAnInstantOrSorcery :
 theorem okAftermath : Ability.check (DRS.ofList []) aftermath = [] := by decide
 theorem okFlashback : Ability.check (DRS.ofList []) (flashback cost) = [] := by decide
 
+/-! ## A pure alternative cost is `altCost`; a cast permission keeps `payingInstead` -/
+
+/-- The statics of a keyword ability's definition. -/
+def componentStatics (a : Ability) : List StaticSpec :=
+  (components a).filterMap fun
+    | .static spec => some spec
+    | _ => none
+
+/-- An alternative cost [CR#118.9], bare or under a condition. -/
+def isAltCost : StaticSpec → Bool
+  | .altCost .. | .conditional (.altCost ..) _ _ => true
+  | _ => false
+
+/-- A permission to cast paying an alternative cost [CR#601.3,118.9]. -/
+def castPaysInstead (action : Action) : Bool :=
+  match action.scopeBody with
+  | .procedure .cast _ (.payingInstead _) .. => true
+  | _ => false
+
+/-- A permission to cast paying an alternative cost, bare or under a condition. -/
+def isPayingInsteadPermission : StaticSpec → Bool
+  | .can _ action _ | .conditional (.can _ action _) _ _ => castPaysInstead action
+  | _ => false
+
+/-- Every keyword whose cost a spell's controller may pay rather than its mana cost, granting no
+cast from another zone or at another time, is an alternative cost of this spell [CR#118.9]:
+awaken [CR#702.113a], bestow [CR#702.103a], blitz [CR#702.152a], cleave [CR#702.148a], dash
+[CR#702.109a], emerge and emerge from [CR#702.119a,702.119b], evoke [CR#702.74a], impending
+[CR#702.176a], mutate [CR#702.140a], overload [CR#702.96a], prowl [CR#702.76a], spectacle
+[CR#702.137a], surge [CR#702.117a], warp [CR#702.185a] and web-slinging [CR#702.188a]. -/
+theorem pureAlternativeCostsAreAltCost :
+    [ awaken 2 cost, bestow cost, blitz cost, cleave cost, dash cost, emerge cost,
+      emergeFrom isArtifact cost, evoke cost, impending 2 cost, mutate cost, overload cost,
+      prowl cost, spectacle cost, surge cost, warp cost, webSlinging cost ].all
+      (fun keyword =>
+        (componentStatics keyword).any isAltCost &&
+          !(componentStatics keyword).any isPayingInsteadPermission) = true := by
+  decide
+
+/-- Flashback, escape, foretell and madness grant a cast from another zone, so each keeps its
+permission and pays its cost instead of the mana cost there
+[CR#702.34a,702.138a,702.143a,702.35a,601.3]. -/
+theorem castPermissionsKeepPayingInstead :
+    (componentStatics (flashback cost)).any isPayingInsteadPermission = true ∧
+      (componentStatics (escape cost)).any isPayingInsteadPermission = true ∧
+      (specialActionSteps (foretell cost))[3]? =
+        some
+          (establishThroughout
+            (onlyWhile
+              (can you (cast it (from_ := exileZone) (payment := payingInstead (.inCaller cost))))
+              (is it (hasDesignation foretold)))
+            onALaterTurn) ∧
+      (components (madness cost))[1]? =
+        some
+          (when
+            (.causes (.event (does any (discard thisCard)))
+              (does any (.move thisCard hand exileZone .arrival none [])))
+            (instruct (ownerOf thisCard)
+              (mayOrElse
+                (establish
+                  (can theActor
+                    (cast thisCard (from_ := exileZone)
+                      (payment := .payingInstead (.inCaller cost)))))
+                (putInto thisCard graveyard)))) := by
+  refine ⟨by decide, by decide, rfl, rfl⟩
+
 end Semantics.Proofs.KeywordCastPermissions

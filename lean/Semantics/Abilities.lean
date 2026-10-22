@@ -886,6 +886,10 @@ mutual
   inductive StaticSpec where
     | inCaller (body : StaticSpec)
     | costShift (subject : NounPhrase) (shift : CostShift)
+    /-- An alternative cost [CR#118.9]: the controller of a spell `subject` names may pay `cost`
+    rather than its mana cost, or cast it without paying its mana cost when `cost` is `none`. It
+    grants no cast; a cast from another zone or at another time is a `can` permission whose
+    payment is `payingInstead` [CR#601.3]. A condition is the `onlyWhile` wrapper. -/
     | altCost (subject : NounPhrase) (cost : Option Cost)
     /-- An additional cost to cast the spell [CR#601.2f]: `offered` when the player may decline
     it ("you may pay"), and `times` how often it may be paid, as squad's and replicate's "any
