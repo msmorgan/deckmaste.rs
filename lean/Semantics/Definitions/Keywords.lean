@@ -319,14 +319,18 @@ semantic_definition battleCry : Ability :=
 semantic_definition bestow (cost : Cost) : Ability :=
   .keyword (.named "bestow") [.cost (.inCaller cost)]
     [static (.altCost thisSpell (some (.inCaller cost)))]
+/-- "Blitz [cost]" [CR#702.152a]. "If this spell's blitz cost was paid, sacrifice the permanent
+this spell becomes at the beginning of the next end step" creates its delayed trigger as the
+permanent is put onto the battlefield as the spell resolves [CR#608.3g], controlled by the
+spell's controller as it resolved [CR#603.7d]: a countered spell creates none, and a copy's token
+permanent [CR#608.3f] creates its own. -/
 semantic_definition blitz (cost : Cost) : Ability :=
   .keyword (.named "blitz") [.cost (.inCaller cost)]
     [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
       static
-        (.asEvent
-          (does you
-            (.pay .itsManaCost .once .paid thisSpell (some (.named "blitz"))))
-          (atNext .endStep (sacrifice (.becomes thisSpell)))),
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+          (doIf (keywordCostPaid (.named "blitz") thisPermanent)
+            (atNext .endStep (sacrifice thisPermanent)))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "blitz") thisPermanent)),
@@ -438,14 +442,15 @@ semantic_definition crew (amount : Amount) : Ability :=
           (.characteristicChange thisPermanent
             [.typeLine .adds { types := some [.artifact, .creature] }])
           untilEndOfTurn) ]
+/-- "Dash [cost]" [CR#702.109a]. Its delayed trigger is created as the permanent is put onto the
+battlefield as the spell resolves [CR#608.3g,603.7d], as blitz's is. -/
 semantic_definition dash (cost : Cost) : Ability :=
   .keyword (.named "dash") [.cost (.inCaller cost)]
     [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
       static
-        (.asEvent
-          (does you
-            (.pay .itsManaCost .once .paid thisSpell (some (.named "dash"))))
-          (atNext .endStep (returnToHand (.becomes thisSpell)))),
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+          (doIf (keywordCostPaid (.named "dash") thisPermanent)
+            (atNext .endStep (returnToHand thisPermanent)))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "dash") thisPermanent)) ]
@@ -585,13 +590,28 @@ semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
               (.statOf (.stat .manaValue) (the (and [was (sacrifice which), isPermanent])))
               none))
           (keywordCostPaid (.named "emerge") thisSpell)) ]
+/-- "Enchant [quality]" [CR#702.5a]: the Aura spell's target [CR#303.4a], the hosts it may be
+attached to, and its entry. An Aura entering with no legal object or player to enchant, under its
+enchant ability and any other applicable effects, doesn't enter: it stays in its zone, or is put
+into its owner's graveyard from the stack, and a token Aura isn't created [CR#303.4g]. An Aura
+entering other than by resolving as an Aura spell enters attached to a legal host its controller
+chooses as it enters [CR#303.4f]. Which hosts are legal is the engine's to evaluate
+(`legalHostOf`). An effect that puts an Aura onto the battlefield attached to a host it names is
+not yet written (an "enters attached to" Entry Rider, `lean-v3-enters-attached-to-host`), so the
+[CR#303.4f] replacement applies to every entry not from the stack, and an illegal named host
+[CR#303.4i] has nothing to key on. -/
 semantic_definition enchant (quality : Predicate) : Ability :=
   .keyword (.named "enchant") [.subject (.inCaller quality)]
     [ static (.addsTarget thisAura (.inCaller quality)),
       static (mayBeAttachedTo thisAura (allOf (.inCaller quality))),
       static
-        (.asEvent (does .any (.move thisAura (not stack) battlefield .arrival none []))
-          (attachTo thisAura (a (.inCaller quality)))) ]
+        (replace (would thisAura enter)
+          (doIf (not (exists_ (legalHostOf thisAura)))
+            (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard))))),
+      static
+        (replace (would .any (.move thisAura (not stack) battlefield .arrival none []))
+          (doIf (exists_ (legalHostOf thisAura))
+            (also (attachTo thisAura (a (legalHostOf thisAura)))))) ]
 semantic_definition encore (cost : Cost) : Ability :=
   keywordCosting (.named "encore") (.inCaller cost)
 semantic_definition enlist : Ability := keyword (.named "enlist")
@@ -757,10 +777,9 @@ semantic_definition fuse : Ability := keyword (.named "fuse")
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
-      when (does thisPermanent enter) (if_ := is this_ isPermanentType)
-        (doIf (keywordCostPaid (.named "gift") this_)
-          (instruct (the isChosenPlayer) (.inCaller promise))
-          none),
+      when (does thisPermanent enter)
+        (if_ := some (and [is this_ isPermanentType, keywordCostPaid (.named "gift") this_]))
+        (instruct (the isChosenPlayer) (.inCaller promise)),
       spell
         (doIf (is this_ isInstantOrSorcery)
           (doIf (keywordCostPaid (.named "gift") this_)
@@ -827,9 +846,12 @@ semantic_definition haunt : Ability :=
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]) ]
+/-- "Hexproof": "This permanent can't be the target of spells or abilities your opponents
+control," and on a player "You can't be the target of …" [CR#702.11b,702.11c], so the body is
+written over its holder (`this_`). -/
 semantic_definition hexproof : Ability :=
   .keyword (.named "hexproof") []
-    [static (cant (.by (allOf (and [.in_ stack, opponentsControl]))) (.target thisPermanent))]
+    [static (cant (.by (allOf (and [.in_ stack, opponentsControl]))) (.target this_))]
 /-- "Hexproof from [quality]": "This permanent can't be the target of [quality] spells your
 opponents control or abilities your opponents control from [quality] sources." It is a hexproof
 ability, so it is written as hexproof with a quality (`Definition`, [CR#702.11d]). -/
@@ -845,6 +867,11 @@ semantic_definition hexproofFrom (quality : Predicate) : Ability :=
                       abilityOf (allOf (and [isSource, .inCaller quality])) ],
                   opponentsControl ])))
           (target thisPermanent)) ]
+/-- "Hideaway N" [CR#702.75a]. "The player who controls the permanent that exiled this card may
+look at this card": whoever controls it now, since a resolved effect that changes no
+characteristics or control modifies the rules, so it can reach a player it did not reach when it
+began [CR#611.2c]. The player who
+looked at the card and exiled it face down may keep looking at it too [CR#406.3]. -/
 semantic_definition hideaway (amount : Amount) : Ability :=
   let exiledCard : NounPhrase := the (and [was (exile which), isCard])
   .keyword (.named "hideaway") [.number (.inCaller amount)]
@@ -854,7 +881,10 @@ semantic_definition hideaway (amount : Amount) : Ability :=
             exileFaceDown (someOf (oneThrough 1) them),
             .move (theRest .object) .anyLocation onBottom .arrival none
               [.inOrder .randomOrder],
-            establishThroughout (visibility .lookAt you (objects exiledCard))
+            establishThroughout
+              (.conjunction none
+                [ visibility .lookAt you (objects exiledCard),
+                  visibility .lookAt (controllerOf thisPermanent) (objects exiledCard) ])
               (forAsLongAs (is exiledCard (in_ exileZone))) ]) ]
 semantic_definition horsemanship : Ability :=
   .keyword (.named "horsemanship") []
@@ -1168,6 +1198,9 @@ semantic_definition powerUp (ability : Ability) : Ability :=
       static
         (onlyWhile (reducedBySymbols thisAbility (.manaCostOf thisPermanent))
           (did thisPermanent enter soFarThisTurn)) ]
+/-- "Protection from [quality]". Targeting, enchanting and damage are a "permanent or player"'s
+[CR#702.16b,702.16c,702.16e], so those clauses are written over the holder (`this_`); equipping
+and fortifying are a permanent's [CR#702.16d] and blocking a creature's [CR#702.16f]. -/
 semantic_definition protection (quality : Predicate) : Ability :=
   .keyword (.named "protection") [.quality (.inCaller quality)]
     [ static
@@ -1177,9 +1210,9 @@ semantic_definition protection (quality : Predicate) : Ability :=
               (or
                 [ and [isSpell, .inCaller quality],
                   .abilityOf (allOf (and [.isSource, .inCaller quality])) ])))
-          (.target thisPermanent)),
+          (.target this_)),
       static
-        (cant any (attachTo (allOf (and [.hasSubtype aura, .inCaller quality])) thisPermanent)),
+        (cant any (attachTo (allOf (and [.hasSubtype aura, .inCaller quality])) this_)),
       static
         (cant any
           (attachTo
@@ -1188,7 +1221,7 @@ semantic_definition protection (quality : Predicate) : Ability :=
             thisPermanent)),
       static
         (.damageRule (.dealtBy (allOf (and [.isSource, .inCaller quality])))
-          (.toRecipient thisPermanent)
+          (.toRecipient this_)
           (.prevent .all none) .repeatedly),
       static (cant (.by (allOf (and [isCreature, .inCaller quality]))) (.block thisCreature)) ]
 set_option linter.unusedVariables false in
@@ -1333,8 +1366,10 @@ semantic_definition shadow : Ability :=
       static
         (cant (.by (allOf (and [isCreature, .hasKeyword (.the (.named "shadow"))])))
           (.block (allOf (and [isCreature, not (.hasKeyword (.the (.named "shadow")))])))) ]
+/-- "Shroud": "This permanent or player can't be the target of spells or abilities"
+[CR#702.18a], written over its holder (`this_`). -/
 semantic_definition shroud : Ability :=
-  .keyword (.named "shroud") [] [static (cant .any (.target thisPermanent))]
+  .keyword (.named "shroud") [] [static (cant .any (.target this_))]
 semantic_definition skulk : Ability :=
   .keyword (.named "skulk") []
     [ static
@@ -1457,16 +1492,27 @@ semantic_definition storied : Ability :=
                 .atLeast 3,
               not (is .you (hasDesignation enduringStory)) ])
           (gainDesignation .you enduringStory restOfGame)) ]
+/-- "Sunburst": "If this object is entering as a creature, ignoring any type-changing effects
+that would affect it, it enters with a +1/+1 counter on it for each color of mana spent to cast
+it. Otherwise, it enters with a charge counter on it for each color of mana spent to cast it."
+[CR#702.44a] It adds counters only as the object enters from the stack as a resolving spell on
+which colored mana was spent [CR#702.44b]. -/
 semantic_definition sunburst : Ability :=
   .keyword (.named "sunburst") []
     [ static
-        (replace (would thisPermanent enter)
-          (doIf (is thisPermanent isCreature)
+        (replace (would thisPermanent (enter (from_ := stack)))
+          (doIf
+            (and
+              [ is thisPermanent (hasTypeIgnoringTypeChanges .creature),
+                coloredManaSpentToCast thisSpell ])
             (withRiders
               [.withCounters (colorsSpentToCast thisSpell) p1p1Counter .fresh]))),
       static
-        (replace (would thisPermanent enter)
-          (doIf (not (is thisPermanent isCreature))
+        (replace (would thisPermanent (enter (from_ := stack)))
+          (doIf
+            (and
+              [ not (is thisPermanent (hasTypeIgnoringTypeChanges .creature)),
+                coloredManaSpentToCast thisSpell ])
             (withRiders
               [.withCounters (colorsSpentToCast thisSpell) chargeCounter .fresh]))) ]
 semantic_definition surge (cost : Cost) : Ability :=
@@ -1595,22 +1641,23 @@ semantic_definition ward (cost : Cost) : Ability :=
         (instruct (controllerOf (that .stack))
           (mayOrElse (pay (.inCaller cost) .once)
             (instruct .you (counter (that .stack))))) ]
+/-- "Warp [cost]" [CR#702.185a]. Its delayed trigger is created as the permanent is put onto the
+battlefield as the spell resolves [CR#608.3g,603.7d], as blitz's is. -/
 semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
     [ static
         (can you
           (cast this_ (from_ := yourHand) (payment := .payingInstead (.inCaller cost)))),
       static
-        (.asEvent
-          (does you
-            (.pay .itsManaCost .once .paid thisSpell (some (.named "warp"))))
-          (atNext .endStep
-            (sequentially
-              [ exile (.becomes thisSpell),
-                establishThroughout
-                  (can (ownerOf it)
-                    (cast it (from_ := exileZone)))
-                  onALaterTurn ]))) ]
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+          (doIf (keywordCostPaid (.named "warp") thisPermanent)
+            (atNext .endStep
+              (sequentially
+                [ exile thisPermanent,
+                  establishThroughout
+                    (can (ownerOf it)
+                      (cast it (from_ := exileZone)))
+                    onALaterTurn ])))) ]
 semantic_definition webSlinging (cost : Cost) : Ability :=
   .keyword (.named "webSlinging") [.cost (.inCaller cost)]
     [ static

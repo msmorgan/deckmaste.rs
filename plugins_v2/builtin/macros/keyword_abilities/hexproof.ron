@@ -6,12 +6,14 @@ KeywordAbility(
         surface: "hexproof",
     ),
     // "Hexproof" on a permanent means "This permanent can't be the target of spells
-    // or abilities your opponents control." [CR#702.11b] The player form
-    // [CR#702.11c] is what a grant to a player reads.
+    // or abilities your opponents control." [CR#702.11b] and on a player "You
+    // can't be the target of spells or abilities your opponents control."
+    // [CR#702.11c], so the body is written over its holder (`this`), a
+    // permanent or a player granted it.
     body: [
         static(
             cantBeTargetedBy(
-                thisPermanent,
+                this,
                 allOf(and([inZone(stack), controlledBy(playerGroup(YourOpponents))])),
             ),
         ),

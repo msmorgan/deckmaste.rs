@@ -42,6 +42,8 @@ semantic_template attachedBy (word : Option AttachWord) (by_ : NounPhrase) : Pre
   .attachment .host word by_
 /-- "attached to <host>" -/
 semantic_template attachedTo (host : NounPhrase) : Predicate := .attachment .attachment none host
+/-- "a legal object or player for <attachment> to enchant" [CR#303.4f,303.4g] -/
+semantic_template legalHostOf (attachment : NounPhrase) : Predicate := .legalHostOf attachment
 /-- A quality change: `op` applied to `payload` on `subject`'s characteristics. -/
 semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
     StaticSpec := .characteristicChange subject (payload.edits op)
@@ -413,6 +415,9 @@ semantic_template isCard : Predicate := .isCard
 semantic_template isToken : Predicate := .isToken
 semantic_template isNontoken : Predicate := .not .isToken
 semantic_template isCopyOfACard : Predicate := .isCopyOfACard
+/-- "<type>, ignoring any type-changing effects that would affect it" [CR#702.44a,613.1d] -/
+semantic_template hasTypeIgnoringTypeChanges (type : CardType) : Predicate :=
+  .hasTypeIgnoringTypeChanges type
 /-- "source": the object dealing the damage under discussion. -/
 semantic_template isSource : Predicate := .isSource
 semantic_template isEmblem : Predicate := .isEmblem
@@ -1836,8 +1841,8 @@ semantic_template joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [],
 /-- A joined "whenever <event> while <concurrent>" header. -/
 semantic_template joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
   ⟨event, [], while_, none⟩
-/-! The trigger words. `when`, `whenever`, `at_` and `after` expand to the same triggered
-ability [CR#603.1]; the word is the Template's printed wording, never a field. Each takes the
+/-! The trigger words. `when`, `whenever` and `at_` expand to the same triggered
+ability [CR#603.1,113.3c]; the word is the Template's printed wording, never a field. Each takes the
 header's optional parts: alternative events (`or_`, "whenever <event> or <event>"), further
 headers (`joins`, "and whenever …"), a concurrent condition (`while_`), a window (`during`), a
 limit ("this ability triggers only once each turn", `limit`) and an intervening "if" clause
@@ -1860,12 +1865,11 @@ semantic_template at_ (event : GameEvent) (action : Action)
     (while_ : Option Timing := none) (during : Option Timing := none)
     (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
   .triggered event or_ while_ joins during limit if_ action
-/-- "After <event>, <action>": the dice template's word. -/
-semantic_template after (event : GameEvent) (action : Action)
-    (or_ : List GameEvent := []) (joins : List JoinedHeader := [])
-    (while_ : Option Timing := none) (during : Option Timing := none)
-    (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
-  .triggered event or_ while_ joins during limit if_ action
+/-- "After <roll>, <modify>": a Roll Modifier, applied before the roll's result is final, not a
+trigger [CR#706.2,706.2a,113.3c]. `limit` is a printed "only once each turn". -/
+semantic_template after (roll : GameEvent) (modify : Action) (limit : Option UsageLimit := none) :
+    Ability :=
+  .static (.rollModifier roll modify limit)
 semantic_template activated (cost : Cost) (action : Action) : Ability :=
   .activated cost action none none none none
 /-- "[cost]: <action>. Activate only <timing>." -/

@@ -430,6 +430,13 @@ pub enum Predicate {
     IsToken,
     IsEmblem,
     IsCopyOfACard,
+    /// The member has `type` with every type-changing effect that would affect
+    /// it ignored [CR#613.1d]: sunburst asks whether its object "is entering as
+    /// a creature, ignoring any type-changing effects that would affect it"
+    /// [CR#702.44a].
+    HasTypeIgnoringTypeChanges {
+        r#type: CardType,
+    },
     /// The whole single double-faced permanent has this side up [CR#701.27g].
     CurrentFace {
         side: CardFaceSide,
@@ -509,6 +516,13 @@ pub enum Predicate {
     },
     AbilityOf {
         source: Box<NounPhrase>,
+    },
+    /// The member is an object or player `attachment` could legally be
+    /// attached to, under its own abilities and every other applicable effect,
+    /// as an Aura entering the battlefield asks [CR#303.4f,303.4g]. Whether a
+    /// host is legal is the engine's to evaluate.
+    LegalHostOf {
+        attachment: Box<NounPhrase>,
     },
     /// The member is an ability that has triggered but not yet left the
     /// stack: one waiting to be put on the stack, or one on it

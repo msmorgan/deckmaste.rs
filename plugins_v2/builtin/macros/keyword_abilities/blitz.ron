@@ -10,14 +10,21 @@ KeywordAbility(
     // this spell becomes at the beginning of the next end step," and "As long as
     // this permanent's blitz cost was paid, it has haste and 'When this permanent
     // is put into a graveyard from the battlefield, draw a card.'" [CR#702.152a]
-    // The second is an Off-Stack Static on paying the cost that creates a delayed
-    // trigger over the spell's successor (`becomes`) [CR#603.7g].
+    // The second creates its delayed trigger as the permanent is put onto the
+    // battlefield as the spell resolves, controlled by the spell's controller as
+    // it resolved [CR#608.3g,603.7d]: an Off-Stack Static on that entry, guarded
+    // by the blitz cost having been paid, naming the permanent directly. A
+    // countered spell creates none, and a copy's token permanent [CR#608.3f]
+    // creates its own.
     body: [
         static(mayCastFor(you, Param(0))),
         static(
             asEvent(
-                paysCost(Paid, thisSpell, blitz, you),
-                atNext(EndStep, sacrifice(becomes(thisSpell))),
+                enters(thisPermanent, Zones([stack])),
+                doIf(
+                    keywordCostPaid(blitz, thisPermanent),
+                    atNext(EndStep, sacrifice(thisPermanent)),
+                ),
             ),
         ),
         static(onlyWhile(abilityGrant(thisPermanent, haste), keywordCostPaid(blitz, thisPermanent))),

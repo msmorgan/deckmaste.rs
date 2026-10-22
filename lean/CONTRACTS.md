@@ -1102,6 +1102,10 @@ An alternative may also re-read the primary clause's stated amount, as in
 Caustic Bronco's "otherwise ... that much"; this is a numeric reference, not
 evidence that the primary branch actually happened.
 
+Converting is transforming written with another verb [CR#701.28a]: a "transforms into" trigger
+sees either and "can't transform" forbids either [CR#701.27e,701.28f], so `convert` is a Template
+whose tree is `transform`'s (`convertIsTransform`), with no Deed of its own.
+
 Losing counters (`loseCounters`) is the shared counter removal (`Action.removeCounters`)
 performed from a player, with its removed-counter outcome.
 
@@ -1228,6 +1232,13 @@ it would need a `Quantity` on `putCounters`, which takes an `Amount`.
 A replacement effect's "the first time … each turn" is the ordinal of the event it watches for
 [CR#614.1], `WouldClause.nthOccurrence`, as a trigger's is `GameEvent.nthOccurrence`; it is not a
 Usage Limit. Which event is the first is a fact of the turn's history, the engine's to count.
+
+A Roll Modifier (`StaticSpec.rollModifier roll modify limit`, the `after` Template: "After you
+roll a die, you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
+result by 1.") is a static ability, not a trigger: it changes a roll's natural result before the
+result is final [CR#706.2,706.2a], and a trigger would resolve only after the result was used
+[CR#113.3c]. It steps its roll event, which announces the result `shiftResult` reads, then its
+modification in a new clause, then its Usage Limit (`okAfterRollShift`, `badShiftWithoutRoll`).
 
 A control change named as an event, a lookback or a forbidden act is `Action.changeControl
 subject from_` (`gainControlOf`), with the player control is taken from when the text says "from"

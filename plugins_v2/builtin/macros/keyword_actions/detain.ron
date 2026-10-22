@@ -1,6 +1,8 @@
 // "Detain [permanent]" [CR#701.35a]: until the next turn of the controller of
 // the detaining spell or ability, that permanent can't attack or block and its
-// activated abilities can't be activated.
+// activated abilities can't be activated. That is "your next turn"
+// (`untilYourNextTurn`, [CR#109.5]), which is not the source's controller once
+// the source has changed control [CR#113.8].
 KeywordAction(
     name: "detain",
     params: [Subject],
@@ -19,6 +21,6 @@ KeywordAction(
                 allOf(and([abilityHead(AnyActivated), abilityOf(Param(0))])),
             ),
         ],
-        untilNextTurnOf(controllerOf(this)),
+        untilYourNextTurn,
     ),
 )

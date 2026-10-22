@@ -129,7 +129,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .costShift _ shift => shift.numberSlots
   | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ | _n + 1, .modeChoice _
   | _n + 1, .addsTarget _ _ | _n + 1, .asEvent _ _ | _n + 1, .whileHolds _ _
-  | _n + 1, .revealedAsCast _ _ => []
+  | _n + 1, .revealedAsCast _ _ | _n + 1, .rollModifier _ _ _ => []
   -- The letter X, defined by the text [CR#107.3c]: a definition is a calculation, not a result,
   -- so a negative stands and the slot that consumes X clamps it or not [CR#107.1b].
   | _n + 1, .letterDefinition _ amount => [(amount, .signed)]

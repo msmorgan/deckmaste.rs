@@ -35,11 +35,15 @@ def handed (effect : Action) : Action :=
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
 
-/-- Gift's term with its effect, as the declaration builds it [CR#702.174a,702.174b]. -/
+/-- Gift's term with its effect, as the declaration builds it [CR#702.174a,702.174b]. On a
+permanent, "if its gift cost was paid" is the trigger's intervening "if" clause, so the ability
+does not trigger when no gift was promised [CR#603.4]. -/
 def gift (effect : Action) : Ability :=
   .keyword (.named "gift") []
     [ costPart,
-      when (does thisPermanent enter) (if_ := some onPermanent) (handed effect),
+      when (does thisPermanent enter)
+        (if_ := some (.and [onPermanent, costWasPaid giftCost none .this]))
+        (instruct (the isChosenPlayer) effect),
       .spell none (doIf onInstantOrSorcery (handed effect)) ]
 
 /-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/
@@ -66,5 +70,20 @@ theorem okGiftATappedFishOnBothClasses :
     (cardTextOk [.artifact] [giftATappedFish], cardTextOk [.instant] [giftATappedFish])
       = (true, true) := by
   decide
+
+/-- The intervening "if" clause of a keyword body's triggered ability, if it has one. -/
+def triggerCondition? : Ability → Option (Option Condition)
+  | .keyword _ _ body => body.findSome? fun
+    | .triggered _ _ _ _ _ _ condition _ => some condition
+    | _ => none
+  | _ => none
+
+/-- The declaration's permanent half triggers only if this has a permanent type and its gift
+cost was paid: both are its intervening "if" clause, so with no gift promised it does not
+trigger at all [CR#702.174b,603.4]. -/
+theorem declaredGiftTriggerHasInterveningIf :
+    triggerCondition? (Semantics.Definitions.gift (draw 1))
+      = some (some (and [is this_ isPermanentType, keywordCostPaid (.named "gift") this_])) := by
+  rfl
 
 end Semantics.Proofs.GiftVariants

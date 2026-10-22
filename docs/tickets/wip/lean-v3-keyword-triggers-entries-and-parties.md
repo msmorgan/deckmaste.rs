@@ -52,7 +52,13 @@ a specified host it can't legally enchant.
 Change: model [CR#303.4f,303.4g,303.4i] as a replacement on the entry (arguably on the Aura
 subtype). If a legal host exists, the Aura enters attached to one its controller chooses; if none
 exists, it does not move (graveyard if it was on the stack; a token is not created). Mirror:
-`enchant.ron:31`. The archived ADR's "[CR#303.4f,303.4g,101.3]" for "if able"
+`enchant.ron:31`. Both replacements read "a legal object or player" as `legalHostOf thisAura`,
+which the engine evaluates (review M1): the enchant quality alone misses other applicable effects
+such as protection [CR#702.16c]. [CR#303.4i] and the specified-host condition of [CR#303.4f] wait
+on an "enters attached to <host>" Entry Rider, which does not exist yet
+([lean-v3-enters-attached-to-host](../planned/lean-v3-enters-attached-to-host.md)); until then the
+[CR#303.4f] replacement applies to every entry not from the stack. *Armor of Thorns* in
+`plugins_v2/canon/` (deletion-bound) is left as it is. The archived ADR's "[CR#303.4f,303.4g,101.3]" for "if able"
 (`docs/archive/decisions/semantics-v2.md:708-712`) is a miscitation; it gets an erratum note, not a rewrite
 (the archive errata are collected in
 [docs-superseded-and-archived-errata](docs-superseded-and-archived-errata.md)).

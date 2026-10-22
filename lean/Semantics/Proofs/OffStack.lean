@@ -6,10 +6,12 @@ import Semantics.Check.Card
 
 Off-Stack Statics (`semantics-v2-off-stack-statics`, `docs/decisions/semantics-v2.md` §7, ruling
 2026-10-09): "as [event], do" (`StaticSpec.asEvent`) and "any time [condition] holds, do"
-(`StaticSpec.whileHolds`), which carry an action that never uses the stack
-[CR#604.1,603.7a,603.7g,614.1c]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
+(`StaticSpec.whileHolds`), which carry an action that never uses the stack [CR#113.9]; the delayed
+triggers dash, blitz and warp create as the permanent is put onto the battlefield
+[CR#608.3g,603.7d]; the entering an Aura's enchant ability and sunburst replace instead
+[CR#614.1c,303.4f,303.4g,702.44a]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
 and a deontic rule's one exempt source (`DeonticExcept`, [CR#702.145b,702.13b]). The keyword bodies are
-read through their declarations (`Semantics.Definitions`). Each pin is closed by `decide`.
+read through their declarations (`Semantics.Definitions`). Each pin is closed by `decide` or `rfl`.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -167,4 +169,91 @@ theorem okTributeWasntPaid :
     Condition.check (DRS.ofList []) (.not (choiceWasTaken (.byKeyword (.named "tribute")) thisCreature)) = [] := by
   decide
 
+/-! ## Delayed triggers created as the permanent enters -/
+
+/-- "as that permanent is put onto the battlefield" from the stack, as the spell resolves
+[CR#608.3a,608.3g]. -/
+def putOntoTheBattlefieldAsItResolves : GameEvent :=
+  does .any (.move thisPermanent stack battlefield .arrival none [])
+
+/-- The Off-Stack Statics of a keyword's body: their events and actions. -/
+def offStackStatics : Ability → List (GameEvent × Action)
+  | .keyword _ _ body => body.filterMap fun
+    | .static (.asEvent event action) => some (event, action)
+    | _ => none
+  | _ => []
+
+/-- Dash, blitz and warp each create their delayed trigger as the permanent is put onto the
+battlefield as the spell resolves, not as the cost is paid [CR#608.3g]: a countered spell, which
+never becomes a permanent, creates none, and a copy, which becomes a token permanent as it is
+put onto the battlefield [CR#608.3f], creates its own. -/
+theorem delayedTriggersWaitForThePermanent :
+    ((offStackStatics (dash (mana [generic 1]))).map (·.1),
+      (offStackStatics (blitz (mana [generic 1]))).map (·.1),
+      (offStackStatics (warp (mana [generic 1]))).map (·.1))
+      = ([putOntoTheBattlefieldAsItResolves], [putOntoTheBattlefieldAsItResolves],
+        [putOntoTheBattlefieldAsItResolves]) := by
+  rfl
+
+/-- Blitz's delayed trigger, guarded by its own cost and naming the permanent directly: its
+controller is the spell's controller as it resolved, who controls the permanent it sacrifices
+[CR#603.7d,701.21a]. -/
+theorem blitzSacrificesThePermanent :
+    (offStackStatics (blitz (mana [generic 1]))).map (·.2)
+      = [doIf (keywordCostPaid (.named "blitz") thisPermanent)
+          (atNext .endStep (sacrifice thisPermanent))] := by
+  rfl
+
+theorem okDashBlitzWarp :
+    (Ability.check (DRS.ofList []) (dash (mana [generic 1])),
+      Ability.check (DRS.ofList []) (blitz (mana [generic 1])),
+      Ability.check (DRS.ofList []) (warp (mana [generic 1]))) = ([], [], []) := by
+  decide
+
+/-! ## An Aura's entry -/
+
+/-- The replacements of a keyword's body: what each watches and what it makes of the event. -/
+def replacements : Ability → List (WouldClause × Replacement)
+  | .keyword _ _ body => body.filterMap fun
+    | .static (.replace event replacement _ _ _) => some (event, replacement)
+    | _ => none
+  | _ => []
+
+/-- An Aura with no legal object or player to enchant, under its enchant ability and any other
+applicable effects, doesn't enter: instead it stays where it is, or goes to its owner's graveyard
+from the stack [CR#303.4g]; with one, an Aura entering other than by resolving enters attached to
+a legal host [CR#303.4f]. Legality is denoted (`legalHostOf`), not approximated by the enchant
+quality, which protection [CR#702.16c] can overrule. Neither is an Off-Stack Static. -/
+theorem enchantReplacesTheEntering :
+    (offStackStatics (enchant isCreature), replacements (enchant isCreature))
+      = ([],
+        [ (would thisAura enter,
+            doIf (not (exists_ (legalHostOf thisAura)))
+              (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard)))),
+          (would .any (.move thisAura (not stack) battlefield .arrival none []),
+            doIf (exists_ (legalHostOf thisAura))
+              (also (attachTo thisAura (a (legalHostOf thisAura))))) ]) := by
+  rfl
+
+theorem okEnchant : Ability.check (DRS.ofList []) (enchant isCreature) = [] := by decide
+
+/-! ## Sunburst -/
+
+/-- Sunburst asks whether its object enters as a creature with type-changing effects ignored,
+and adds counters only if colored mana was spent to cast it [CR#702.44a,702.44b]. -/
+theorem sunburstIgnoresTypeChanges :
+    (replacements sunburst).map (·.2)
+      = [ doIf
+            (and
+              [ is thisPermanent (hasTypeIgnoringTypeChanges .creature),
+                coloredManaSpentToCast thisSpell ])
+            (withRiders [.withCounters (colorsSpentToCast thisSpell) p1p1Counter .fresh]),
+          doIf
+            (and
+              [ not (is thisPermanent (hasTypeIgnoringTypeChanges .creature)),
+                coloredManaSpentToCast thisSpell ])
+            (withRiders [.withCounters (colorsSpentToCast thisSpell) chargeCounter .fresh]) ] := by
+  rfl
+
+theorem okSunburst : Ability.check (DRS.ofList []) sunburst = [] := by decide
 end Semantics.Proofs.OffStack

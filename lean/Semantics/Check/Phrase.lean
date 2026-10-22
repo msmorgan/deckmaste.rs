@@ -91,7 +91,8 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
       | none, k' => k') none
   | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen
   | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _
-  | _ + 1, .attachment .host _ _ | _ + 1, .inCombat .attackedBy _ => none
+  | _ + 1, .attachment .host _ _ | _ + 1, .inCombat .attackedBy _
+  | _ + 1, .legalHostOf _ => none
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -2299,7 +2300,7 @@ def stepOps : Nat → StepOps
         | .hasKeyword term => (drs, refuse term.known .knownKeywordTerm)
         | .abilityHead family => (drs, refuse family.known .knownKeywordTerm)
         | .counterKindOn src | .abilityOf src
-        | .activatedBy src =>
+        | .activatedBy src | .legalHostOf src =>
           let (drs', _, errs) := ops.np drs .other false src
           (drs', errs)
         | .other =>
@@ -3762,7 +3763,14 @@ def stepOps : Nat → StepOps
         | .whileHolds cond does =>
           let (drs1, e1) := ops.cond drs cond
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) does
-          (drs2, e1 ++ e2),
+          (drs2, e1 ++ e2)
+        | .rollModifier roll modify limit =>
+          let (drs1, e1) := ops.ev drs roll
+          let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) modify
+          let (drs3, e3) := match limit with
+            | some l => stepUsageLimitWith ops drs2 l
+            | none => (drs2, [])
+          (drs3, e1 ++ e2 ++ e3),
 
       cost := fun drs c =>
         let (out, errors) :=

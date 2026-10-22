@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Correct rule claims in rules-taxonomy.md and add errata to two archived ADRs
+# Correct rule claims in rules-taxonomy.md and add errata to three archived ADRs
 
 `docs/rules-taxonomy.md` is superseded in vocabulary but still read, so
 correct its rows in place. Archived ADRs stay as the record of their ruling.
@@ -59,3 +59,11 @@ are confirmed at head as of 2026-10-21.
    [CR#109.2]. No live doc repeats "three carriers" in this sense. (The
    matches in the `workbench-anaphora-*` done tickets use the phrase for an
    unrelated idea.)
+7. **`docs/archive/decisions/semantics-v2.md` (lines 708–712, "Enchant is not
+   settled empty").** The entry clause's "if able" is cited
+   [CR#303.4f,303.4g,101.3]. An Aura with no legal object or player to enchant
+   doesn't enter at all: it stays in its zone, goes to its owner's graveyard
+   from the stack, and a token Aura isn't created [CR#303.4g]; [CR#101.3]'s
+   impossible-part reading does not apply. Erratum: the entry is a replacement
+   of the entering [CR#303.4f,303.4g], as `lean-v3-keyword-triggers-entries-and-parties`
+   §3 models it.

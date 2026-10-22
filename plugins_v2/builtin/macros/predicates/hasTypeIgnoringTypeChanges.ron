@@ -1,0 +1,10 @@
+// `Predicate.HasTypeIgnoringTypeChanges` under Lean's own name for it: the
+// alias `declare_semantic_primitives` generates, so a card writes a macro where
+// the basis has a constructor (ADR 12.1). "<type>, ignoring any type-changing
+// effects that would affect it" [CR#702.44a,613.1d].
+(
+    name: "hasTypeIgnoringTypeChanges",
+    kinds: [Predicate],
+    params: {"type": Any},
+    body: HasTypeIgnoringTypeChanges(Param(type)),
+)

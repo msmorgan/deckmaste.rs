@@ -8,18 +8,37 @@ KeywordAbility(
     // "Sunburst" means "If this object is entering as a creature, ignoring any
     // type-changing effects that would affect it, it enters with a +1/+1 counter on it
     // for each color of mana spent to cast it. Otherwise, it enters with a charge
-    // counter on it for each color of mana spent to cast it." [CR#702.44a]
+    // counter on it for each color of mana spent to cast it." [CR#702.44a] It
+    // adds counters only as the object enters from the stack as a resolving
+    // spell on which colored mana was spent [CR#702.44b], so each branch is an
+    // Off-Stack Static on entering from the stack, its condition the type test
+    // and the colored-mana gate. The type test ignores type-changing effects
+    // (`hasTypeIgnoringTypeChanges`, [CR#613.1d]). Lean writes each as a
+    // replacement of the entering with an entry rider; this vocabulary writes
+    // "as it enters" with `asEvent`.
     body: [
         static(
-            onlyWhile(
-                entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), p1p1Counter),
-                matches(thisPermanent, creature),
+            asEvent(
+                enters(thisPermanent, Zones([stack])),
+                doIf(
+                    and([
+                        matches(thisPermanent, hasTypeIgnoringTypeChanges(Creature)),
+                        coloredManaSpentToCast(thisSpell),
+                    ]),
+                    establish(entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), p1p1Counter)),
+                ),
             ),
         ),
         static(
-            onlyWhile(
-                entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), chargeCounter),
-                not(matches(thisPermanent, creature)),
+            asEvent(
+                enters(thisPermanent, Zones([stack])),
+                doIf(
+                    and([
+                        not(matches(thisPermanent, hasTypeIgnoringTypeChanges(Creature))),
+                        coloredManaSpentToCast(thisSpell),
+                    ]),
+                    establish(entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), chargeCounter)),
+                ),
             ),
         ),
     ],

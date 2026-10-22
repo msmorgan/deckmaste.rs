@@ -9,7 +9,11 @@ KeywordAbility(
     // library. Exile one of them face down and put the rest on the bottom of your library
     // in a random order. The exiled card gains 'The player who controls the permanent
     // that exiled this card may look at this card in the exile zone.'" [CR#702.75a] The
-    // look right is `visibility` for the controller while the card stays exiled.
+    // look right is `visibility` while the card stays exiled, granted twice: to the
+    // player who looked at the card and exiled it face down, who may keep looking at it
+    // [CR#406.3], and to whoever controls the permanent now, since a resolved effect
+    // that changes no characteristics or control can reach a player it did not reach
+    // when it began [CR#702.75a,611.2c].
     body: [
         triggered(
             enters(thisPermanent),
@@ -18,7 +22,10 @@ KeywordAbility(
                 exileFaceDown(someOf(exactly(1), them)),
                 move(theRest(Object), wherever, onBottom, [Placement(InOrder(RandomOrder))]),
                 establish(
-                    visibility(LookAt, you, Objects(theVerbed(exile, One, Card))),
+                    conjunction(parts: [
+                        visibility(LookAt, you, Objects(theVerbed(exile, One, Card))),
+                        visibility(LookAt, controllerOf(thisPermanent), Objects(theVerbed(exile, One, Card))),
+                    ]),
                     forAsLongAs(matches(theVerbed(exile, One, Card), inZone(exileZone))),
                 ),
             ]),

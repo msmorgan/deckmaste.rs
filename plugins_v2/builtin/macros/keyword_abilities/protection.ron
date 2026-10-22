@@ -17,18 +17,22 @@ KeywordAbility(
     //   prevented [CR#702.16e];
     // - while attacking, it can't be blocked by creatures with the quality
     //   [CR#702.16f].
-    // The attach rows forbid the attach deed from the attachment's side, this
-    // permanent in its host role. That an Aura, Equipment or Fortification
+    // Targeting, enchanting and damage are a "permanent or player"'s
+    // [CR#702.16b,702.16c,702.16e], so those rows are written over the holder
+    // (`this`); equipping and fortifying are a permanent's [CR#702.16d]
+    // (`thisPermanent`) and blocking a creature's [CR#702.16f] (`thisCreature`).
+    // The attach rows forbid the attach deed from the attachment's side, the
+    // holder in its host role. That an Aura, Equipment or Fortification
     // already attached falls off is the subtypes' own state-based rows over the
     // engine's attach-permission model [CR#704.5m,704.5n], not written here.
     body: [
         static(
             cantBeTargetedBy(
-                thisPermanent,
+                this,
                 allOf(or([and([spell, Param(0)]), abilityOf(allOf(and([source, Param(0)])))])),
             ),
         ),
-        static(cantBeAttachedTo(allOf(and([hasSubtype(aura), Param(0)])), thisPermanent)),
+        static(cantBeAttachedTo(allOf(and([hasSubtype(aura), Param(0)])), this)),
         static(
             cantBeAttachedTo(
                 allOf(and([or([hasSubtype(equipment), hasSubtype(fortification)]), Param(0)])),
@@ -39,7 +43,7 @@ KeywordAbility(
             damageRule(
                 Any,
                 DealtBy(allOf(and([source, Param(0)]))),
-                ToRecipient(thisPermanent),
+                ToRecipient(this),
                 Prevent(All, None),
                 Repeatedly,
             ),

@@ -328,17 +328,28 @@ priority within an optional Timing — foretell's is paying {2} and exiling the
 card from its owner's hand face down during their turn ([CR#116.2c,116.2h,702.143a]).
 
 **Off-Stack Static** (project term):
-A Static Ability that carries out an Action without using the stack,
-either as an Event happens ("as it becomes night, if this permanent is front
-face up, transform it", [CR#702.145b]) or at any time a condition holds ("any
-time you control ten or more permanents and you don't have the city's
-blessing, you get the city's blessing", [CR#702.131b]). Text that acts as a
-Permanent enters ("as this enters, you may sacrifice …") is a Replacement
-Effect instead ([CR#614.1c]); the rule that attaches an Aura as it enters
-([CR#303.4f]) is no such text. A Special Action is its sibling, done by choice
-with a cost; a delayed trigger an Off-Stack Static creates has that static's
-object as its source ([CR#603.7g]).
-_Avoid_: state trigger, since nothing goes on the stack ([CR#604.1])
+A Static Ability that carries out an Action without using the stack
+([CR#113.9]), either as an Event happens ("as it becomes night, if this
+permanent is front face up, transform it", [CR#702.145b]) or at any time a
+condition holds ("any time you control ten or more permanents and you don't
+have the city's blessing, you get the city's blessing", [CR#702.131b]). Text
+that acts as a Permanent enters ("as this enters, you may sacrifice …") is a
+Replacement Effect instead ([CR#614.1c]), and the rule that has an Aura enter
+attached, or not enter at all ([CR#303.4f,303.4g]), modifies the entering in
+the same way. A Special Action is its sibling, done by choice
+with a cost. A delayed trigger that a resolving Permanent Spell's static
+ability creates (dash, blitz, warp) is created as the Permanent is put onto
+the battlefield, with the Spell as its source and the Spell's controller as it
+resolved as its controller ([CR#608.3g,603.7d]).
+_Avoid_: state trigger, since nothing goes on the stack ([CR#113.9])
+
+**Roll Modifier**:
+An effect that changes a die roll's natural result before it becomes the
+roll's result: rerolling the die, or increasing or decreasing the result
+([CR#706.2,706.2b]). One may be optional or have a cost ([CR#706.2a]). It is
+not a Triggered Ability, since a trigger would resolve after the result was
+used ([CR#113.3c]).
+_Avoid_: "after you roll" trigger
 
 **Turn-Based Action**:
 An Action that happens automatically when a Step or Phase begins, or when one

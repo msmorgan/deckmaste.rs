@@ -96,6 +96,18 @@ counter in a step where the permanent stays tapped anyway. The Lean pin is
 engine has no stun counters yet. Cards that print "can't untap" (Winter Orb,
 Static Orb) are `cant` by [CR#614.17] and are unaffected.
 
+## Sunburst's ignored type-changing effects and characteristic-defining abilities — SETTLED (no UD id)
+
+Raised as underdetermined by `lean-v3-keyword-triggers-entries-and-parties` §4: sunburst asks
+whether its object is entering as a creature "ignoring any type-changing effects that would
+affect it" ([CR#702.44a]), and a characteristic-defining ability is applied first in layer 4
+([CR#613.1d,613.3]), so whether a type-setting one counts as ignored looked open. The refutation
+hunt settles it: a characteristic-defining ability defines only colors, subtypes, power or
+toughness ([CR#604.3a]), never a card type, so none can make an object a creature or stop it
+being one. Whether it is ignored cannot change sunburst's answer, and the model
+(`Predicate.hasTypeIgnoringTypeChanges`) makes no choice. A candidate for the mtg-rules
+registry's Settled section; it has no UD id there.
+
 ## Assumed-category sweep (P0.W7, 2026-06-12) — UD-1 / UD-4 / UD-6 / UD-10
 
 None embodied by P0; each waits on its forcing machinery:

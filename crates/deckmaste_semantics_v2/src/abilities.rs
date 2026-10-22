@@ -755,16 +755,20 @@ pub enum StaticSpec {
         does: Box<Instruction>,
     },
     /// An Off-Stack Static, "as [event], do": as `event` happens, `does` is
-    /// carried out without using the stack [CR#604.1,614.1c]. A delayed
-    /// trigger it creates has this static's object as its source
-    /// [CR#603.7a,603.7g].
+    /// carried out without using the stack, as a static ability is
+    /// [CR#113.9]. A static ability of a resolving permanent spell that
+    /// creates a delayed trigger creates it as the permanent is put onto the
+    /// battlefield, with the spell as its source and the spell's controller as
+    /// it resolved as its controller (dash, blitz, warp [CR#608.3g,603.7d]).
+    /// "As this enters, …" text is written here too, where Lean writes it as
+    /// a replacement of the entering (`replace … (also …)`, [CR#614.1c]).
     AsEvent {
         event: GameEvent,
         does: Box<Instruction>,
     },
     /// An Off-Stack Static, "any time [condition] holds, do": whenever
-    /// `condition` holds, `does` is carried out without using the stack
-    /// [CR#604.1,702.131b].
+    /// `condition` holds, `does` is carried out without using the stack, as a
+    /// static ability is [CR#113.9,702.131b].
     WhileHolds {
         condition: Condition,
         does: Box<Instruction>,

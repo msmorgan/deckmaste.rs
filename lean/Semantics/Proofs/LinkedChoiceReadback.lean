@@ -32,11 +32,13 @@ def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) tru
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
 def chosenDraws : Action := instruct (the isChosenPlayer) (draw 1)
 
-/-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
-cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
+/-- Gift's permanent half: "When this permanent enters, if this is a permanent card and its
+gift cost was paid, the chosen player draws a card." Both are its intervening "if" clause
+[CR#702.174b,702.174e,603.4]. -/
 def permanentHalf : Ability :=
-  when (does thisPermanent enter) (if_ := some onPermanentCard)
-    (doIf (costWasPaid gift none .this) chosenDraws)
+  when (does thisPermanent enter)
+    (if_ := some (.and [onPermanentCard, costWasPaid gift none .this]))
+    chosenDraws
 
 /-- Gift's spell half: "If this is an instant or sorcery, if this spell's gift cost was paid, the
 chosen player draws a card." [CR#702.174b,113.3a] -/

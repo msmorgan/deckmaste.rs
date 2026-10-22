@@ -6,9 +6,9 @@ KeywordAbility(
         surface: "shroud",
     ),
     // "Shroud" means "This permanent or player can't be the target of spells or
-    // abilities." [CR#702.18a] The permanent half is the printed one; the player
-    // half is what a grant to a player reads.
+    // abilities." [CR#702.18a] The body is written over its holder (`this`), a
+    // permanent or a player granted it.
     body: [
-        static(objectCant(Target, thisPermanent)),
+        static(objectCant(Target, this)),
     ],
 )

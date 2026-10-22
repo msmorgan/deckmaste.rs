@@ -1,7 +1,11 @@
 // "Convert [permanent]" [CR#701.28a]: turn it so that its other face is up,
-// following the transform rules [CR#701.27a..701.27f]. The same turn-over as
-// Transform under its own deed label, which is what distinguishes the two
-// events [CR#701.27e].
+// under the transform rules. Converting is transforming written with another
+// verb: a "transforms into" ability triggers if the object either transforms
+// or converts [CR#701.27e], and "can't transform" forbids converting too
+// [CR#701.28f]. So the word is this declaration's and the event is
+// Transform's: the body is the transform action, with its deed, and convert
+// names no deed of its own (`deed: None`), or converting would enact twice.
+// Lean `convert`, a Template expanding to `transform`.
 KeywordAction(
     name: "convert",
     params: [Subject],
@@ -10,5 +14,6 @@ KeywordAction(
         bare: "convert",
         frame_set: Transitive,
     ),
-    body: turnOver(Param(0)),
+    deed: None,
+    body: transform(Param(0)),
 )

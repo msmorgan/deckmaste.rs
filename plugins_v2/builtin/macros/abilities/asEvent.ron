@@ -1,7 +1,12 @@
 // `StaticSpec.AsEvent` under Lean's own name for it: an Off-Stack Static, "as
 // [event], do". As `event` happens, `does` is carried out without using the
-// stack [CR#604.1,614.1c]; a delayed trigger it creates has this static's
-// object as its source [CR#603.7a,603.7g].
+// stack, as a static ability is [CR#113.9]. A static ability of a resolving
+// permanent spell that creates a delayed trigger creates it as the permanent is
+// put onto the battlefield, with the spell as its source and the spell's
+// controller as it resolved as its controller (dash, blitz, warp
+// [CR#608.3g,603.7d]). "As this enters, …" text is written here too, where
+// Lean writes it as a replacement of the entering (`replace … (also …)`,
+// [CR#614.1c]).
 (
     name: "asEvent",
     kinds: [StaticSpec],

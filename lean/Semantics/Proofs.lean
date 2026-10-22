@@ -34,6 +34,7 @@ import Semantics.Proofs.KeywordActionResidues
 import Semantics.Proofs.KeywordArguments
 import Semantics.Proofs.KeywordByCardClass
 import Semantics.Proofs.KeywordCastPermissions
+import Semantics.Proofs.KeywordHolders
 import Semantics.Proofs.LinkedChoiceReadback
 import Semantics.Proofs.LinkedReadback
 import Semantics.Proofs.Lookback

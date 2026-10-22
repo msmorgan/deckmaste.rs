@@ -13,7 +13,10 @@ KeywordAbility(
     // rules link them [CR#607.2d,607.2i]; each half is guarded by the card's
     // class (`semantics-v2.md` §7, ruling 2026-10-06). The permanent half's guard
     // reads the object's types (`permanentType`), not `permanentCard`, so it
-    // holds of a token that has gift as well [CR#110.4].
+    // holds of a token that has gift as well [CR#110.4]. On a permanent "if its
+    // gift cost was paid" is an intervening "if" clause, so with no gift
+    // promised the ability doesn't trigger at all [CR#702.174b,603.4]; the
+    // class guard and the paid cost are its condition together.
     //
     // No spelling: "Gift a [something]" defines its effect by the [something]
     // [CR#702.174d..702.174i], so bare gift is unparseable and is invoked by its
@@ -23,11 +26,8 @@ KeywordAbility(
         static(addedCost(perform(choose(a(opponent))), true)),
         triggeredIf(
             event: enters(thisPermanent),
-            condition: matches(this, permanentType),
-            instruction: doIf(
-                keywordCostPaid(gift, this),
-                act(chosenAsPaid(gift, this), Param(0)),
-            ),
+            condition: and([matches(this, permanentType), keywordCostPaid(gift, this)]),
+            instruction: act(chosenAsPaid(gift, this), Param(0)),
         ),
         spell(
             doIf(

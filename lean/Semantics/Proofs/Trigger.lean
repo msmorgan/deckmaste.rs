@@ -251,14 +251,25 @@ def rollShiftBody : Action :=
   may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature true)
     (some (shiftResult 1))
 
+/-- "you roll a die" -/
+def youRollADie : GameEvent := .does (.actor .you) (.rollDice 1 .anyDie .anyResult)
+
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
-increase or decrease the result by 1." (Xenosquirrels) -/
+increase or decrease the result by 1." (Xenosquirrels): a Roll Modifier, a static ability
+applied before the roll's result is final, optional and costed [CR#706.2,706.2a]. It is no
+triggered ability [CR#113.3c]: a trigger would resolve after the roll's instruction had used
+the result. -/
 theorem okAfterRollShift :
-    Ability.check (DRS.ofList []) (after (.does (.actor .you) (.rollDice 1 .anyDie .anyResult)) rollShiftBody)
-      = [] := by
+    after youRollADie rollShiftBody = .static (.rollModifier youRollADie rollShiftBody none) ∧
+    Ability.check (DRS.ofList []) (after youRollADie rollShiftBody) = [] :=
+  ⟨rfl, by decide⟩
+
+/-- A printed "only once each turn" on a Roll Modifier is its Usage Limit. -/
+theorem okRollModifierOncePerTurn :
+    Ability.check (DRS.ofList []) (after youRollADie rollShiftBody (limit := oncePerTurn)) = [] := by
   decide
 
-/-- The same body after a header that rolls no die: with no result announced there is nothing
+/-- The same body after an event that rolls no die: with no result announced there is nothing
 to increase or decrease. -/
 theorem badShiftWithoutRoll :
     Ability.check (DRS.ofList []) (after (does thisCreature attack) rollShiftBody)

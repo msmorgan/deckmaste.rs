@@ -1,5 +1,6 @@
 // "Goad [creature]" [CR#701.15a]: until the next turn of the controller of the
-// goading spell or ability, that creature is goaded. Goaded is a designation
+// goading spell or ability, that creature is goaded: "your next turn"
+// (`untilYourNextTurn`, [CR#109.5]), as detain's. Goaded is a designation
 // [CR#701.15b] whose combat requirements are the designation's, not this
 // clause's.
 KeywordAction(
@@ -12,5 +13,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: gainDesignation(Param(0), goaded, untilNextTurnOf(controllerOf(this))),
+    body: gainDesignation(Param(0), goaded, untilYourNextTurn),
 )

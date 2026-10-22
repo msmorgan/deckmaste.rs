@@ -242,10 +242,19 @@ mutual
     | related (label : RelationLabel) (counterpart : Option NounPhrase)
     | attachment (side : AttachmentSide) (word : Option AttachWord)
         (counterpart : Option NounPhrase)
+    /-- The member is an object or player `attachment` could legally be attached to, under its
+    own abilities and every other applicable effect, as an Aura entering the battlefield asks
+    [CR#303.4f,303.4g]: its enchant ability, and, say, a protection that keeps it off
+    [CR#702.16c]. Whether a host is legal is the engine's to evaluate. -/
+    | legalHostOf (attachment : NounPhrase)
     | isCard
     | isToken
     | isEmblem
     | isCopyOfACard
+    /-- The member has `type` with every type-changing effect that would affect it ignored
+    [CR#613.1d]: sunburst asks whether its object "is entering as a creature, ignoring any
+    type-changing effects that would affect it" [CR#702.44a]. -/
+    | hasTypeIgnoringTypeChanges (type : CardType)
     /-- The whole single double-faced permanent has this side up [CR#701.27g]. -/
     | currentFace (side : CardFaceSide)
     | hasStatus (status : Status)
@@ -938,14 +947,21 @@ mutual
     plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
     | specialAction (when : Option Timing) (cost : Cost) (does : Action)
     /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
-    using the stack [CR#604.1]. A delayed trigger it creates has this static's object as its
-    source [CR#603.7a,603.7g]. "As this enters, …" text is a replacement of the entering instead
-    (`replace … (also …)`, [CR#614.1c]); the rule that attaches an Aura as it enters other than
-    by resolving [CR#303.4f] is no such text, and stays here. -/
+    using the stack, as a static ability is [CR#113.9]. A static ability of a resolving permanent
+    spell that creates a delayed trigger creates it as the permanent is put onto the battlefield,
+    with the spell as its source and the spell's controller as it resolved as its controller
+    (dash, blitz, warp [CR#608.3g,603.7d]). "As this enters, …" text is a replacement of the
+    entering instead (`replace … (also …)`, [CR#614.1c]). -/
     | asEvent (event : GameEvent) (does : Action)
     /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
-    is carried out without using the stack [CR#604.1,702.131b]. -/
+    is carried out without using the stack, as a static ability is [CR#113.9,702.131b]. -/
     | whileHolds (condition : Condition) (does : Action)
+    /-- A Roll Modifier, "after <roll>, <modify>": after the die `roll` names is rolled, and
+    before its result is final, `modify` may change it [CR#706.2]. A modifier may be optional and
+    may have a cost [CR#706.2a]; rerolls are considered before increases and decreases
+    [CR#706.2b]. It is no triggered ability [CR#113.3c], which would resolve after the result was
+    used. `limit` is a printed "only once each turn". -/
+    | rollModifier (roll : GameEvent) (modify : Action) (limit : Option UsageLimit)
     /-- "<subject> is a Combatant": the creature-like combat rules apply to it. Its power deals
     combat and fight damage, marked damage is compared with its toughness, it may be declared an
     attacker or a blocker, and the summoning-sickness rule applies to it

@@ -12,25 +12,48 @@ KeywordAbility(
     // target and what an Aura can enchant" [CR#702.5a]. The printed argument is
     // a description, a `Predicate` (Lean `KeywordParam.subject`), forwarded as
     // the keyword's argument. As the v1 record
-    // `plugins/builtin/macros/keyword/Enchant.ron` divides it, the keyword owns
-    // three abilities:
+    // `plugins/builtin/macros/keyword/Enchant.ron` divides it, with its entry
+    // clause split in two, the keyword owns four abilities:
     // - the Aura spell's target, defined by the enchant ability [CR#303.4a];
     // - the legal-host permission, attachment being default-deny [CR#303.4c];
+    // A host is legal under the enchant ability "and any other applicable
+    // effects" (protection [CR#702.16c]), so both entry clauses ask for
+    // `legalHostOf(thisAura)`, which the engine evaluates, not for the quality.
+    // An effect putting an Aura onto the battlefield attached to a named host
+    // is not yet written (`lean-v3-enters-attached-to-host`), so the
+    // [CR#303.4f] clause applies to every entry not from the stack, and
+    // [CR#303.4i] has nothing to key on.
+    // - with no legal object or player to enchant, the Aura doesn't enter: it
+    //   stays in its current zone, or is put into its owner's graveyard if
+    //   that zone is the stack, and a token Aura isn't created [CR#303.4g].
+    //   That is a replacement of the entering, not an attach that is
+    //   impossible and ignored: the Aura never enters, so it neither triggers
+    //   on entering nor is put into the graveyard by [CR#704.5m];
     // - the entry clause: as the Aura enters other than by resolving as an Aura
     //   spell, its controller chooses a legal object or player and it enters
-    //   attached to it [CR#303.4f]. It is mandatory: with nothing to choose,
-    //   the attach is impossible and ignored [CR#303.4g,101.3]. The choice is
-    //   the attach's own "a [quality]" rather than a `choose` read back by a
-    //   pronoun, because no pronoun reaches back over an argument that may be an
-    //   object or a player.
+    //   attached to it [CR#303.4f]. The choice is the attach's own
+    //   "a [legal host]" rather than a `choose` read back by a pronoun, because no
+    //   pronoun reaches back over an argument that may be an object or a
+    //   player. Lean writes it as a replacement of the entering
+    //   (`replace … (also …)`); this vocabulary writes "as it enters" with
+    //   `asEvent`.
     // The Aura subtype's own [CR#704.5m] state-based action is the subtype's.
     body: [
         static(addsTarget(thisAura, Param(0))),
         static(mayBeAttachedTo(thisAura, allOf(Param(0)))),
         static(
+            onlyWhile(
+                insteadOf(
+                    enters(thisAura),
+                    doIf(matches(thisAura, inZone(stack)), move(thisAura, wherever, graveyard)),
+                ),
+                not(exists(legalHostOf(thisAura))),
+            ),
+        ),
+        static(
             asEvent(
                 enters(thisAura, AnywhereBut([stack])),
-                attach(thisAura, a(Param(0))),
+                doIf(exists(legalHostOf(thisAura)), attach(thisAura, a(legalHostOf(thisAura)))),
             ),
         ),
     ],

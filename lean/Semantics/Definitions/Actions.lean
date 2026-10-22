@@ -630,23 +630,27 @@ semantic_definition clash : Action :=
       (sequentially
         [ .expose .reveal (.cards (.slice .top 1 (libraryOf .actor))),
           may (putInto (that .card) onBottom) ]))
-semantic_definition convert (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "convert"))
-    (enact (.action "convert") (.turnOver (.firstMention "convert.subject" (.inCaller subject))))
+/-- "convert <subject>": turn it so that its other face is up, under the transform rules
+[CR#701.28a,701.27a..701.27f]. Converting is transforming written with another verb: a "transforms into" trigger
+sees either [CR#701.27e], and "can't transform" forbids either [CR#701.28f], so the word is this
+Template's and the tree is `transform`'s. -/
+semantic_template convert (subject : NounPhrase) : Action := transform subject
+/-- "detain <subject>": until the next turn of the controller of the detaining spell or ability,
+"your next turn" [CR#701.35a,109.5], which is not its source's controller once the source has
+changed control [CR#113.8]. -/
 semantic_definition detain (subject : NounPhrase) : Action :=
   .ownScope (some (.action "detain"))
     (enact (.action "detain")
       (establishThroughout
         (.conjunction none
-          [ .conjunction none
-              [ cant (actor (.firstMention "detain.subject" (.inCaller subject))) (.attack none),
-                cant (actor (.laterMention "detain.subject" (.inCaller subject))) (.block .any) ],
+          [ cant (actor (.firstMention "detain.subject" (.inCaller subject))) (.attack none),
+            cant (actor (.laterMention "detain.subject" (.inCaller subject))) (.block .any),
             cant .any
               (activate (allOf
                   (and
                     [ .abilityHead .anyActivated,
                       .abilityOf (.laterMention "detain.subject" (.inCaller subject)) ]))) ])
-        (untilNextTurnOf (controllerOf this_))))
+        untilYourNextTurn))
 semantic_definition earthbend (amount : Amount) : Action :=
   .ownScope (some (.action "earthbend"))
     (enact (.action "earthbend")
@@ -681,11 +685,13 @@ semantic_definition forage : Action :=
       (chooseOne
         (exileFrom (counted (exactly 3) (cardIn (graveyardOf .actor))) (graveyardOf .actor))
         (sacrifice (a (and [.hasSubtype food, isPermanent, actorControls])))))
+/-- "goad <subject>": goaded until the next turn of the controller of the goading spell or
+ability, "your next turn" [CR#701.15a,109.5], as detain's. -/
 semantic_definition goad (subject : NounPhrase) : Action :=
   .ownScope (some (.action "goad"))
     (enact (.action "goad")
       (gainDesignation (.firstMention "goad.subject" (.inCaller subject)) goaded
-        (untilNextTurnOf (controllerOf this_))))
+        untilYourNextTurn))
 semantic_definition harness (subject : NounPhrase) : Action :=
   .ownScope (some (.action "harness"))
     (enact (.action "harness")
