@@ -278,10 +278,7 @@ Production can require that a Preposition Phrase child admit a Host Category
 (`Hosted`), as a predicative PP must be able to modify a nominal. It can also
 require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
 more than one, as a single postpositive participle differs from a participial
-clause, or `postdependent`, ending in a dependent of its head (a Complement or
-postmodifier) rather than in the head itself, through the last conjunct of a
-coordination (*power 3 or less*, *base power and toughness 4/4*, not *base
-power* or *power or toughness*), or `uncoordinated`, not itself a coordination, where the coordination
+clause, or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
 imperative Clauses). A child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that its Production, or a

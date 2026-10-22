@@ -116,8 +116,6 @@ pub(crate) enum GapRule {
 pub(crate) enum Weight {
     Light,
     Heavy,
-    /// Ends in a dependent of its head, not in the head.
-    PostDependent,
 }
 
 /// A lexical leaf test.
@@ -791,11 +789,9 @@ impl Production {
             ChildView::Leaf(_) => 1,
             ChildView::Punct => 0,
         };
-        let post_dependent = matches!(child, ChildView::Node(summary) if !summary.head_final);
         match self.weights.iter().find(|(at, _)| *at == position) {
             Some((_, Weight::Light)) if leaves != 1 => None,
             Some((_, Weight::Heavy)) if leaves < 2 => None,
-            Some((_, Weight::PostDependent)) if !post_dependent => None,
             _ => Some(leaves),
         }
     }
@@ -1285,7 +1281,9 @@ impl Production {
                 && self.head == Some(self.rhs.len() - 1)
                 && ((self.rhs.len() > 2
                     && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)))
-                    || self.host_check.is_some_and(|(host, adjunct, _)| adjunct < host)),
+                    || self
+                        .host_check
+                        .is_some_and(|(host, adjunct, _)| adjunct < host)),
             delimited_complement: state.delimited_complement,
             post_adjunct: state.post_adjunct
                 || self.host_check.is_some_and(|(host, adjunct, _)| {
