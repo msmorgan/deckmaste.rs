@@ -38,8 +38,11 @@ on the round-7 base, it has 17 Readings:
    counts as right-edge here (`Summary::gap_right_edge`), and close it
    structurally.
 2. The Clause coordination joins a present modal Clause and a preterite one
-   under *and/or*. That is `english-v4-coordinated-clause-tense`, now approved
-   to run. Check whether its landing removes Readings 1–2 on its own.
+   under *and/or*. `english-v4-coordinated-clause-tense` would have removed
+   such coordinations at admission, but the owner's round-8 treatment plan
+   retired it: a mixed-tense coordination is grammatical English
+   (`docs/decisions/english-v4.md` §4.4). Tense will not remove Readings 1–2.
+   Only lead 1, a Gap that is not at the right edge, can do that.
 3. Only if structure leaves wrong Readings ahead: examine the Ranking Key's
    Right Association, which charges the long VP coordination under *may*
    more than the short Clause conjuncts. Any change must be purely structural

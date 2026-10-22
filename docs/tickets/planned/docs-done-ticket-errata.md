@@ -100,7 +100,7 @@ head on 2026-10-21. Line numbers are current.
     [CR#711.2,714.2,716.2]). Station symbols are also keyword abilities
     defined outside 702 [CR#702.184b,721.2], and so are a Case's two labels
     [CR#719.3,719.3a]. The conclusion (an open keyword vocabulary) stands.
-    `planned/english-v4-case-solve-condition.md` already treats *To solve* as
+    `planned/english-v4-case-to-solve-label.md` already treats *To solve* as
     a keyword-ability frame.
 15. **`workbench-event-zone-4-zone-catalog-and-reader-payload.md:197,429`
     and `workbench-placement-and-origin-gates.md:21,114`.** These lines cite

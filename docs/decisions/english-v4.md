@@ -1,6 +1,6 @@
 # ADR: English v4 — Data-Driven Syntax Engine, Domain Catalogs, and Stratified Buildout
 
-- **Status:** Accepted (2026-10-14)
+- **Status:** Accepted (2026-10-14); §4.4 added 2026-10-22 (owner ruling, round 8)
 - **Companion Contract:** [`docs/decisions/english-lexical-analysis.md`](./english-lexical-analysis.md)
 - **Supersedes (archived in `docs/archive/decisions/`):**
   - `docs/archive/decisions/builtin-v2-macro-spelling-and-grammar.md`
@@ -111,7 +111,17 @@ Readings retained in the packed forest are ordered by a **Ranking Key**, a lexic
 
 **Lexical and domain plausibility are not part of ranking.** No component is declared on lexemes, frames or catalog entries, and no component prefers a host because of what a word means: not that *cast* takes an origin, not that *spend* takes a purpose, and not that a zone noun dislikes postmodifiers. Such preferences are semantic plausibility judgments made one word at a time. They are policing by another name: they re-enter the grammar through the lexicon what §4.2 bans as boolean features. They also bought little. In the cost study, the structural key alone made 217 of the 308 single-group judgment entries all-endorsed at the top, against 92 under the scalar sum; adding such catalog preferences gained 6 more. Where a preference seemed needed, the cause was a lexicon declaration that was too broad, such as a preposition frame's host categories, and the fix is to correct that declaration. Disambiguation by meaning belongs to `deckmaste_semantics_v3`.
 
-Every component is a sum over the Reading's attachments or Productions, and lexicographic order is preserved under componentwise addition. So the cheapest *k* Readings are still extracted by dynamic programming over the packed forest, compositionally and without enumerating trees. The Ranking Key is a Preference: it never decides Admission and never removes a Reading. Spurious analyses are removed by grammar fixes that tighten or delete the rule that admits them, never by the Ranking Key, which assumes they are gone.
+Every component is a sum over the Reading's attachments or Productions, and lexicographic order is preserved under componentwise addition. So the cheapest *k* Readings are still extracted by dynamic programming over the packed forest, compositionally and without enumerating trees. The Ranking Key is a Preference: it never decides Admission and never removes a Reading. Spurious analyses are removed by grammar fixes that tighten or delete the rule that admits them, never by the Ranking Key, which assumes they are gone. §4.4 says which analyses are spurious.
+
+### 4.4 Admission, Ranking and the Suppression Freeze
+
+Owner ruling, round 8 (2026-10-22), adopting an external audit's treatment plan, with the owner's clarification in the same round:
+
+1. **Admission stops only what no English grammar admits.** A Reading that English grammar admits but the Oracle register disprefers is kept, and the Ranking Key (§4.3) orders it. A Corpus Unit whose cheapest Ranking Key holds one endorsed Reading, with costlier alternatives beside it, is a success, whatever its Surplus. No ticket is minted whose only goal is to lower admission-time Surplus when the cheapest tier already holds the intended Reading.
+2. **The suppression freeze.** No new mechanism whose purpose is to suppress or remove a Reading. This covers admission-time vetoes, chart closures (`closure.rs` passes), gatekeeper Categories (a `category: Some(..)` subcategory that duplicates an existing phrase's Productions to keep phrases out of a slot), punctuation-sniffing flags, and single-holder feature values that exist to exclude. In `deckmaste_syntax`, no `Summary`, `State` or `ProductionDecl` field is added for such a purpose.
+3. **New coverage is not frozen**, in any Stratum, Stratum 7 included. A construction the grammar cannot yet build may add the features, values, Categories, Productions or engine capabilities it requires. Each addition is justified by the construction it builds, citing CGEL or `docs/oracle-style-guide.md`, and is stated generally.
+4. **Line (a).** `deckmaste_syntax` never names a grammar feature, value or Category, except in the lexicon feature-bundle mapping table, the one declared lexicon-to-syntax interface. New coverage is bound by this too. Purely structural `Summary` bits, computed from the engine's own host check, coordinators, extensions and punctuation, are allowed.
+5. **Single holders.** A class with one member, or a feature value with one holder, is a finding ([`english-lexical-analysis.md`](./english-lexical-analysis.md) §3). This applies to feature values as well as lexical classes, and to new values as well as existing ones.
 
 ---
 

@@ -1,41 +1,40 @@
 ---
 needs: []
 ---
-# Tense of a *when* or *as* clause follows the clause it modifies
+# Retired (owner round-8 treatment plan): tense of a *when* or *as* clause follows the clause it modifies
 
-`english-v4-clause-tense-selection` gave *whenever*, *while*, *until* and
-supplementary *where* a present-tense Clause Complement (`PresentClause`).
-*When* and plain *as* could not join them: a trigger's clause is always
-present (*When you cast this spell, …*; *As this creature enters, …*), but
-the same prepositions take a genuine preterite after a preterite or
-past-participial host:
+**Retired.** Left in `planned/` for the coordinator to close.
 
-- *you gain life equal to the life you lost when it entered* (Soulgorger Orgg);
-- *the life paid as it entered* (Minion of the Wastes, Nameless Race,
-  Phyrexian Processor);
-- *if you were the monarch as the turn began* (Knights of the Black Rose).
+## Why
 
-Giving *when* the present-only frame removed about 3,700 Readings and lost
-Soulgorger Orgg. So the rule is not lexical: a temporal *when*/*as* clause
-takes the tense of the clause or Verb Phrase it modifies (present or plain
-host: present; preterite or past-participial host: preterite).
+The ticket's only goal was to remove preterite Readings of a temporal *when* or
+*as* Clause at admission (*When you cast this spell, …* with preterite *cast*).
+Round 7 approved doing that with a `TemporalClause` complement kind and a
+generic Valence `agree` rule in `compile.rs`. Round 8 retires such work:
 
-## Change
+- Admission stops only Readings that no English grammar admits
+  (`docs/decisions/english-v4.md` §4.4, item 1). A preterite *when* Clause is
+  grammatical English. The ticket's own witnesses show it is also genuine
+  Oracle text (Soulgorger Orgg's *the life you lost when it entered*).
+  `docs/oracle-style-guide.md` §1, "Voice and tense", prefers the present, but
+  that is a register preference, not a grammaticality condition.
+- The new complement kind and `agree` rule would be engine and grammar
+  machinery whose purpose is to suppress a Reading, which §4.4, item 2,
+  freezes.
 
-- Express that agreement between a temporal adjunct's Clause and its host
-  through features (the Preposition Phrase carrying its Clause's Inflection,
-  constrained by the Adjunct Schema), never by naming verbs.
-- *Sengir, the Dark Baron*'s *that player's life total as the turn began*
-  currently parses only by attaching *as the turn began* to present-tense
-  *gain* (because *as* has `hosts: Predicate` only); allow a preterite *as*
-  temporal PP to postmodify a nominal (as in *that player's life total as the
-  turn began* and *cards in your hand as the turn began* on Jalum Grimoire) so
-  it is not lost when predicate-attached *as* requires tense harmony.
+## The census
 
-## Done when
+Measured on `qynmxmro` with `cargo xtask english-v4 parse`:
 
-- A trigger *when*/*as* clause has no preterite *cast*/*put*/*cost*/*bid*
-  Reading; the faces above still read with their preterite.
-- No face is lost.
+- *When you cast this spell, draw a card.*: 2 Derivations, cheapest tier 2
+  at `0/0/15`. The tier holds the intended present *cast* and the preterite.
+  They differ only in that syncretic Word Form.
+- *As this creature enters, choose a color.*: 1 Derivation.
+- Soulgorger Orgg's *… the life you lost when it entered.*: 6 Derivations,
+  cheapest tier 1 at `0/3/30`.
 
-Standard constraints apply.
+The intended Reading is in the cheapest tier everywhere measured. The
+remaining tie is between Readings that differ only in a syncretic Word Form,
+which each Reading keeps. Choosing the tense by meaning is
+`deckmaste_semantics_v3`'s job (`english-v4.md` §4.3, "Lexical and domain
+plausibility are not part of ranking"). No judgment asserts tense here.

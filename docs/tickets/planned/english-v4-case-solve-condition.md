@@ -1,37 +1,34 @@
 ---
-needs: [english-v4-next-time-replacement-clause]
+needs: []
 ---
-# *To solve —* takes a Condition, and a main clause is never preterite
+# Retired (owner round-8 treatment plan): *To solve —* takes a Condition, and a main clause is never preterite
 
-A Case's *To solve — [Condition]* [CR#719.3a] reads today as a Flavor Word
-label over an ordinary Sentence. Three of them state a past-event condition
-in the preterite:
+**Retired and split.** Left in `planned/` for the coordinator to close. Its
+catalog half is now `english-v4-case-to-solve-label`.
 
-- *To solve — Three or more creatures attacked this turn.*
-- *To solve — Three or more sources you controlled dealt damage this turn.*
-- *To solve — Three or more creature cards were put into graveyards from
-  anywhere this turn.*
+## Why
 
-`english-v4-clause-tense-selection` wanted the matrix `Declarative` to
-exclude the preterite (Oracle rules text is in the simple present:
-oracle-style-guide §1, "Voice and tense"); that would remove the preterite
-Readings of *Creature spells you cast cost {1} less …* and the like, but it
-loses these three faces. They are conditions, not declarations.
+The ticket had two parts:
 
-## Change
+1. **Declare *To solve* as a keyword label over a Condition.** This is real
+   coverage. Today every *To solve —* line reads only as a Flavor Word over a
+   Sentence, which is a wrong analysis: *To solve* has rules meaning
+   [CR#719.3a], and a Flavor Word has none [CR#207.2d]. It moves to
+   `english-v4-case-to-solve-label`.
+2. **Exclude `Inflection` `Preterite` on a matrix `Declarative`.** This is
+   retired. Its only goal was to remove preterite Readings at admission (of
+   *Creature spells you cast cost {1} less to cast.* and the like). A preterite
+   main clause is grammatical English. The simple present is the register's
+   preference (`docs/oracle-style-guide.md` §1, "Voice and tense"), not a
+   grammaticality condition. Round 8 keeps such Readings and leaves them to
+   ranking (`docs/decisions/english-v4.md` §4.4, items 1–2).
 
-- Declare *To solve* in `catalogs/keyword_abilities.ron` as a `variants:` entry
-  on `"Solved"` (`phrase: "To solve"`, `form: DashCondition`, citing
-  `[CR#719.3a,719.3b]`), matching how `DashCondition` works on `"Companion"`
-  (`keyword_abilities.ron:501`) and how `variants:` works on other multi-form
-  entries in `keyword_abilities.ron`.
-- Then exclude `Inflection` `Preterite` on `Declarative` (after
-  `english-v4-next-time-replacement-clause` gives Ring of Ma'rûf and Mangara's
-  Tome their imperative Reading).
+## The census
 
-## Done when
-
-- The three Cases read with *To solve* over a Condition.
-- A matrix Declarative has no preterite Reading, and no face is lost.
-
-Standard constraints apply.
+Measured on `qynmxmro` with `cargo xtask english-v4 parse`:
+*Creature spells you cast cost {1} less to cast.* has 4 Derivations and a
+cheapest tier of 4 at `0/2/21`. The tier holds the intended present/present
+Reading and the three others. They differ only in the syncretic Word Forms
+of *cast* and *cost*. The intended Reading is in the cheapest tier, and
+choosing the tense by meaning is `deckmaste_semantics_v3`'s job
+(`english-v4.md` §4.3).

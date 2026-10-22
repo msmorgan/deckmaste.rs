@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-6-coordination-and-rnr, english-v4-retire-adj-target, english-v4-slash-measure-overgeneration, english-v4-noun-phrase-coordination-determination, english-v4-valued-noun-phrases, english-v4-adverb-so-overgeneration, english-v4-mixed-voice-participle-coordination, english-v4-unset-number-and-countability, english-v4-banish-grammar-policing, english-v4-spurious-ambiguity-multipliers, english-v4-clause-tense-selection, english-v4-zero-plural-determiner-number, english-v4-passive-by-agent-vs-by-extent, english-v4-amount-of-excess-bare-nominal, english-v4-color-word-noun-vs-adjective, english-v4-temporal-np-as-direct-object, english-v4-unpunctuated-clause-fragment, english-v4-existential-locative-ambiguity, english-v4-coordinated-clause-tense, english-v4-next-time-replacement-clause, english-v4-omitted-idiom-complement-split, english-v4-temporal-adjunct-tense-harmony, english-v4-case-solve-condition, english-v4-wave1-review-cleanups]
+needs: [english-v4-stratum-6-coordination-and-rnr, english-v4-retire-adj-target, english-v4-slash-measure-overgeneration, english-v4-noun-phrase-coordination-determination, english-v4-valued-noun-phrases, english-v4-adverb-so-overgeneration, english-v4-mixed-voice-participle-coordination, english-v4-unset-number-and-countability, english-v4-banish-grammar-policing, english-v4-spurious-ambiguity-multipliers, english-v4-clause-tense-selection, english-v4-zero-plural-determiner-number, english-v4-passive-by-agent-vs-by-extent, english-v4-amount-of-excess-bare-nominal, english-v4-color-word-noun-vs-adjective, english-v4-temporal-np-as-direct-object, english-v4-unpunctuated-clause-fragment, english-v4-existential-locative-ambiguity, english-v4-next-time-replacement-clause, english-v4-omitted-idiom-complement-split, english-v4-wave1-review-cleanups, english-v4-excise-predicate-conjunct-hosts, english-v4-unextended-and-closures, english-v4-single-holder-feature-values, english-v4-case-to-solve-label]
 ---
 # Stratum 7: Discourse sequencing, replacement effects, and the corpus long tail
 
@@ -114,6 +114,13 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     Evolution; Balduvian Shaman; Crystal Spray; Glamerdye; Magical Hack; Mind
     Bend; New Blood; Sleight of Mind; Spectral Shift; Trait Doctoring; Whim of
     Volrath.
+- **New coverage may add what it needs** (owner ruling, round 8;
+  `docs/decisions/english-v4.md` §4.4, item 3): a Stratum 7 construction the
+  grammar cannot yet build may add features, values, Categories, Productions
+  or engine capabilities. Each addition is justified by the construction it
+  builds, citing CGEL or `docs/oracle-style-guide.md`, and stated generally.
+  Line (a) and the single-holder finding still hold, and nothing is added to
+  suppress a Reading.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean

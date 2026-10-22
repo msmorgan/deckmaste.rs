@@ -1,36 +1,37 @@
 ---
 needs: []
 ---
-# A coordination in a present-only Complement keeps preterite conjuncts
+# Retired (owner round-8 treatment plan): a coordination in a present-only Complement keeps preterite conjuncts
 
-`english-v4-clause-tense-selection` requires `Inflection` `Present` on the
-Clause Complement of *whenever*, *while*, *until* and supplementary *where*.
-A Clause or Verb Phrase Coordination leaves `Inflection` unvalued
-(`unshared`), so the requirement values the Coordination and leaves its
-conjuncts free: *Whenever you cast a spell or put a counter on a creature,
-draw a card* still has four Readings (present and preterite *cast* times
-present and preterite *put*).
+**Retired.** Left in `planned/` for the coordinator to close.
 
-Sharing `Inflection` across conjuncts is wrong: it loses genuine mixed-tense
-coordinations (*If you control a Squirrel or returned a Squirrel card to your
-hand this way*, Cache Grab; *if this spell was cast from your hand and you've
-cast another spell named …*, Approach of the Second Sun), seven faces in all.
+## Why
 
-## Change
+The ticket's only goal was to remove preterite conjunct Readings under
+*whenever*, *while*, *until* and supplementary *where* at admission. Its
+witness was *Whenever you cast a spell or put a counter on a creature, draw a
+card*, with four Readings from present and preterite *cast* and *put*. Round 7
+approved `resolve: [("Inflection", "Preterite")]` on the Coordination schemas
+and folding `nonlast` across serial tails in `deckmaste_syntax`. Round 8
+retires such work:
 
-- Let a Coordination resolve `Inflection` (move `"Inflection"` from `unshared`
-  to `resolve: [("Inflection", "Preterite")]` on the `VerbPhrase` and `Clause`
-  `Coordination` schemas) so any preterite conjunct makes the Coordination
-  `Preterite` and a present-only Complement constrains every conjunct, without
-  constraining mixed-tense coordinations elsewhere.
-- In `deckmaste_syntax`, fold `nonlast` across serial tails rather than
-  requiring pairwise equality between `nonlast` and `last` on non-ending serial
-  tails, so 3+ conjunct coordinations resolve `Inflection` across all conjuncts
-  as well.
+- Admission stops only Readings that no English grammar admits
+  (`docs/decisions/english-v4.md` §4.4, item 1). A preterite conjunct under
+  *whenever* is grammatical English. The present-only frame it would extend is
+  the register's preference (`docs/oracle-style-guide.md` §1, "Voice and
+  tense").
+- The engine change exists to carry that suppression into coordinations,
+  which §4.4, item 2, freezes.
 
-## Done when
+## The census
 
-- A coordination in those Complements has present conjuncts only.
-- No face is lost.
+Measured on `qynmxmro` with `cargo xtask english-v4 parse`:
+*Whenever you cast a spell or put a counter on a creature, draw a card.* has
+4 Derivations and a cheapest tier of 4 at `0/3/22`. The tier holds the
+intended present/present Reading and the three others. They differ only in the
+syncretic Word Forms of *cast* and *put*.
 
-Standard constraints apply.
+The intended Reading is in the cheapest tier. Choosing the tense by meaning is
+`deckmaste_semantics_v3`'s job (`english-v4.md` §4.3). Agency Outfitter's
+mixed-tense Clause coordination stays with
+`english-v4-agency-outfitter-coordination-ranking`, which is a ranking ticket.
