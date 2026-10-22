@@ -670,12 +670,19 @@ pub struct Designation {
     pub adjectives: Vec<String>,
 }
 
-/// A phase or step [CR#500.1].
+/// A phase or step [CR#500.1], or a role the rule for one defines: the
+/// combat roles [CR#506.2], which Oracle names with a determinative
+/// (*defending player*), as it names an Aura's host *enchanted* [CR#303.4b].
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TurnPart {
     pub rule: Rule,
-    pub noun: NounDecl,
+    /// The phase or step's name.
+    #[serde(default)]
+    pub noun: Option<NounDecl>,
+    /// Determinative Lexemes the rule defines.
+    #[serde(default)]
+    pub determinatives: Vec<DeterminativeEntry>,
 }
 
 /// A predefined token [CR#111.10]: the subtype that names it and any token
@@ -745,10 +752,6 @@ pub enum NounDistribution {
     /// A number-transparent quantificational noun (*any number of*; CGEL,
     /// Ch. 5 §3.3, pp. 349–351).
     Quantity,
-    /// A singular count noun that heads a bare Noun Phrase, as a singular
-    /// count noun otherwise cannot (CGEL, Ch. 5 §8.5, p. 409): the combat
-    /// roles *attacking player* and *defending player* [CR#506.2].
-    BareSingular,
     /// A mass noun accepting a direct cardinal measure without a unit noun.
     DirectMeasure,
     /// Used as a nominal head, with no attributive noun use.

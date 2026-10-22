@@ -48,6 +48,11 @@
     // *do*: *all creatures able to block it do so*, *if a player does so*.
     (lemma: "do so", third_singular: "does so", preterite: "did so", past_participle: "done so", gerund: "doing so", frames: [Intransitive]),
     (lemma: "declare", frames: [Monotransitive, TransitiveWithPP(["as"])]),
+    // The attributive participle of *the defending player*, *each defending
+    // player* [CR#506.2], beside the determinative *defending* that heads a
+    // bare *defending player* (catalogs/turn_parts.ron), as the verb *enchant*
+    // stands beside the determinative *enchanted*.
+    (lemma: "defend", frames: [Intransitive]),
     (lemma: "descend", frames: [Intransitive]),
     (lemma: "determine", frames: [Monotransitive]),
     (lemma: "die", frames: [Intransitive]),
