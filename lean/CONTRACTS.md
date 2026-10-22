@@ -1152,7 +1152,17 @@ own event, so regeneration shields do not apply to that destruction
 2026-10-22). It is no separate continuous effect, and it stays its own clause, so
 its subject ("It", "That creature", "A creature destroyed this way") is a mention
 read back from the destroy. A printed "this turn" keeps its duration
-(`doAndForbid`, `printedThisTurnProhibitionLastsTheTurn`). Which shields exist
+(`doAndForbid`, `printedThisTurnProhibitionLastsTheTurn`).
+
+Duration convention for `establish` (owner ruling 2026-10-22, pinned by
+`durationConventionWitnesses`): `none` is no printed Duration, so the effect lasts until
+the game ends [CR#611.2a] (*Vexing Shusher*, *Boseiju*). A [CR#608.2c] rider that modifies the
+preceding action is `some .modifiesPrecedingAction` (*Terror*; *Pinpoint Avalanche*'s "The damage
+can't be prevented"). A printed "for the rest of the game" is `some restOfGame` (epic, *Screaming
+Nemesis*). Because the rider is neither `none` nor `restOfGame`, it binds the
+destroy's event and not the creature: a regeneration shield created after a destroy that did not
+destroy the creature (it is indestructible) still works [CR#701.19c]
+(`indestructibleVictimKeepsLaterRegenerationShield`). Which shields exist
 when the destroy happens is the engine's.
 
 The `counter` Definition expands to one labeled stack-to-graveyard move in its

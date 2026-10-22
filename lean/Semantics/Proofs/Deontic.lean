@@ -1,5 +1,9 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Deontic
+import Semantics.Cards.Damage
+import Semantics.Cards.Cost
+import Semantics.Cards.Mana
 
 /-!
 # Semantics.Proofs.Deontic
@@ -398,6 +402,50 @@ theorem mustBeBlockedIsNotLure :
       must (by_ (allOf isCreature)) (block thisCreature) := by
   intro h
   cases h
+
+/-- A card's printed abilities (a single-faced card). -/
+private def printedText (card : Spelled) : List Ability :=
+  match card.card with
+  | .singleFaced face => face.characteristics.text
+  | _ => []
+
+/-- "Destroy target creature. It can't be regenerated.": the prohibition's duration is
+`some .modifiesPrecedingAction`, neither `none` nor `restOfGame`, so it binds the destroy's event
+only. A regeneration shield made after a destroy that did not destroy the creature (it is
+indestructible) is therefore not forbidden; that behaviour is the engine's, this pins the term
+[CR#608.2c,701.19c]. -/
+theorem indestructibleVictimKeepsLaterRegenerationShield :
+    (match destroyCantRegenerate (target isCreature) with
+      | .sequentially [_, .establish _ d] => some d
+      | _ => none) = some (some Duration.modifiesPrecedingAction) ∧
+    (some Duration.modifiesPrecedingAction : Option Duration) ≠ none ∧
+    (some Duration.modifiesPrecedingAction : Option Duration) ≠ some restOfGame := by
+  exact ⟨rfl, (by intro h; cases h), (by intro h; cases h)⟩
+
+/-- The Duration convention [CR#611.2a,608.2c]: a printed "for the rest of the game" is `some
+restOfGame` (epic, Screaming Nemesis); a rider that modifies the preceding action is `some
+.modifiesPrecedingAction` (Terror, Pinpoint Avalanche); no printed Duration is `none` (Vexing
+Shusher, Boseiju). -/
+theorem durationConventionWitnesses :
+    (match epic with
+      | .keyword _ _ [.spell _ (.establish _ d), _] => some d
+      | _ => none) = some (some restOfGame) ∧
+    (match printedText Cards.screamingNemesis with
+      | [_, .triggered _ _ _ _ _ _ _ (.sequentially [_, .doIf _ (.establish _ d) _])] => some d
+      | _ => none) = some (some restOfGame) ∧
+    (match printedText Cards.terror with
+      | [.spell _ (.sequentially [_, .establish _ d])] => some d
+      | _ => none) = some (some Duration.modifiesPrecedingAction) ∧
+    (match printedText Cards.pinpointAvalanche with
+      | [.spell _ (.sequentially [_, .establish _ d])] => some d
+      | _ => none) = some (some Duration.modifiesPrecedingAction) ∧
+    (match printedText Cards.vexingShusher with
+      | [_, .activated _ (.establish _ d) _ _ _ _] => some d
+      | _ => none) = some none ∧
+    (match Cards.boseijuMana with
+      | .activated _ (.addMana _ _ [.onSpent _ _ _ (.establish _ d)]) _ _ _ _ => some d
+      | _ => none) = some none := by
+  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
 end Semantics.Proofs.Deontic
 

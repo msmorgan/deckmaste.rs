@@ -881,6 +881,9 @@ semantic_template untilNextTurnOf (player : NounPhrase) : Duration :=
 semantic_template untilEvent (event : GameEvent) : Duration := .between none event
 /-- "for the rest of the game" -/
 semantic_template restOfGame : Duration := .between none none
+/-- A rider that modifies the meaning of the action before it, in force only for that action's
+event: "It can't be regenerated", "The damage can't be prevented" [CR#608.2c]. -/
+semantic_template modifiesPrecedingAction : Duration := .modifiesPrecedingAction
 /-- "during <player>'s next turn" (`firstMention` / `laterMention` so `player` is not duplicated
 [CR#115.1,608.2c]). -/
 semantic_template duringNextTurnOf (player : NounPhrase) : Duration :=

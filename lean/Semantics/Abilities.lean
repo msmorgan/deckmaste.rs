@@ -179,8 +179,11 @@ mutual
     | not (timing : Timing)
     | anyTiming
 
-  /-- How long an effect lasts, or the span a lookback reads. With no duration stated, an
-  effect lasts until the game ends [CR#611.2a]. -/
+  /-- How long an effect lasts, or the span a lookback reads. With no duration stated (`none`), an
+  effect lasts until the game ends [CR#611.2a] ("Vexing Shusher", "Boseiju"). A printed "for the
+  rest of the game" is `some restOfGame` (epic, "Screaming Nemesis"), and a rider that modifies
+  the preceding action is `some .modifiesPrecedingAction` [CR#608.2c] ("Terror", "Pinpoint
+  Avalanche"); neither is written as `none`. -/
   inductive Duration where
     /-- Bounded by two optional events: "until end of turn" has only an end, "on a later turn"
     only a start [CR#702.170d]. A history window ends at `GameEvent.now`. -/

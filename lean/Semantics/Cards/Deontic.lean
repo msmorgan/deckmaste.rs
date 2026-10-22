@@ -277,7 +277,8 @@ def pinpointAvalanche : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ instruct this_ (dealDamage 4 (target isCreature)),
-            establish (preventionBan thatDamage .noPreventionOnly) ]) ] }
+            establish (preventionBan thatDamage .noPreventionOnly)
+              (some modifiesPrecedingAction) ]) ] }
 
 def whippoorwillImmunity : Action :=
   sequentially
