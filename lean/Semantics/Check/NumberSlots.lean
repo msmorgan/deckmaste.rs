@@ -199,7 +199,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []
   | _n + 1, .repeat_ repetition => repetition.numberSlots
   | _n + 1, .sequentially _ | _n + 1, .simultaneously _ | _n + 1, .chooseModes _ _ => []
-  | _n + 1, .delay _ _ _ _ | _n + 1, .stopTriggering _ | _n + 1, .replace _ _
+  | _n + 1, .delay _ _ _ _ | _n + 1, .replace _ _
   | _n + 1, .holdUntil _ _ => []
   | _n + 1, .triggerReflexively _ _ _ => []
   | _n + 1, .skipUntap _ steps => [(steps, .clamped)]

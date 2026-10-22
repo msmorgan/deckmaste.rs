@@ -438,15 +438,15 @@ theorem badOrderedSingularChooser :
 theorem okChoseThisWayAfterChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (a isCreature), doIf (.choseThisWay .you isCreature) (draw 1)])
+        [choose (a isCreature), doIf (did you (choose (a isCreature)) thisWay) (draw 1)])
       = [] := by
   decide
 
 /-- "If you chose a creature this way, draw a card.": nothing was chosen, so "this way" reads
 back no choice (`okChoseThisWayAfterChoice` is the same read with one standing). -/
 theorem badChoseThisWayWithoutAChoice :
-    Action.check (DRS.ofList []) (doIf (.choseThisWay .you isCreature) (draw 1))
-      = [.choiceInScope .object] := by
+    Action.check (DRS.ofList []) (doIf (did you (choose (a isCreature)) thisWay) (draw 1))
+      = [.thisWayUngrounded] := by
   decide
 
 /-- "Each player chooses a creature. Exile them." -/

@@ -1357,14 +1357,16 @@ semantic_template delayWithin (event : GameEvent) (duration : Duration) (action 
   .delay event alternatives duration action
 /-- "<action> at <event> unless <player> pays <cost> before that step": the delayed trigger, and a
 special action `player` may take until it would trigger, paying `cost` to stop it from triggering
-[CR#116.2c]. Once it has triggered, paying no longer stops it. The text names the delayed trigger
-nowhere, so the special action reads it by its Binding Identity (`delay.trigger`). -/
+[CR#116.2c]: the special action establishes that the delayed trigger can't trigger, with no
+Duration, since the text states none. Once it has triggered, paying no longer stops it. The text names the delayed trigger nowhere, so the special action reads
+it by its Binding Identity (`delay.trigger`). -/
 semantic_template delayUnlessPaid (event : GameEvent) (action : Action) (player : NounPhrase)
     (cost : Cost) : Action :=
   .sequentially
     [ .delay event [] none action,
       .establish
-        (.specialAction (some player) none cost (.stopTriggering (.laterMention "delay.trigger" thisAbility)))
+        (.specialAction (some player) none cost
+          (.establish (.cant (.actor (.laterMention "delay.trigger" thisAbility)) .trigger {}) none))
         (some (.between none (some event))) ]
 /-- "<subject> phases out until <event>" -/
 semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Action :=
@@ -2126,18 +2128,12 @@ semantic_template prototypeAlt (cost : ManaCost) (power toughness : Nat) : Proto
 
 semantic_template anyResultIs (comparator : Comparator) (bound : Amount) : Condition :=
   .anyResultIs comparator bound
-semantic_template choseThisWay (chooser : NounPhrase) (predicate : Predicate) : Condition :=
-  .choseThisWay chooser predicate
 semantic_template compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount) :
     Condition :=
   .compareAmt subject comparator bound
-semantic_template dealtThisWay (predicate : Predicate) : Condition := .dealtThisWay predicate
 semantic_template Condition.duringPart (part : TurnPart) (whose : Option NounPhrase := none) :
     Condition :=
   .duringPart part whose
-semantic_template flipCalled (caller : NounPhrase) (call : FlipCall) : Condition :=
-  .flipCalled caller call
-semantic_template flipFace (face : CoinFace) : Condition := .flipFace face
 /-- "if it's <designation>": the game has it [CR#731.1]. -/
 semantic_template gameIs (designation : DesignationLabel) : Condition := .gameHas designation
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=

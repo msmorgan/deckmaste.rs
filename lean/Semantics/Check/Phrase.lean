@@ -3030,24 +3030,10 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.amt drs l
           let (drs2, e2) := ops.amt drs1 r
           (drs2.push differenceB .other false, e1 ++ e2 ++ refuse l.read .readAmount)
-        | .dealtThisWay pred =>
-          let (drs1, e1) := ops.pred drs pred
-          (drs1, e1 ++ (if damageDealtInScope drs then [] else [.damageDealtInScope]))
-        | .choseThisWay who pred =>
-          let kind := pred.kindOr .object
-          let (drs1, ids, e1) := ops.np drs .subj true who
-          let (drs2, e2) := ops.pred drs1 pred
-          (drs2, e1 ++ kindCheck .player ((ids.head?.bind drs1.findById?).map (·.kind)) ++
-            e2 ++ refuse (countParts kind drs != 0 || drs.choiceWasPossible kind)
-              (.choiceInScope kind))
         | .preventedFromSource pred =>
           let (drs1, e1) := ops.pred drs pred
           let n := countOutcomes .damagePrevented drs
           (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .damagePrevented n]))
-        | .flipCalled caller _ =>
-          let (drs1, _, e1) := ops.np drs .subj true caller
-          (drs1, e1 ++ (if coinFlipInScope drs then [] else [.coinFlipInScope]))
-        | .flipFace _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
         | .voteLead _ _ =>
           let n := countOutcomes .voteHeld drs
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
@@ -3263,9 +3249,6 @@ def stepOps : Nat → StepOps
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
           (drs2, e1)
         | .trigger => (drs, triggerActorRefusals drs)
-        | .stopTriggering ability =>
-          let (drs1, _, e1) := ops.np drs patientRole true ability
-          (drs1, e1)
         | .crew host | .saddle host | .fullyUnlock host =>
           let expected := match inst with | .fullyUnlock _ => Kind.player | _ => Kind.object
           let actorErrors := actionActorRefusals drs expected
