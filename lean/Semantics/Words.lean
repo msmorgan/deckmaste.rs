@@ -368,6 +368,9 @@ inductive NounWord where
   | copied (word : NounWord)
   /-- "Put THAT PILE into your hand and the other into your graveyard." -/
   | pile
+  /-- Any Object, in any zone, by kind alone [CR#109.1]; no Head Noun. "That source" is
+  written with it: a source is an Object in any zone [CR#109.2c,609.7a]. -/
+  | object
   deriving DecidableEq, Repr
 
 inductive SlotCarrier where
