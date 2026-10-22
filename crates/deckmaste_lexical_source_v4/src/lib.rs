@@ -28,7 +28,8 @@ use crate::build::bound;
 use crate::build::card_scoped;
 use crate::build::exact;
 use crate::build::source;
-pub use crate::names::shortened_names;
+pub use crate::names::AttestedShortenings;
+pub use crate::names::shortened_name;
 use crate::schema::AbilityWord;
 use crate::schema::AdjectiveDecl;
 use crate::schema::AdverbEntry;
@@ -122,6 +123,9 @@ const INTRODUCED_NAMES: &str = "catalogs/introduced_names.ron";
 const ANCHOR_WORDS: &str = "catalogs/anchor_words.ron";
 /// The card-name catalog, relative to the repository root.
 pub const CARD_NAMES: &str = "data/gen/catalogs/card-names.txt";
+/// The shortened spellings each card's own text uses for it [CR#201.5c],
+/// relative to the repository root.
+pub const SHORTENED_NAMES: &str = "data/gen/catalogs/card-name-nicknames.json";
 
 fn parse<T: DeserializeOwned>(path: &str) -> Result<T, SourceError> {
     let text = FILES
@@ -170,18 +174,33 @@ pub struct LexicalEnvironment {
 }
 
 impl LexicalEnvironment {
-    /// Loads every data file and the card names at [`card_names_path`].
+    /// Loads every data file, the card names at [`card_names_path`] and
+    /// their attested shortenings at [`shortened_names_path`].
     ///
     /// # Errors
-    /// An unreadable card-name file or any [`Sources::environment`] error.
+    /// An unreadable card-name or shortening file, or any
+    /// [`Sources::environment`] error.
     pub fn load() -> Result<Self, SourceError> {
-        let path = card_names_path();
-        let names = std::fs::read_to_string(&path).map_err(|error| SourceError::Io {
-            path: path.display().to_string(),
-            message: error.to_string(),
-        })?;
-        Sources::load()?.environment(&names)
+        let names = read(&card_names_path())?;
+        Sources::load()?.environment(&names, &AttestedShortenings::load()?)
     }
+}
+
+impl AttestedShortenings {
+    /// Loads the attested shortenings at [`shortened_names_path`].
+    ///
+    /// # Errors
+    /// An unreadable or malformed file.
+    pub fn load() -> Result<Self, SourceError> {
+        Self::parse(&read(&shortened_names_path())?)
+    }
+}
+
+fn read(path: &std::path::Path) -> Result<String, SourceError> {
+    std::fs::read_to_string(path).map_err(|error| SourceError::Io {
+        path: path.display().to_string(),
+        message: error.to_string(),
+    })
 }
 
 /// The card-name catalog in this repository.
@@ -190,6 +209,14 @@ pub fn card_names_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(CARD_NAMES)
+}
+
+/// The attested-shortening catalog in this repository.
+#[must_use]
+pub fn shortened_names_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(SHORTENED_NAMES)
 }
 
 impl Sources {
@@ -236,14 +263,18 @@ impl Sources {
     }
 
     /// The whole Lexical Environment, with card names read from `card_names`
-    /// (one per line).
+    /// (one per line) and their Shortened Names from `shortened`.
     ///
     /// # Errors
     /// Any [`Sources::vocabulary`] error.
-    pub fn environment(&self, card_names: &str) -> Result<LexicalEnvironment, SourceError> {
+    pub fn environment(
+        &self,
+        card_names: &str,
+        shortened: &AttestedShortenings,
+    ) -> Result<LexicalEnvironment, SourceError> {
         let (mut lexemes, frames) = self.vocabulary()?;
         let vocabulary = Lexicon::new(lexemes.clone())?;
-        let card_names = names::card_names(card_names, &vocabulary);
+        let card_names = names::card_names(card_names, shortened, &vocabulary);
         self.check_card_scopes(&lexemes, &card_names)?;
         lexemes.extend(card_names);
         Ok(LexicalEnvironment {

@@ -6,45 +6,79 @@ use std::collections::BTreeSet;
 use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
+use deckmaste_lexical_source_v4::AttestedShortenings;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_lexical_source_v4::Sources;
-use deckmaste_lexical_source_v4::shortened_names;
+use deckmaste_lexical_source_v4::shortened_name;
 
 fn vocabulary() -> Lexicon {
     Lexicon::new(Sources::load().unwrap().vocabulary().unwrap().0).unwrap()
 }
 
 #[test]
-fn shortened_names_are_derived_from_the_full_name() {
+fn a_card_has_the_shortened_name_its_own_text_uses() {
     let vocabulary = vocabulary();
+    let attested = AttestedShortenings::load().unwrap();
     for (name, expected) in [
-        ("Gisela, Blade of Goldnight", &["Gisela"][..]),
-        ("Wolverine, Best There Is", &["Wolverine"]),
-        ("Gandalf the Grey", &["Gandalf"]),
-        ("Daxos of Meletis", &["Daxos"]),
-        ("Edgar Markov", &["Edgar"]),
-        // A planeswalker type is the character's own name.
-        ("Jace, the Mind Sculptor", &["Jace"]),
-        ("Karn Liberated", &["Karn"]),
-        // Any other declared word is not a name for the card.
-        ("Sliver Queen", &[]),
-        ("Goblin Guide", &[]),
-        ("Shang-Chi and the Ten Rings", &["Shang-Chi"]),
-        ("King Darien XLVIII", &["King Darien"]),
-        ("Counterspell", &[]),
+        ("Gandalf the Grey", Some("Gandalf")),
+        ("Daxos of Meletis", Some("Daxos")),
+        ("Edgar Markov", Some("Edgar")),
+        // The explicit name before a comma is the character's own name.
+        ("Wolverine, Best There Is", Some("Wolverine")),
+        ("Karn Liberated", Some("Karn")),
+        ("Shang-Chi and the Ten Rings", Some("Shang-Chi")),
+        ("King Darien XLVIII", Some("King Darien")),
+        ("Halana and Alena, Partners", Some("Halana and Alena")),
+        // Its text uses *Sliver* only for other Slivers.
+        ("Sliver Queen", None),
+        // Text that never shortens its card's name gives it no shortening.
+        ("Gisela, Blade of Goldnight", None),
+        ("Feast of Flesh", None),
+        ("Counterspell", None),
+        // *Hornet* and *Wirefly* are the tokens these cards create.
+        ("Hornet Cannon", None),
+        ("Wirefly Hive", None),
     ] {
-        assert_eq!(shortened_names(name, &vocabulary), expected, "{name}");
+        assert_eq!(
+            shortened_name(name, attested.get(name), &vocabulary).as_deref(),
+            expected,
+            "{name}"
+        );
     }
+}
+
+#[test]
+fn a_shortened_name_never_spells_vocabulary_in_scope_on_its_card() {
+    let vocabulary = vocabulary();
+    let short = |name: &str, candidate: &str| shortened_name(name, Some(candidate), &vocabulary);
+    // A planeswalker type, or the name before a comma, is the character's
+    // own name even where other words spell it.
+    assert_eq!(
+        short("Jace, the Mind Sculptor", "Jace").as_deref(),
+        Some("Jace")
+    );
+    assert_eq!(
+        short("Wolverine, Best There Is", "Wolverine").as_deref(),
+        Some("Wolverine")
+    );
+    assert_eq!(short("Goblin Guide", "Goblin"), None);
+    // An Introduced Name is other vocabulary on the cards that introduce it,
+    // and only there.
+    assert_eq!(short("Hornet Cannon", "Hornet"), None);
+    assert_eq!(short("Wirefly Hive", "Wirefly"), None);
+    assert_eq!(short("Hornet Nest", "Hornet").as_deref(), Some("Hornet"));
+    // A token name is other vocabulary even before a comma.
+    assert_eq!(short("Walker, Night Stalker", "Walker"), None);
 }
 
 #[test]
 fn a_shortened_name_is_in_scope_only_on_its_own_card() {
     let environment = LexicalEnvironment::load().unwrap();
-    let gisela = LexemeId::new("name:Gisela, Blade of Goldnight");
+    let dina = LexemeId::new("name:Dina, Soul Steeper");
     let names = |scope: &BTreeSet<LexemeId>| -> BTreeSet<LexemeId> {
         environment
             .lexicon
-            .analyze_source_scoped("Gisela", None, scope)
+            .analyze_source_scoped("Dina", None, scope)
             .matches
             .into_iter()
             .filter_map(|found| match found.reading {
@@ -53,13 +87,13 @@ fn a_shortened_name_is_in_scope_only_on_its_own_card() {
             })
             .collect()
     };
-    assert!(names(&[gisela].into()).contains(&gisela));
-    assert!(!names(&BTreeSet::new()).contains(&gisela));
+    assert!(names(&[dina].into()).contains(&dina));
+    assert!(!names(&BTreeSet::new()).contains(&dina));
     // Full names are in scope everywhere.
-    let full = environment.lexicon.analyze("Gisela, Blade of Goldnight");
+    let full = environment.lexicon.analyze("Dina, Soul Steeper");
     assert!(full.matches.iter().any(|found| matches!(
         &found.reading,
-        LexicalReading::Word(value) if value.lexeme == gisela
+        LexicalReading::Word(value) if value.lexeme == dina
     )));
 }
 

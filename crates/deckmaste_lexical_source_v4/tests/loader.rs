@@ -1,5 +1,6 @@
 //! The loader rejects declarations that would break the catalog contract.
 
+use deckmaste_lexical_source_v4::AttestedShortenings;
 use deckmaste_lexical_source_v4::Sources;
 use deckmaste_lexical_source_v4::schema::AnchorWord;
 use deckmaste_lexical_source_v4::schema::FrameSpec;
@@ -102,13 +103,17 @@ fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
         .introduced_names
         .retain(|name| name.name == "Marit Lage");
     sources.anchor_words.clear();
-    sources.environment(card_names).unwrap();
+    let none = AttestedShortenings::default();
+    sources.environment(card_names, &none).unwrap();
 
     let mut stray = sources.clone();
     stray.introduced_names[0]
         .cards
         .push("Not a Card".to_owned());
-    let error = stray.environment(card_names).unwrap_err().to_string();
+    let error = stray
+        .environment(card_names, &none)
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("which is not a card name"), "{error}");
 
     let mut stray = sources.clone();
@@ -116,11 +121,14 @@ fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
         word: "Khans".to_owned(),
         cards: vec!["Not a Card".to_owned()],
     });
-    let error = stray.environment(card_names).unwrap_err().to_string();
+    let error = stray
+        .environment(card_names, &none)
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("which is not a card name"), "{error}");
 
     let error = sources
-        .environment(&format!("{card_names}Marit Lage\n"))
+        .environment(&format!("{card_names}Marit Lage\n"), &none)
         .unwrap_err()
         .to_string();
     assert!(error.contains("is a card name"), "{error}");

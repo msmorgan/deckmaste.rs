@@ -43,8 +43,11 @@ parenthesised reminder text is removed before analysis; the original Oracle text
 is kept as source metadata. Oracle separates the keywords of a keyword line with
 semicolons only because one of them carries reminder text, so on a line that
 loses reminder text and holds no sentence, those semicolons become commas. A
-face's Shortened Name is in scope only on that face's own text
-[CR#201.5c,712.8d..712.8f]; full names are in scope everywhere. Where a face's
+face has a Shortened Name only where its own text refers to it by one
+[CR#201.5c], never a shortening that spells a token name or an Introduced Name
+in scope on that face (OSG §5, "do not invent a shortening that could denote
+something else"). A face's Shortened Name is in scope only on that face's own
+text [CR#201.5c,712.8d..712.8f]; full names are in scope everywhere. Where a face's
 own name and another card's full name are spelled alike, both are Readings, and
 the face's own name ranks first ([`english-v4.md`](./english-v4.md) §4.3). The
 census enumerates, validates, counts and digests per unit below the face, and a

@@ -107,7 +107,8 @@ fn new_catalog_keyword_parameters_need_no_grammar_change() {
     custom.parameters = vec![vec![KeywordParameter::Amount, KeywordParameter::Cost]];
     sources.keyword_abilities.push(custom);
     let names = std::fs::read_to_string(deckmaste_lexical_source_v4::card_names_path()).unwrap();
-    let env = sources.environment(&names).unwrap();
+    let shortened = deckmaste_lexical_source_v4::AttestedShortenings::load().unwrap();
+    let env = sources.environment(&names, &shortened).unwrap();
     let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
     let parse = grammar.parse(&env.lexicon, "Testkeyword 2 {W}{U}");
     assert!(parse.derivation_count() > 0);
