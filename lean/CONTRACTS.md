@@ -568,9 +568,9 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). |
 | `replace`, `holdUntil` | `replace` steps the replaced action as a pre-event pattern and the replacement after it in a new clause; `holdUntil` steps the held action, then its event. The static `replace` steps its `would` clause, then the replacement in a new clause, and publishes only the letters the clause and the replacement introduce, so a later "where X is" defines them [CR#107.3i]. A replacement steps what it makes of the event: `instead` and `also` step their action; `withRiders` steps its riders, refused (`riddenEntering`) unless the replaced event is an entering, a move to the battlefield or a token's creation, and (`entryRidersOnly`) for a Pile Placement among them [CR#614.1c,614.12]; `onlyIf` steps its condition, then its body in a new clause after it, as `doIf` steps its then-branch. A caller's replacement steps in one caller frame, its condition and action together. The static `replace` also publishes the choices its `also` action makes to later lines, as "As this enters, choose a color" [CR#614.1c]. |
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
-| Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause that keeps only the cost's public mentions (`publicOnly`). Timing and guard clauses read the body's output. |
+| Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause after it and reads every mention the cost made, wherever the cost moved it: whether the engine can find the object at runtime is the engine's concern [CR#608.2h]. Timing and guard clauses read the body's output. |
 | Granted, token, emblem and keyword abilities | Embedded ability text is stepped in `choiceContext`: only chosen qualities and chosen players carry in, so its performer is its own controller. A keyword ability's body is stepped in its own Reference Scope (`enterOwnScope`). |
-| Card text versus nested lists | `Ability.checkText` threads line-level choices, public additional- and alternative-cost results, added targets and the public objects a printed triggered or activated ability acted on (`Ability.textContext`); a keyword's `body` is threaded the same way (`checkTextWith`); `Ability.checkAll` checks sibling abilities in one supplied context. |
+| Card text versus nested lists | `Ability.checkText` threads line-level choices, additional- and alternative-cost results, added targets and the objects a printed triggered or activated ability acted on (`Ability.textContext`); a keyword's `body` is threaded the same way (`checkTextWith`); `Ability.checkAll` checks sibling abilities in one supplied context. |
 | Printed boxes | Literal-only; they do not read discourse. Effect-written stat slots instead step their Amount expressions. |
 | Named-card choice domain | The card-description predicate is stepped in its own Reference Scope (`enterOwnScope`) at object kind and publishes nothing. Other choice-domain payloads use the consumer's context. |
 
@@ -718,7 +718,7 @@ expected child kinds in the incoming `DRS`.
 | `StaticParts` | The actual list supplies length; `StaticSpec.conjunction` refuses an empty list, refuses a nested conjunction (`notCoord`) and steps each part in a new clause after the previous one. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` refuses an empty list and steps each cost after the previous one. |
 | `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost no longer require `Cost.offBattlefield`; the card-class rule (`classAbilityOk`) still reads it. |
-| `AbilitySeq` | `Ability.checkText` threads the choices and public additional-cost results introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
+| `AbilitySeq` | `Ability.checkText` threads the choices and additional-cost results introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
 
 ### Events
 
@@ -948,11 +948,11 @@ The objects a linked ability acted on are read by a Participial Description, wri
 as the same ability would write it of its own deed ("the exiled card", "the
 sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AST.
 `Ability.textContext` publishes them `linked`: an additional or alternative cost's
-public results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
+results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
 by targeting so mutate's "the target" is its own spell's [CR#702.140a], what a
 replacement does `also` (devour [CR#702.82b]), and the objects a printed triggered or
-activated ability itself introduces in a public zone, never what its trigger event names
-[CR#607.1]. Each step is published once; at a branch point each arm is stepped from the
+activated ability itself introduces, in whatever zone it put them, never what its trigger
+event names [CR#607.1]. Each step is published once; at a branch point each arm is stepped from the
 state before it and its objects carry the arm (`Referent.linkArms`), so arms taken instead of
 each other read as one place (champion [CR#702.72a]); a Definition's own scope is read whole,
 along each path through it (`Action.arms`). A keyword ability's body publishes into the

@@ -1036,14 +1036,18 @@ semantic_definition nightbound : Ability :=
             none)),
       static
         (cant any (transform thisPermanent) (except := some (.byKeyword (.named "nightbound")))) ]
+/-- The Ninja enters attacking what the returned creature was attacking [CR#702.49c]. -/
 semantic_definition ninjutsu (cost : Cost) : Ability :=
+  let returnedCreaturesDefender :=
+    the (and [ or [isPlayer, isPlaneswalker, isBattle],
+               inCombat .attackedBy (the (and [was (returnToHand which), isCreature])) ])
   .keyword (.named "ninjutsu") [.cost (.inCaller cost)]
     [ activated
         (.compound
           [ .inCaller cost,
             .perform (.expose .reveal (.cards this_)),
             .perform (returnToHand (a (and [isCreature, isAttacking, isUnblocked, youControl]))) ])
-        (putOntoBattlefieldTappedAttacking this_ yourHand) ]
+        (putOntoBattlefieldTappedAttacking this_ yourHand returnedCreaturesDefender) ]
 semantic_definition offering (quality : Predicate) : Ability :=
   .keyword (.named "offering") [.quality (.inCaller quality)]
     [ static
@@ -1284,6 +1288,9 @@ semantic_definition skulk : Ability :=
         (cant (.by (allOf (and [isCreature, hasPower .greater (powerOf thisCreature)])))
           (.block thisCreature)) ]
 semantic_definition sneak (cost : Cost) : Ability :=
+  let returnedCreaturesDefender :=
+    the (and [ or [isPlayer, isPlaneswalker, isBattle],
+               inCombat .attackedBy (the (and [was (returnToHand which), isCreature])) ])
   .keyword (.named "sneak") [.cost (.inCaller cost)]
     [ static
         (can you
@@ -1292,7 +1299,12 @@ semantic_definition sneak (cost : Cost) : Ability :=
               (compound
                 [ .inCaller cost,
                   perform (returnToHand (a (and [isCreature, isUnblocked, youControl]))) ])))
-          (timing := some (and [asInstant, duringPart .declareBlockers (some you)]))) ]
+          (timing := some (and [asInstant, duringPart .declareBlockers (some you)]))),
+      -- It enters tapped and attacking what the returned creature was attacking [CR#702.190b].
+      static
+        (replace (would thisPermanent enter)
+          (doIf (keywordCostPaid (.named "sneak") thisPermanent)
+            (withRiders [.entersAs .tapped, .entersAttacking (some returnedCreaturesDefender)]))) ]
 semantic_definition solved (ability : Ability) : Ability :=
   .keyword (.named "solved") [.ability (.inCaller ability)]
     [ .qualified (.inCaller ability) none none

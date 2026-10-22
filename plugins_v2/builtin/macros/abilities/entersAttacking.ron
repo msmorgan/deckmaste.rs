@@ -1,0 +1,7 @@
+// "<subject> enters attacking <defender>"
+(
+    name: "entersAttacking",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "defender": Default(Any, None)},
+    body: EntryRider(Param(subject), EntersAttacking(Param(defender))),
+)

@@ -967,18 +967,6 @@ def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α �
   | some x, some y => if f x y then some x else none
   | _, _ => none
 
-def Zone.isPublic : Zone → Bool
-  | .hand => false
-  | .library => false
-  | _ => true
-
-def Referent.isPublic (b : Referent) : Bool :=
-  match b.payload with
-  | .object _ (some z) _ _ _ => z.isPublic
-  | .pile _ _ (some face) => face == .faceUp
-  | .pile (some z) _ none => z.isPublic
-  | _ => true
-
 def pluralizeBinding (b : Referent) : Referent :=
   match b.det, b.payload with
   | .self, _ | _, .letter _ => b
@@ -1473,8 +1461,6 @@ def recordIdentityById (id : BindingId) (drs : DRS) (refId : ReferentId) : DRS :
 def filterContext (keep : Referent → Bool) (drs : DRS) : DRS :=
   { drs with referents := drs.referents.filter fun b =>
       b.isActorFrame || !drs.isVisible b.id || keep b }
-
-def publicOnly (drs : DRS) : DRS := filterContext Referent.isPublic drs
 
 def afterShuffle (drs : DRS) : DRS :=
   let refs := drs.referents.filter fun r => r.isActorFrame || survivesShuffle r

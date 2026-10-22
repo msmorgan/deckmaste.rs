@@ -551,7 +551,7 @@ counter from each other card you own in exile." The bare "other" is anchored on 
 same ability exiled and granted to, its nearest earlier mention (`semantics-v3.md` §0.1). -/
 theorem okOtherAnchorsOnTheCardThisAbilityExiled :
     let afterCost := (stepCost 64 (DRS.ofList []) exileCost).1
-    let after := (stepAction 64 .postEvent .obj (nextClause (publicOnly afterCost))
+    let after := (stepAction 64 .postEvent .obj (nextClause afterCost)
       countersOnTheExiledCard).1
     Ability.check (DRS.ofList []) (activated exileCost countersOnTheExiledCard) = [] ∧
       after.contrastAnchors.length = 1 ∧

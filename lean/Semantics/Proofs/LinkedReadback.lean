@@ -374,7 +374,7 @@ theorem linkedTargetAnchorsNoBareOther :
     let tapOther := tap (target (and [isCreature, isOther]))
     let context := Ability.textContext (DRS.ofList []) first
     Ability.checkText (DRS.ofList []) [first, activated (mana [generic 1]) tapOther] = [] ∧
-      (stepAction 64 .postEvent .obj (nextClause (publicOnly context)) tapOther).1.contrastAnchors
+      (stepAction 64 .postEvent .obj (nextClause context) tapOther).1.contrastAnchors
         = [.source] := by
   decide
 

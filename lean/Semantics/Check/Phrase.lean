@@ -1918,18 +1918,18 @@ termination_by structural fuel
 def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
   sorts.foldl (fun context sort => context.push sort.binding .other false) drs
 
-private def publicCostResult (ref : Referent) : Bool :=
-  !ref.isActorFrame && ref.isPublic &&
+private def costResult (ref : Referent) : Bool :=
+  !ref.isActorFrame &&
     (match ref.payload with
      | .object .. | .pile .. => ref.zone.isSome
      | _ => true)
 
-/-- An object a printed ability acted on that a linked ability can find: one the ability's deed
-stamped, in a public zone [CR#607.2a]. -/
+/-- An object a printed ability acted on that a linked ability can read back: one the ability's
+deed stamped, in whatever zone it is now [CR#607.2a]. -/
 private def linkedResult (ref : Referent) : Bool :=
   !ref.isActorFrame && ref.payload.prov.isSome &&
     (match ref.payload with
-     | .object _ (some zone) _ _ _ => zone.isPublic
+     | .object _ (some _) _ _ _ => true
      | _ => false)
 
 /-- Publish what stepping one line took `drs` to (`out`): the referents from `since` on that
@@ -1949,10 +1949,10 @@ private def publishResults (drs out : DRS) (since : ReferentId) (keep : Referent
     nextId := Nat.max drs.nextId out.nextId,
     currentClause := Nat.max drs.currentClause out.currentClause }
 
-/-- A cost's public results: what an additional or alternative cost acted on ("the sacrificed
+/-- A cost's results: what an additional or alternative cost acted on ("the sacrificed
 creature" [CR#702.119a]), and the choice a cost makes ("the chosen player" [CR#702.174a]). -/
 def costTextContextWith (ops : StepOps) (drs : DRS) (cost : Cost) : DRS :=
-  publishResults drs (ops.cost drs cost).1 drs.nextId publicCostResult
+  publishResults drs (ops.cost drs cost).1 drs.nextId costResult
 
 /-- The target a static ability adds to a spell, as targeting stamps it [CR#702.140a]: only an
 added target is published stamped by targeting, so "the target" a linked ability reads is the
@@ -2006,11 +2006,11 @@ def Action.wrapArms (wrap : Action → Action) : Action → Option Action
   | .doIf condition action otherwise => some (.doIf condition (wrap action) (otherwise.map wrap))
   | _ => none
 
-/-- Publish the objects `action`, stepped from `state`, acts on in a public zone into `context`,
-from the referents each step introduces on [CR#607.2a], all at one `site`. Each step is stepped
-once; at a branch point (`counter` numbers them) each arm is stepped from the state before it,
-and what it acts on carries the arm (`arms`), so that arms taken instead of each other read as one
-place. The steps after a branch point continue from its first arm. -/
+/-- Publish the objects `action`, stepped from `state`, acts on into `context`, from the referents
+each step introduces on [CR#607.2a], all at one `site`. Each step is stepped once; at a branch
+point (`counter` numbers them) each arm is stepped from the state before it, and what it acts on
+carries the arm (`arms`), so that arms taken instead of each other read as one place.
+The steps after a branch point continue from its first arm. -/
 private def publishArmsWith (ops : StepOps) (site : ReferentId) (fuel : Nat)
     (arms : List (Nat × Nat)) (counter : Nat) (context state : DRS) (action : Action) :
     DRS × DRS × Nat :=
@@ -2069,8 +2069,8 @@ private def publishArmsWith (ops : StepOps) (site : ReferentId) (fuel : Nat)
     | _ => leaf arms context state counter action
 termination_by structural fuel
 
-/-- Publish the objects `action`, stepped from `base`, acts on in a public zone, on each arm it
-may take [CR#607.2a]. -/
+/-- Publish the objects `action`, stepped from `base`, acts on, on each arm it may take
+[CR#607.2a]. -/
 private def publishArms (ops : StepOps) (drs base : DRS) (action : Action) : DRS :=
   (publishArmsWith ops drs.nextId 16 [] 0 drs base action).1
 
@@ -2097,8 +2097,8 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, _ => drs
 termination_by structural fuel
 
-/-- Choices, public cost results, added targets, and the objects a printed triggered or activated
-ability acted on in a public zone, available to later lines of card text [CR#607.2a]. -/
+/-- Choices, cost results, added targets, and the objects a printed triggered or activated ability
+acted on, available to later lines of card text [CR#607.2a]. -/
 def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fuel : Nat := 64) :
     DRS :=
   match fuel, ability with
@@ -2106,7 +2106,7 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | _+1, .activated cost action _ _ _ _ =>
     let (paid, _) := ops.cost drs cost
     let costs := publishResults drs paid drs.nextId linkedResult
-    let base := { nextClause (publicOnly paid) with nextId := Nat.max paid.nextId costs.nextId }
+    let base := { nextClause paid with nextId := Nat.max paid.nextId costs.nextId }
     publishTextChoices (publishArms ops costs base action) (actionTextChoices action)
   | _+1, .triggered event alternatives while_ _ _ _ intervening action =>
     -- What the trigger event or its condition names was not acted on by this ability, which
@@ -3743,7 +3743,7 @@ def stepOps : Nat → StepOps
         | .specialAction tm cost does =>
           let (drs1, e1) := match tm with | some t => stepTimingWith ops drs t | none => (drs, [])
           let (drs2, e2) := ops.cost drs1 cost
-          let (drs3, e3) := ops.inst .postEvent .obj (nextClause (publicOnly drs2)) does
+          let (drs3, e3) := ops.inst .postEvent .obj (nextClause drs2) does
           (drs3, e1 ++ e2 ++ e3)
         | .asEvent ev does =>
           let (drs1, e1) := ops.ev drs ev
@@ -3800,7 +3800,7 @@ def stepOps : Nat → StepOps
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)
             | none => (drs, [])
           let (drs1, e1) := ops.cost (dropLetter .x drs0) cost
-          let colonDrs := nextClause (publicOnly drs1)
+          let colonDrs := nextClause drs1
           let (drs2, e2) := ops.inst .postEvent .obj colonDrs inst
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
           let (_, e4) := match guard with | some g => ops.cond drs2 g | none => (drs2, [])

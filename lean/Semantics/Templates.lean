@@ -1186,10 +1186,11 @@ semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
 /-- "put <subject> onto the battlefield under your control" -/
 semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Action :=
   zoneChange subject battlefield .anyLocation [(.under .you)]
-/-- "put <subject> onto the battlefield tapped and attacking" -/
+/-- "put <subject> onto the battlefield tapped and attacking [<defender>]"; with no defender
+named, its controller chooses [CR#508.4]. -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
-    (from_ : Location := .anyLocation) : Action :=
-  zoneChange subject battlefield from_ [(.entersAs .tapped), (.entersAttacking none)]
+    (from_ : Location := .anyLocation) (defender : Option NounPhrase := none) : Action :=
+  zoneChange subject battlefield from_ [(.entersAs .tapped), (.entersAttacking defender)]
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
     (agent : NounPhrase := you) : Action :=

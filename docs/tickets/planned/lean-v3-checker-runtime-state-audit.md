@@ -38,8 +38,11 @@ generic reference refusals (`anaphor`, `participialDescription`, `groupSizeInSco
   used at `:2023`, `:2107`). The deed stamp it also requires is text meaning [CR#607.2a] and
   stays.
 - **R3. The public-zone conjunct of `publicCostResult`** (`Check/Phrase.lean:1920-1924`; used at
-  `:1954`). It is pinned by `additionalCostDoesNotPublishAHiddenGroup`
+  `:1954`). It was pinned by `additionalCostDoesNotPublishAHiddenGroup`
   (`Check/AbilityRules.lean:53`).
+
+R1 to R3 landed with the ninjutsu ticket: `publicCostResult` is now `costResult`, and the pin is
+rewritten as `additionalCostPublishesAGroupPutIntoALibrary`.
 
 ## Unsure
 

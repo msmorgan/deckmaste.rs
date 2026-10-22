@@ -7,7 +7,8 @@ KeywordAbility(
     ),
     // "Ninjutsu [cost]" means "[Cost], Reveal this card from your hand, Return an
     // unblocked attacking creature you control to its owner's hand: Put this card
-    // onto the battlefield from your hand tapped and attacking." [CR#702.49a]
+    // onto the battlefield from your hand tapped and attacking." [CR#702.49a] It
+    // enters attacking what the returned creature was attacking [CR#702.49c].
     body: [
         activated(
             compound([
@@ -15,7 +16,14 @@ KeywordAbility(
                 perform(reveal(this)),
                 perform(returnToHand(a(and([creature, attacking, unblocked, youControl])))),
             ]),
-            putOntoBattlefieldTappedAttacking(this, yourHand),
+            putOntoBattlefieldTappedAttacking(
+                this,
+                yourHand,
+                the(and([
+                    or([anyPlayer, planeswalker, hasType(Battle)]),
+                    inCombat(AttackedBy, linkedObject(ByDeed(Return), Return, this)),
+                ])),
+            ),
         ),
     ],
 )

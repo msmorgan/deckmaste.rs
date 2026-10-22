@@ -53,10 +53,26 @@ theorem okActivatedCostAndEffect :
     Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
-/-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor. -/
+/-- "Return a creature to its owner's hand: Tap it." The effect reads the returned creature
+(`semantics-v3.md` §0.1 item 4), but "it" in tap's slot reaches only a permanent, and a card in a
+hand is not one (§1.5 `J1` item 4). -/
 theorem badHiddenCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (putInto (a isCreature) hand)) (.setStatus .tapped it))
-      = [.anaphor .bare .one 0] := by
+    Ability.check (DRS.ofList [])
+      (activatedAbility (.perform (putInto (a isCreature) hand)) (.setStatus .tapped itPermanent))
+      = [.anaphor (.atSlot .permanent) .one 0] := by
+  decide
+
+/-- An effect reads the creature its cost returned to a hand: "the returned creature" has a
+textual antecedent, and whether its last known information is available is the engine's concern
+[CR#608.2h] (`semantics-v3.md` §0.1 item 4). -/
+theorem okEffectReadsTheCreatureItsCostReturned :
+    let returned := fun (word : Predicate) (stamp : Predicate) =>
+      Ability.check (DRS.ofList [])
+        (activated (compound [perform (returnToHand (a (and [isCreature, youControl])))])
+          (dealDamage (powerOf (the (and [stamp, word]))) (target isCreature)))
+    returned isCreature (was (returnToHand which)) = [] ∧
+      returned isCard (was (returnToHand which)) = [] ∧
+      returned isCreature (was (returnToHand which) thisWay) = [] := by
   decide
 
 /-- "Discard a card, Sacrifice a creature: Exile it." -/
@@ -124,7 +140,7 @@ theorem okBareCardRead :
 
 private def bareCardReadContext : DRS :=
   let afterCost := (stepCost 64 (DRS.ofList []) (.perform (sacrifice (a isCreature)))).1
-  (stepAction 64 .postEvent .obj (nextClause (publicOnly afterCost))
+  (stepAction 64 .postEvent .obj (nextClause afterCost)
     (exile (target isCreature))).1
 
 theorem bareCardReadSelectsExiledTarget :
@@ -575,6 +591,33 @@ theorem okFlash : Ability.check (DRS.ofList []) flash = [] := by decide
 /-- Sneak {U}'s definition [CR#702.190a]: a cast permission at instant speed in your declare
 blockers step, paying {U} and returning an unblocked creature you control. -/
 theorem okSneak : Ability.check (DRS.ofList []) (sneak (.mana [pip .blue])) = [] := by decide
+
+/-- "the player, planeswalker or battle the returned creature was attacking". -/
+private def returnedCreaturesDefender : NounPhrase :=
+  the (and [ or [isPlayer, isPlaneswalker, isBattle],
+             inCombat .attackedBy (the (and [was (returnToHand which), isCreature])) ])
+
+/-- Ninjutsu's Ninja enters attacking what the returned creature was attacking [CR#702.49c]. -/
+theorem ninjutsuEntersAttackingTheReturnedCreaturesDefender :
+    (match ninjutsu (.mana [pip .black]) with
+     | .keyword _ _ [.activated _ effect _ _ _ _] => some effect
+     | _ => none) =
+      some (putOntoBattlefieldTappedAttacking this_ yourHand returnedCreaturesDefender) := rfl
+
+/-- Ninjutsu {B}'s definition checks, its defender read across the colon [CR#702.49a,702.49c]. -/
+theorem okNinjutsu : Ability.check (DRS.ofList []) (ninjutsu (.mana [pip .black])) = [] := by decide
+
+/-- A permanent spell whose sneak cost was paid enters tapped and attacking what the creature
+returned to pay it was attacking [CR#702.190b]. -/
+theorem sneakEntersTappedAndAttackingTheReturnedCreaturesDefender :
+    (match sneak (.mana [pip .blue]) with
+     | .keyword _ _ [_, rider] => some rider
+     | _ => none) =
+      some (static
+        (replace (would thisPermanent enter)
+          (doIf (keywordCostPaid (.named "sneak") thisPermanent)
+            (withRiders [.entersAs .tapped, .entersAttacking (some returnedCreaturesDefender)])))) :=
+  rfl
 
 /-- "Unblocked" is its own combat status, not "not blocked": an attacking creature is neither
 blocked nor unblocked until blockers are declared [CR#509.1h], so neither ninjutsu nor sneak can

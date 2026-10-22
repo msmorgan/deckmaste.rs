@@ -1,8 +1,9 @@
-// "put <subject> onto the battlefield tapped and attacking", from `from` when
-// the text states an origin.
+// "put <subject> onto the battlefield tapped and attacking [<defender>]", from
+// `from` when the text states an origin. With no defender named, its
+// controller chooses [CR#508.4].
 (
     name: "putOntoBattlefieldTappedAttacking",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "from": Default(ZoneExpr, Wherever)},
-    body: Move(Param(subject), Param(from), battlefield, [EntersAs(Tapped), EntersAttacking(None)]),
+    params: {"subject": NounPhrase, "from": Default(ZoneExpr, Wherever), "defender": Default(Any, None)},
+    body: Move(Param(subject), Param(from), battlefield, [EntersAs(Tapped), EntersAttacking(Param(defender))]),
 )

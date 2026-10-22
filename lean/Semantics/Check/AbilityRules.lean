@@ -11,12 +11,12 @@ namespace Semantics
 def Ability.checkAll (drs : DRS) (abs : List Ability) : List Refusal :=
   (stepAbilityList 64 drs abs).2
 
-/-- Choices, public cost results, added targets, and the objects a printed triggered or activated
-ability acted on in a public zone, available to later lines of card text [CR#607.2a]. -/
+/-- Choices, cost results, added targets, and the objects a printed triggered or activated ability
+acted on, available to later lines of card text [CR#607.2a]. -/
 def Ability.textContext (drs : DRS) (ability : Ability) : DRS :=
   Ability.textContextWith (stepOps 64) drs ability
 
-/-- Each card-text line can read prior choices and public results of the lines before it. -/
+/-- Each card-text line can read prior choices and results of the lines before it. -/
 def Ability.checkText (drs : DRS) (abilities : List Ability) : List Refusal :=
   checkTextWith (stepOps 64) drs abilities
 
@@ -50,9 +50,11 @@ private theorem additionalCostPublishesTheActualGroupIdentity :
       Ability.checkAll initial [additionalTapGroup, .spell none (.draw (.exactlyOf .groupSize))] =
         [.groupSizeInScope 0] := by decide
 
-private theorem additionalCostDoesNotPublishAHiddenGroup :
+/-- The group an additional cost puts from a hand into a library is published like any other: a
+hidden destination is the engine's concern, not the text's (`semantics-v3.md` §0.1 item 4). -/
+private theorem additionalCostPublishesAGroupPutIntoALibrary :
     Ability.checkText (DRS.ofList [])
-      [additionalHiddenGroup, .spell none (.draw (.exactlyOf .groupSize))] = [.groupSizeInScope 0] := by decide
+      [additionalHiddenGroup, .spell none (.draw (.exactlyOf .groupSize))] = [] := by decide
 
 def CopyExcept.check (drs : DRS) (exception : CopyExcept) : List Refusal :=
   (stepCopyExceptWith (stepOps 64) drs exception).2

@@ -286,7 +286,7 @@ creature card from your graveyard to the battlefield." The sacrificed Saproling 
 earlier mention in the graveyard; the anchor is this card, coordinated with the phrase. -/
 theorem slimefootAndSqueeAnchorsOnThisCard :
     let cost := (stepCost 64 (framed [.creature]) (perform (sacrifice (a isCreature)))).1
-    let after := (stepNounPhrase 64 (nextClause (publicOnly cost)) .obj true
+    let after := (stepNounPhrase 64 (nextClause cost) .obj true
       (both thisCard (targets (upTo 1) (and [isCreature, isCard, isOther, in_ yourGraveyard])))).1
     (after.contrastAnchors.map fun
       | .mention id => (after.findById? id).map (·.defaultAnchor)
