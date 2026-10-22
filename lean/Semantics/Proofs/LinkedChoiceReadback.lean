@@ -20,30 +20,23 @@ namespace Semantics.Proofs.LinkedChoiceReadback
 /-- "its gift cost" -/
 def gift : LinkSource := .byKeyword (.named "gift")
 
-/-- "if this is a permanent card" -/
-def onPermanentCard : Condition := .matches .this isPermanentCard
-
-/-- "if this is an instant or sorcery" -/
-def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
-
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
 
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
 def chosenDraws : Action := instruct (the isChosenPlayer) (draw 1)
 
-/-- Gift's permanent half: "When this permanent enters, if this is a permanent card and its
-gift cost was paid, the chosen player draws a card." Both are its intervening "if" clause
-[CR#702.174b,702.174e,603.4]. -/
+/-- Gift's permanent half: "When this permanent enters, if its gift cost was paid, the chosen
+player draws a card." The cost is its intervening "if" clause [CR#702.174b,702.174e,603.4]. -/
 def permanentHalf : Ability :=
   when (does thisPermanent enter)
-    (if_ := some (.and [onPermanentCard, costWasPaid gift none .this]))
+    (if_ := some (costWasPaid gift none .this))
     chosenDraws
 
-/-- Gift's spell half: "If this is an instant or sorcery, if this spell's gift cost was paid, the
-chosen player draws a card." [CR#702.174b,113.3a] -/
+/-- Gift's spell half: "If this spell's gift cost was paid, the chosen player draws a card."
+[CR#702.174b,113.3a] -/
 def spellHalf : Ability :=
-  .spell none (doIf onInstantOrSorcery (doIf (costWasPaid gift none .this) chosenDraws))
+  .spell none (doIf (costWasPaid gift none .this) chosenDraws)
 
 /-- Required pin: after gift's cost, "the chosen player" reads the opponent chosen as it was paid
 [CR#702.174a,607.2d]. -/
@@ -78,7 +71,7 @@ theorem badChosenPlayerAsObject :
       (the isChosenPlayer) = [.kindMismatch .object .player] := by
   decide
 
-/-- Both guarded halves read the chosen player after gift's cost. -/
+/-- Both halves read the chosen player after gift's cost. -/
 theorem okBothHalvesReadChosenPlayer :
     Ability.checkText (DRS.ofList []) [costPart, permanentHalf, spellHalf] = [] := by
   decide

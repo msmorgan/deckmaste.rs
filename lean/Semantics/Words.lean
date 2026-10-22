@@ -28,11 +28,13 @@ inductive CardType where
   | dungeon
   deriving DecidableEq, Repr
 
-/-- A rules procedure a card can instruct a player to carry out during resolution: activating an
-ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land or as a
-spell [CR#701.18a,701.18b]. -/
+/-- A rules procedure: one a card can instruct a player to carry out during resolution, activating
+an ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land or as
+a spell [CR#701.18a,701.18b]; or a spell's or ability's resolution [CR#608.1,608.2], which no
+player carries out but which an event can name ("during its resolution"), as the final part of
+which an instant or sorcery spell is put into its owner's graveyard [CR#608.2n]. -/
 inductive Procedure where
-  | activate | cast | play
+  | activate | cast | play | resolve
   deriving DecidableEq, Repr
 
 /-- An object's numeric characteristic or calculated value [CR#109.3,202.3,208.1,306.5,310.4,310.4a]. -/
