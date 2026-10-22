@@ -89,24 +89,22 @@ same goes for the parser and realizer notes in A1 and A6 (accept both
 numeral forms and both token orders, and keep each card's order in round
 trips). Those belong to the English v4 grammar.
 
-## Open questions for the owner (undecided)
+## Owner rulings (2026-10-22)
 
-1. **"Search and shuffle" voice.** Head (~1809), unchanged in the copy: "The
+1. **"Search and shuffle" voice: reword.** Head (~1809), unchanged in the copy: "The
    Vintage corpus uses `shuffle your deck` only on three Draft Matters cards,
-   all in this pregame template:". The sentence is corpus-count talk, which
-   the guide's register excludes. Should it be reworded as a template
-   statement, for example "Use `shuffle your deck` only in the pregame
-   template:"?
-2. **Brainstealer Dragon.** Hunk 9's `enters` ruling (short form before
-   `under your control` in a present-tense trigger) supports the correction
-   recorded under "Missed-template-update entries" in
-   `docs/tickets/planned/english-v4-oracle-editorial-corrections.md`. The
-   owner may lift that erratum. If it is lifted, remove the Brainstealer Dragon
-   item from that ticket. This ticket does not edit that ticket.
+   all in this pregame template:". That is corpus-count talk, which the guide's
+   register excludes. Reword it as a template statement, for example "Use
+   `shuffle your deck` only in the pregame template:". The mtg-rules copy gets
+   the same fix on its side.
+2. **Brainstealer Dragon: no erratum.** Its "enters the battlefield under your
+   control" stays as printed (the forms are equivalent), and the entry has been
+   removed from `english-v4-oracle-editorial-corrections.md`. Hunk 9's
+   preference for the short form stands as a preference.
 
 ## Done when
 
 - `diff` against the plugin copy shows only the provenance hunk, plus
-  whatever the open questions decide.
+  the "Search and shuffle" reword.
 - `cargo xtask cite check --list-noncompliant` is empty, `cargo xtask cite
   check` reports 0 stale, and `[CR#700.2e]` is blessed.

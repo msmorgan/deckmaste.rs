@@ -39,9 +39,9 @@ on it before … and N or more counters on it after". The readings diverge after
 `docs/tickets/done/workbench-amount-comparison-and-quantity.md:495-519` applied the occurrence
 reading to these headers; this ticket supersedes it for counter thresholds.
 
-Change: after the wip [lean-v3-ast-merges-by-rules-meaning](../wip/lean-v3-ast-merges-by-rules-meaning.md)
-§4 lands (it deletes `CounterBatch` and adds `Quantity.theLast`, already a threshold test: before
-> 0, after = 0), give `countersPut` the put-side analogue, a threshold quantity meaning before < N ≤
+Change: [lean-v3-ast-merges-by-rules-meaning](../done/lean-v3-ast-merges-by-rules-meaning.md) §4
+has landed (it deleted `CounterBatch` and added `Quantity.theLast`, already a threshold test: before
+> 0, after = 0). Give `countersPut` the put-side analogue, a threshold quantity meaning before < N ≤
 after, rather than a separate `countersReach` event. Re-encode every header the done ticket
 converted. Keep `nthOccurrence` for ordinal casts, draws and turn events. Move the
 counter-threshold uses of `plugins_v2/builtin/macros/events/nthOccurrence.ron` to the same form. Pins: twelve counters put one at a

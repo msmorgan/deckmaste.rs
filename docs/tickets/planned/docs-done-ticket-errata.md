@@ -3,14 +3,14 @@ needs: []
 ---
 # Add erratum notes to done tickets whose rule claims are wrong
 
-Twenty-seven done tickets (28 items) state a rule claim that the CR contradicts, or record
+Twenty-eight done tickets (29 items) state a rule claim that the CR contradicts, or record
 work that did not land as the ticket says. Each ticket is a record of its
 landing, so do not rewrite it. Add an erratum note at the claim, dated and
 citing the governing rule, and leave the original text in place. Where the
 wrong claim still drives live work, the note points to the successor ticket
 that owns the fix. Items 1–15 need no successor, because the live code or a
 live ticket already follows the right rule. Items 16–19 each have an engine
-successor, and items 20–28 each have a Lean successor.
+successor, and items 20–29 each have a Lean successor.
 
 Leave alone the historical wrong citations in done tickets that
 `engine-cr-citation-corrections` corrects in live code (the trigger-ordering,
@@ -19,8 +19,8 @@ hidden-zone-redirect and hexproof-from cites). That ticket owns the live ones.
 Provenance: `docs/evidence/mtg-rules-review-2026-10-21/departures-docs.md`
 entries 17 (the off-stack part), 21 (the closure-flip part), 29–39, 44 and 46
 (gitignored; read it from the default checkout), and, for items 16–19,
-`departures-engine.md` #13, #18, #15 and #21; for items 20–28,
-`departures-lean.md` #8, #10, #12, #5, #17, #16 and #21. Every claim was re-read at
+`departures-engine.md` #13, #18, #15 and #21; for items 20–29,
+`departures-lean.md` #8, #10, #12, #5, #17, #16, #21 and #4. Every claim was re-read at
 head on 2026-10-21. Line numbers are current.
 
 ## Errata
@@ -193,3 +193,10 @@ head on 2026-10-21. Line numbers are current.
     [CR#706.2,706.2a]. It is not a triggered ability [CR#113.3c]. Erratum:
     replace "a fourth trigger word" with "a roll-modifier ability"; successor
     `planned/lean-v3-keyword-triggers-entries-and-parties` §10.
+29. **`lean-v3-ast-merges-by-rules-meaning.md` ("Sites").** It lists *Phyrexian
+    Infiltrator* (`Cards/Anaphora.lean:66`) among the `gainControl` card sites
+    that "need no change". Its "exchange control" is one exchange: if the
+    whole exchange can't be completed, no part of it occurs [CR#701.12a], and
+    it does nothing when one player controls both permanents [CR#701.12b].
+    Two independent gains of control lose both conditions. Erratum:
+    successor `planned/lean-v3-rules-and-card-fidelity` §3 (`exchangeControl`).

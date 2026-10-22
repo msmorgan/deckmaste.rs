@@ -55,11 +55,6 @@ relaxing the grammar for a single editorial slip.
 
 ## Missed-template-update entries (owner ruling, 2026-10-20)
 
-- **Brainstealer Dragon (OTC, printed 2024-04-19).** Oracle: "Whenever a
-  nonland permanent an opponent owns enters the battlefield under your
-  control, …". Correct it to "enters under your control", the Foundations-era
-  template. Brainstealer Dragon is the only Vintage-legal card that still says
-  "enters the battlefield" there.
 - **"the player shuffles" → "that player shuffles".** 54 current Oracle texts say
   "then that player shuffles". These four keep "the player":
   - Rootwater Thief (NEM): "…exile it, then the player shuffles."

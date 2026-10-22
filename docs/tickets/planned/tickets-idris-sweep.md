@@ -19,7 +19,7 @@ them in one landing:
   plugins/canon` no regressions" or "no existing Idris shape" (about thirty,
   listed in the inventory: `target-sugar-elaboration`,
   `core-do-or-die-divide-and-choose`, `core-location-outside-the-game`,
-  `core-remove-default-args`, `cards-untap-skip-authoring`,
+  `core-remove-default-args`,
   `portfolio-polish` and the rest): rewrite the gate line to the Lean gate
   (`lean/scripts/build`, and `lean-card-soundness-gate` once it lands) and
   drop `needs:` edges on done Idris tickets that no longer bind.
