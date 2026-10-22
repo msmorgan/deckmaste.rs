@@ -1401,9 +1401,22 @@ semantic_template loseAllCounters (kind : Option CounterKindSource)
 semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase)
     (byEffect : Bool := true) : Action :=
   .removeCounters none kind from_ byEffect
+/-- `cost` as what paying it pays. Paying a cost carries out its instructions [CR#118.1], so where
+the cost is itself one plain payment ("Ward—Pay 5 life", "unless you pay 1 life"), paying it is that
+payment, made once: `pay (payLife 5)` is `payLife 5`, never a payment of a payment. Its Reference
+Scope (`inCaller`), its scaling ("for each age counter") and the other parts of a compound cost
+are kept. -/
+def _root_.Semantics.Cost.asPaid (cost : Cost) (fuel : Nat := 16) : Cost :=
+  match fuel, cost with
+  | _ + 1, .perform (.pay inner .once .paid none none) => inner
+  | n + 1, .inCaller body => .inCaller (body.asPaid n)
+  | n + 1, .scaled body amount => .scaled (body.asPaid n) amount
+  | n + 1, .compound costs => .compound (costs.map (·.asPaid n))
+  | _, cost => cost
+termination_by structural fuel
 /-- "may pay <cost>. If they don't, <action>." -/
 semantic_template doUnless (action : Action) (cost : Cost) : Action :=
-  .withContinuation .optional (.pay cost .once .paid none none) none action
+  .withContinuation .optional (.pay cost.asPaid .once .paid none none) none action
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .characteristicChange subject [statEdit .power power, statEdit .toughness toughness]
@@ -1587,9 +1600,12 @@ semantic_template moveCounters (amount : Amount) (source destination : NounPhras
     [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source)
         true,
       .putCounters amount (kind.getD .those) destination true ]
+/-- "pay <cost>": paying a cost carries out its instructions [CR#118.1]. A cost that is itself one
+plain payment ("Pay 5 life", `payLife`) is paid by making that payment once, not by paying a
+payment (`Cost.asPaid`). -/
 semantic_template pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome := .paid)
     (whose : Option NounPhrase := none) (keyword : Option KeywordLabel := none) : Action :=
-  .pay cost times outcome whose keyword
+  .pay cost.asPaid times outcome whose keyword
 semantic_template procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
     (resulting : Option Predicate := none) (from_ : Option Location := none)
     (of_ : Option NounPhrase := none) : Action :=
@@ -1791,9 +1807,6 @@ semantic_template abilityWord (word : AbilityWordLabel) (ability : Ability) : Ab
 /-- A flavor word in italics before an ability [CR#207.2d]. -/
 semantic_template flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability :=
   .italicHead (.flavorWord word) ability
-/-- "Pay N life" as a cost. -/
-semantic_template payLife (amount : Nat) : Cost :=
-  .perform (.changeLife (.down (.lit amount)))
 /-- "<keyword> <cost>" -/
 semantic_template keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label [.cost cost] []
@@ -2042,6 +2055,11 @@ semantic_template perform (action : Action) : Cost := .perform action
 /-- An action is the cost of performing it: `sacrifice thisArtifact` for
 `perform (sacrifice thisArtifact)`. -/
 instance [AuthoringContext] : Coe Action Cost := ⟨perform⟩
+/-- "pay <amount> life": a cost payment that subtracts that much life, its payer losing that much
+life [CR#119.4]; a player who can't lose life can't pay it [CR#119.8]. In a cost slot it is
+coerced to `perform (payLife amount)`, one payment of that life. -/
+semantic_template payLife (amount : Amount := anyAmount) : Action :=
+  pay (perform (loseLife amount)) .once
 semantic_template preventionBan (damage : Unpreventable) (ban : PreventionBan)
     (kind : Option DamageKind := none) : StaticSpec :=
   .preventionBan damage ban kind

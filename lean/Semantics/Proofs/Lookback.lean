@@ -567,7 +567,27 @@ theorem thisWayClassesTheEvent :
           doIf (did you (loseLife anyAmount) thisWay) (draw 1)]) = [] ∧
     Ability.check (DRS.ofList [])
       (activated (compound [tapSymbol, payLife 2])
-        (doIf (did you (Action.pay (payLife 2) .once .paid none none) thisWay) (draw 1))) =
+        (doIf (did you (payLife 2) thisWay) (draw 1))) =
       [] := by decide
+
+private def tapAndPayLife (cost : Cost) (lookback : Action) : Ability :=
+  activated (compound [tapSymbol, cost]) (doIf (did you lookback thisWay) (draw 1))
+
+/-- "{T}, Pay 2 life: Draw a card if you paid life this way." and "… if you lost life this way.":
+paying life is a payment that is a loss of life [CR#119.4], and a later "this way" reads back
+what the ability's earlier text did [CR#608.2c], its cost included, so both lookbacks ground; no
+sacrifice was caused, so "if you sacrificed a creature this way" does not. The coerced `perform (payLife 2)` records its payment
+more than once, but a lookback asks only whether such an event was caused: every reading is the
+one the bare `perform (loseLife 2)` gives, and the events recorded are the same events. -/
+theorem costPaidLifeGroundsPaidAndLost :
+    [payLife anyAmount, loseLife anyAmount, sacrifice (a isCreature)].map (fun lookback =>
+      Ability.check (DRS.ofList []) (tapAndPayLife (payLife 2) lookback)) =
+      [[], [], [.thisWayUngrounded]] ∧
+    [payLife anyAmount, loseLife anyAmount, sacrifice (a isCreature)].map (fun lookback =>
+      Ability.check (DRS.ofList []) (tapAndPayLife (perform (loseLife 2)) lookback)) =
+      [[], [], [.thisWayUngrounded]] ∧
+    ((stepCost 64 (DRS.ofList []) (payLife 2)).1.causedEvents.eraseDups ==
+      (stepCost 64 (DRS.ofList []) (perform (loseLife 2))).1.causedEvents.eraseDups) = true := by
+  decide
 
 end Semantics.Proofs.Lookback

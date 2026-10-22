@@ -825,7 +825,7 @@ def runThePlayCounters : Action :=
 theorem okRunThePlayCounters : Action.check (DRS.ofList [letterB .x]) runThePlayCounters = [] := by decide
 /-- Font of Agonies -/
 def fontOfAgoniesTrigger : Ability :=
-  whenever (does you (pay (loseLife anyAmount) .once))
+  whenever (does you (payLife anyAmount))
     (putCounters thatMuch bloodCounter thisEnchantment)
 theorem okFontOfAgoniesTrigger : Ability.check (DRS.ofList []) fontOfAgoniesTrigger = [] := by decide
 /-- Heart of Kiran -/

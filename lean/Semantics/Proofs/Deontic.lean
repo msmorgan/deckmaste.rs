@@ -79,8 +79,53 @@ theorem okMixedCharacteristicDisjunct :
   decide
 
 /-- "You pay 2 life." -/
-theorem okPayLifeCost : Action.check (DRS.ofList []) (.pay (payLife 2) .once .paid none none) = [] :=
+theorem okPayLifeCost : Action.check (DRS.ofList []) (payLife 2) = [] :=
     by decide
+
+/-- "Pay N life" is a payment of N life, made once [CR#119.4]: there is no life cost, only the
+cost of losing that much life, paid. -/
+theorem payLifeIsAPayment :
+    (∀ amount : Amount, payLife amount = pay (perform (loseLife amount)) .once) ∧
+      payLife 2 = .pay (.perform (.changeLife (.down (.lit 2)))) .once .paid none none :=
+  ⟨fun _ => rfl, rfl⟩
+
+private def costResult (cost : Cost) : DRS := (stepCost 64 (DRS.ofList []) cost).1
+
+/-- "Pay 2 life: You gain that much life.": in a cost slot `payLife 2` is coerced to
+`perform (payLife 2)`, and paying it is one payment of 2 life [CR#118.1,119.4]. It publishes one
+life-lost amount and no repeat count, as `perform (loseLife 2)` does, and "that much" reads it. -/
+theorem payLifeInACostSlotCountsOnce :
+    [costResult (payLife 2), costResult (perform (loseLife 2))].map (fun after =>
+      (countOutcomes .lifeLost after, countOutcomes .repeatCount after)) = [(1, 0), (1, 0)] ∧
+      Ability.check (DRS.ofList []) (activatedAbility (payLife 2) (gainLife thatMuch)) = [] := by
+  decide
+
+/-- Paying a cost that is itself a payment of life pays that life once, never a payment of a
+payment [CR#118.1,119.4] (`Cost.asPaid`): "you may pay 1 life", the shape of *Carnophage*'s "unless
+you pay 1 life" (`doUnless`), of ward's "unless that player pays [Pay 5 life]" and of cumulative
+upkeep's "unless you pay [Pay 2 life] for each age counter" each pay the life itself. A cost that
+is not a payment is left as written. -/
+theorem payingALifePaymentPaysItOnce :
+    pay (payLife 1) .once = payLife 1 ∧
+      doUnless (tap thisCreature) (payLife 1) =
+        .withContinuation .optional (payLife 1) none (tap thisCreature) ∧
+      pay (.inCaller (payLife 5)) .once = pay (.inCaller (perform (loseLife 5))) .once ∧
+      doUnless (sacrifice thisPermanent) (.scaled (.inCaller (payLife 2)) (.lit 1)) =
+        doUnless (sacrifice thisPermanent) (.scaled (.inCaller (perform (loseLife 2))) (.lit 1)) ∧
+      pay (.compound [[generic 1], payLife 2]) .once =
+        pay (.compound [[generic 1], perform (loseLife 2)]) .once ∧
+      pay (perform (sacrifice (a isCreature))) .once =
+        .pay (.perform (sacrifice (a isCreature))) .once .paid none none :=
+  ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
+
+/-- "Players can't pay life" (*Angel of Jubilation*) forbids the payment, not every loss of life
+[CR#119.4,119.8]: it checks clean, and it is not "players can't lose life", which would also forbid
+a *Lightning Bolt*'s. -/
+theorem cantPayLifeIsNotCantLoseLife :
+    Ability.check (DRS.ofList []) (static (cant (a isPlayer) (payLife anyAmount))) = [] ∧
+      cant (a isPlayer) (payLife anyAmount) ≠ cant (a isPlayer) (loseLife anyAmount) := by
+  refine ⟨by decide, fun h => ?_⟩
+  cases h
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :

@@ -135,7 +135,7 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Action.check (DRS.ofList [])
-      (may (.pay (payLife 1) .once .paid none none) none (some (draw 1))) = [] := by
+      (may (payLife 1) none (some (draw 1))) = [] := by
   decide
 
 /-- "Choose new targets for target instant or sorcery spell." -/
