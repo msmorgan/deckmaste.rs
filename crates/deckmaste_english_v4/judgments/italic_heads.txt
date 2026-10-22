@@ -3,3 +3,6 @@
 + Spirit of the Whalaqee — Equip {2}
 + Channel — {U}, Discard this card: Draw a card.
 * Diana —
+# A Case's "To solve" is a keyword ability over a Condition [CR#719.3a], never a Flavor Word, which has no rules meaning [CR#207.2d]
++ <card=Case of the Gateway Express> To solve — Three or more creatures attacked this turn. => KeywordPhrase "To solve — Three or more creatures attacked this turn" head "to solve"; Condition "Three or more creatures attacked this turn" as Complement of "to solve"; !Ability "Three or more creatures attacked this turn."
++ <card=Case of the Filched Falcon> To solve — You control three or more artifacts. => KeywordPhrase "To solve — You control three or more artifacts" head "to solve"; Condition "You control three or more artifacts" as Complement of "to solve"; !Ability "You control three or more artifacts."

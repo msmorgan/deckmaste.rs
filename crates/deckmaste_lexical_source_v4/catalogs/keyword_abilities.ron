@@ -1,5 +1,6 @@
 // Keyword abilities [CR#702.1], their parameters on a keyword line, the variants each rule
-// defines, and the verbs each rule defines, in CR order.
+// defines, and the verbs each rule defines, in CR order, then the keyword abilities the CR defines
+// outside the keyword-ability rules [CR#702].
 //
 // Left out: Hidden Agenda [CR#702.106] (Conspiracy cards only), Space Sculptor [CR#702.158] and
 // Visit [CR#702.159] (Un-set cards only).
@@ -388,4 +389,7 @@
     (rule: "[CR#702.193]", name: "Power-up", lemma: "power-up", parameters: [[DashAbility]]),
     (rule: "[CR#702.194]", name: "Teamwork", lemma: "teamwork", parameters: [[Amount]]),
     (rule: "[CR#702.195]", name: "Storied", lemma: "storied"),
+    // One of the Case's "two special keyword abilities" [CR#719.3]; its own keyword, not a variant
+    // of Solved [CR#702.169].
+    (rule: "[CR#719.3a]", name: "To Solve", lemma: "to solve", parameters: [[DashCondition]]),
 ]
