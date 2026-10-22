@@ -77,5 +77,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `ksrmmsol` → this landing, `kzwzonvz`): faces read 28,800 → 28,800; total Readings 237,320 → 237,315; Surplus 101,963 → 101,958; cheapest tier singleton in 15,824 of 17,634 ambiguous units (summed 20,053, largest 8) → 15,825 of 17,633 (summed 20,050, largest 8); lost faces: none. No unit gains a Reading. Three lose Readings, all of them raisings of a Gap that sits before a predicative in its conjunct: Agency Outfitter 17 → 15 (*named __ Thinking Cap*), Cogwork Tracker 5 → 3 (*draft __ it*, sharing *the player [who passed it to you]*) and Staff Room 2 → 1 (*turn __ that creature face up*, sharing *it*).
+Judgment set: all hold (`cargo test -p deckmaste_english_v4`). The new `!NounPhrase "the battlefield" as Object of name` on Agency Outfitter fails without the change. The seed entry *Put into your hand or exile the card.* holds through the shifted-Object position of an Object Gap (`kzwzonvz`).

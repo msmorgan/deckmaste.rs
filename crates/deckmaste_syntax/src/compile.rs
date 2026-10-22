@@ -189,6 +189,12 @@ struct Draft {
     weights: Vec<(usize, Weight)>,
     cost: u32,
     introduces: Gap,
+    /// A child follows the Gap it introduces, which is therefore not at its
+    /// right edge. Right Node Raising shares only a Gap at the right edge of
+    /// each conjunct (`Summary::gap_right_edge`): the delayed constituent is
+    /// the one that would be the rightmost element of a coordinate (CGEL,
+    /// Ch. 15 §4.4, p. 1343).
+    gap_followed: bool,
     frame: Option<usize>,
     host_check: Option<(usize, usize, HostKind)>,
     adjunct_slot: Option<SlotKind>,
@@ -246,6 +252,7 @@ impl Draft {
             weights: Vec::new(),
             cost,
             introduces: Gap::None,
+            gap_followed: false,
             frame: None,
             host_check: None,
             adjunct_slot: None,
@@ -1288,6 +1295,7 @@ impl<'a> Binder<'a> {
                 .collect(),
             draft.cost,
             draft.introduces,
+            draft.gap_followed,
             draft.frame,
             draft.host_check,
             draft.coordinator,
@@ -1406,6 +1414,7 @@ impl<'a> Binder<'a> {
                     passive.as_deref(),
                     adjectival.as_deref(),
                     *obligatory,
+                    *heavy_shift,
                 )?;
                 for draft in &mut drafts {
                     self.internalised_equations(draft, internalised)?;
@@ -1854,6 +1863,7 @@ impl<'a> Binder<'a> {
         vec![binary, serial, more, end]
     }
 
+    #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence(
         &self,
         head: LexicalCategory,
@@ -1862,6 +1872,7 @@ impl<'a> Binder<'a> {
         passive: Option<&str>,
         adjectival: Option<&str>,
         obligatory: bool,
+        heavy_shift: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(phrase)?;
         let gap_capable = self.out.category_gap[lhs] != 0;
@@ -1922,8 +1933,18 @@ impl<'a> Binder<'a> {
             // verb's; another head's phrase takes its Voice from
             // the head (a declared Adjectival Passive).
             let active = if head == LexicalCategory::Verb { voice_value("Active")? } else { None };
-            let mut family =
-                self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?;
+            let mut family = self.valence_family(
+                lhs,
+                &name,
+                index,
+                cost,
+                &slots,
+                0,
+                false,
+                active,
+                gappable,
+                heavy_shift,
+            )?;
             if let (Some(f), Some(first)) = (complement_kind, slots.first()) {
                 let kind = self.value(f, &format!("{:?}", first.kind()))?;
                 for draft in &mut family {
@@ -1962,6 +1983,7 @@ impl<'a> Binder<'a> {
                         agent,
                         Some(passive_voice),
                         gappable,
+                        heavy_shift,
                     )? {
                         draft
                             .equations
@@ -2233,7 +2255,8 @@ impl<'a> Binder<'a> {
     /// One frame's phrase and, when `gappable`, a variant per extracted NP
     /// slot. `slots` are the frame's slots from `first_slot` on (a passive
     /// drops the Object), plus a trailing `by` Preposition Phrase, the
-    /// Internalised Complement, when `agent` is set.
+    /// Internalised Complement, when `agent` is set. `heavy_shift` is the
+    /// schema's (`valence_order`).
     #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence_family(
         &self,
@@ -2246,6 +2269,7 @@ impl<'a> Binder<'a> {
         agent: bool,
         voice: Option<(usize, u16)>,
         gappable: bool,
+        heavy_shift: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let mut drafts = Vec::new();
         // Only a subjective predicative relativises (CGEL, Ch. 12 §3.3(c),
@@ -2333,6 +2357,18 @@ impl<'a> Binder<'a> {
                     SlotFill::ToInf => Gap::ToInf,
                     _ => Gap::NP,
                 };
+                // The Gap stands in its slot's place: every later slot,
+                // the Internalised Complement included, follows it (*named
+                // __ Thinking Cap*). An Object Gap before only Preposition
+                // Phrase Complements may stand in the shifted Object's place
+                // after them instead (`valence_order`): *[put __ into your
+                // hand] or [exile __] the card*.
+                let later = &slots[i + 1..];
+                let shiftable = heavy_shift
+                    && self.out.frames[frame].slots[first_slot + i].relation
+                        == SlotRelation::Object
+                    && later.iter().all(|fill| matches!(**fill, SlotFill::PP(_)));
+                draft.gap_followed = !later.is_empty() && !shiftable;
             }
             if let Some((feature, value)) = voice {
                 draft
@@ -2370,6 +2406,8 @@ impl<'a> Binder<'a> {
                 shifted.id = Ident::new(&format!("{}/shifted-object", shifted.id));
                 let object = shifted.children.remove(1);
                 shifted.children.push(object);
+                // The postposed Object follows any Gap.
+                shifted.gap_followed = shifted.introduces != Gap::None;
                 let last = shifted.children.len() - 1;
                 let map = |i| match i {
                     0 => 0,
