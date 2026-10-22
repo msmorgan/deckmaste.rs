@@ -38,3 +38,8 @@ card: Tunnel Vision
 oracle: Otherwise, the player shuffles.
 corrected: Otherwise, that player shuffles.
 evidence: Missed template update. The printed card (RAV 72, Scryfall image ae3eba31-02eb-449a-8a36-899ada5664bc) keeps the older "Otherwise, the player shuffles his or her library". Oracle's current wording is "that player shuffles", in 54 places among supported cards.
+
+card: Spellshift
+oracle: Then the player shuffles.
+corrected: Then that player shuffles.
+evidence: Botched template update (owner ruling, 2026-10-22). The printed card (PLC 47, Scryfall image f5c897a6-5835-42ac-8cc7-e8d9fc1e7c77) reads "Then he or she shuffles his or her library", whose pronoun refers back to "That player". Oracle's gender-neutral update replaced it with "the player" rather than the current template "that player shuffles", which supported Oracle texts use in 54 places.
