@@ -116,7 +116,7 @@
     // A bare *power* or *toughness* is never a Noun Phrase by itself (*[its
     // power] and [toughness]*), only with a value (*power 3 or less*) or a
     // postmodifier (*power equal to …*).
-    (lemma: "power", countability: [Count, Mass], distribution: Valued, frames: [Complement(PP(["of"])), Complement(Amount)]),
+    (lemma: "power", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
     "process",
     "quality",
     (lemma: "radiation", countability: [Mass]),
@@ -146,7 +146,7 @@
     // preposition it may omit *of X*, as *in front* does (*put that card on
     // top*; CGEL, Ch. 7 §3.1, p. 620), unlike *end* or *excess*.
     (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"])), Intransitive]),
-    (lemma: "toughness", countability: [Count, Mass], distribution: Valued, frames: [Complement(PP(["of"])), Complement(Amount)]),
+    (lemma: "toughness", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
     (lemma: "turn", kind: Temporal),
     "type",
     // "for the same value", "double the value of X".

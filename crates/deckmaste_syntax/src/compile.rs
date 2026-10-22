@@ -157,6 +157,12 @@ struct Binder<'a> {
     out: CompiledGrammar,
     closed_words: BTreeMap<Ident, LexemeId>,
     class_names: BTreeMap<Ident, usize>,
+    /// The Productions that set each (feature, value) on their mother.
+    setters: BTreeMap<(usize, u16), BTreeSet<Ident>>,
+    /// The Productions that require each (feature, value) of a child.
+    valuers: BTreeMap<(usize, u16), BTreeSet<Ident>>,
+    /// Pairs of distinct features some equation equates.
+    links: BTreeSet<(usize, usize)>,
 }
 
 /// One child of a Production under construction.
@@ -625,6 +631,9 @@ impl<'a> Binder<'a> {
             },
             closed_words,
             class_names,
+            setters: BTreeMap::new(),
+            valuers: BTreeMap::new(),
+            links: BTreeSet::new(),
         })
     }
 
@@ -728,6 +737,7 @@ impl<'a> Binder<'a> {
             }
         }
         self.auxiliaries()?;
+        self.report_holders();
         for (name, declaration) in &self.grammar.categories {
             if let Some(category) = &declaration.category {
                 self.category(category)?;
@@ -1181,8 +1191,139 @@ impl<'a> Binder<'a> {
         }
     }
 
+    /// Reports, as findings, a declared feature with fewer than two values
+    /// and a feature value with fewer than two holders
+    /// (`english-lexical-analysis.md` §3, `english-v4.md` §4.4). A value's
+    /// holders are the lexemes whose feature bundles carry it and the
+    /// Productions that set it on their mother; a value that has none is a
+    /// default, held through the Productions that require it of a child
+    /// leaving the feature unvalued. A value the engine projects
+    /// from inflection is held by every word form inflected for it, and a
+    /// feature equated with another shares that feature's holders of a value
+    /// of the same name.
+    fn report_holders(&mut self) {
+        let out = &mut self.out;
+        let mut lexical: BTreeMap<(usize, u16), BTreeSet<String>> = BTreeMap::new();
+        for (id, facts) in &out.lexemes {
+            for &(feature, value) in &facts.features {
+                lexical
+                    .entry((feature, value))
+                    .or_default()
+                    .insert(id.to_string());
+            }
+        }
+        // Features equated with one another, closed transitively.
+        let mut linked: Vec<BTreeSet<usize>> = (0..out.features.len())
+            .map(|f| BTreeSet::from([f]))
+            .collect();
+        loop {
+            let mut grew = false;
+            for &(a, b) in &self.links {
+                let union: BTreeSet<usize> = linked[a].union(&linked[b]).copied().collect();
+                for &f in &union {
+                    if linked[f] != union {
+                        linked[f].clone_from(&union);
+                        grew = true;
+                    }
+                }
+            }
+            if !grew {
+                break;
+            }
+        }
+        let projected = |feature: usize| -> &'static [&'static str] {
+            if out.projected.contains(&Some(feature)) {
+                crate::step::projected_values(&out.features[feature])
+            } else {
+                &[]
+            }
+        };
+        let mut warnings = Vec::new();
+        for (feature, name) in out.features.iter().enumerate() {
+            let domain = &out.values[feature];
+            if domain.len() < 2 {
+                warnings.push(format!(
+                    "feature `{name}` has {} value(s); a feature needs two or more",
+                    domain.len()
+                ));
+            }
+            for value_name in domain {
+                // The same value under every feature equated with this one.
+                let keys: Vec<(usize, u16)> = linked[feature]
+                    .iter()
+                    .filter_map(|&f| {
+                        let v = out.values[f].iter().position(|v| v == value_name)?;
+                        Some((f, u16::try_from(v).expect("small feature domain")))
+                    })
+                    .collect();
+                if keys
+                    .iter()
+                    .any(|&(f, _)| projected(f).contains(&value_name.as_str()))
+                {
+                    continue;
+                }
+                let mut holders: BTreeSet<String> = keys
+                    .iter()
+                    .filter_map(|key| lexical.get(key))
+                    .flatten()
+                    .cloned()
+                    .chain(
+                        keys.iter()
+                            .filter_map(|key| self.setters.get(key))
+                            .flatten()
+                            .map(ToString::to_string),
+                    )
+                    .collect();
+                if holders.is_empty() {
+                    holders = keys
+                        .iter()
+                        .filter_map(|key| self.valuers.get(key))
+                        .flatten()
+                        .map(ToString::to_string)
+                        .collect();
+                }
+                if holders.len() < 2 {
+                    warnings.push(format!(
+                        "feature value `{name}` `{value_name}` has {} holder(s) ({}); a value \
+                         needs two or more",
+                        holders.len(),
+                        holders.into_iter().collect::<Vec<_>>().join(", ")
+                    ));
+                }
+            }
+        }
+        out.report.warnings.extend(warnings);
+    }
+
     /// Resolves a draft's equations into variables and adds it.
     fn add(&mut self, mut draft: Draft) -> Result<(), LoadError> {
+        let feature_of = |path: &Path| match *path {
+            Path::Mother(f) | Path::Child(_, f) => f,
+        };
+        for (path, target) in &draft.equations {
+            match target {
+                Target::Value(value) => {
+                    let valuers = match path {
+                        Path::Mother(_) => &mut self.setters,
+                        Path::Child(..) => &mut self.valuers,
+                    };
+                    valuers
+                        .entry((feature_of(path), *value))
+                        .or_default()
+                        .insert(draft.id);
+                }
+                Target::Path(other) if feature_of(other) != feature_of(path) => {
+                    self.links.insert((feature_of(path), feature_of(other)));
+                }
+                Target::Path(_) => {}
+            }
+        }
+        for &(feature, value, _) in &draft.resolutions {
+            self.setters
+                .entry((feature, value))
+                .or_default()
+                .insert(draft.id);
+        }
         if let Some(head) = draft.children.iter().position(|c| c.name == "head") {
             for &feature in &self.out.category_features[draft.lhs] {
                 if self.carries(&draft.children[head].symbol, feature) {
@@ -1543,16 +1684,17 @@ impl<'a> Binder<'a> {
             // no passive participle, so none of its forms premodifies as one
             // (CGEL, Ch. 16 §10.1.2, p. 1432).
             let past = *form == deckmaste_lexical::WordForm::PastParticiple;
-            let test = if past {
-                Test::FreeNotActiveOnly(head)
-            } else {
-                Test::FreeOptional(head)
-            };
+            let test = if past { Test::FreeNotActiveOnly(head) } else { Test::FreeOptional(head) };
             let child = leaf.child("head", Symbol::Leaf(test), GapRule::Closed);
             // A past participle spelled like a declared Adjective (*tapped*)
             // has that Adjective as its Adjectival Passive, which premodifies
             // in its place.
-            if past && let Some(f) = self.out.features.iter().position(|n| n == "AdjectivalPassive")
+            if past
+                && let Some(f) = self
+                    .out
+                    .features
+                    .iter()
+                    .position(|n| n == "AdjectivalPassive")
             {
                 leaf.exclusions.push((child, f, self.value(f, "Lexical")?));
             }

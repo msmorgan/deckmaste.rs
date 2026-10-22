@@ -24,7 +24,7 @@
 + Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature" as Complement of to; NounPhrase "enchanted creature" as Complement of by
 +NounPhrase its power and toughness => Nominal "power and toughness"; readings 1
 +NounPhrase base power and base toughness 4/4 => Nominal "base power and base toughness"; readings 1
-+NounPhrase target creature with power or toughness 4 or greater => Nominal "power or toughness 4 or greater"; Amount "4 or greater"; readings 1
++NounPhrase target creature with power or toughness 4 or greater => Nominal "power or toughness 4 or greater"; Amount "4 or greater"
 + Each creature and planeswalker you control gets +1/+1 until end of turn. => NounPhrase "Each creature and planeswalker you control" as Subject of get
 * Each creature and planeswalker you control get +1/+1 until end of turn.
 + Activate only during your turn and only once each turn. => PrepositionPhrase "only during your turn"; AdverbPhrase "only once each turn"
@@ -56,7 +56,7 @@
 +NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
 +Clause it doesn't untap, and at the beginning of each of your draw steps, put a counter on it => Clause "it doesn't untap"; Clause "at the beginning of each of your draw steps, put a counter on it"
 +NounPhrase up to one target artifact or creature => DeterminerPhrase "up to one target"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
-+NounPhrase up to two target artifacts and/or enchantments => DeterminerPhrase "up to two target"; Nominal "artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
++NounPhrase up to two target artifacts and/or enchantments => DeterminerPhrase "up to two target"; Nominal "artifacts and/or enchantments"
 +NounPhrase each other target creature => DeterminerPhrase "each other target" as Determiner of creature; DeterminerPhrase "other target" head det:target; readings 1
 + As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have
 +Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
@@ -68,6 +68,6 @@
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1
 + <card=Cut Down> Destroy target creature with total power and toughness 5 or less. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
 + <card=Meek Attack> {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
-+ <card=Sword of the Squeak> Equipped creature gets +1/+1 for each creature you control with base power or toughness 1. => Nominal "base power or toughness"; Amount "1"; !NounPhrase "base power"
++ <card=Sword of the Squeak> Equipped creature gets +1/+1 for each creature you control with base power or toughness 1. => Nominal "base power or toughness"; Amount "1"
 # A serial-comma *and/or* coordination of three nominals, in the Editorial Correction the census reads (`corrections.txt`).
 + <card=Agency Outfitter> When this creature enters, you may search your graveyard, hand, and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle. => NounPhrase "your graveyard, hand, and/or library" as Object of search; NounPhrase "a card named Magnifying Glass and/or a card named Thinking Cap" as Complement of for; VerbPhrase "put them onto the battlefield"

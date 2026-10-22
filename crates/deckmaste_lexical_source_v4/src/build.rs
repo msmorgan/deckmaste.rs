@@ -433,38 +433,7 @@ impl Builder {
             }
             catalog.prepositions.insert(*id, frames);
         }
-        let mut lexemes = self.lexemes;
-        mark_conversions(&mut lexemes);
-        Ok((lexemes, catalog))
-    }
-}
-
-/// Marks each free noun and adjective whose lemma is also a free word of the
-/// other Category, a pair related by conversion (*His tie is brown* beside *a
-/// dark shade of brown*; CGEL, Ch. 19 §3.3, p. 1642), with `Conversion:
-/// Converted`.
-fn mark_conversions(lexemes: &mut [Lexeme]) {
-    let lemmas = |category: Category| -> BTreeSet<String> {
-        lexemes
-            .iter()
-            .filter(|l| l.category == category && l.binding == Binding::Free)
-            .map(|l| l.lemma.clone())
-            .collect()
-    };
-    let nouns = lemmas(Category::Noun);
-    let adjectives = lemmas(Category::Adjective);
-    for lexeme in lexemes.iter_mut().filter(|l| l.binding == Binding::Free) {
-        let other = match lexeme.category {
-            Category::Noun => &adjectives,
-            Category::Adjective => &nouns,
-            _ => continue,
-        };
-        if other.contains(&lexeme.lemma) {
-            lexeme
-                .properties
-                .features
-                .insert("Conversion".into(), "Converted".into());
-        }
+        Ok((self.lexemes, catalog))
     }
 }
 

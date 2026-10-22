@@ -234,6 +234,13 @@ adjunct whose object a relative clause binds).
 `typed_classes` names classes whose membership comes from the lexical
 environment's declared properties, including Catalog entries. Empty and
 singleton classes are reported. The grammar never enumerates their members.
+Binding reports features the same way (`english-lexical-analysis.md` §3,
+`english-v4.md` §4.4): a feature with fewer than two values, and a value with
+fewer than two holders. A value's holders are the lexemes that carry it and
+the Productions that set it on their mother; a value with neither is held by
+the Productions that require it of a child. A value projected from inflection
+is held by every word form inflected for it, and a feature equated with
+another shares that feature's holders. Each warning names its holders.
 `Parameters` compiles the catalog's ordered parameter patterns around a head:
 slots select grammar Categories; markers, bound stems and head identities stay
 in the catalog. With `coordinators`, a pattern's final marker and slot also

@@ -745,18 +745,19 @@ pub enum NounDistribution {
     /// A number-transparent quantificational noun (*any number of*; CGEL,
     /// Ch. 5 §3.3, pp. 349–351).
     Quantity,
-    /// An atomic count-noun term also used as a bare singular NP.
+    /// A singular count noun that heads a bare Noun Phrase, as a singular
+    /// count noun otherwise cannot (CGEL, Ch. 5 §8.5, p. 409): the combat
+    /// roles *attacking player* and *defending player* [CR#506.2].
     BareSingular,
     /// A mass noun accepting a direct cardinal measure without a unit noun.
     DirectMeasure,
     /// Used as a nominal head, with no attributive noun use.
     HeadOnly,
-    /// A property noun stated with its bearer or its value (*its power*,
-    /// *power 3 or less*): a nominal head with no attributive noun use, and
-    /// never a bare Noun Phrase by itself.
-    Valued,
     /// Serial *time*, counting occasions: a Noun Phrase Adjunct with any
     /// determinative (*any time*, *an additional time*, *three times*),
-    /// unlike a period noun (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).
+    /// unlike a period noun (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716), and
+    /// a multiplier (*three times X*; Ch. 5 §12, p. 434). It is the only
+    /// such noun: *times* heads every bounding frequency Noun Phrase and
+    /// cardinal multiplier (Ch. 8 §9, p. 715).
     Serial,
 }

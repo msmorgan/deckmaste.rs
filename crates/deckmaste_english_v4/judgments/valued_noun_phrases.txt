@@ -1,7 +1,7 @@
-# A Valued noun (power, toughness) is a bare Noun Phrase only with its value or another dependent after it, or under a graded adjective that implies one; its counted plural is an ordinary bare plural
+# A property noun (power, toughness) is a mass noun: a bare Noun Phrase with its value or another dependent after it, or under a graded adjective; its counted plural is an ordinary bare plural
 + <card=Square Up> Target creature has base power and toughness 4/4 until end of turn. => NounPhrase "base power and toughness 4/4" as Object of have; !NounPhrase "base power and toughness"
 + <card=Stern Scolding> Counter target creature spell with power or toughness 2 or less. => NounPhrase "power or toughness 2 or less"; !NounPhrase "power or toughness"
-+ <card=Squall, Gunblade Duelist> Whenever one or more creatures attack one of your opponents, if any of those creatures have power or toughness equal to the chosen number, Squall deals damage equal to its power to defending player. => NounPhrase "power or toughness equal to the chosen number" as Object of have; !NounPhrase "power or toughness"
++ <card=Squall, Gunblade Duelist> Whenever one or more creatures attack one of your opponents, if any of those creatures have power or toughness equal to the chosen number, Squall deals damage equal to its power to defending player. => NounPhrase "power or toughness equal to the chosen number" as Object of have
 + <card=Desecrator Hag> If two or more cards are tied for greatest power, you choose one of them. => NounPhrase "greatest power"; AdjectivePhrase "greatest" as Modifier of power
 + <card=V.A.T.S.> Choose any number of target creatures with equal toughness. => NounPhrase "equal toughness"; AdjectivePhrase "equal" as Modifier of toughness
 + <card=Dawnhart Wardens> Coven — At the beginning of combat on your turn, if you control three or more creatures with different powers, creatures you control get +1/+0 until end of turn. => NounPhrase "different powers"
