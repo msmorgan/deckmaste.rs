@@ -1181,7 +1181,12 @@
         (name: "KeywordObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "KeywordPhrase")], equations: [Require("$.ComplementKind", "KeywordPhrase")]),
         (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
         (name: "AdjectivalConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Require("$.ComplementKind", "AdjP")], heavy: ["filler"]),
-        (name: "PastParticipialConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "VerbPhrase")], equations: [Require("filler.VerbForm", "PastParticiple"), Require("filler.Voice", "Passive"), Require("$.ComplementKind", "Gerund")], heavy: ["filler"]),
+        // A past-participial conjunct is a lexical passive participle clause
+        // (CGEL, Ch. 14 §9, p. 1264), as the single participial postmodifier
+        // is, never one headed by an auxiliary (*been* + participle): in a
+        // passive the auxiliary takes the participle (Ch. 16 §10.1.1,
+        // p. 1427).
+        (name: "PastParticipialConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "VerbPhrase")], equations: [Require("filler.VerbForm", "PastParticiple"), Require("filler.Voice", "Passive"), Exclude("filler.VerbKind", "Auxiliary"), Require("$.ComplementKind", "Gerund")], heavy: ["filler"]),
         (name: "GerundParticipialConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "VerbPhrase")], equations: [Require("filler.VerbForm", "GerundParticiple"), Require("$.ComplementKind", "Gerund")], heavy: ["filler"]),
         (name: "CoordinatedPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "PostmodifierCoordination")], cost: 1),
         (name: "RelativePostmodifier", lhs: "Postmodifier", rhs: [Cat("head", "RelativeClause")]),
