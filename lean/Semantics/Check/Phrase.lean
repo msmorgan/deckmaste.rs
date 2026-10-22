@@ -1064,6 +1064,170 @@ private def eventActionRefusals (action : Action) : List Refusal :=
   | .procedure _ subject .. => refuse (subject.plur == .one) .singular
   | _ => []
 
+/-- The classes of the event `inst` names (`EventVerb`), read through a keyword action's own
+Reference Scope and its deed to the event its expansion performs. -/
+def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
+  match fuel, inst with
+  | 0, _ => []
+  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body
+  | n + 1, .enact _ body _ _ => body.eventVerbs n
+  | _ + 1, .dealDamage .. => [.damageDealt]
+  | _ + 1, .markDamage .. => [.damageMarked]
+  | _ + 1, .clearDamage .. => [.damageCleared]
+  | _ + 1, .setStatus status _ => [.status status]
+  | _ + 1, .turnOver .. => [.turnedOver]
+  | _ + 1, .turnFaceDown .. => [.turnedFaceDown]
+  | _ + 1, .combat .. => [.combat]
+  | _ + 1, .attack .. | _ + 1, .attackWith .. => [.attacked]
+  | _ + 1, .attackUnblocked .. => [.attackedUnblocked]
+  | _ + 1, .block .. => [.blocked]
+  | _ + 1, .target .. => [.targeted]
+  | _ + 1, .tapForMana .. => [.tappedForMana]
+  | _ + 1, .commitCrime => [.crimeCommitted]
+  | _ + 1, .attachment change .. => [.attachment change]
+  | _ + 1, .changeControl .. => [.controlChanged]
+  | _ + 1, .gainDesignation .. | _ + 1, .gameGains _ => [.designationGained]
+  | _ + 1, .unlock _ => [.unlocked]
+  | _ + 1, .fullyUnlock _ => [.fullyUnlocked]
+  | _ + 1, .conclude .. => [.concluded]
+  | _ + 1, .trigger => [.triggered]
+  | _ + 1, .crew _ => [.crewed]
+  | _ + 1, .saddle _ => [.saddled]
+  | _ + 1, .choose .. => [.chose]
+  | _ + 1, .vote .. => [.voted]
+  | _ + 1, .copy .. => [.copied]
+  | _ + 1, .changeLife delta => delta.lifeOutcomes.map EventVerb.life
+  | _ + 1, .exchange (.lifeTotals _) => [.exchanged, .life .lifeGained, .life .lifeLost]
+  | _ + 1, .exchange _ => [.exchanged]
+  | _ + 1, .addMana .. => [.manaAdded]
+  | _ + 1, .draw _ => [.drew]
+  | _ + 1, .expose verb _ => [.exposed verb]
+  | _ + 1, .search .. => [.searched]
+  | _ + 1, .shuffle _ => [.shuffled]
+  | _ + 1, .flipCoins .. => [.coinsFlipped]
+  | _ + 1, .rollDice .. => [.diceRolled]
+  | _ + 1, .createObject .. => [.created]
+  | _ + 1, .putCounters .. | _ + 1, .distribute (.counters _) .. => [.countersPut]
+  | _ + 1, .distribute (.damage _) .. => [.damageDealt]
+  | _ + 1, .removeCounters .. => [.countersRemoved]
+  | _ + 1, .move .. => [.moved]
+  | _ + 1, .pay .. => [.paid]
+  | _ + 1, .procedure kind .. => [.procedure kind]
+  | _ + 1, .relate .. => [.related]
+  | _ + 1, .merge .. => [.merged]
+  | _ + 1, .skipUntap .. => [.untapSkipped]
+  | _ + 1, .skipPart .. => [.partSkipped]
+  | _ + 1, .addTurnPart .. => [.turnPartAdded]
+  | _ + 1, _ => []
+termination_by structural fuel
+
+/-- Whether `action`'s subject is what it moves or acts on rather than its Actor: "that creature
+dies" [CR#700.4], "a land enters", "it phases out". -/
+def Action.subjectIsPatient (action : Action) : Bool :=
+  match action.canonicalPatient with
+  | some .actor => true
+  | _ => false
+
+/-- The event `inst` describes, by the Deed that names it, the Zone Change it writes and its
+classes (`CausedEvent`), done by an Actor of kind `performer` to something of kind `patient`, if
+known. -/
+def Action.causedEvent (inst : Action) (performer patient : Option Kind) : CausedEvent :=
+  { deed := inst.inferredDeed
+    zoneChange := inst.writtenZoneChange?.map fun (origin, destination) =>
+      ⟨origin, some destination⟩
+    verbs := inst.eventVerbs
+    performer
+    patient }
+
+/-- The layers of `action` that each name an event a lookback reads back, as stepping it records
+them: a keyword action's own Reference Scope, its deed, then the event its expansion performs
+("sacrifice a creature": the sacrifice and the creature's move from the battlefield to a graveyard
+[CR#701.21a]). -/
+def Action.eventLayers (action : Action) (fuel : Nat := 8) : List Action :=
+  match fuel, action with
+  | 0, _ => []
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.eventLayers n
+  | n + 1, .ownScope deed body => (if deed.isSome then [action] else []) ++ body.eventLayers n
+  | n + 1, .enact _ body _ _ => action :: body.eventLayers n
+  | _ + 1, _ => if action.eventHeadOk then [action] else []
+termination_by structural fuel
+
+/-- The events `action` describes when a trigger event or a permission names it rather than a
+resolving instruction, its subject of kind `subject` (if known) doing each, or, where the subject
+is what an event moves or acts on ("this creature enters"), undergoing it. -/
+def Action.describedEvents (action : Action) (subject : Option Kind) : List CausedEvent :=
+  action.eventLayers.map fun layer =>
+    if layer.subjectIsPatient then layer.causedEvent none subject
+    else layer.causedEvent subject (layer.scopeBody.canonicalPatient.bind (·.kind?))
+
+/-- The kind of the Actor who does `inst` in `drs`: the innermost handoff's performer, the source
+permanent for a deed a permanent performs with no handoff to one ([CR#701.44a]), or else the
+controller, a player [CR#109.5]. -/
+def causedPerformer (drs : DRS) (inst : Action) : Kind :=
+  let actor := actorShape? drs
+  match inst.scopeBody with
+  | .enact verb .. =>
+    if actPermanentActorOf verb && actor.all (·.isYou) then .object
+    else actor.elim .player (·.kind)
+  | _ => actor.elim .player (·.kind)
+
+/-- `after`, what stepping `inst` from `before` produced, with the event `inst` caused recorded
+when it is a resolving or paid action, not a pattern a lookback, trigger or replacement
+describes, and one a lookback can name (`Action.eventHeadOk`): a later "this way" in the same
+text reads it back (`DRS.causedEvents`). Only that field changes, and whether it does is decided
+inside it, so every other field of the result reduces to `after`'s without deciding it. -/
+def DRS.withCaused (after before : DRS) (phase : StepPhase) (inst : Action) : DRS :=
+  if !inst.eventHeadOk then after else
+  { after with
+    causedEvents := if phase != .postEvent || before.actionPattern then after.causedEvents
+      else inst.causedEvent (some (causedPerformer before inst))
+        (inst.scopeBody.canonicalPatient.map (·.kindIn before .object)) :: after.causedEvents }
+
+/-- `DRS.withCaused` on a step's result. -/
+def recordCaused (phase : StepPhase) (before : DRS) (inst : Action)
+    (result : DRS × List Refusal) : DRS × List Refusal :=
+  (result.1.withCaused before phase inst, result.2)
+
+/-- The events stepping from `before` to `after` caused, latest first. -/
+def newlyCaused (before after : DRS) : List CausedEvent :=
+  after.causedEvents.take (after.causedEvents.length - before.causedEvents.length)
+
+/-- The events `ev` triggers on, as a `triggering` lookback reads them back: an action event's,
+with its Actor's kind when its subject names one [CR#603.2]. -/
+def GameEvent.triggerEvents (ev : GameEvent) (fuel : Nat := 8) : List CausedEvent :=
+  match fuel, ev with
+  | 0, _ => []
+  | n + 1, .inCaller body | n + 1, .nthOccurrence _ _ body | n + 1, .causes _ body =>
+    body.triggerEvents n
+  | _ + 1, .does subj action =>
+    action.describedEvents (match subj with | .actor np => np.kind? | .any | .by _ => none)
+  | _ + 1, _ => []
+termination_by structural fuel
+
+/-- Whether a lookback over `span` whose action is `action`, its subject of kind `subject` (if
+known), reads back an event in scope, done by what the subject names or, where the subject is
+what the event moves or acts on, done to it (`CausedEvent.subjectFits`). "This way" reads the
+events its own spell or ability's earlier text caused or permitted (`DRS.causedEvents`
+[CR#608.2c]); while the Participial Description it anchors is read, the referents that deed
+stamped stand for them. `triggering` reads the event its ability triggers on [CR#603.2]. Whether
+that event happened is the engine's concern. -/
+def lookbackGroundRefusals (drs : DRS) (action : Action) (subject : Option Kind) :
+    Option LookbackSpan → List Refusal
+  | some .thisWay =>
+    let anchor := action.participialAnchor?
+    let verbs := action.eventVerbs
+    refuse ((drs.participialAnchorRead.isSome && drs.participialAnchorRead == anchor) ||
+      drs.causedEvents.any (fun event =>
+        event.readBy anchor verbs && event.subjectFits subject action.subjectIsPatient))
+      .thisWayUngrounded
+  | some .triggering =>
+    let anchor := action.participialAnchor?
+    let verbs := action.eventVerbs
+    refuse (drs.triggerEvents.any fun event =>
+        event.readBy anchor verbs && event.subjectFits subject action.subjectIsPatient)
+      .triggeringUngrounded
+  | _ => []
+
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
   | ⟨subj, action, within⟩ =>
@@ -1073,6 +1237,11 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         refuse (zone.sort.any (fun z => (actLociOf verb).elem z)) .lookbackLocus
       | _ => []
     let (drs1, e1) := stepEventSubjectWith ops drs subj .postEvent action
+    let subjectKind : Option Kind := match subj with
+      | .actor _ => (actorShape? drs1).map (·.kind)
+      | .by np => some (np.kindIn drs .object)
+      | .any => none
+    let groundErrors := lookbackGroundRefusals drs action subjectKind within
     let actorErrors := match action.scopeBody with
       | .draw _ => []
       | _ => match clauseActorKind action, actorShape? drs1 with
@@ -1088,7 +1257,8 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       referents := if hidden.isEmpty then drs1.referents else
         drs1.referents.filter (!·.isActorFrame)
       actionPattern := true
-      historicalReferentIds := drs.referents.map (·.id) }
+      historicalReferentIds := drs.referents.map (·.id)
+      participialAnchorRead := none }
     let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
     let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
     let (drs4, e4) := match within with
@@ -1097,7 +1267,10 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
     ({ drs4 with
         referents := hidden ++ drs4.referents
         actionPattern := drs.actionPattern
-        historicalReferentIds := drs.historicalReferentIds }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
+        historicalReferentIds := drs.historicalReferentIds
+        participialAnchorRead := drs.participialAnchorRead },
+      headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
+        eventVoiceChecks drs subj action)
 
 /-- Step a relative clause (`Predicate.did`) with its `which` bound to `whichRef`; the clause
 must mention `which`. -/
@@ -2423,7 +2596,10 @@ def stepOps : Nat → StepOps
           match detP.participialNumber?, pred.participialAnchor? with
           | some plur, some (clause, anchor) =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
-            let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred.withAnchorSpan
+            let (drs2, e2) := ops.pred
+              { drs1 with relativeKind := pred.kind?, participialAnchorRead := some anchor }
+              pred.withAnchorSpan
+            let drs2 := { drs2 with participialAnchorRead := drs.participialAnchorRead }
             let (word, zones) := Predicate.participialHead pred.conjuncts plur.isNone
             let found := participialCandidates anchor plur word clause.within.isSome drs zones
             let agentErrors := refuse (clause.participialAgentOk anchor) .participialAgent
@@ -2439,7 +2615,17 @@ def stepOps : Nat → StepOps
                 (d.updateById ref.id fun ref => { ref with linked := false }).recordMention ref.id
                   role inArgSlot) drs2
               (mentioned, read.map (·.id), e1 ++ e2 ++ agentErrors)
-            | .error n => (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription anchor n])
+            | .error n =>
+              -- Nothing the text stamped, but a permission it wrote ("You may cast spells from
+              -- the top of your library"): the description names what is acted on that way as
+              -- the game goes on, introduced here ("each spell cast this way").
+              if n == 0 && (match clause.within with | some .thisWay => true | _ => false) &&
+                  drs.causedEvents.any (fun event =>
+                    event.permitted && event.readBy (some anchor) []) then
+                let ref := { bindFor detP.det detP.plur (pred.kindOr .object) pred with
+                  controlledByYou := pred.controlFact }
+                (drs2.push ref role inArgSlot, [drs2.nextId], e1 ++ e2 ++ agentErrors)
+              else (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription anchor n])
           | _, _ =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
             let (drs2, e2) := ops.pred { drs1 with
@@ -2950,7 +3136,7 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.ev drs1 ev
           (drs2, e1 ++ e2),
 
-      inst := fun phase patientRole drs inst =>
+      inst := fun phase patientRole drs inst => recordCaused phase drs inst <|
         match inst with
         | .inCaller body =>
           let callerDrs := enterCaller drs
@@ -3440,7 +3626,12 @@ def stepOps : Nat → StepOps
                 drs.participialOnly
               nextId := armsNextId + introduced.length
               nextSelectionScope := max drs2.nextSelectionScope drs3.nextSelectionScope
-              selectionEvidence := evidence }, e1 ++ e2 ++ e3 ++ policyErrors)
+              selectionEvidence := evidence
+              -- The body and its arms wrote their events whether or not the player chooses to
+              -- act, so a later "this way" reads them back; "if you do" reads the choice, not an
+              -- event (`semantics-v3.md` §3.8).
+              causedEvents := newlyCaused drs drs2 ++ newlyCaused drs drs3 ++
+                drs.causedEvents }, e1 ++ e2 ++ e3 ++ policyErrors)
         | .limited inst limit =>
           let (out, errors) := ops.inst phase patientRole drs inst
           let (out', limitErrors) := stepUsageLimitWith ops out limit
@@ -3493,7 +3684,11 @@ def stepOps : Nat → StepOps
               (nextClause { withTargets with
                 referents := amounts ++ withTargets.referents
                 nextId := max withTargets.nextId drs2.nextId }) el
-            ({ withTargets with nextId := max drs2.nextId alternative.nextId }, e1 ++ e2 ++ e3)
+            -- Either branch's events are read back by a later "this way".
+            ({ withTargets with
+                nextId := max drs2.nextId alternative.nextId
+                causedEvents := newlyCaused drs drs2 ++ newlyCaused drs alternative ++
+                  drs.causedEvents }, e1 ++ e2 ++ e3)
         | .doForEach grp body =>
           let (read, grpIds, e1) := ops.np { drs with characteristicRead := true } .other false grp
           let drs1 := { read with characteristicRead := drs.characteristicRead }
@@ -3569,7 +3764,10 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.ev drs ev
           let (_, eAlts) := stepGameEventListWith ops drs alts
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
-          let (drs3, e3) := ops.inst phase .obj (nextClause (settleTargets drs2)) body
+          -- The delayed triggered ability triggers on `ev` [CR#603.7].
+          let (drs3, e3) := ops.inst phase .obj
+            { nextClause (settleTargets drs2) with
+              triggerEvents := (ev :: alts).flatMap (·.triggerEvents) } body
           -- The delayed triggered ability it creates is no card and in no zone, and no text
           -- mentions it: only its Binding Identity reads it, as the special action that stops it
           -- from triggering does [CR#116.2c].
@@ -3594,13 +3792,16 @@ def stepOps : Nat → StepOps
           (drs2, e1 ++ e2)
         | .triggerReflexively body none trig =>
           let (drs1, e1) := ops.inst phase patientRole drs body
-          let (drs2, e2) := ops.inst .postEvent .obj (nextClause (settleTargets drs1)) trig
+          -- "When you do" triggers on what the body did [CR#603.12].
+          let (drs2, e2) := ops.inst .postEvent .obj
+            { nextClause (settleTargets drs1) with triggerEvents := newlyCaused drs drs1 } trig
           ({ drs1 with nextId := drs2.nextId },
             e1 ++ e2 ++ refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure)
         | .triggerReflexively body (some ev) trig =>
           let (drs1, e1) := ops.inst phase patientRole drs body
           let (drs2, e2) := ops.ev (nextClause drs1) ev
-          let (drs3, e3) := ops.inst .postEvent .obj (nextClause (settleTargets drs2)) trig
+          let (drs3, e3) := ops.inst .postEvent .obj
+            { nextClause (settleTargets drs2) with triggerEvents := ev.triggerEvents } trig
           ({ drs1 with nextId := drs3.nextId },
             e1 ++ e2 ++ e3 ++ refuse body.thisWayOutcomeOk .thisWayOutcome)
         | .procedure _ subj pay res from_ of_ =>
@@ -3706,7 +3907,18 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
-          ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
+          -- The text writes the act it permits or requires, so a later "this way" reads it back
+          -- ("You may cast spells from the top of your library. If you cast a spell this way,
+          -- …"); whether anyone takes it is the engine's (`semantics-v3.md` §3.8). A
+          -- prohibition writes none.
+          let permitted := if drs.actionPattern then [] else
+            (action.describedEvents (match subj with
+              | .actor _ => (actorShape? drs1).map (·.kind)
+              | .any | .by _ => none)).map ({ · with permitted := true })
+          ({ drs4 with
+              actionPattern := drs.actionPattern
+              causedEvents := permitted ++ drs4.causedEvents },
+            headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .gatedBy cost subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
           let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
@@ -3829,7 +4041,16 @@ def stepOps : Nat → StepOps
             let (drs1, e1) := ops.cost drs c
             let (drs2, e2) := ops.amt drs1 amt
             (drs2, e1 ++ e2)
-          | .perform inst => ops.inst .postEvent .obj drs inst
+          | .perform inst =>
+            let (out, errors) := ops.inst .postEvent .obj drs inst
+            -- Doing what a cost says pays it, however the cost is written [CR#118.1]: "if you
+            -- paid life this way" reads back a cost's "Pay 2 life" as an effect's "you may pay
+            -- 2 life".
+            let payment : CausedEvent := {
+              deed := none, zoneChange := none, verbs := [.paid]
+              performer := some ((actorShape? drs).elim .player (·.kind)) }
+            (if drs.actionPattern then out
+              else { out with causedEvents := payment :: out.causedEvents }, errors)
           | .compound cs =>
             cs.foldl (fun (d, es) x =>
               let (d', e') := ops.cost d x
@@ -3867,7 +4088,11 @@ def stepOps : Nat → StepOps
             let (out, errs) := stepTriggerHeaderWith ops drs header.event
               header.alternatives header.while_ header.timing
             (states ++ [out], errors ++ errs)) ([primary], [])
-          let drs1 := commonHeaderContext drs headers
+          -- What a `triggering` lookback reads back: the events any of its headers names
+          -- [CR#603.2].
+          let triggers := (ev :: alts ++ joins.flatMap (fun header =>
+            header.event :: header.alternatives)).flatMap (·.triggerEvents)
+          let drs1 := { commonHeaderContext drs headers with triggerEvents := triggers }
           let (drs2, e2) := match interv with
             | some c => ops.cond (nextClause drs1) c
             | none => (drs1, [])

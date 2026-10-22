@@ -145,6 +145,13 @@ inductive Refusal where
   | notCompound
   | reflexEnclosure
   | thisWayOutcome
+  /-- A "this way" lookback names an event no earlier text of its own spell or ability caused
+  ("Draw a card. If you search your library this way, shuffle" [CR#608.2c]), or one whose Actor
+  its subject cannot name. -/
+  | thisWayUngrounded
+  /-- A `triggering` lookback names an event that is not one its triggered ability triggers on
+  [CR#603.2]. -/
+  | triggeringUngrounded
   | ifDoneArmed
   | producedRuns
   | lineNonEmpty

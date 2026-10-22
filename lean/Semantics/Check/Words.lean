@@ -254,6 +254,51 @@ structure Stamp where
 /-- Whether the stamped object changed zones. -/
 def Stamp.moved (st : Stamp) : Bool := st.zoneChange.isSome
 
+/-- What a Participial Description reads back by: the deed its clause names ("the exiled card"),
+or, where no deed names the clause's move, that Zone Change, by the destination it writes and the
+origin, if one is written ("the card returned to the battlefield this way" [CR#400.7]). -/
+inductive ParticipialAnchor where
+  | deed (deed : Deed)
+  | zoneChange (origin : Option Zone) (destination : Zone)
+  deriving DecidableEq, Repr
+
+/-- The class of an event, as a lookback that names no Deed and writes no Zone Change reads it
+back ("the damage dealt this way", "the life lost this way", "if you paid life this way"): one
+class per event head (`Action.eventHeadOk`), a status by the status it sets, a change of life
+by whether it is gained or lost [CR#119.3], an exposure by whether cards are looked at or
+revealed, damage or counters divided as dealt or put, and a payment of a cost, however written
+[CR#118.1]. -/
+inductive EventVerb where
+  | damageDealt | damageMarked | damageCleared
+  | status (status : Status)
+  | turnedOver | turnedFaceDown | combat | attacked | blocked | attackedUnblocked
+  | targeted | tappedForMana | crimeCommitted | attachment (move : AttachMove)
+  | controlChanged | designationGained | unlocked | fullyUnlocked | concluded
+  | triggered | crewed | saddled
+  | chose | voted | copied | life (sort : OutcomeSort) | exchanged | manaAdded | drew
+  | exposed (verb : ExposeVerb) | searched | shuffled | coinsFlipped | diceRolled
+  | created | countersPut | countersRemoved | moved | paid
+  | procedure (kind : Procedure) | related | merged
+  | untapSkipped | partSkipped | turnPartAdded
+  deriving DecidableEq, Repr
+
+/-- An event the current spell or ability's own text caused, which a later "this way" in that
+text reads back ("If you search your library this way, shuffle" [CR#608.2c]): the Deed that names
+it, if one does; the Zone Change it writes, if it writes one; its classes (`EventVerb`), which
+class an event naming neither (dealing damage, gaining life); the kind of its Actor, if known;
+the kind of what it moved or acted on, if it names one; and whether a permission, not an
+instruction, wrote it ("You may cast spells from the top of your library. If you cast a spell
+this way, …"). It is recorded whether or not the event will happen: a declined optional action,
+an untaken branch, or a permission no one uses still wrote it (`semantics-v3.md` §3.8). -/
+structure CausedEvent where
+  deed : Option Deed
+  zoneChange : Option ZoneChange
+  verbs : List EventVerb
+  performer : Option Kind
+  patient : Option Kind := none
+  permitted : Bool := false
+  deriving DecidableEq, Repr
+
 inductive Origin where
   | token | copy
   deriving DecidableEq, Repr
@@ -549,6 +594,18 @@ structure DRS where
   does (`laterMention`), as the special action that stops one from triggering names it
   [CR#116.2c]. -/
   delayedTriggers : List Referent := []
+  /-- The events the current spell or ability's text caused so far, latest first, its costs
+  included (`CausedEvent`): a `thisWay` lookback reads them back. Another ability's events,
+  even a linked one's, are never among them, since "this way" is no linking phrase
+  [CR#607.1,607.2a]. -/
+  causedEvents : List CausedEvent := []
+  /-- The events that trigger the enclosing triggered ability (its trigger event, a delayed
+  ability's event, a reflexive ability's "when you do"): a `triggering` lookback reads them back
+  [CR#603.2,603.12]. -/
+  triggerEvents : List CausedEvent := []
+  /-- The anchor of the Participial Description being read, whose anchoring clause reads the
+  referents its deed stamped rather than the events recorded (`causedEvents`). -/
+  participialAnchorRead : Option ParticipialAnchor := none
   deriving DecidableEq, Repr
 
 def DRS.ofList (rs : List Referent) : DRS :=
@@ -1223,13 +1280,36 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           let best := t.foldl (fun acc b => if b.id > acc.id then b else acc) h
           [best]
 
-/-- What a Participial Description reads back by: the deed its clause names ("the exiled card"),
-or, where no deed names the clause's move, that Zone Change, by the destination it writes and the
-origin, if one is written ("the card returned to the battlefield this way" [CR#400.7]). -/
-inductive ParticipialAnchor where
-  | deed (deed : Deed)
-  | zoneChange (origin : Option Zone) (destination : Zone)
-  deriving DecidableEq, Repr
+/-- Whether `event` is one a lookback whose action is read back by `anchor` (or, naming no
+Deed and writing no Zone Change, by its classes `verbs`) looks back at: the same Deed, or casting
+a card one played, since playing a card casts it unless it is a land ("You may play those cards
+this turn. If you cast a spell this way, …" [CR#701.18b]); a Zone Change into the anchor's
+destination, from its origin if both name one; or a shared class. -/
+def CausedEvent.readBy (event : CausedEvent) (anchor : Option ParticipialAnchor)
+    (verbs : List EventVerb) : Bool :=
+  match anchor with
+  | some (.deed deed) =>
+    event.deed == some deed ||
+      (deed == .action "cast" && event.deed == some (.action "play"))
+  | some (.zoneChange origin destination) =>
+    event.zoneChange.any fun change =>
+      change.destination == some destination &&
+        origin.all (fun zone => change.origin.all (· == zone))
+  | none => event.verbs.any verbs.contains
+
+/-- Whether an event's participant (its Actor, or what it moved or acted on) may be what a
+lookback's subject names: either is unknown, or one kind is included in the other (a player for
+"you", an object for "it"). -/
+def performerCompatible (performer subject : Option Kind) : Bool :=
+  performer.all fun p => subject.all fun k => Kind.lte p k || Kind.lte k p
+
+/-- Whether `event` is done by, or, when the lookback's subject is what the event moved or acted
+on (`subjectIsPatient`: "that creature dies", "a land enters"), done to, what the subject
+names. -/
+def CausedEvent.subjectFits (event : CausedEvent) (subject : Option Kind)
+    (subjectIsPatient : Bool) : Bool :=
+  if subjectIsPatient then performerCompatible event.patient subject
+  else performerCompatible event.performer subject
 
 /-- Whether `b`'s stamp is what `anchor` reads back: the deed, or a Zone Change into the
 anchor's destination from its origin, if it names one. -/
