@@ -354,7 +354,9 @@ semantic_definition buyback (cost : Cost) : Ability :=
   .keyword (.named "buyback") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .once),
       static
-        (replace (.would .any (.move thisSpell stack graveyard .departure none []))
+        (replace
+          (.causedBy (.event (does .any (resolve thisSpell)))
+            (.would .any (putInto thisSpell graveyard (from_ := stack))))
           (doIf (keywordCostPaid (.named "buyback") thisSpell)
             (instead (.move thisSpell .anyLocation hand .arrival none [])))) ]
 semantic_definition casualty (amount : Amount) : Ability :=
@@ -789,13 +791,11 @@ semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
       when (does thisPermanent enter)
-        (if_ := some (and [is this_ isPermanentType, keywordCostPaid (.named "gift") this_]))
+        (if_ := some (keywordCostPaid (.named "gift") this_))
         (instruct (the isChosenPlayer) (.inCaller promise)),
       spell
-        (doIf (is this_ isInstantOrSorcery)
-          (doIf (keywordCostPaid (.named "gift") this_)
-            (instruct (the isChosenPlayer) (.inCaller promise))
-            none)
+        (doIf (keywordCostPaid (.named "gift") this_)
+          (instruct (the isChosenPlayer) (.inCaller promise))
           none) ]
 /-! The licensed phrasings of gift: its templating is not normative ("Gift a card", "Gift a
 tapped Fish"), so each is a Template over `gift` [CR#702.174a,702.174d..702.174i]. -/
@@ -848,12 +848,12 @@ semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration :
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
     [ when (does thisPermanent die)
-        (if_ := is this_ isPermanentType)
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]),
-      when (does .any (.move thisSpell stack graveyard .departure none []))
-        (if_ := is this_ isInstantOrSorcery)
+      when
+        (.causes (.event (does .any (resolve thisSpell)))
+          (does .any (putInto thisSpell graveyard (from_ := stack))))
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]) ]
@@ -1294,7 +1294,9 @@ semantic_definition readAhead : Ability :=
 semantic_definition rebound : Ability :=
   .keyword (.named "rebound") []
     [ static
-        (replace (.would .any (.move thisSpell stack graveyard .departure none []))
+        (replace
+          (.causedBy (.event (does .any (resolve thisSpell)))
+            (.would .any (putInto thisSpell graveyard (from_ := stack))))
           (doIf (is thisSpell (.castFrom yourHand))
             (instead
               (sequentially

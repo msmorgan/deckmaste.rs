@@ -22,6 +22,7 @@ import Semantics.Proofs.Description
 import Semantics.Proofs.DrtCards
 import Semantics.Proofs.DrtResolution
 import Semantics.Proofs.DrtWitnesses
+import Semantics.Proofs.DuringResolution
 import Semantics.Proofs.EventPatterns
 import Semantics.Proofs.FaceDown
 import Semantics.Proofs.Faces

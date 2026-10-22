@@ -907,12 +907,27 @@ this fold.
 
 A keyword that means one ability on a permanent and another on an instant or
 sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes one definition
-holding both halves, each guarded by the card's class with the ordinary
-conditional forms (a `doIf` with no otherwise-branch, a trigger's intervening
-condition, or a conditional static ability over `.matches .this p`;
-`isPermanentCard` and `isInstantOrSorcery` are the templates).
-`semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the additional-cost keywords
-share one mechanism"); there is no selector device.
+holding both halves. Where each half is scoped by its ability category and its
+event, both halves are written unguarded (ruling 2026-10-22, gift and haunt): gift's
+permanent half is an entering trigger and its spell half a spell ability
+[CR#113.3a,702.174b], and haunt's are a dies trigger and a trigger on the spell's
+being put into a graveyard during its resolution [CR#603.4,608.2n,702.55a]. Ascend's
+halves keep their card-class guards (`is this_ isPermanentType`,
+`is this_ isInstantOrSorcery`) until the card-class gate of
+`lean-v3-facts-from-declarations` decides them [CR#113.6,702.131a,702.131b]. There is
+no selector device.
+
+"During its resolution" and "as it resolves" (haunt's spell half, buyback, rebound
+[CR#702.27a,702.55a,702.88a]) write the move as caused by the spell's resolution, over
+the `resolve` Procedure and its Definition: `GameEvent.causes (.event (does .any
+(resolve thisSpell))) <move>` on a trigger event, `WouldClause.causedBy (.event …)
+<clause>` on a replacement's would-clause. The resolution causes the move, which is
+its final part [CR#608.2n], and the one form serves a trigger event and a would-clause
+alike; `Timing.whileDoing` states only a co-occurrence and has no slot on a
+would-clause. A countered spell's move (`counter`) carries no such cause [CR#701.6a].
+The move itself is `putInto thisSpell graveyard (from_ := stack)`, so its observation
+point is computed: arrival, as a spell put into a graveyard from the stack is none of
+the look-back zone changes [CR#603.10a].
 
 - Each half is checked as a term on every card, with no class context
   (`Ability.checkAll [] body`).
@@ -930,9 +945,11 @@ share one mechanism"); there is no selector device.
   retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`),
   and the facts table no longer carries a definition, a regime, `functionsOnStack`
   or `counterEligible`.
-- Pins: `Semantics/Proofs/KeywordByCardClass.lean` and
-  `Semantics/Proofs/GiftVariants.lean`, which check gift's halves and spelled
-  variants on both card classes.
+- Pins: `Semantics/Proofs/KeywordByCardClass.lean` (gift's and haunt's unguarded
+  halves and ascend's guarded ones, on both card classes),
+  `Semantics/Proofs/GiftVariants.lean` (gift's spelled variants on both card classes)
+  and `Semantics/Proofs/DuringResolution.lean` (the resolution cause and computed
+  observation point on haunt, buyback and rebound).
 
 ### The player chosen as a cost was paid
 

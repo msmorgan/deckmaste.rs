@@ -313,7 +313,12 @@ while it already has one, or gaining both while it has neither ([CR#709.5i]).
 
 **Rules Procedure**:
 A procedure the rules define for activating an Ability, casting a Spell or
-playing a card ([CR#601.2,602.1,701.18b]). Card text may have a Player
+playing a card ([CR#601.2,602.1,701.18b]), or for a Spell's or Ability's
+resolution ([CR#608.1,608.2]). No Player carries out a resolution, but an
+Event can be caused by one: an instant or sorcery Spell is put into its
+owner's graveyard as the final part of its resolution, "during its
+resolution" ([CR#608.2n,702.55a]), and a countered Spell is not
+([CR#701.6a]). Card text may have a Player
 carry one out during resolution ("you may cast that card without paying its
 mana cost"); a permission to do so over a duration ("until end of turn, you
 may cast that card") grants the procedure rather than carrying it out.
@@ -669,8 +674,10 @@ where applicable, Alternative Characteristics.
 Whether a card is a Permanent Card or an instant or sorcery card, by its Card
 Types ([CR#110.4,110.4a]). A Keyword Ability that represents different
 abilities "on a permanent" and "on an instant or sorcery spell"
-([CR#702.55a,702.131a,702.131b,702.174b]) guards each half of its one
-definition by the Card Class the half applies to.
+([CR#702.55a,702.131a,702.131b,702.174b]) holds both in its one definition,
+each scoped by its Ability Category and its event rather than by the Card Class
+([CR#113.3a,603.4,608.2n]); ascend's halves alone are still guarded by Card
+Class ([CR#113.6,702.131a,702.131b]).
 _Avoid_: Ability Category, which sorts abilities, not cards
 
 **Object Class** (project term):
