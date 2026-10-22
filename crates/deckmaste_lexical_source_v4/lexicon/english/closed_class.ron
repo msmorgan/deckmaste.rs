@@ -120,6 +120,9 @@
             (person: Second, number: Singular, case: Accusative, surfaces: "yourself"),
         ]),
     ],
+    // Interrogative *how* belongs to CGEL's closed interrogative class (Ch. 10
+    // §7, p. 902): *how those creatures block*; *how many cards*.
+    adverbs: [(lemma: "how", positions: [Front, Bounding])],
     coordinators: ["and", "and/or", "but", "nor", "or"],
     // CGEL's subordinators (Ch. 11 §8.1, p. 1011) plus infinitival *to*; the
     // other traditional "subordinating conjunctions" are prepositions.

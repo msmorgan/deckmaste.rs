@@ -42,6 +42,7 @@ fn the_grammar_names_only_core_closed_class_lexemes() {
                     | Category::Preposition
                     | Category::Coordinator
                     | Category::Subordinator
+                    | Category::Adverb
                     | Category::Clitic
                     | Category::Verb
             ),

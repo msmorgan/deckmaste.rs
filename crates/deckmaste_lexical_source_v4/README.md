@@ -18,7 +18,7 @@ authored type.
 
 | File | Provenance | Lexeme ids |
 |---|---|---|
-| `lexicon/english/closed_class.ron` | Core (symbols: Symbol) | `det:`, `pronoun:`, `coord:`, `sub:`, `verb:` (auxiliaries), `affix:`, `clitic:`, `symbol:` |
+| `lexicon/english/closed_class.ron` | Core (symbols: Symbol) | `det:`, `pronoun:`, `adv:` (interrogative *how*), `coord:`, `sub:`, `verb:` (auxiliaries), `affix:`, `clitic:`, `symbol:` |
 | `lexicon/english/prepositions.ron` | Core | `prep:` |
 | `lexicon/english/verbs.ron` | Core | `verb:` |
 | `lexicon/english/nouns.ron` | Core | `noun:` |
@@ -88,8 +88,8 @@ preposition may declare what it marks as `PrepositionMarking`: *of* an
 oblique, *than* a comparative Complement. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb` for a focusing or multiplying one, `BoundingAdverb`
-for one bounding a quantity, *at least*, *exactly*); an interrogative adverb (*how*) is also an
-`InterrogativeAdverb`. Subtypes record their families as classes
+for one bounding a quantity, *at least*, *exactly*). Interrogative *how* is a Closed
+Word of the grammar (`How`), not a class. Subtypes record their families as classes
 (`CreatureType`, `PlaneswalkerType`, …).
 
 ## Catalog specifics

@@ -293,6 +293,9 @@ impl Sources {
             };
             builder.determinative(&id, entry, core(CLOSED_CLASS, &id));
         }
+        for entry in &closed.adverbs {
+            builder.adverb(entry, core(CLOSED_CLASS, &format!("adv:{}", entry.lemma)));
+        }
         for entry in &closed.pronouns {
             let id = format!("pronoun:{}", entry.lemma);
             let mut lexeme = Lexeme::invariant(
@@ -399,21 +402,7 @@ impl Sources {
             builder.adjective("adj", &entry, &core(ADJECTIVES, &entry.lemma));
         }
         for entry in &self.adverbs {
-            let id = format!("adv:{}", entry.lemma);
-            let mut lexeme =
-                Lexeme::invariant(&id, &entry.lemma, Category::Adverb, core(ADVERBS, &id));
-            lexeme.properties.classes = entry
-                .positions
-                .iter()
-                .map(|position| Ident::new(&format!("{position:?}Adverb")))
-                .collect();
-            if entry.interrogative {
-                lexeme
-                    .properties
-                    .classes
-                    .insert("InterrogativeAdverb".into());
-            }
-            builder.push(lexeme);
+            builder.adverb(entry, core(ADVERBS, &format!("adv:{}", entry.lemma)));
         }
         Ok(())
     }

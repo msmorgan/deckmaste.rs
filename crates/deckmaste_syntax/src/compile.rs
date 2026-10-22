@@ -3348,6 +3348,7 @@ fn check_closed(lexicon: &Lexicon, id: &LexemeId, context: &str) -> Result<(), L
             | LexicalCategory::Preposition
             | LexicalCategory::Coordinator
             | LexicalCategory::Subordinator
+            | LexicalCategory::Adverb
             | LexicalCategory::Clitic
             | LexicalCategory::Verb
     ) {

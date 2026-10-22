@@ -33,6 +33,7 @@ use dpsi::Ident;
 use crate::SourceError;
 use crate::schema::AdjectiveEntry;
 use crate::schema::AdjectiveGrade;
+use crate::schema::AdverbEntry;
 use crate::schema::Catenation;
 use crate::schema::DeterminativeEntry;
 use crate::schema::FillSpec;
@@ -102,6 +103,17 @@ impl Builder {
             let owner = id.to_string();
             self.frames.push((id, category, frames.to_vec(), owner));
         }
+    }
+
+    pub(crate) fn adverb(&mut self, entry: &AdverbEntry, source: Source) {
+        let id = format!("adv:{}", entry.lemma);
+        let mut lexeme = Lexeme::invariant(&id, &entry.lemma, Category::Adverb, source);
+        lexeme.properties.classes = entry
+            .positions
+            .iter()
+            .map(|position| Ident::new(&format!("{position:?}Adverb")))
+            .collect();
+        self.push(lexeme);
     }
 
     pub(crate) fn determinative(&mut self, id: &str, entry: &DeterminativeEntry, source: Source) {

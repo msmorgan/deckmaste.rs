@@ -19,8 +19,6 @@
     // *so far this turn*
     (lemma: "far", positions: [End]),
     (lemma: "fully", positions: [Central]),
-    // *how those creatures block*; *how many cards*
-    (lemma: "how", positions: [Front, Bounding], interrogative: true),
     // *Immediately after the draft*
     (lemma: "immediately", positions: [Phrasal]),
     // *just beneath the top X cards*

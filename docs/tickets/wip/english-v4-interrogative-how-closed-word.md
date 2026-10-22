@@ -44,5 +44,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `unwpsuqt` → `orvowoml`): faces read 28,800 → 28,800 (of 32,828), total Readings 237,320 → 237,320, Surplus 101,963 → 101,963 (the `strata.json` report is byte-identical before and after); lost faces: none.
+Judgment set: every judgment holds (`cargo test -p deckmaste_english_v4`, `judgments.rs`, all tests pass). `strata --check` passes; the cheapest tier is unchanged (singleton in 15,824 of 17,634 ambiguous units, summed 20,053, largest 8). The S/A/P/F tally has no tool in this tree, and the census report it would be computed from is byte-identical.
