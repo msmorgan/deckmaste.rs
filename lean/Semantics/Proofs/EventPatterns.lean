@@ -328,4 +328,34 @@ theorem firstTimeEachTurnIsTheWatchedEventsOrdinal :
       StaticSpec.check (DRS.ofList []) moonlitReplacement = [] :=
   ⟨rfl, rfl, by decide⟩
 
+/-- The primary event followed by the alternatives of a keyword's triggered abilities. -/
+private def keywordTriggerEvents : Ability → List GameEvent
+  | .keyword _ _ abilities =>
+    abilities.flatMap fun
+      | .triggered event alternatives .. => event :: alternatives
+      | _ => []
+  | _ => []
+
+/-- "Whenever this creature blocks or becomes blocked" [CR#702.45a]: the second event is the
+Blocked status event, `combat … (.participation (.blocked true))` [CR#509.1h,509.3c]. -/
+theorem becomesBlockedIsTheStatusEvent :
+    keywordTriggerEvents (bushido 2) =
+      [.does thisCreature (.block .any),
+       .does .any (.combat thisCreature (.participation (.blocked true)))] := by rfl
+
+/-- "Becomes blocked by a creature" stays a block with a `by` subject [CR#509.3d]. -/
+theorem becomesBlockedByStaysABlock :
+    keywordTriggerEvents flanking =
+      [.does (.by (a (and [isCreature, not (.hasKeyword (.the (.named "flanking")))])))
+        (.block thisCreature)] := by rfl
+
+/-- An effect that makes a creature blocked (Curtain of Light's "Target unblocked attacking
+creature becomes blocked") and the keyword trigger's event pattern share the head
+`combat … (.participation (.blocked true))` [CR#509.1h,509.3c]. -/
+theorem effectBlockedAndTriggerEventShareHead :
+    becomeBlocked (target (and [isCreature])) =
+      .combat (target (and [isCreature])) (.participation (.blocked true)) ∧
+    GameEvent.does .any (becomeBlocked thisCreature) =
+      .does .any (.combat thisCreature (.participation (.blocked true))) := ⟨rfl, rfl⟩
+
 end Semantics.Proofs.EventPatterns

@@ -93,7 +93,7 @@ semantic_definition flying : Ability :=
 /-- "Bushido N" with its definition, a triggered ability [CR#702.45a]. -/
 semantic_definition bushido (count : Amount) : Ability :=
   .keyword (.named "bushido") [.number (.inCaller count)]
-    [ whenever (does thisCreature block) (or_ := [does any (block thisCreature)])
+    [ whenever (does thisCreature block) (or_ := [does any (becomeBlocked thisCreature)])
         (get thisCreature (.up (.inCaller count)) (.up (.inCaller count)) untilEndOfTurn) ]
 /-- "Modular N" with its definition, a static ability and a triggered one [CR#702.43a]. -/
 semantic_definition modular (count : Amount) : Ability :=
@@ -197,7 +197,7 @@ semantic_definition affinity (quality : Predicate) : Ability :=
           (.generic (.down (forEach 1 (and [.inCaller quality, youControl]))) none)) ]
 semantic_definition afflict (amount : Amount) : Ability :=
   .keyword (.named "afflict") [.number (.inCaller amount)]
-    [ whenever (does .any (.block thisCreature))
+    [ whenever (does any (becomeBlocked thisCreature))
         (instruct defendingPlayer (loseLife (.inCaller amount))) ]
 semantic_definition afterlife (amount : Amount) : Ability :=
   .keyword (.named "afterlife") [.number (.inCaller amount)]
@@ -1262,7 +1262,7 @@ semantic_definition prowl (cost : Cost) : Ability :=
             (.dealDamage .anyAmount (a isPlayer) (some .combat)) soFarThisTurn)) ]
 semantic_definition rampage (amount : Amount) : Ability :=
   .keyword (.named "rampage") [.number (.inCaller amount)]
-    [ whenever (does .any (.block thisCreature))
+    [ whenever (does any (becomeBlocked thisCreature))
         (get thisCreature
           (.up
             (times (.inCaller amount)

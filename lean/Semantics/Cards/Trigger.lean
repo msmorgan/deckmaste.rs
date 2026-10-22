@@ -83,7 +83,7 @@ def viashinoWeaponsmith : Ability :=
     (get thisCreature (up 2) (up 2) untilEndOfTurn)
 theorem okViashinoWeaponsmith : Ability.check (DRS.ofList []) viashinoWeaponsmith = [] := by decide
 def somberwaldAlpha : Ability :=
-  whenever (does any (block (a (and [isCreature, youControl]))))
+  whenever (does any (becomeBlocked (a (and [isCreature, youControl]))))
     (get it (up 1) (up 1) untilEndOfTurn)
 theorem okSomberwaldAlpha : Ability.check (DRS.ofList []) somberwaldAlpha = [] := by decide
 def vertigoSpawn : Ability :=
@@ -129,7 +129,7 @@ theorem okAragornKingOfGondor : Ability.check (DRS.ofList []) aragornKingOfGondo
 def firmamentSage : Ability := whenever (gameBecomes night) (draw 1)
 theorem okFirmamentSage : Ability.check (DRS.ofList []) firmamentSage = [] := by decide
 def deeprootWarrior : Ability :=
-  whenever (does any (block thisCreature))
+  whenever (does any (becomeBlocked thisCreature))
     (get it (up 1) (up 1) untilEndOfTurn)
 theorem okDeeprootWarrior : Ability.check (DRS.ofList []) deeprootWarrior = [] := by decide
 def borderlandMarauder : Ability :=
@@ -210,7 +210,7 @@ def chubToad : Spelled := spelled <| singleFacedCard
   { name := "Chub Toad", cost := [generic 2, pip .green], types := [.creature],
     subtypes := [frog],
     text :=
-      [ whenever (does thisCreature block) (or_ := [does any (block thisCreature)])
+      [ whenever (does thisCreature block) (or_ := [does any (becomeBlocked thisCreature)])
           (get it (up 2) (up 2) untilEndOfTurn) ],
     power := stat 1, toughness := stat 1 }
 
@@ -407,7 +407,7 @@ def fyndhornDruid : Spelled := spelled <| singleFacedCard
   { name := "Fyndhorn Druid", cost := some [generic 2, pip .green], types := [.creature],
     subtypes := [elf, druid],
     text :=
-      [ when (does thisCreature die) (if_ := some (was (block it) soFarThisTurn))
+      [ when (does thisCreature die) (if_ := some (was (becomeBlocked it) soFarThisTurn))
           (gainLife 4) ],
     power := stat 2, toughness := stat 2 }
 

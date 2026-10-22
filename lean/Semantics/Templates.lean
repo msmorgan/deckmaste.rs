@@ -69,6 +69,11 @@ semantic_template becomeAttacking (subject : NounPhrase) (defender : Option Noun
 /-- "<subject> becomes blocking <blocked>" -/
 semantic_template becomeBlocking (subject blocked : NounPhrase) : Action :=
   .combat subject (.blocking .attached blocked)
+/-- "<subject> becomes blocked": the Blocked status, which an effect can give an attacking creature
+too, not a block by a particular creature [CR#509.1h,509.3c]. "Becomes blocked by <blocker>" stays
+`block` with a `by` subject [CR#509.3d]. -/
+semantic_template becomeBlocked (subject : NounPhrase) : Action :=
+  .combat subject (.participation (.blocked true))
 /-- "<subject> stops blocking <blocked>" -/
 semantic_template stopBlocking (subject blocked : NounPhrase) : Action :=
   .combat subject (.blocking .unattached blocked)
