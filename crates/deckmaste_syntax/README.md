@@ -291,18 +291,10 @@ sibling, its twin, whose Constituent is a dependent of a following `head`
 Ch. 5 §16.3, pp. 467–468); where the twin over the same words is followed by
 its head, that nominal is the head, not an antecedent (CGEL Ch. 17 §6.1,
 pp. 1516–1517), and the fused-head Production forms no Constituent there.
-A `converted_head` Production's last child, its `head`, does not begin with a
-lone converted noun as its own head (`Conversion: Converted`; CGEL Ch. 19
-§3.3, p. 1642) where the same Production over the same earlier children has a
-`head` that the noun's twin begins as a one-word premodifier: the noun ends no
-Constituent before the Nominal its twin premodifies (*[the excess damage dealt
-…]*, never *[the excess] [damage dealt …]* or *[the [excess [damage dealt
-…]]]*). A `head` node the twin's analysis shares is never closed.
-These three are chart closures: a longer analysis of the words that follow
+These two are chart closures: a longer analysis of the words that follow
 decides them, so they are applied once the chart is complete, removing the
 closed Derivations and every Constituent left without one. Admission of a
-Reading that uses any of these Productions parses its realization to decide
-them. A verb without
+Reading that uses either Production parses its realization to decide them. A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 

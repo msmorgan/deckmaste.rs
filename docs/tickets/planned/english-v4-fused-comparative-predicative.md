@@ -14,13 +14,13 @@ function does not parse even in its simplest form: *The amount you pay can't
 be more than the number of white nontoken permanents your opponents control*
 has no Reading.
 
-Until `english-v4-excess-damage-relative-split`, Nameless Race read through 25
-Readings. All of them were known-wrong splits:
-*[more than [the total]]DeterminerPhrase [number of …]*, with the noun *total*
-stranded before the Nominal that its adjective twin premodifies. That
-landing's `converted_head` closure removed them. The unit is now deferred under
-this ticket in `crates/deckmaste_english_v4/deferred.txt`, and its judgment
-(`comparative_quantity_than.txt:16`) is pending while it stays deferred.
+Nameless Race is counted as read, but only through 25 known-wrong Readings.
+All of them are the split *[more than [the total]]DeterminerPhrase [number of
+…]*, with the noun *total* stranded before the Nominal that its adjective twin
+premodifies. Its judgment (`comparative_quantity_than.txt:16`) holds only
+through those Readings. The face keeps reading that way until this ticket
+lands; it is not deferred (owner ruling, on withdrawing
+`english-v4-excess-damage-relative-split`).
 
 ## Authority
 
@@ -58,8 +58,8 @@ two" as Determiner of land`, `comparative_quantity_than.txt`).
 ## Done when
 
 - Nameless Race reads as *[can't be [more than [the total number of … plus
-  the total number of …]]]*. Its deferral is removed, and its judgment holds,
-  rewritten to assert that analysis.
+  the total number of …]]]*. Its judgment is rewritten to assert that
+  analysis, and holds.
 - *more than two lands* keeps exactly its determiner analysis.
 - No unit rises unless the rise is the new correct Reading. No face is lost.
   `strata --check` passes.

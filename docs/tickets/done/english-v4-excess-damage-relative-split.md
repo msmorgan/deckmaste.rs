@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# [design] *the excess damage dealt …* is split into *the excess* and a Bare Relative Clause
+# Withdrawn: *the excess damage dealt …* is split into *the excess* and a Bare Relative Clause
 
 Owner ruling (cost-audit smaller defect S11): mint this as a defect.
 
@@ -38,100 +38,53 @@ Both families make *damage* the Subject of active *deal*.
 - `docs/decisions/english-lexical-analysis.md` §2: "a newly admitted wrong
   Reading is a defect".
 
-## Design decision to make at claim time
+## Withdrawn
 
-The syntax layer has no Game Model semantics (`docs/decisions/english-v4.md`).
-So the fix cannot read [CR#120.1] directly. The candidate levers are:
+The owner withdrew this ticket. The split stays in the forest; nothing in the
+grammar or the engine removes it.
 
-1. **Lexical.** Close the Noun Phrase *the excess*. The noun *excess* takes its
-   *of* Complement or nothing, and admits no unselected postmodifier, so a
-   Relative Clause cannot follow a phrase that ends in it. This is a
-   `distribution` value in `nouns.ron`, like the existing `HeadOnly`.
-2. **Valence.** The frames of *deal* in the catalog declare which kinds of
-   Noun Phrase can be the Subject of the active.
-3. **Structural.** A Bare Relative Clause cannot postmodify a head across an
-   intervening postpositive Adjective Phrase whose last word could premodify
-   the Relative Clause's Subject.
-
-Lever 3 is the most general and the riskiest, and it approaches a policing
-rule. Lever 1 is the most local. Confirm the choice with the owner. If the
-chosen lever counts as a policing flag under `docs/decisions/english-v4.md`
-§4.2, STOP.
-
-## Acceptance set
-
-All figures are from the cost-audit evaluation data, measured on `loxuknun`.
-
-- **Corpus sample:** Archaic's Agony loses 88 of its 132 Readings (Surplus 131).
-- **Corpus reach:** 4 units contain *the excess damage* (Archaic's Agony,
-  Nahiri's Warcrafting and two more), with 2,166 Readings between them.
-- **Must keep:**
-  - Toralf, God of Fury's *equal to the excess* (Judgment
-    `excess_count_noun.txt:5`);
-  - every *in excess of* unit.
-
-## Done when
-
-- Archaic's Agony and Nahiri's Warcrafting have no Reading with a Bare Relative
-  Clause *damage dealt …*.
-- Each has a `+` Judgment pinning *the excess damage dealt …* as one Noun
-  Phrase.
-- No face is lost, and no unit gains a Reading.
-
-## Constraint: no new features in `english.ron`
-
-Owner's ruling (round 2): this defect comes from a rule that is too broad, and
-it is fixed by tightening or deleting that rule. The fix adds **zero new
-features to `english.ron`**. It uses existing features, lexicon or catalog
-frames, or an engine mechanism, and names no word in the grammar. If it
-cannot be done that way, STOP and return to the owner.
-
-Caveat 5 (owner-approved): this ticket needs a structural fix or goes back to
-the owner. Lever 1 adds a `NounDistribution` value, which is declared in
-`english.ron`. Confirm with the owner whether a new value of an existing
-feature is allowed before choosing it; if it is not, and no lever avoids it,
-STOP.
-
-## Resolution
-
-Owner rulings:
+History:
 
 - Round 5, item 7c: no one-word `NounDistribution` value. Either a general
   `Conversion: Converted` twin closure, modelled on `fused_head`, or withdraw
-  the ticket and leave the split to ranking. Lever 1 is therefore closed.
-- After the closure was measured: land it, defer Nameless Race in
-  `deferred.txt` (all 25 of its earlier Readings were known-wrong splits), and
-  mint `english-v4-fused-comparative-predicative` for the missing analysis.
+  the ticket and leave the split to ranking.
+- The closure was built and landed in `vxouvotv`:
+  - `ProductionDecl::converted_head`, set on `Determined`;
+  - a Derivation closed where its `head` began with a lone converted noun,
+    while the same Production over the same earlier children had a `head`
+    that the noun's adjective twin began as a premodifier.
+- That landing deferred Nameless Race and minted
+  `english-v4-fused-comparative-predicative`.
+- The owner then reversed the ruling and chose to withdraw the ticket. This
+  change backs `vxouvotv` out completely, and Nameless Race is not deferred.
 
-The fix is the general closure, an engine mechanism with no new feature:
+The owner's reasons:
 
-- `ProductionDecl::converted_head`, set only on `Determined`, names no word.
-- A Derivation is closed where the Production's `head` begins with a lone
-  converted noun (`Conversion: Converted`; CGEL, Ch. 19 §3.3, p. 1642) as its
-  own head, and the same Production over the same earlier children has a
-  `head` that the noun's adjective twin begins as a one-word premodifier.
-- The noun ends no Constituent before the Nominal its twin premodifies:
-  *[the excess damage dealt …]*.
-- It works for every converted noun in the corpus: *excess*, *total*, *top*,
-  *bottom* and the colour words (*all white Auras*).
+- `converted_head` puts grammar knowledge into the syntax engine. `compile.rs`
+  hardcoded the feature and value names `Conversion` and `Converted`, and the
+  closure was bespoke.
+- It broke a real card, Nameless Race. Every Reading of that card was a
+  known-wrong split of the same shape. Removing them left the face with no
+  Reading, because *be more than NP* has no analysis yet. That gap is
+  `english-v4-fused-comparative-predicative`, still planned.
+- It broke that card for about 4 units whose intended Readings were already
+  present.
 
-Deviation from the wording of ruling 7c, which describes an *unextended* Noun
-Phrase (*[the excess] [damage …]*): at the baseline, most of Archaic's
-Agony's wrong Readings were *[the [excess [damage dealt …]]]*, with the Bare
-Relative Clause postmodifying the noun itself. The closure therefore covers
-any `head` that begins with the lone converted noun as its own head, not only
-the unextended one. The principle is the same, and this ticket's "Done when"
-needs it. A `head` node that the twin's analysis shares is never closed.
+Evidence left for ranking:
 
-Nameless Race (*can't be more than the total number of …*) lost its
-Readings. All of them read *[more than [the total]] [number of …]*, with the
-noun *total* stranded. Its correct analysis is the determinative *more* in
-fused determiner-head use with a *than* Complement (CGEL, Ch. 13 §4.1.1,
-p. 1126), which the grammar does not build yet. It is deferred under
-`english-v4-fused-comparative-predicative`, and its judgment
-(`comparative_quantity_than.txt:16`) is pending while it stays deferred.
+- In both witnesses, the Ranking Key puts the wrong Reading first. Its
+  cheapest tier is the noun *excess* postmodified by the Bare Relative
+  *[the [excess [damage dealt …]]]*:
+  - Archaic's Agony: tier of 2, at key 0/5/89;
+  - Nahiri's Warcrafting: tier of 2, at key 0/0/94.
+- The intended *[the [excess(Adj) damage dealt …]]* Readings are present but
+  ranked lower.
+- The closure removed only wrong Readings in 16 units: *the excess damage*,
+  *the total …*, *the bottom card* and *all white Auras*.
+- The two `+` Judgments it added for Archaic's Agony and Nahiri's Warcrafting
+  are removed with it.
 
 Standard constraints apply.
 
-Census delta (measured on `wvwzzlnq` → `vxouvotv`): faces read 28,798 → 28,797, product 219,746 → 218,637, Surplus 92,028 → 91,901, cheapest tier singleton 14,682/17,255 → 14,683/17,253 (summed 20,540 → 20,535, largest 8 → 8); no unit rose; lost face: Nameless Race (deferred, owner ruling; its Readings were all known-wrong).
-Judgment set: 3,018 enforced, 207 pending, all holding (two `+` entries added in `excess_count_noun.txt`; Nameless Race's entry now pending via its deferral).
+Census delta (measured on `vqmvnoor` → this back-out): faces read 28,798 → 28,799 (Nameless Race reads again), product 213,193 → 214,300, Surplus 88,433 → 88,560, cheapest tier singleton 14,801/16,560 → 14,800/16,562 (summed 18,924 → 18,929, largest 8 → 8); exactly the 16 units the closure reduced return to their counts, nothing else changes; lost faces: none.
+Judgment set: 3,028 enforced, 207 pending, all holding.

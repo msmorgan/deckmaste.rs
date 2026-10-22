@@ -1061,11 +1061,7 @@
         (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Symbol"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // A converted noun does not end its Noun Phrase where its adjective
-        // twin premodifies the Nominal after it under the same determiner
-        // (CGEL, Ch. 19 §3.3, p. 1642): *equal to [the excess damage dealt
-        // this way]*, never *[the excess] [damage dealt …]*.
-        (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], converted_head: true,
+        (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Agree("$.Targeting", "determiner.Targeting"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"),
                 ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Deictic")]),
                 ExcludeTogether([("head.NounKind", "Temporal"), ("head.NounDistribution", "Ordinary"), ("determiner.DeterminativeDistribution", "Distributive")])]),

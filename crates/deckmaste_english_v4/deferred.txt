@@ -119,6 +119,3 @@ Fatespinner | At the beginning of each opponent's upkeep, that player chooses dr
 
 # english-v4-oracle-editorial-corrections
 Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.
-
-# english-v4-fused-comparative-predicative
-Nameless Race | As this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards.

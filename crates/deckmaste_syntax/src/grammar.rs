@@ -126,15 +126,6 @@ pub struct ProductionDecl {
     /// this Production forms no Constituent there.
     #[serde(default)]
     pub fused_head: bool,
-    /// A Production whose last child, its `head`, does not begin with a
-    /// lone converted noun as its own head (`Conversion: Converted`; CGEL
-    /// Ch. 19 §3.3, p. 1642) where the same Production over the same earlier
-    /// children has a `head` that the noun's twin begins as a one-word
-    /// premodifier: the noun ends no Constituent before the nominal its twin
-    /// premodifies (*[the excess damage dealt …]*, never *[the excess]
-    /// [damage dealt …]* or *[the [excess [damage dealt …]]]*).
-    #[serde(default)]
-    pub converted_head: bool,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,
