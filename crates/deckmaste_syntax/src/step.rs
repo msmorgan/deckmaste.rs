@@ -262,6 +262,7 @@ pub(crate) fn resolve(
     equations: Vec<(Key, Result<Key, u16>)>,
     cost: u32,
     introduces: Gap,
+    gap_followed: bool,
     frame: Option<usize>,
     host_check: Option<(usize, usize, HostKind)>,
     coordinator: Option<usize>,
@@ -419,7 +420,9 @@ pub(crate) fn resolve(
             last_glues: false,
             vars,
             gap: None,
-            gap_right_edge: true,
+            // A Gap the Production introduces before a later child is not
+            // at its right edge.
+            gap_right_edge: !gap_followed,
             shared_gap_right_edge: true,
             gap_preposition: None,
             conjoined: false,
@@ -460,6 +463,8 @@ pub(crate) struct Summary {
     /// features stay unset.
     pub values: [FeatureValue; MAX_CATEGORY_FEATURES],
     pub gap: Gap,
+    /// Its Gap is at its right edge: no child follows it, here or in the
+    /// child it comes from. Right Node Raising shares only such a Gap.
     pub gap_right_edge: bool,
     /// The preposition of an extracted Preposition Phrase Complement.
     pub gap_preposition: Option<LexemeId>,
@@ -1241,8 +1246,7 @@ impl Production {
             last_glues: state.last_glues,
             values,
             gap,
-            gap_right_edge: self.introduces != Gap::None
-                || (state.gap_right_edge && state.shared_gap_right_edge),
+            gap_right_edge: state.gap_right_edge && state.shared_gap_right_edge,
             gap_preposition: match gap {
                 Gap::PP if self.introduces == Gap::PP => self.gap_preposition,
                 Gap::PP => state.gap_preposition,
