@@ -516,8 +516,17 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCar
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   aggregateOver .max isPlayer
     (eventTally they (discard (allOf (cardIn hand))) thisWay .events)
+/-- Windfall: "Each player discards their hand, then draws cards equal to the greatest number of
+cards a player discarded this way." -/
+def windfallDiscardAndDraw : Action :=
+  instruct eachPlayer
+    (sequentially [discard (allOf (cardIn hand)), draw greatestCardsAPlayerDiscardedThisWay])
 theorem okGreatestCardsAPlayerDiscardedThisWay :
-    Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay = [] := by decide
+    Action.check (DRS.ofList []) windfallDiscardAndDraw = [] := by decide
+/-- Alone, "this way" reads no discard [CR#608.2c]. -/
+theorem badGreatestCardsAPlayerDiscardedThisWayAlone :
+    Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay =
+      [.thisWayUngrounded] := by decide
 
 def eachPlayerBase : NounPhrase := eachPlayer
 theorem okEachPlayerBase : NounPhrase.checkAt (some .player) (DRS.ofList []) eachPlayerBase = [] := by decide

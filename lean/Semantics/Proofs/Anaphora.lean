@@ -268,22 +268,28 @@ theorem okPlacementIntoBattlefield :
       = [] := by
   decide
 
-/-- "if you shuffled your library this way" -/
+/-- The context after an earlier action of the same ability, whose event a "this way" reads
+back. -/
+private def afterEarlier (earlier : Action) : DRS :=
+  nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) earlier).1
+
+/-- "Shuffle your library. … if you shuffled your library this way" -/
 theorem okShuffleLocusAtLibrary :
-    Condition.check (DRS.ofList [])
+    Condition.check (afterEarlier shuffle)
       (.did ⟨(.actor .you), (.enact (.action "shuffle") (.shuffle (.zone .library (some .you))) none (some yourLibrary)), some .thisWay⟩)
       = [] := by
   decide
 
-/-- The search action carries its mandatory scope directly. -/
+/-- The search action carries its mandatory scope directly: "Search your library for any number
+of cards. … if you searched your library this way". -/
 theorem searchLookbackCarriesItsScope :
-    Condition.check (DRS.ofList [])
+    Condition.check (afterEarlier (search yourLibrary (counted anyNumber .isCard)))
       (.did ⟨.actor .you, .search yourLibrary (counted anyNumber .isCard), some .thisWay⟩)
       = [] := by decide
 
-/-- "if you shuffled your graveyard this way" -/
+/-- "Shuffle your library. … if you shuffled your graveyard this way" -/
 theorem badShuffleLocusAtGraveyard :
-    Condition.check (DRS.ofList [])
+    Condition.check (afterEarlier shuffle)
       (.did ⟨(.actor .you), (.enact (.action "shuffle") (.shuffle (.zone .library (some .you))) none (some (graveyardOf
           .you))), some .thisWay⟩)
       = [.lookbackLocus] := by

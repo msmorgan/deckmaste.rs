@@ -182,8 +182,9 @@ theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
       (fun ref => ref.zone == some .graveyard) = true := by decide +kernel
 
 theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
-    let initial := nextClause ((stepGameEvent 16 (DRS.ofList [])
-      (does thisCreature enter)).1)
+    let initial := { nextClause ((stepGameEvent 16 (DRS.ofList [])
+      (does thisCreature enter)).1) with
+      triggerEvents := (does thisCreature enter).triggerEvents }
     let original := initial.referents.head?.map (·.id)
     let out := stepCondition 16 initial
       (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival none [],

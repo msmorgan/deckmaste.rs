@@ -160,6 +160,15 @@ theorem badThisWayReadsNoLinkedObject :
       [.participialDescription (.deed exiling) 0] := by
   decide
 
+/-- "This way" reads no event a linked ability caused: "If a card was exiled this way, draw a
+card" on a second ability reads nothing the first ability's exile did [CR#607.1,607.2a]. -/
+theorem thisWayReadsNoLinkedEvent :
+    Ability.checkText (DRS.ofList [])
+      [ exileGraveyardCard,
+        activated tapSymbol (doIf (was (exile (a isCard)) thisWay) (draw 1)) ] =
+      [.thisWayUngrounded] := by
+  decide
+
 /-- Only what the linked ability did is linked [CR#607.1]: a creature its trigger event names
 ("whenever you sacrifice a creature") was sacrificed by something else. -/
 theorem badTriggerEventObjectNotLinked :

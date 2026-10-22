@@ -8,14 +8,21 @@ private def departedCreature : Referent := {
     (some { verb := some (.action "destroy"), wasField := true,
             zoneChange := some ⟨some .battlefield, some .graveyard⟩ }) none none }
 
-private def context : DRS := {
-  referents := [departedCreature], nextId := 8, currentClause := 1 }
-
 private def creatureRead : NounPhrase := .pro (.word (.type .creature)) .one
 
 private def deathLookback : DidClause :=
   ⟨.any, .move creatureRead (.zone .battlefield none)
     (some (.zone .graveyard none)) .departure none [], some .thisWay⟩
+
+/-- After "Destroy that creature": the destroyed creature, and the destruction and the move from
+the battlefield to a graveyard it records, which a "this way" reads back. -/
+private def context : DRS := {
+  referents := [departedCreature], nextId := 8, currentClause := 1
+  causedEvents :=
+    [ deathLookback.action.causedEvent (some .player) (some .object),
+      (Action.ownScope (some (.action "destroy"))
+        (.enact (.action "destroy") deathLookback.action none none)).causedEvent (some .player)
+        none ] }
 
 /-- A death lookback reads the departed participant's battlefield type without moving it again. -/
 theorem historicalDeathPreservesTheCurrentObject :
@@ -42,7 +49,7 @@ theorem historicalEligibilityRequiresItsWrittenOrigin :
     Condition.check context (.did ⟨.any,
       .move creatureRead (.zone .hand none)
         (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) =
-      [.anaphor (.word (.type .creature)) .one 0] := by decide
+      [.anaphor (.word (.type .creature)) .one 0, .thisWayUngrounded] := by decide
 
 private def mixedOrigin : Location := .coord .or [.zone .battlefield none, .zone .hand none]
 

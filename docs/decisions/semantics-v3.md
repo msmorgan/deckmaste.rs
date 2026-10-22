@@ -510,6 +510,13 @@ may leave it unwritten (`within = none`), and the checker refuses that
 (`Refusal.unanchoredLookback`) anywhere but a Participial Description (below). `happened`,
 `happenedThisWay`, `happenedTo` and `wasCast` are retired.
 
+A `thisWay` span reads back an event the earlier text of its own spell or ability caused, its
+costs included (`[CR#608.2c]`), and `triggering` an event its ability triggers on (`[CR#603.2]`);
+the checker refuses either with no such event to read (`lean-v3-this-way-lookback-grounding`).
+The grounding is textual: an optional action a player may decline, a branch not taken, or an act
+a permission allows ("You may play those cards this turn. If you cast a spell this way, …") still
+grounds it, and whether the event happened is the engine's (§0.1 item 4).
+
 Used uniformly across all three lookback sites:
 1. **`Condition.did (clause : DidClause)`** (replaces `Condition.happened`, dropping the unused `gap : Option Duration` parameter):
    - `"if you sacrificed a creature this turn"` → `did(you, sacrifice(a(creature)), thisTurn)`

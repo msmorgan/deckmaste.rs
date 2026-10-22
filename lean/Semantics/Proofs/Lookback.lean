@@ -15,6 +15,13 @@ private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=
 
 private def withinThisTurn : LookbackSpan := .duration soFarThisTurn none
 
+/-- `relativeCheck` after an earlier action of the same ability, whose event a "this way" reads
+back. -/
+private def relativeCheckAfter (earlier : Action) (kind : Kind) (clause : DidClause) :
+    List Refusal :=
+  Predicate.checkAt kind (nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) earlier).1)
+    (.did clause)
+
 theorem scopedPlayerDraw :
     relativeCheck .player ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ = [] := by decide
 
@@ -100,14 +107,14 @@ theorem castCanCarryExcludedOrigins :
         some withinThisTurn⟩ = [] := by decide
 
 theorem namedActionCanCarryItsLocus :
-    relativeCheck .player
+    relativeCheckAfter (search yourLibrary) .player
       ⟨.actor .which,
         .enact (.action "search") (.search (.zone .library (some .you)) .any) none
           (some (.zone .library (some .you))),
         some .thisWay⟩ = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :
-    relativeCheck .player
+    relativeCheckAfter shuffle .player
       ⟨.actor .which,
         .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
           none (some (.zone .graveyard (some .you))),
@@ -386,5 +393,181 @@ theorem zoneChangeReadsItsWrittenOrigin :
       (cloudshiftThen (tap (the (was (returnToBattlefield which (from_ := some graveyard))
         thisWay)))) = [.participialDescription (.zoneChange (some .graveyard) .battlefield) 0] := by
   decide
+
+/-! ## Grounding "this way"
+
+A `thisWay` lookback reads back an event the earlier text of its own spell or ability caused
+[CR#608.2c], by its Deed, Zone Change or verb, done by an Actor its subject can name; `triggering`
+reads the event its ability triggers on [CR#603.2]. -/
+
+/-- "Draw a card. If you search your library this way, shuffle." and "Draw a card. If you
+sacrificed a permanent this way, draw a card.": nothing earlier searched or sacrificed. -/
+theorem thisWayNamesNoEarlierEvent :
+    Action.check (DRS.ofList [])
+      (sequentially [draw 1, doIf (did you (search yourLibrary) thisWay) shuffle]) =
+      [.thisWayUngrounded] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [draw 1, doIf (did you (sacrifice (a isPermanent)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by decide
+
+/-- "Search your library for a card. If you search your library this way, shuffle." -/
+theorem searchedThisWayReadsTheSearch :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [search yourLibrary (a isCard), doIf (did you (search yourLibrary) thisWay) shuffle]) =
+      [] := by decide
+
+/-- "Sacrifice a creature. If you sacrificed a permanent this way, draw a card." reads the
+sacrifice [CR#701.21a]; after "Destroy target creature." it reads none. -/
+theorem sacrificedThisWayReadsTheSacrifice :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [sacrifice (a isCreature), doIf (did you (sacrifice (a isPermanent)) thisWay) (draw 1)]) =
+      [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [destroy (target isCreature),
+          doIf (did you (sacrifice (a isPermanent)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by decide
+
+/-- "Discard a card. If you discarded a card this way, draw a card." reads the discard; after
+"Mill two cards." it reads none, since milling is no discarding. -/
+theorem discardedThisWayReadsTheDiscard :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [discard (a (cardIn hand)), doIf (did you (discard (a isCard)) thisWay) (draw 1)]) =
+      [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill 2, doIf (did you (discard (a isCard)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by decide
+
+/-- "Exile target creature. If a creature was exiled this way, draw a card." reads the exile
+[CR#701.13a]; after "Destroy target creature." it reads none. -/
+theorem exiledThisWayReadsTheExile :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [exile (target isCreature), doIf (was (exile (a isCreature)) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [destroy (target isCreature), doIf (was (exile (a isCreature)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by decide
+
+/-- The event is read back with its Actor: "Target player sacrifices a creature. If that player
+sacrificed a permanent this way, …" reads the handed-off sacrifice; "If this creature sacrificed
+a permanent this way" names an Actor no player's sacrifice has. -/
+theorem thisWayReadsTheActorItsSubjectNames :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [instruct (target isPlayer) (sacrifice (a isCreature)),
+          doIf (did (that .player) (sacrifice (a isPermanent)) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [sacrifice (a isCreature),
+          doIf (did thisCreature (sacrifice (a isPermanent)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by decide
+
+/-- A cost's event is the ability's own: "{T}, Sacrifice a creature: If you sacrificed a
+permanent this way, draw a card." -/
+theorem thisWayReadsItsCostsEvent :
+    Ability.check (DRS.ofList [])
+      (activated (compound [tapSymbol, sacrifice (a isCreature)])
+        (doIf (did you (sacrifice (a isPermanent)) thisWay) (draw 1))) = [] := by decide
+
+/-- The text grounds "this way", not the game: an optional action the player may decline still
+wrote its event, so "You may sacrifice a creature. If you sacrificed a permanent this way, …" is
+read; whether the sacrifice happened is the engine's. -/
+theorem optionalBodyEventGroundsThisWay :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [may (sacrifice (a isCreature)),
+          doIf (did you (sacrifice (a isPermanent)) thisWay) (draw 1)]) = [] := by decide
+
+/-- What a reflexive triggered ability does is its own [CR#603.12]: "Sacrifice a creature. When
+you do, draw a card. If you drew a card this way, …" reads no draw of the enclosing ability. -/
+theorem reflexiveAbilityEventsStayItsOwn :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [triggerReflexively (sacrifice (a isCreature)) (draw 1),
+          doIf (did you (draw anyAmount) thisWay) (gainLife 1)]) = [.thisWayUngrounded] := by
+  decide
+
+/-- "When this creature enters, if it entered from your graveyard, …" reads the entry it
+triggered on [CR#603.2]; an attack trigger names no entry. -/
+theorem triggeringReadsItsTriggerEvent :
+    Ability.check (DRS.ofList [])
+      (when (does thisCreature enter)
+        (doIf (did it (enter (from_ := yourGraveyard)) triggering) (draw 1))) = [] ∧
+    Ability.check (DRS.ofList [])
+      (when (does thisCreature attack)
+        (doIf (did it (enter (from_ := yourGraveyard)) triggering) (draw 1))) =
+      [.triggeringUngrounded] := by decide
+
+/-- The subject of "dies" or "enters" is what the event moved, not its Actor [CR#700.4]: "Destroy
+target creature. If it dies this way, …", "Target player puts a land card from their hand onto
+the battlefield. If a land enters this way, …" and "Target player sacrifices a creature. If it
+dies this way, …" each read the move; a player is no object a destruction moved. -/
+theorem thisWayReadsWhatTheEventMoved :
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isCreature), doIf (did it die thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [instruct (target isPlayer) (putOntoBattlefield (a (and [isLand, cardIn hand]))),
+          doIf (did (a isLand) enter thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [instruct (target isPlayer) (sacrifice (a isCreature)),
+          doIf (did it die thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isCreature), doIf (did you die thisWay) (draw 1)]) =
+      [.kindLte .player (Kind.join .object .pile), .thisWayUngrounded] := by decide
+
+/-- A trigger event's expansion is read layer by layer: "Whenever you sacrifice a creature, if it
+died …" reads the sacrificed creature's move to a graveyard [CR#603.2,701.21a]. -/
+theorem triggeringReadsWhatItsEventMoved :
+    Ability.check (DRS.ofList [])
+      (when (does you (sacrifice (a isCreature))) (doIf (did it die triggering) (draw 1))) =
+      [] := by decide
+
+/-- A permission writes the act it allows: "Exile the top three cards of your library. You may
+play those cards this turn. If you cast a spell this way, …" reads the play, casting being how a
+card is played as a spell [CR#701.18b], and "each spell cast this way" names what is cast that
+way; a prohibition allows no act. -/
+theorem thisWayReadsAPermittedAct :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [exile (topSlice 3),
+          establishThroughout
+            (can you (play (bare (and [isCard, was (exile which) thisWay])))) thisTurn,
+          doIf (did you (cast (a isSpell)) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [establishThroughout (can you (cast (a isSpell))) thisTurn,
+          doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [establishThroughout (cant you (cast (a isSpell))) thisTurn,
+          doIf (did you (cast (a isSpell)) thisWay) (draw 1)]) = [.thisWayUngrounded] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [establishThroughout (cant you (cast (a isSpell))) thisTurn,
+          doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) =
+      [.participialDescription (.deed (.action "cast")) 0] := by decide
+
+/-- An event is read back by its class: gaining life is no losing it [CR#119.3], and paying a
+cost is a payment however the cost is written [CR#118.1], so "{T}, Pay 2 life: If you paid life
+this way, …" reads the cost. Exchanging life totals gains or loses life [CR#701.12c], so "You may
+exchange life totals with target opponent. If you lost life this way, …" reads the exchange. -/
+theorem thisWayClassesTheEvent :
+    Action.check (DRS.ofList [])
+      (sequentially [gainLife 2, doIf (did you (loseLife anyAmount) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [may (exchange (lifeTotals (youAnd (target isOpponent)))),
+          doIf (did you (loseLife anyAmount) thisWay) (draw 1)]) = [] ∧
+    Ability.check (DRS.ofList [])
+      (activated (compound [tapSymbol, payLife 2])
+        (doIf (did you (Action.pay (payLife 2) .once .paid none none) thisWay) (draw 1))) =
+      [] := by decide
 
 end Semantics.Proofs.Lookback

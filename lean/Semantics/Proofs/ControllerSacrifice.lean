@@ -322,7 +322,8 @@ private def sacrificeEnactState (fuel : Nat) (drs : DRS) (body : Action) : DRS :
  applyInPlaceStamp after actedIds (some (.action "sacrifice"))
 private theorem sacrificeEnactStep (fuel : Nat) (drs : DRS) (body : Action) :
  (stepAction (fuel + 1) .postEvent .obj drs (.enact (.action "sacrifice") body none none)).1 =
- sacrificeEnactState fuel drs body := by rfl
+ (sacrificeEnactState fuel drs body).withCaused drs .postEvent
+   (.enact (.action "sacrifice") body none none) := by rfl
 
 private theorem sacrificeEnactProjected (fuel : Nat) (drs : DRS) (body : Action) :
  sacrificeEnactState fuel drs body =
@@ -337,7 +338,8 @@ private theorem sacrificeEnactProjected (fuel : Nat) (drs : DRS) (body : Action)
  rfl
 private theorem ownScopeStep (fuel : Nat) (drs : DRS) (body : Action) :
  (stepAction (fuel + 1) .postEvent .obj drs (.ownScope (some (.action "sacrifice")) body)).1 =
- leaveOwnScope (stepAction fuel .postEvent .obj (enterOwnScope drs) body).1 := by rfl
+ (leaveOwnScope (stepAction fuel .postEvent .obj (enterOwnScope drs) body).1).withCaused drs
+   .postEvent (.ownScope (some (.action "sacrifice")) body) := by rfl
 private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
  let tracked : DRS := { referents := rs, nextId := fresh, outerReferentIds := [rs.map (·.id)]}
  let source := selectedContext tracked
@@ -353,8 +355,8 @@ private def moveBody : Action :=
 private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPattern = false) :
  (stepAction (fuel + 1) .postEvent .obj drs moveBody).1 =
  let selected := stepNounPhrase fuel drs .obj true moveArg
- applyZoneMove { selected.1 with historicalMoveFrom := drs.historicalMoveFrom }
-   selected.2.1 none (some .graveyard) := by
+ (applyZoneMove { selected.1 with historicalMoveFrom := drs.historicalMoveFrom }
+   selected.2.1 none (some .graveyard)).withCaused drs .postEvent moveBody := by
  cases drs with
  | mk => simp only at ordinary; subst ordinary; rfl
 
@@ -682,6 +684,55 @@ private theorem movedOutStampedReferents (fresh : Nat) (rs : List Referent)
   rw [argumentOutBase fresh rs older noNames]
   exact movedStampedPrefixAndSuffixWithActors fresh _ (argumentOut fresh rs) rs older actorLinks
 
+/-- A context with its recorded events dropped: the events a step records
+(`DRS.withCaused`) are read by no referent computation. -/
+private def sans (drs : DRS) : DRS := { drs with causedEvents := [] }
+
+private theorem referentsSans (drs : DRS) : drs.referents = (sans drs).referents := rfl
+
+private theorem sansWithCaused (drs before : DRS) (phase : StepPhase) (action : Action) :
+    sans (drs.withCaused before phase action) = sans drs := by
+  unfold DRS.withCaused
+  split <;> rfl
+
+private theorem withCausedCurrentClause (drs before : DRS) (phase : StepPhase) (action : Action) :
+    (drs.withCaused before phase action).currentClause = drs.currentClause := by
+  unfold DRS.withCaused
+  split <;> rfl
+
+private theorem withCausedPendingRoles (drs before : DRS) (phase : StepPhase) (action : Action) :
+    (drs.withCaused before phase action).pendingRoles = drs.pendingRoles := by
+  unfold DRS.withCaused
+  split <;> rfl
+
+private theorem sansDropActorFrame (drs : DRS) :
+    sans (dropActorFrame drs) = dropActorFrame (sans drs) := rfl
+
+private theorem sansLeaveOwnScope (drs : DRS) :
+    sans (leaveOwnScope drs) = leaveOwnScope (sans drs) := by
+  unfold leaveOwnScope
+  cases drs
+  simp only [sans]
+  split <;> rfl
+
+private theorem sansFold (step : DRS → ReferentId → DRS)
+    (commutes : ∀ drs id, sans (step drs id) = step (sans drs) id) (ids : List ReferentId) :
+    ∀ drs : DRS, sans (ids.foldl step drs) = ids.foldl step (sans drs) := by
+  induction ids with
+  | nil => intro drs; rfl
+  | cons id rest ih =>
+    intro drs
+    simp only [List.foldl_cons]
+    rw [ih, commutes]
+
+private theorem sansApplyInPlaceStamp (drs : DRS) (ids : List ReferentId) (deed : Option Deed) :
+    sans (applyInPlaceStamp drs ids deed) = applyInPlaceStamp (sans drs) ids deed := by
+  unfold applyInPlaceStamp
+  split
+  · rfl
+  · rfl
+  · exact sansFold _ (fun _ _ => rfl) ids drs
+
 private theorem actualTailReduction (fuel fresh : Nat) (rs : List Referent)
  (older : ∀ r ∈ rs, r.id < fresh)
  (noNames : ∀ r ∈ rs, r.idents.elem "controllerSacrifices.subject" = false)
@@ -701,18 +752,22 @@ private theorem actualTailReduction (fuel fresh : Nat) (rs : List Referent)
  rw [show fuel + 8 = (fuel + 7)+1 by omega, moveBodyStep (fuel + 7) _ (by rfl)]
  rw [show fuel + 7 = (fuel + 4)+3 by omega, argumentResult (fuel + 4) fresh rs older noNames]
  dsimp only
- change (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
+ conv => lhs; rw [referentsSans, sansDropActorFrame, sansWithCaused, sansLeaveOwnScope,
+   sansWithCaused, sansApplyInPlaceStamp, sansWithCaused]
+ conv => rhs; rw [referentsSans, sansDropActorFrame, sansLeaveOwnScope, sansApplyInPlaceStamp]
+ simp only [withCausedCurrentClause, withCausedPendingRoles]
+ change (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
    (List.filterMap (fun x : ReferentId × GramRole => if x.2 == .obj then some x.1 else none)
      (if (movedOut fresh rs).currentClause == 1 then
        ((movedOut fresh rs).pendingRoles.take ((movedOut fresh rs).pendingRoles.length - 0))
       else (movedOut fresh rs).pendingRoles)) (some (.action "sacrifice"))))).referents =
-     (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
+     (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
        [fresh + 5] (some (.action "sacrifice"))))).referents
  rw [(movedOutMetadata fresh rs older noNames actorLinks).1,
      (movedOutMetadata fresh rs older noNames actorLinks).2]
- change (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
+ change (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
    [fresh + 5] (some (.action "sacrifice"))))).referents =
-     (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
+     (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
        [fresh + 5] (some (.action "sacrifice"))))).referents
  rfl
 
@@ -939,9 +994,11 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
       (dropActorFrame (stepAction (fuel + 10) .postEvent .obj prepared
         (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents := by
   dsimp only
-  change (stepAction (fuel + 11) .postEvent .obj drs
-    (.instruct (controllerOf (.firstMention "controllerSacrifices.subject" nestedSubject))
-      (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject)))).1.referents = _
+  -- Unfold the template in the action alone: a `change` of the whole step would compare the two
+  -- steps by unfolding them.
+  rw [show controllerSacrifices nestedSubject =
+      .instruct (controllerOf (.firstMention "controllerSacrifices.subject" nestedSubject))
+        (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject)) from rfl]
   rw [show fuel + 11 = (fuel + 10) + 1 by omega, controllerInstructStep]
   unfold controllerInstructState
   simp only [sourceCanonical, sourceIds, List.filterMap_cons, List.filterMap_nil,
