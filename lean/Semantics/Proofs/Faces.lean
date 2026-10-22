@@ -582,12 +582,12 @@ theorem badFlipArmWithoutFlip :
   decide
 
 /-- "Roll a d6." -/
-theorem okSixSidedDie : Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 6) .one .anyResult) = [] :=
+theorem okSixSidedDie : Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 6) .anyResult) = [] :=
     by decide
 
 /-- "Roll a d0." -/
 theorem badNoughtSidedDie :
-    Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 0) .one .anyResult) = [.nonZeroQ] := by decide
+    Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 0) .anyResult) = [.nonZeroQ] := by decide
 
 /-- a planeswalker card printing its starting loyalty -/
 theorem okPlaneswalkerLoyaltyBox : Card.check (one { jace with loyalty := stat 3 }) = [] := by

@@ -105,7 +105,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ whenever (does you (flipCoins anyAmount (some .wins)))
-            (putCounters (.lit 1) luckCounter thisEnchantment .many),
+            (putCounters (.lit 1) luckCounter thisEnchantment),
           at_ (beginningOfYour .upkeep)
             (if_ := some (compareAmt (countersOn luckCounter thisEnchantment) .atLeast (.lit 10)))
             winGame ] } }

@@ -1058,7 +1058,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 def tourachDiscardTrigger : Ability :=
   whenever (does anOpponent (discard (a
     isCard)))
-    (putCounters (.lit 1) p1p1Counter thisCreature .many)
+    (putCounters (.lit 1) p1p1Counter thisCreature)
 theorem okTourachDiscardTrigger : Ability.check (DRS.ofList []) tourachDiscardTrigger = [] := by decide
 
 /-- Shimmering Glasskite -/
@@ -1223,8 +1223,8 @@ def pirDistributive : Ability :=
   static (replace
             (would any
                (putCounters anyAmount anyKind
-                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false))
-                      (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many)))
+                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) false))
+                      (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent))))
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 
 /-- Frogmite -/

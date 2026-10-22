@@ -252,12 +252,12 @@ def bloomHulk : Spelled := spelled <| .singleFaced
       power := stat 4, toughness := stat 4 } }
 
 /-- Stalwart Successor -/
-def stalwartSuccessorHeader : GameEvent := bareCountersPut .many (a (and [isCreature, youControl]))
+def stalwartSuccessorHeader : GameEvent := bareCountersPut anyAmount (a (and [isCreature, youControl]))
 theorem okStalwartSuccessorHeader : GameEvent.check (DRS.ofList []) stalwartSuccessorHeader = [] := by decide
 
 /-- Hollowmurk Siege -/
 def hollowmurkSiegeSultai : Ability :=
-  whenever (bareCountersPut .one (a (and [isCreature, youControl])))
+  whenever (bareCountersPut (.lit 1) (a (and [isCreature, youControl])))
     (draw (.lit 1)) (limit := some oncePerTurn)
 theorem okHollowmurkSiegeSultai : Ability.check (DRS.ofList []) hollowmurkSiegeSultai = [] := by decide
 
@@ -477,7 +477,7 @@ theorem okNetheresePuzzleWardIllumination :
     Ability.check (DRS.ofList []) netheresePuzzleWardIllumination = [] := by decide
 /-- Farideh, Devil's Chosen -/
 def faridehResultRead : Ability :=
-  whenever (does you (rollDice anyAmount .anyDie .many))
+  whenever (does you (rollDice anyAmount .anyDie))
     (sequentially
       [ gain thisCreature flying (some untilEndOfTurn),
         gain thisCreature menace (some untilEndOfTurn),
@@ -509,11 +509,11 @@ def wavebreakHippocamp : Ability :=
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
-  nthOccurrence (.nth 12) (countersPut hourCounter .one thisArtifact)
+  nthOccurrence (.nth 12) (countersPut hourCounter (.lit 1) thisArtifact)
 theorem okMidnightClockHeader : GameEvent.check (DRS.ofList []) midnightClockHeader = [] := by decide
 /-- Political Triumph -/
 def politicalTriumphHeader : GameEvent :=
-  nthOccurrence (.nth 4) (countersPut planCounter .one thisEnchantment)
+  nthOccurrence (.nth 4) (countersPut planCounter (.lit 1) thisEnchantment)
 theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
@@ -955,7 +955,7 @@ def vampiricEmbrace : Spelled := spelled <| .singleFaced
             (enchanted creature) flying),
           whenever (does (creatureDamagedByAttachedHostThisTurn .enchanted) die)
             (putCounters (.lit 1) p1p1Counter
-              (that creature) .many) ] } }
+              (that creature)) ] } }
 
 /-- Scythe of the Wretched. -/
 def scytheOfTheWretched : Spelled := spelled <| .singleFaced

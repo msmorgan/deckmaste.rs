@@ -56,7 +56,7 @@ def Quantity.plur (q : Quantity) (fuel : Nat := 16) : Plurality :=
   match fuel, q with
   | 0, _ => .many
   | n + 1, .inCaller body => body.plur n
-  | _ + 1, .range _ (some 1) => .one
+  | _ + 1, .range _ (some 1) | _ + 1, .theLast => .one
   | n + 1, .exactlyOf amount | n + 1, .upToOf amount => amount.plur n
   | n + 1, .additional q => q.plur n
   | _ + 1, _ => .many
@@ -195,6 +195,7 @@ def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   | _ + 1, .createObject .. => some (.action "create")
   | _ + 1, .expose .reveal _ => some (.action "reveal")
   | _ + 1, .target _ => some (.core .target)
+  | _ + 1, .changeControl .. => some (.core .gainControl)
   | _ + 1, _ => none
 termination_by structural fuel
 
@@ -680,7 +681,7 @@ def stepQuantityWith (ops : StepOps) (drs : DRS) (q : Quantity) (fuel : Nat := 8
     let (callerDrs, errs) := stepQuantityWith ops (enterCaller drs) body n
     (leaveCaller drs callerDrs, errs)
   | _ + 1, .range (some lo) (some hi) => (drs, if lo ≤ hi then [] else [.wellFormedQ])
-  | _ + 1, .range _ _ | _ + 1, .worth _ => (drs, [])
+  | _ + 1, .range _ _ | _ + 1, .worth _ | _ + 1, .theLast => (drs, [])
   | _ + 1, .upToOf a | _ + 1, .exactlyOf a | _ + 1, .moreThanOf a => ops.amt drs a
   | n + 1, .additional q => stepQuantityWith ops drs q n
 termination_by structural fuel
@@ -1006,7 +1007,7 @@ def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Action) : List Re
   let agent := match subject with | .any => none | .actor noun | .by noun => some noun
   let agentRead := agent.all NounPhrase.eventAgentOk
   match action.scopeBody with
-  | .putCounters _ _ _ _ byEffect | .removeCounters _ _ _ _ byEffect =>
+  | .putCounters _ _ _ byEffect | .removeCounters _ _ _ byEffect =>
     refuse agentRead .eventAgent ++
       refuse (!(byEffect && agent.isSome)) .causedByOk
   | .createObject _ spec byEffect under =>
@@ -2673,7 +2674,7 @@ def stepOps : Nat → StepOps
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
         | .theOutcome s =>
           if s == .rollResult then
-            -- A dice batch has one numeric result read, without publishing a second outcome.
+            -- A roll of one or more dice has one numeric result read, without a second outcome.
             let actual := countOutcomes .rollResult drs
             let n := if actual == 0 then countOutcomes .diceRolled drs else actual
             (drs, if n == 1 then [] else [.outcomeInScope .rollResult n])
@@ -2979,7 +2980,19 @@ def stepOps : Nat → StepOps
           let (out, ids, errors) := ops.np drs patientRole true subj
           let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
           (out, errors ++ kindCheck .object (some kind))
-        | .target subj | .changeControl subj | .chooseNewTargets subj =>
+        | .changeControl subj from_ =>
+          let (drs1, refIds, e1) := ops.np drs patientRole true subj
+          let (drs2, e2) : DRS × List Refusal := match from_ with
+            | some former =>
+              let (out, ids, errs) := ops.np drs1 .other false former
+              (out, errs ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)))
+            | none => (drs1, [])
+          -- The patient is stamped as `controlGrant`'s is, so one Participial Description reads
+          -- both.
+          let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed
+            else drs2
+          (drs3, e1 ++ e2 ++ refuse drs.actionPattern .controlChangePattern)
+        | .target subj | .chooseNewTargets subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
           (drs2, e1)
@@ -3206,14 +3219,14 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := stepFlipScopeWith ops drs count
           let drs2 := drs1.push (outcomeB .coinFlipped) .other false
           (drs2, e1)
-        | .rollDice count sides batch watch =>
+        | .rollDice count sides watch =>
           let (drs1, e1) := ops.amt drs count
           let (drs2, e2) := match watch with
             | .anyResult | .highestNatural => (drs1, [])
             | .resultIn q => stepQuantityWith ops drs1 q
-          let drs4 := if drs.actionPattern then
-            if batch == .many then drs2.push (outcomeB .diceRolled) .other false
-            else drs2.push (outcomeB .rollResult) .other false
+          -- A pattern of one or more dice watches the roll, whose results are read as one.
+          let drs4 := if drs.actionPattern && count.plur == .many then
+            drs2.push (outcomeB .diceRolled) .other false
           else drs2.push (outcomeB .rollResult) .other false
           (drs4, e1 ++ e2 ++ sides.localChecks drs ++ watch.localChecks ++
             refuse count.nonZero .nonZeroQ)
@@ -3262,21 +3275,23 @@ def stepOps : Nat → StepOps
             | .token .. => { drs3 with prospectiveTokenTypes := drs3.prospectiveTokenTypes ++ [sourceTypes] }
             | .emblem .. => drs3
           (drs4, e1 ++ e2 ++ e3)
-        | .putCounters amt ks on batch _ =>
+        | .putCounters amt ks on _ =>
           let (drs1, e1) := ops.amt drs amt
           let (drs2, e2) := stepCounterKindSourceWith ops drs1 ks
           let (drs3, ids, e3) := ops.np drs2 patientRole true on
           let kind := ((ids.head?.bind drs3.findById?).map (·.kind)).getD (on.kindIn drs3 .object)
-          let drs4 := if drs.actionPattern && batch != .many then drs3
+          -- A pattern watching one counter at a time publishes no count of counters put.
+          let drs4 := if drs.actionPattern && amt.plur == .one then drs3
             else drs3.push (outcomeB .countersPut) .other false
           (drs4, e1 ++ e2 ++ e3 ++ refuse on.perMemberOk .perMember ++
             refuse (counterHolderKind kind) .counterHolderKind)
-        | .removeCounters optQ optKs from_ batch _ =>
+        | .removeCounters optQ optKs from_ _ =>
           let (drs1, ids, e1) := ops.np drs patientRole true from_
           let (drs2, e2) := match optQ with | some q => stepQuantityWith ops drs1 q | none => (drs1, [])
           let (drs3, e3) := match optKs with | some ks => stepCounterKindSourceWith ops drs2 ks | none => (drs2, [])
           let kind := ((ids.head?.bind drs3.findById?).map (·.kind)).getD (from_.kindIn drs3 .object)
-          let drs4 := if drs.actionPattern && batch != .many then drs3
+          -- A pattern watching one counter at a time, or the last one, publishes no count.
+          let drs4 := if drs.actionPattern && (optQ.map (·.plur)) == some .one then drs3
             else drs3.push (outcomeB .countersRemoved) .other false
           (drs4, e1 ++ e2 ++ e3 ++ refuse (counterHolderKind kind) .counterHolderKind)
         | .distribute v amt among =>

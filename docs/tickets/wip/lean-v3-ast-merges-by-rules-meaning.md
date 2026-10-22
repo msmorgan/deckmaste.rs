@@ -22,64 +22,34 @@ Verified 2026-10-21. `Predicate.was` and `Condition.was` (`Templates.lean:2099-2
 Templates that expand to `.did ⟨.any, action, within⟩`. Neither is a constructor. There is no
 work here.
 
-## 2. Merge the universal `bare` into `DetPhrase.all`; then audit the domain reading
+## 2. Merge the universal `bare` into `DetPhrase.all` (owner ruling); the domain half is split out
 
-**Ruling (owner, 2026-10-21, first ruling).**
-- Merge `DetPhrase.bare` (`Abilities.lean:277`) into `DetPhrase.all`. A universal bare plural
+**Ruling (owner, 2026-10-21).**
+- Merge the universal reading of `DetPhrase.bare` into `DetPhrase.all`. A universal bare plural
   ("Players can't gain life", "Creatures you control get +1/+1") and "all …" have the same rules
   meaning and the same plural referent.
 - Keep `bare` and `allOf` as distinct Templates.
-- First check that no checker rule depends on telling the two apart, and STOP if one does.
+- Classify each site by its printed text. Every `bare` site that is not the measured domain of
+  `countOf`, `exists_` or `aggregate` expands to `.all`.
 
-**Finding: four checker rules do.** Each treats a bare referent as a *domain* (an uncounted
-description) and an "all" referent as an already quantified group:
-- **`NounPhrase.countableGroup`** (`Check/Phrase.lean:366-367`) admits `.bare`, not `.all`, as
-  what "the number of …" counts (`Amount.countOf`, `:2507-2509`). The pin
-  `countRequiresACountableGroup` (`Proofs/RefusalReachability.lean:9-14`) asserts that
-  `countOf (bare creature)` checks and `countOf (all creature)` is refused `.countableGroup`.
-- **`NounPhrase.existentialMention`** (`Check/Phrase.lean:369-374`) admits only `.bare` as the
-  subject of `Condition.exists_` (`:2581-2583`), as in "if there are …". It is pinned by
-  `existentialRequiresAnExistentialMention` (`Proofs/RefusalReachability.lean:16-19`).
-- **`countGroups`** (`Check/Words.lean:683-685`), which `theRestOk`/`theOtherOk` read, skips
-  `.bare` referents, so a counted domain does not compete with the remainder group. It is pinned
-  by `bareCountDomainDoesNotCompeteWithTheRemainderGroup` (`Check/Queries.lean:151-159`).
-- **`countedGroupSize`** (`Check/Words.lean:726-733`) also skips `.bare` referents.
+**Step 1 done (2026-10-21).**
+- The `bare` Template expands to `.all`. `countOf`, `aggregate`, `exists_` and `thereIsNo` write
+  `DetPhrase.bare` themselves.
+- Every `bare` call site but one was universal by its printed text. The exception was
+  gravestorm's tally subject, "for each permanent that was put into a graveyard from the
+  battlefield this turn" [CR#702.69a]. That is a counted tally domain, not "all permanents", so it
+  is now written `a isPermanent`, as storm and *Asmira* write a tally subject.
+- The bench stayed green. Pin: `bareAndAllOfExpandToOneTree`.
+- The pin `badPluralPlayerDamageRecipient` asserted that "deals 2 damage to opponents" is refused.
+  Under the merge that text is an `.all` tree that checks, so the pin is rewritten as
+  `okBarePluralPlayerDamageRecipient`. The refusal of a raw domain recipient is kept as
+  `measuredDomainIsNotAPerMemberRecipient`.
 
-`DetPhrase.participialNumber?` (`Check/Phrase.lean:284-287`) and `DetPhrase.plur` (`:65-69`)
-already treat the two alike.
-
-So `bare` does two jobs:
-- the universal bare plural the ruling names, whose rules meaning is "all";
-- the domain description that "the number of creatures" and "there are creatures" quantify over.
-
-A plain merge would make the count and existential refusals fire on every domain description, or
-force those rules to be dropped.
-
-The first ruling's STOP was taken on this finding.
-
-**Ruling (owner, 2026-10-21, on the STOP).** Merge only the universal reading, then audit the four
-checks above against the rules-meaning test. The STOP stays in force for the domain reading until
-that audit is done. The work is sequenced:
-1. **Merge the universal reading.** Every `bare` site that is not the measured domain of
-   `countOf`, `exists_` or `aggregate` expands to `.all`. Examples are a subject of a static or
-   deontic clause, or the subject of a grant. The `bare` Template keeps its wording. Classify each
-   site by its printed text.
-2. **Audit the domain reading.** For each of the four checks, decide whether the distinction it
-   draws is one the CR or anaphora resolution draws. The owner's lead: `countGroups` and
-   `countedGroupSize` skip `bare` only so that a domain measured inside `countOf` or `exists_`
-   ("the number of cards in your graveyard", "if there are cards in your graveyard") does not
-   collide with "the rest" or "the other". If those constructs did not publish their measured
-   domain into the outer DRS as a group antecedent, `bare` would not be needed there at all.
-
-   Verified 2026-10-21: they do publish it today. The `countOf` (`Check/Phrase.lean:2505-2508`),
-   `aggregate` (`:2499-2504`) and `exists_` (`:2581-2583`) arms all return `out`, the DRS after
-   stepping the domain phrase, so its referent stays visible to later clauses. The audit therefore
-   decides whether a measured domain should be an antecedent at all:
-   - if not, close it like a relative-clause box, and the `bare` skips and the domain determiner
-     can go;
-   - if so, keep a domain determiner and say which rule draws the distinction.
-
-   Bring the result to the owner before removing any of the four checks or their pins.
+**The domain half is split out** to
+[lean-v3-measured-domain-antecedent](../planned/lean-v3-measured-domain-antecedent.md). It holds the
+owner's open question, the audit and its corpus evidence, the seven checks that tell `.bare` from
+`.all` and their pins, and a proposal pending the owner's ruling. None of those checks or pins
+changes here.
 
 ## 3. `DetPhrase.the` keeps its plurality (owner ruling)
 
@@ -186,6 +156,15 @@ action already carries:
 
 **Sites.** Author *Zidane, Tantalus Thief* and *Guardian Beast* as `spelled` cards. Neither is on
 the bench. The `gainControl` card sites need no change:
+
+- **Done (2026-10-21):** *Zidane, Tantalus Thief* is a `spelled` card (`Cards/Anaphora.lean`).
+- **STOP on *Guardian Beast*.** Its last sentence, "This effect doesn't remove Auras already
+  attached to those artifacts", has no Core AST form; nor does the Ward cycle's "This effect
+  doesn't remove this Aura". Spelling the card without it would put a wrong card on the bench.
+  Only the first sentence is pinned, as `guardianBeastProtection` / `okGuardianBeastProtection`
+  (`Cards/Deontic.lean`), which carries the `cant (other players) (gainControlOf them)` deontic.
+  The owner is deciding on a follow-up ticket for the missing construct.
+
 - *Mind Flayer* `Cards/Description.lean:78`
 - *Phyrexian Infiltrator* `Cards/Anaphora.lean:67-68`
 - *Hijack* `:553`
@@ -228,14 +207,14 @@ None of these is ruled. (`Action.rollDice`'s `batch`, listed here at first, is n
   - Add a pin that "roll a die" and "roll one or more dice" are distinct patterns.
   - Rewrite every pin that passes a `CounterBatch` onto the amount form. Keep each claim.
 - **Section 5.**
-  - Add `ok…` theorems for *Zidane, Tantalus Thief* and *Guardian Beast*.
+  - Add `ok…` theorems for *Zidane, Tantalus Thief* and *Guardian Beast*. Done for Zidane
+    (`okZidaneTantalusThief`); Guardian Beast has only the first-sentence pin
+    `okGuardianBeastProtection` (see the STOP under Sites).
   - Add a pin that `changeControl` in a resolving position is refused.
   - Add a pin that `gainControl`'s imperative tree is unchanged.
   - `controlGrantRecordsItsPatientIdentity` (`Proofs/ControllerSacrifice.lean:96`) stays green.
 - **Section 2.**
   - After the universal merge, add a pin that "Creatures you control get +1/+1" written with
     `bare` and with `allOf` expand to the same tree.
-  - The four pins named in section 2 (`countRequiresACountableGroup`,
-    `existentialRequiresAnExistentialMention`,
-    `bareCountDomainDoesNotCompeteWithTheRemainderGroup`, and the `countedGroupSize` behaviour)
-    stay until the audit's result is ruled on.
+  - The pins of the seven `.bare`-versus-`.all` checks stay as they are; they belong to
+    [lean-v3-measured-domain-antecedent](../planned/lean-v3-measured-domain-antecedent.md).

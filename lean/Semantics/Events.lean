@@ -9,14 +9,6 @@ live in the recursive phrase model; their facts are checked in `Check/Events`.
 
 namespace Semantics
 
-inductive CounterBatch where
-  | one | many
-  /-- Removal that leaves no counters of this kind. Emptiness is part of the trigger event,
-  evaluated at trigger time [CR#310.12b,702.62a], not an intervening if rechecked on resolution
-  [CR#603.4]. Suspend's separate "if it's exiled" is the intervening if [CR#702.62a]. -/
-  | emptying
-  deriving DecidableEq, Repr
-
 inductive PaymentOutcome where
   | paid | unpaid
   deriving DecidableEq, Repr

@@ -242,7 +242,7 @@ def sagaDefinition : Definition :=
     [ .ability (.static (onlyUnless (entersWithCounters thisSaga (.lit 1) (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
-        (.putCounters (.lit 1) (.printed (.named "loreCounter")) thisSaga .one true),
+        (.putCounters (.lit 1) (.printed (.named "loreCounter")) thisSaga true),
       .stateBased
         (.and [ .compareAmt (finalChapterNumber thisSaga) .atLeast (.lit 1),
                 .compareAmt (countersOn (.named "loreCounter") thisSaga) .atLeast

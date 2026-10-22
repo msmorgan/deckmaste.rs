@@ -285,7 +285,9 @@ mutual
     /-- "the <noun>", or with `plur = many` "the <nouns>" ("the exiled cards") [CR#607.2a] -/
     | the (plur : Plurality := .one)
     | count (quantity : Quantity) (mode : Option ChoiceMode)
-    /-- the bare plural: a description, no determiner [CR#109.2] -/
+    /-- The measured domain of `Amount.countOf`, `Amount.aggregate` and `Condition.exists_`,
+    written with no determiner: "the number of creatures you control", "if there are cards in
+    your graveyard". A universal bare plural ("creatures you control get +1/+1") is `all`. -/
     | bare
 
   /-- A color, written, "the chosen color", or an object's color ("that creature's color"). -/
@@ -403,6 +405,12 @@ mutual
     /-- "An additional N": `quantity` beyond what is otherwise allowed ("play an additional land
     on each of your turns"). -/
     | additional (quantity : Quantity)
+    /-- "The last <kind> counter": the removal that leaves none of its kind, as suspend's "When
+    the last time counter is removed from this card" [CR#702.62a] and a Siege's "When the last
+    defense counter is removed" [CR#310.12b]. Emptiness is part of the trigger event, evaluated
+    at trigger time, not an intervening if rechecked on resolution [CR#603.4]; suspend's separate
+    "if it's exiled" is the intervening if [CR#702.62a]. -/
+    | theLast
 
   inductive SliceCount where
     | counted (quantity : Quantity)
@@ -1068,8 +1076,13 @@ mutual
     /-- Commit a crime [CR#700.13]. -/
     | commitCrime
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
-    /-- Gain or change control of `subject`. -/
-    | changeControl (subject : NounPhrase)
+    /-- A player gains control of `subject`, from `from_` if written ("from you"): the control
+    change an event, a lookback or a deontic names. A trigger on it looks back in time
+    [CR#603.10d] ("whenever an opponent gains control of a permanent from you"); a deontic forbids
+    it ("can't gain control of them"). It is admitted only there
+    (`controlChangePattern`): a resolving "gain control of" is a Continuous Effect,
+    `establish (controlGrant …)` [CR#611.2a,613.1b]. -/
+    | changeControl (subject : NounPhrase) (from_ : Option NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
     /-- The game gains `designation`, one the game itself can have: "it becomes night"
@@ -1113,7 +1126,10 @@ mutual
     /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/
     | shuffle (pile : Location)
     | flipCoins (count : FlipScope) (call : Option FlipCall) (outcome : Option CoinFace)
-    | rollDice (count : Amount) (sides : DieSides) (batch : Plurality) (watch : RollWatch)
+    /-- Roll `count` dice. As an event pattern, `count` is what the text watches: "roll a die"
+    is `.lit 1`, matched by each die rolled, since one event can contain several occurrences
+    [CR#603.2c]; "roll one or more dice" is `.anyAmount`, matched by the roll. -/
+    | rollDice (count : Amount) (sides : DieSides) (watch : RollWatch)
     | applyResultsTable (rows : List RollRow)
     | ignoreOutcomes (which : IgnoredOutcomes)
     /-- Raise or lower a die result by one of `changes`, the performer's choice: "increase or
@@ -1124,11 +1140,18 @@ mutual
     | establish (spec : StaticSpec) (duration : Option Duration)
     | createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool)
         (under : Option NounPhrase)
+    /-- Put `amount` counters on `on`. As an event pattern, `amount` is what the text watches:
+    "a counter is put" is `.lit 1`, matched by each counter put [CR#603.2c]; "one or more
+    counters are put" is `.anyAmount`, matched by the event [CR#714.2b]. -/
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
-        (batch : CounterBatch) (byEffect : Bool)
+        (byEffect : Bool)
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
+    /-- Remove `quantity` counters from `from_`, all of them if none is written. As an event
+    pattern, `quantity` is what the text watches: "a counter is removed" is `exactly 1`, matched
+    by each counter removed [CR#603.2c]; "one or more" is `atLeast 1`, matched by the event; "the
+    last" is `theLast` [CR#702.62a,310.12b]. -/
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
-        (from_ : NounPhrase) (batch : CounterBatch) (byEffect : Bool)
+        (from_ : NounPhrase) (byEffect : Bool)
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/

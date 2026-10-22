@@ -107,7 +107,7 @@ private def literalAmass : Action :=
         (create (.lit 1) (.written (creatureToken 0 0 [.black] [orc, Subtype.army])))
         none,
       choose (a army),
-      .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)) .one true,
+      .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)) true,
       .doIf (.not (.matches it (.hasSubtype (orc))))
         (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [orc] } } none)) none)
@@ -162,7 +162,7 @@ private def scopedAmassOf (amount : Amount) : Action :=
         (create (.lit 1) (.written (creatureToken 0 0 [.black] [goblin, Subtype.army])))
         none,
       choose (a army),
-      .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) .one true,
+      .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) true,
       .doIf (.not (.matches it (.hasSubtype (goblin))))
         (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [goblin] } } none)) none)
@@ -671,7 +671,7 @@ private def exploreBody (perm : NounPhrase) : Action :=
     [ .expose .reveal (.cards (.slice .top (.lit 1) (libraryOf theActor))),
       .doIf (.matches (that .card) isLand) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival none [])
         (some (.sequentially
-          [ .putCounters (.lit 1) (.printed p1p1Counter) perm .one true,
+          [ .putCounters (.lit 1) (.printed p1p1Counter) perm true,
             .withContinuation .optional
               (.move (that .card) .anyLocation (some (.zone .graveyard none)) .arrival none []) none none ])) ])
 
@@ -685,7 +685,7 @@ private def literalEndure (n : Nat) : Action :=
   .enact (.action "endure")
     (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
-        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) .one true),
+        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) true),
           (none, none, create (.lit 1) (.written (creatureToken n n [.white] [spirit]))) ])) none none
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/

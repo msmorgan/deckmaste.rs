@@ -485,14 +485,14 @@ def ironMastiffIgnore : Action :=
   sequentially
     [ rollDice
         (countOf (and [isPlayer, inCombat .attackedBy (some (combatPlayer .attacking))]))
-        (.sides 20) .many .anyResult,
+        (.sides 20) .anyResult,
       ignoreOutcomes (allBut .highest) ]
 theorem okIronMastiffIgnore : Action.check (DRS.ofList []) ironMastiffIgnore = [] := by decide
 
 /-- Xenosquirrels -/
 def xenosquirrelsShift : Ability :=
-  after (does you (rollDice anyAmount .anyDie)) (may
-      (removeCounters (exactly 1) (some p1p1Counter) thisCreature .many true)
+  after (does you (rollDice (.lit 1) .anyDie)) (may
+      (removeCounters (exactly 1) (some p1p1Counter) thisCreature true)
       (some (shiftResult (.lit 1))))
 theorem okXenosquirrelsShift : Ability.check (DRS.ofList []) xenosquirrelsShift = [] := by decide
 

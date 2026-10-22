@@ -175,8 +175,9 @@ semantic_template target (p : Predicate) : NounPhrase :=
 semantic_template each (p : Predicate) : NounPhrase := .described .each p
 /-- "all …" -/
 semantic_template allOf (p : Predicate) : NounPhrase := .described .all p
-/-- the bare plural: "creatures" -/
-semantic_template bare (p : Predicate) : NounPhrase := .described .bare p
+/-- the bare plural: "creatures", "players can't gain life". Its rules meaning and its plural
+referent are those of "all creatures" (`allOf`), whose tree it shares. -/
+semantic_template bare (p : Predicate) : NounPhrase := .described .all p
 /-- "a …" -/
 semantic_template a (p : Predicate) : NounPhrase := .described (.a .unmarked) p
 /-- "a … at random" -/
@@ -196,14 +197,14 @@ semantic_template counted (q : Quantity) (p : Predicate) : NounPhrase :=
 semantic_template countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
   .described (.count q (some .atRandom)) p
 /-- "if there is a …" -/
-semantic_template exists_ (p : Predicate) : Condition := .exists_ (bare p)
+semantic_template exists_ (p : Predicate) : Condition := .exists_ (.described .bare p)
 /-- "if there are <np>", as "three or more lands with the same name" -/
 semantic_template thereAre (np : NounPhrase) : Condition := .exists_ np
 /-- "the number of …s" -/
-semantic_template countOf (p : Predicate) : Amount := .countOf (bare p)
+semantic_template countOf (p : Predicate) : Amount := .countOf (.described .bare p)
 /-- "the greatest power among …s" -/
 semantic_template aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate) : Amount :=
-  .aggregate op axis (bare p)
+  .aggregate op axis (.described .bare p)
 semantic_template random (q : Quantity) (p : Predicate) : NounPhrase := countedAtRandom q p
 /-! ## Locations -/
 
@@ -1111,11 +1112,11 @@ semantic_template tapForMana (permanent : NounPhrase) (type : Option ManaTypeTer
 semantic_template flipCoins (count : Amount := anyAmount)
     (call : Option FlipCall := none) (outcome : Option CoinFace := none) : Action :=
   .flipCoins (.count count) call outcome
-/-- "roll <count> <sides>-sided dice [and watch for <watch>]" -/
+/-- "roll <count> <sides>-sided dice [and watch for <watch>]": as a pattern, "roll a die" is the
+default `.lit 1` and "roll one or more dice" `anyAmount`. -/
 semantic_template rollDice (count : Amount := .lit 1)
-    (sides : DieSides := .sides 6) (batch : Plurality := .one)
-    (watch : RollWatch := anyResult) : Action :=
-  .rollDice count sides batch watch
+    (sides : DieSides := .sides 6) (watch : RollWatch := anyResult) : Action :=
+  .rollDice count sides watch
 
 /-! ## Actions -/
 
@@ -1170,7 +1171,7 @@ semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
     (agent : NounPhrase := you) : Action :=
-  .removeCounters (amount.map Quantity.exactlyOf) kind agent .one true
+  .removeCounters (amount.map Quantity.exactlyOf) kind agent true
 semantic_template loseLife (amount : Amount) : Action :=
   .changeLife (.down amount)
 semantic_template gainLife (amount : Amount) : Action :=
@@ -1253,7 +1254,7 @@ semantic_template eventSum (action : Action) (subj : Subject) (within : Duration
   .tally ⟨subj, action, some (.duration within timing)⟩ .quantity
 /-- "if there is no <designation>" ("if there is no monarch"): nothing holds it. -/
 semantic_template thereIsNo (designation : DesignationLabel) : Condition :=
-  .not (.exists_ (bare (.hasDesignation designation none)))
+  .not (.exists_ (.described .bare (.hasDesignation designation none)))
 /-- "<subject>'s <keyword> cost was paid", read back. -/
 semantic_template paidCostRead (which : LinkSource) (window : Option Duration)
     (subject : NounPhrase) : Amount :=
@@ -1326,16 +1327,16 @@ semantic_template distributeCounters (amount : Amount) (kind : CounterKind) (amo
   .distribute (.counters kind) amount among
 /-- "remove <q> <kind> counters from <from>" -/
 semantic_template removeCounters (quantity : Quantity) (kind : Option CounterKindSource)
-    (from_ : NounPhrase) (batch : CounterBatch := .one) (byEffect : Bool := true) : Action :=
-  .removeCounters (some quantity) kind from_ batch byEffect
+    (from_ : NounPhrase) (byEffect : Bool := true) : Action :=
+  .removeCounters (some quantity) kind from_ byEffect
 /-- "<who> loses all [<kind>] counters" -/
 semantic_template loseAllCounters (kind : Option CounterKindSource)
     (agent : NounPhrase := you) : Action :=
   loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase)
-    (batch : CounterBatch := .one) (byEffect : Bool := true) : Action :=
-  .removeCounters none kind from_ batch byEffect
+    (byEffect : Bool := true) : Action :=
+  .removeCounters none kind from_ byEffect
 /-- "may pay <cost>. If they don't, <action>." -/
 semantic_template doUnless (action : Action) (cost : Cost) : Action :=
   .withContinuation .optional (.pay cost .once .paid none none) none (some action)
@@ -1401,6 +1402,12 @@ control of target creature" and "target player gains control of …" (`instruct`
 semantic_template gainControl (subject : NounPhrase) (duration : Option Duration := none)
     (controller : NounPhrase := .actor) : Action :=
   .establish (.controlGrant controller subject) duration
+/-- "gain control of <subject> [from <from_>]" as an event or a forbidden act: "whenever an
+opponent gains control of a permanent from you", a trigger that looks back in time [CR#603.10d],
+or "can't gain control of them". The imperative is `gainControl`. -/
+semantic_template gainControlOf (subject : NounPhrase) (from_ : Option NounPhrase := none) :
+    Action :=
+  .changeControl subject from_
 /-- "<spec> as long as <condition>" -/
 semantic_template onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .asLongAs
@@ -1507,8 +1514,8 @@ semantic_template moveCounters (amount : Amount) (source destination : NounPhras
     (kind : Option CounterKindSource := none) : Action :=
   .sequentially
     [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source)
-        .one true,
-      .putCounters amount (kind.getD .those) destination .one true ]
+        true,
+      .putCounters amount (kind.getD .those) destination true ]
 semantic_template pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome := .paid)
     (whose : Option NounPhrase := none) (keyword : Option KeywordLabel := none) : Action :=
   .pay cost times outcome whose keyword
@@ -1517,8 +1524,8 @@ semantic_template procedure (kind : Procedure) (subject : NounPhrase) (payment :
     (of_ : Option NounPhrase := none) : Action :=
   .procedure kind subject payment resulting from_ of_
 semantic_template putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
-    (batch : CounterBatch := .one) (byEffect : Bool := true) : Action :=
-  .putCounters amount kind on batch byEffect
+    (byEffect : Bool := true) : Action :=
+  .putCounters amount kind on byEffect
 semantic_template relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase) :
     Action :=
   .relate subject label counterpart
@@ -1628,30 +1635,32 @@ semantic_template beginningOfNext (part : TurnPart) : GameEvent :=
   .beginningOf part none (.next none)
 /-- "at the beginning of that turn's <part>" -/
 semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
-/-- "N <kind> counters are put on <subject>" -/
-semantic_template countersPut (kind : CounterKind) (batch : CounterBatch) (subject : NounPhrase) :
+/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`.lit 1`) or
+"one or more +1/+1 counters are put" (`anyAmount`). -/
+semantic_template countersPut (kind : CounterKind) (amount : Amount) (subject : NounPhrase) :
     GameEvent :=
-  .does .any (.putCounters .anyAmount (.printed kind) subject batch false)
-/-- "N <kind> counters are removed from <subject>" -/
-semantic_template countersRemoved (kind : CounterKind) (batch : CounterBatch)
+  .does .any (.putCounters amount (.printed kind) subject false)
+/-- "<quantity> <kind> counters are removed from <subject>": "a … counter is removed"
+(`exactly 1`) or "one or more … are removed" (`atLeast 1`). -/
+semantic_template countersRemoved (kind : CounterKind) (quantity : Quantity)
     (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters none (some (.printed kind)) subject batch false)
-/-- "counters are put on <subject>", the kind unsaid. -/
-semantic_template bareCountersPut (batch : CounterBatch) (subject : NounPhrase) : GameEvent :=
-  .does .any (.putCounters .anyAmount .anyKind subject batch false)
-/-- "counters are removed from <subject>", the kind unsaid. -/
-semantic_template bareCountersRemoved (batch : CounterBatch) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters none none subject batch false)
+  .does .any (.removeCounters (some quantity) (some (.printed kind)) subject false)
+/-- "<amount> counters are put on <subject>", the kind unsaid. -/
+semantic_template bareCountersPut (amount : Amount) (subject : NounPhrase) : GameEvent :=
+  .does .any (.putCounters amount .anyKind subject false)
+/-- "<quantity> counters are removed from <subject>", the kind unsaid. -/
+semantic_template bareCountersRemoved (quantity : Quantity) (subject : NounPhrase) : GameEvent :=
+  .does .any (.removeCounters (some quantity) none subject false)
 /-- "the last <kind> counter is removed from <subject> by <who>" -/
 semantic_template lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) :
     GameEvent :=
-  .does (.by who) (.removeCounters none (some (.printed kind)) subject .emptying false)
+  .does (.by who) (.removeCounters (some .theLast) (some (.printed kind)) subject false)
 /-- "one or more counters are put on <subject> by an effect" -/
 semantic_template manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
-  .does .any (.putCounters .anyAmount .anyKind subject .many true)
+  .does .any (.putCounters .anyAmount .anyKind subject true)
 /-- "<who> puts one or more counters on <subject>" -/
 semantic_template manyBareCountersPutBy (who subject : NounPhrase) : GameEvent :=
-  .does (.actor who) (.putCounters .anyAmount .anyKind subject .many false)
+  .does (.actor who) (.putCounters .anyAmount .anyKind subject false)
 /-- A token-creation event, retaining its creator, controller, and effect restriction. -/
 semantic_template tokenCreationEvent (tokens : NounPhrase) (byEffect : Bool)
     (by_ under : Option NounPhrase) : GameEvent :=
@@ -1665,7 +1674,7 @@ semantic_template tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameE
   tokenCreationEvent tokens true none (some under)
 /-- "the last <kind> counter is removed from <subject>" -/
 semantic_template lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters none (some (.printed kind)) subject .emptying false)
+  .does .any (.removeCounters (some .theLast) (some (.printed kind)) subject false)
 /-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
 semantic_template copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=
   let typeOp := if typesAdded then QualityOp.adds else .sets

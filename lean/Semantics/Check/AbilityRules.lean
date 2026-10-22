@@ -140,7 +140,7 @@ private theorem choiceNeedsAnIndefiniteOrSelectingPhrase :
 private theorem cardTextDoesNotExportOrdinaryObjectMentions :
     Ability.checkText (DRS.ofList [])
       [.spell none (.choose none (.described (.a .unmarked) (.hasType .creature)) .openly none),
-       .spell none (.changeControl (.pro .bare .one))] = [.anaphor .bare .one 0] := by decide
+       .spell none (.establish (.controlGrant .actor (.pro .bare .one)) none)] = [.anaphor .bare .one 0] := by decide
 
 private theorem selectedPlayerCanBeReadWithinTheSameAction :
     Action.check (DRS.ofList [])
@@ -154,7 +154,7 @@ private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
         [.keyword (.named "protection") [.quality (.ofChosen .theChoice .color)] []]])) = [] ∧
       Ability.check (DRS.ofList [kindBinding .object])
         (.static (.characteristicChange .any
-          [.addedAbilities [.spell none (.changeControl (.pro .bare .one))]])) =
+          [.addedAbilities [.spell none (.establish (.controlGrant .actor (.pro .bare .one)) none)]])) =
           [.anaphor .bare .one 0] := by decide
 
 private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=

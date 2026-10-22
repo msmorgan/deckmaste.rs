@@ -220,7 +220,7 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
     [ discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not isLand, .isCard,
         .did ⟨.any, discard .which, some .thisWay⟩]))
-        (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) .one true) ]
+        (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) true) ]
 
 private def conniveBy (amount : Amount) : Action :=
   .enact (.action "connive") (instruct (controllerOf .actor)

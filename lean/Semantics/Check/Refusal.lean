@@ -18,6 +18,9 @@ inductive Refusal where
   /-- A performed payment requires a specified cost. -/
   | concreteCost
   | concreteBallot
+  /-- A control change (`Action.changeControl`) is named only as an event, lookback or deontic
+  pattern; a resolving one is `establish (controlGrant …)` [CR#611.2a,613.1b]. -/
+  | controlChangePattern
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
   | kindMismatch (expected found : Kind)

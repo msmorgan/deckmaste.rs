@@ -153,7 +153,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   -- You can't deal negative damage [CR#107.1b].
   | _n + 1, .dealDamage amount _ _ | _n + 1, .markDamage _ amount => [(amount, .clamped)]
   | _n + 1, .setStatus _ _ | _n + 1, .turnOver _ | _n + 1, .combat _ _ => []
-  | _n + 1, .attack _ | _n + 1, .attackUnblocked _ | _n + 1, .attackWith _ _ | _n + 1, .block _ | _n + 1, .target _ | _n + 1, .changeControl _
+  | _n + 1, .attack _ | _n + 1, .attackUnblocked _ | _n + 1, .attackWith _ _ | _n + 1, .block _ | _n + 1, .target _ | _n + 1, .changeControl _ _
   | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger
   | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ => []
@@ -175,7 +175,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .draw _ => []
   | _n + 1, .expose _ _ | _n + 1, .search _ _ | _n + 1, .shuffle _ => []
   | _n + 1, .flipCoins count _ _ => count.numberSlots
-  | _n + 1, .rollDice count _ _ _ => [(count, .clamped)]
+  | _n + 1, .rollDice count _ _ => [(count, .clamped)]
   | _n + 1, .applyResultsTable _ => []
   | _n + 1, .ignoreOutcomes which => which.numberSlots
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
@@ -189,9 +189,9 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
       (match spec with
        | .token _ riders => MoveRider.ridersSlots riders
        | .emblem _ _ => [])
-  | _n + 1, .putCounters amount _ _ _ _ => [(amount, .clamped)]
+  | _n + 1, .putCounters amount _ _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]
-  | _n + 1, .removeCounters _ _ _ _ _ => []
+  | _n + 1, .removeCounters _ _ _ _ => []
   | _n + 1, .enact _ _ _ _ | _n + 1, .pay _ _ _ _ _ => []
   | _n + 1, .withContinuation _ _ _ _ | _n + 1, .doIf _ _ _ | _n + 1, .limited _ _ => []
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []

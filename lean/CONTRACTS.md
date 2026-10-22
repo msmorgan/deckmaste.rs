@@ -1163,6 +1163,23 @@ least one participant. Named active/passive authoring forms remain templates; no
 semantic voice field is present. Entry and attachment choice specs likewise share
 an occasion enum while retaining choice sort, domain, and disclosure.
 
+A counter event's amount or quantity, and a roll's count, is what its pattern watches; no batch
+field is carried (owner ruling 2026-10-21). "A counter is put" is `.lit 1`, "a counter is removed"
+`exactly 1` and "you roll a die" `.lit 1`, each matched by every counter or die, since one event
+can contain several occurrences [CR#603.2c]; "one or more" is `anyAmount` or `atLeast 1`, matched
+by the event [CR#714.2b]; "the last counter is removed" is `Quantity.theLast`
+[CR#702.62a,310.12b]. Only a plural amount or quantity publishes the count (`countersPut`,
+`countersRemoved`, `diceRolled`) that "that many" or "the result" reads, and nothing reads a
+pattern's amount as an exact count. No Oracle text prints "two or more counters are put"; writing
+it would need a `Quantity` on `putCounters`, which takes an `Amount`.
+
+A control change named as an event, a lookback or a forbidden act is `Action.changeControl
+subject from_` (`gainControlOf`), with the player control is taken from when the text says "from"
+(a trigger on control taken from a player looks back in time [CR#603.10d]). In a resolving position it is refused `controlChangePattern`: the instruction "gain
+control of" is `establish (controlGrant …)` [CR#611.2a,613.1b]. The pattern stamps its patient
+with `.core .gainControl`, as the grant does, so one Participial Description reads either.
+`Proofs/Counters.lean`, `Proofs/Anaphora.lean` and `Proofs/EventPatterns.lean` pin these.
+
 `partScope` expands to conditional applicability with `Condition.duringPart`.
 The condition reads the ordinary conditional context, including the spec's
 subject and numeric definitions. A whole-turn condition is meaningful even with

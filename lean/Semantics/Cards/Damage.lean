@@ -921,7 +921,7 @@ def brazenDwarf : Spelled := spelled <| .singleFaced
     { name := "Brazen Dwarf", cost := some [generic 1, pip .red], types := [.creature],
       subtypes := [dwarf, shaman],
       text :=
-        [ whenever (does you (rollDice anyAmount .anyDie .many))
+        [ whenever (does you (rollDice anyAmount .anyDie))
             (instruct thisCreature (dealDamage (.lit 1) eachOpponent)) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -1394,7 +1394,7 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
       text :=
         [ activatedOnlyDuring tapSymbol
             (putCounters (.lit 1) bountyCounter
-              (target (or [isCreature, isPlaneswalker])) .many)
+              (target (or [isCreature, isPlaneswalker])))
             asSorcery,
           whenever
             (does any

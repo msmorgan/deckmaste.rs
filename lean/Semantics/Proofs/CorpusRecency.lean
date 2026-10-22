@@ -193,7 +193,7 @@ theorem vampiricDeadCreatureIsExcludedByZone :
 
 theorem vampiricCountersUseEnchantedCreature :
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause vampiricAfterDeath)
-      (.putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .many true)
+      (.putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) true)
     let patients := (after.pendingRoles.filter (fun p => p.2 == .obj)).map (·.1)
     errors = [] ∧ patients.length = 1 ∧
       patients = (vampiricAfterDeath.referents.filter (·.attachmentHost)).map (·.id) ∧

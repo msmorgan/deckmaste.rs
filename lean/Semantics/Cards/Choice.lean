@@ -1415,7 +1415,7 @@ def requisitionRaid : Spelled := spelled <| .singleFaced
               (some (mana [generic 1]), destroy (target isEnchantment)),
               (some (mana [generic 1]),
                putCounters (.lit 1) p1p1Counter
-                 (each (and [isCreature, controlledBy (target isPlayer)])) .many) ]) ] } }
+                 (each (and [isCreature, controlledBy (target isPlayer)]))) ]) ] } }
 
 /-- Rustler Rampage -/
 def rustlerRampage : Spelled := spelled <| .singleFaced

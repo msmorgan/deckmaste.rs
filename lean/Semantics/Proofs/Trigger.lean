@@ -59,12 +59,12 @@ theorem selfAttackPublishesItsCreature :
 /-- "the last Intervention counter is removed from this enchantment by you" -/
 theorem okAnnouncingRemovalAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.by .you) (.removeCounters none (some (.printed (.named "interventionCounter"))) thisEnchantment .emptying false)) = [] := by
+      (.does (.by .you) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment false)) = [] := by
   decide
 
 theorem badAnnouncingRemovalAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.by (target .anyPlayer)) (.removeCounters none (some (.printed (.named "interventionCounter"))) thisEnchantment .emptying false)) = [.eventAgent] := by
+      (.does (.by (target .anyPlayer)) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment false)) = [.eventAgent] := by
   decide
 
 /-- "Whenever a creature attacks a player, …" -/
@@ -137,7 +137,7 @@ theorem badKeywordCostPaymentThatMuch :
 
 /-- "whenever one or more time counters are put on this enchantment" -/
 theorem okManyCountersOnPlacement :
-    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount (.printed (.named "timeCounter")) thisEnchantment .many false))
+    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount (.printed (.named "timeCounter")) thisEnchantment false))
       = [] := by
   decide
 
@@ -248,13 +248,13 @@ theorem badCrimeByAllPlayers :
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
 def rollShiftBody : Action :=
-  may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature .one true)
+  may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature true)
     (some (shiftResult (.lit 1)))
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
 increase or decrease the result by 1." (Xenosquirrels) -/
 theorem okAfterRollShift :
-    Ability.check (DRS.ofList []) (after (.does (.actor .you) (.rollDice .anyAmount .anyDie .one .anyResult)) rollShiftBody)
+    Ability.check (DRS.ofList []) (after (.does (.actor .you) (.rollDice (.lit 1) .anyDie .anyResult)) rollShiftBody)
       = [] := by
   decide
 

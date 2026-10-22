@@ -7,7 +7,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.DrtCards
 
 private def feralContest : Action := .sequentially [
-  .putCounters (.lit 1) (.printed p1p1Counter) (target (and [isCreature, youControl])) .one true,
+  .putCounters (.lit 1) (.printed p1p1Counter) (target (and [isCreature, youControl])) true,
   .establish
     (.must (.actor (target (.and [isCreature, .other]))) (.block it) {})
     (some thisTurn)]
@@ -214,7 +214,7 @@ theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
 
 theorem aTokenMentionIsNotACreationResult :
     let mention := Action.putCounters (.lit 1) (.printed p1p1Counter)
-      (.described (.a .unmarked) (.isToken)) .one true
+      (.described (.a .unmarked) (.isToken)) true
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) mention)
     out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧

@@ -332,8 +332,17 @@ theorem badRestOverTwoAnnouncements :
 theorem okEachOpponentDamage :
     Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (each (.isOpponentOf .you)))) = [] := by decide
 
-/-- "This creature deals 2 damage to opponents.": a bare plural is not read member by member. -/
-theorem badPluralPlayerDamageRecipient :
+/-- "This creature deals 2 damage to opponents.": the universal bare plural is "all opponents"
+(`bare` expands to `.all`), each dealt the damage. -/
+theorem okBarePluralPlayerDamageRecipient :
+    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (bare (.isOpponentOf .you))))
+      = [] := by
+  decide
+
+/-- `perMemberOk` still refuses the measured-domain determiner (`DetPhrase.bare`, which only
+`countOf`, `aggregate` and `exists_` write) as a damage recipient. Whether that determiner stays
+is the owner's decision in `lean-v3-measured-domain-antecedent`. -/
+theorem measuredDomainIsNotAPerMemberRecipient :
     Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (.described .bare (.isOpponentOf .you))))
       = [.perMember] := by
   decide

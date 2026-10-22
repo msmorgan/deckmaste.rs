@@ -257,4 +257,38 @@ theorem commonMovedHeaderSuccessorDoesNotResurrectOldIdentity :
       common.visibleReferents.map (fun r => (r.id, r.zone)) = [(1, some .graveyard)] ∧
       common.nextId = 3 := by decide
 
+/-! ## Control changes
+
+"Gain control of …" as an instruction is a Continuous Effect, `establish (controlGrant …)`
+[CR#611.2a,613.1b]. As a trigger event (one that looks back in time [CR#603.10d]) or a forbidden
+act it names the control change, `gainControlOf` (`Action.changeControl`). -/
+
+/-- The imperative's tree is unchanged: `gainControl` is the layer-2 effect. -/
+theorem gainControlImperativeIsTheControlGrant (subject controller : NounPhrase)
+    (duration : Option Duration) :
+    gainControl subject duration (controller := controller) =
+      .establish (.controlGrant controller subject) duration := rfl
+
+/-- A control change in a resolving position is refused; as an event or a deontic it checks. -/
+theorem controlChangeIsOnlyAPattern :
+    Action.check (DRS.ofList []) (gainControlOf (target isCreature)) = [.controlChangePattern] ∧
+      GameEvent.check (DRS.ofList [])
+        (.does (.actor anOpponent) (gainControlOf (a isPermanent) (some you))) = [] ∧
+      StaticSpec.check (DRS.ofList [])
+        (cant (bare (and [isPlayer, isOther])) (gainControlOf thisCreature)) = [] := by decide
+
+/-- The player control is taken from is a player. -/
+theorem controlIsTakenFromAPlayer :
+    GameEvent.check (DRS.ofList [])
+      (.does (.actor anOpponent) (gainControlOf (a isPermanent) (some (a isCreature)))) =
+        [.kindMismatch .player .object] := by
+  decide
+
+/-- The control change stamps its patient as `controlGrant` does, so "the permanent … gained
+control of" reads either. -/
+theorem controlChangeStampsItsPatientAsTheGrantDoes :
+    let after := GameEvent.extend (DRS.ofList []) (.does (.actor anOpponent) (gainControlOf (a isPermanent)))
+    (participialCandidates (.deed (.core .gainControl)) (some .one) none false
+      (nextClause after)).length = 1 := by decide
+
 end Semantics.Proofs.EventPatterns

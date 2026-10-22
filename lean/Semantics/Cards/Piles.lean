@@ -82,7 +82,7 @@ def orchardElemental : Spelled := spelled <| .singleFaced
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["sprout", "harvest"])),
                   putCounters (times (.lit 2) (votesFor "sprout")) p1p1Counter
-                    thisCreature .many,
+                    thisCreature,
                   gainLife (times (.lit 3) (votesFor "harvest")) ])) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -141,7 +141,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["strength", "numbers"])),
-                  putCounters (votesFor "strength") p1p1Counter thisCreature .many,
+                  putCounters (votesFor "strength") p1p1Counter thisCreature,
                   createToken (creatureToken 1 1 [.white] [soldier]) (count :=
                                                                         votesFor "numbers") ])) ],
       power := stat 2, toughness := stat 2 } }

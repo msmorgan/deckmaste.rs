@@ -286,7 +286,7 @@ theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
       Action.check (DRS.ofList [])
         (.triggerReflexively offered none
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
-            (.headed (.type .creature) .this) .many true)) = [] := by decide
+            (.headed (.type .creature) .this) true)) = [] := by decide
 
 theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
     let mana := Cost.mana [.simple (.generic 1)]
@@ -324,8 +324,8 @@ theorem numericDiceResultRequiresOneUnambiguousRoll :
 theorem performedReplacementResultTakesPriorityOverItsDiceCount :
     let prospective := DRS.ofList [outcomeB .diceRolled]
     let performed := (stepAction 64 .postEvent .obj prospective
-      (.rollDice .thatMuch .thoseDice .many .anyResult)).1
-    Action.check prospective (.rollDice .thatMuch .thoseDice .many .anyResult) = [] ∧
+      (.rollDice .thatMuch .thoseDice .anyResult)).1
+    Action.check prospective (.rollDice .thatMuch .thoseDice .anyResult) = [] ∧
       countOutcomes .diceRolled performed = 1 ∧
       countOutcomes .rollResult performed = 1 ∧
       Amount.check performed (.theOutcome .rollResult) = [] ∧

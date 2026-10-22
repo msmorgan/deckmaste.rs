@@ -648,7 +648,7 @@ def myrPrototype : Spelled := spelled <| .singleFaced
       subtypes := [myr],
       text :=
         [ at_ (beginningOfYour .upkeep)
-            (putCounters (.lit 1) p1p1Counter thisCreature .many),
+            (putCounters (.lit 1) p1p1Counter thisCreature),
           static
               (conjunction
                  [gatedBy (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it)))
@@ -798,4 +798,21 @@ def castFromGraveyardByDiscardingALand : StaticSpec :=
         (compound [itsManaCost, perform (discard (a (and [isCard, isLand])))])))
 theorem okCastFromGraveyardByDiscardingALand :
     StaticSpec.check (DRS.ofList []) castFromGraveyardByDiscardingALand = [] := by decide
+
+/-- Guardian Beast's first sentence: "As long as this creature is untapped, noncreature artifacts
+you control can't be enchanted, they have indestructible, and other players can't gain control of
+them." The artifacts are the subject the three parts share, and "can't gain control of" forbids the
+control change, `gainControlOf`. The card's last sentence, "This effect doesn't remove Auras
+already attached to those artifacts", has no Core AST form yet, so this pins the first sentence
+and the card is not spelled. -/
+def guardianBeastProtection : Ability :=
+  static (onlyWhile
+    (conjunction
+      [ cant any (attachTo (allOf (hasSubtype aura)) them),
+        abilityGrant them indestructible,
+        cant (bare (and [isPlayer, isOther])) (gainControlOf them) ]
+      (some (bare (and [non isCreature, isArtifact, youControl]))))
+    (is thisCreature isUntapped))
+theorem okGuardianBeastProtection :
+    Ability.check (DRS.ofList []) guardianBeastProtection = [] := by decide
 end Semantics.Cards

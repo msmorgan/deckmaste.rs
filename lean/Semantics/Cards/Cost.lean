@@ -744,9 +744,9 @@ theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonRetur
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=
   activated (compound [mana [generic 1], tapSymbol])
-    (replaceNextEvent (would (target isPlayer) (rollDice anyAmount .anyDie .many))
+    (replaceNextEvent (would (target isPlayer) (rollDice anyAmount .anyDie))
       (instead (sequentially
-        [ instruct they (rollDice (plus thatMuch (.lit 1)) .thoseDice .many .anyResult),
+        [ instruct they (rollDice (plus thatMuch (.lit 1)) .thoseDice .anyResult),
           ignoreOutcomes (chosenResults (some you) (.lit 1)) ]))
       (some thisTurn))
 theorem okBamboozlingBeebleIgnore : Ability.check (DRS.ofList []) bamboozlingBeebleIgnore = [] := by decide

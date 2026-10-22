@@ -302,6 +302,6 @@ theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
       countOnes .object shield = 0 ∧
       Action.check (DRS.ofList [])
         (.triggerReflexively (regenerate thisCreature) (some event)
-          (putCounters (.lit 1) m1m1Counter it .many)) = [] := by decide
+          (putCounters (.lit 1) m1m1Counter it)) = [] := by decide
 
 end Semantics.Proofs.ActionFamilies

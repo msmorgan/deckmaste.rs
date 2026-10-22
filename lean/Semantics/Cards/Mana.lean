@@ -61,7 +61,7 @@ def workhorse : Spelled := spelled <| .singleFaced
       text :=
         [ static (entersWithCounters thisCreature (.lit 4) p1p1Counter),
           activated
-            (perform (removeCounters (exactly 1) (some p1p1Counter) thisCreature .many true))
+            (perform (removeCounters (exactly 1) (some p1p1Counter) thisCreature true))
             (addMana (.lit 1) (manaOf [[.colorless]])) ],
       power := stat 0, toughness := stat 0 } }
 
@@ -127,7 +127,7 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
       subtypes := [vampire, soldier],
       text :=
         [ vigilance,
-          whenever (countersPut p1p1Counter .many thisCreature)
+          whenever (countersPut p1p1Counter anyAmount thisCreature)
             (draw (.lit 1)) (limit := some oncePerTurn) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -190,7 +190,7 @@ def ragingRavine : Spelled := spelled <| .singleFaced
                       subtypes := [elemental],
                       text :=
                         [ whenever (does thisCreature attack)
-                            (putCounters (.lit 1) p1p1Counter thisCreature .many) ],
+                            (putCounters (.lit 1) p1p1Counter thisCreature) ],
                       power := stat 3, toughness := stat 3 } }
                   (some .land))) untilEndOfTurn) ] } }
 
@@ -311,10 +311,10 @@ def mercadianBazaar : Spelled := spelled <| .singleFaced
     { name := "Mercadian Bazaar", types := [.land],
       text :=
         [ static (entersTapped thisLand),
-          activated tapSymbol (putCounters (.lit 1) storageCounter thisLand .many),
+          activated tapSymbol (putCounters (.lit 1) storageCounter thisLand),
           activated
             (compound [tapSymbol,
-              perform (removeCounters anyNumber (some storageCounter) thisLand .many true)])
+              perform (removeCounters anyNumber (some storageCounter) thisLand true)])
             (addMana removedThisWay (manaOf [[.of .red]])) ] } }
 
 /-- Rootcoil Creeper -/
@@ -331,10 +331,10 @@ def blackManaBattery : Spelled := spelled <| .singleFaced
     { name := "Black Mana Battery", cost := some [generic 4], types := [.artifact],
       text :=
         [ activated (compound [mana [generic 2], tapSymbol])
-            (putCounters (.lit 1) chargeCounter thisArtifact .many),
+            (putCounters (.lit 1) chargeCounter thisArtifact),
           activated
             (compound [tapSymbol,
-              perform (removeCounters anyNumber (some chargeCounter) thisArtifact .many true)])
+              perform (removeCounters anyNumber (some chargeCounter) thisArtifact true)])
             (sequentially
               [ addMana (.lit 1) (manaOf [[.of .black]]),
                 addMana removedThisWay (manaOf [[.of .black]]) ]) ] } }
@@ -458,7 +458,7 @@ def sageOfFables : Spelled := spelled <| .singleFaced
           activated
             (compound [mana [generic 2],
               perform (removeCounters (exactly 1) (some p1p1Counter)
-                         (a (and [isCreature, youControl])) .many true)])
+                         (a (and [isCreature, youControl])) true)])
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -571,7 +571,7 @@ def ratchetBomb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ratchet Bomb", cost := some [generic 2], types := [.artifact],
       text :=
-        [ activated tapSymbol (putCounters (.lit 1) chargeCounter thisArtifact .many),
+        [ activated tapSymbol (putCounters (.lit 1) chargeCounter thisArtifact),
           activated (compound [tapSymbol, perform (sacrifice thisArtifact)])
             (destroy (each (and [non isLand, isPermanent,
               hasManaValue .eq (countersOn chargeCounter thisArtifact)]))) ] } }
@@ -720,7 +720,7 @@ def investigatorsJournal : Spelled := spelled <| .singleFaced
         [ static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls suspectCounter),
           activated
             (compound [mana [generic 2], tapSymbol,
-              perform (removeCounters (exactly 1) (some suspectCounter) thisArtifact .many true)])
+              perform (removeCounters (exactly 1) (some suspectCounter) thisArtifact true)])
             (draw (.lit 1)),
           activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
             (draw (.lit 1)) ] } }
@@ -1094,7 +1094,7 @@ def fellwarStone : Spelled := spelled <| .singleFaced
 def iceCauldronNotedMana : Ability :=
   activated
     (compound [tapSymbol,
-      perform (removeCounters (exactly 1) (some chargeCounter) thisArtifact .many true)])
+      perform (removeCounters (exactly 1) (some chargeCounter) thisArtifact true)])
     (addMana (.lit 1) (ofTheLastNotedType thisArtifact)
       [spendOnly [toCast exiledWithThisArtifact]])
 theorem okIceCauldronNotedMana : Ability.check (DRS.ofList []) iceCauldronNotedMana = [] := by decide

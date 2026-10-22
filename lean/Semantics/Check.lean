@@ -52,7 +52,7 @@ def exploreDef (subject : NounPhrase) : Action :=
           (.matches (.pro .bare .one) (.hasType .land))
           (.move (.pro .bare .one) .anyLocation (some handZone) .departure (some .anEffect) [])
           (some (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.laterMention "subject" (.inCaller subject)) .one true))
+            (.laterMention "subject" (.inCaller subject)) true))
       ]
 
 theorem explore_def_sound :
@@ -74,7 +74,7 @@ def conniveDef (subject : NounPhrase) : Action :=
               (handZone) (some graveyardZone) .departure (some .anEffect) [],
             some .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.laterMention "subject" (.inCaller subject)) .one true)
+            (.laterMention "subject" (.inCaller subject)) true)
           none
       ]
 
@@ -222,7 +222,7 @@ def sliceBCountersAndCharPin : Ability :=
         (.doForEachKind .counterKind (some (.firstMention "double.on" targetCreature))
           .counterKind
           (.putCounters (.statOf .boundCounter (.laterMention "double.on" targetCreature))
-            .bound (.laterMention "double.on" targetCreature) .one true)),
+            .bound (.laterMention "double.on" targetCreature) true)),
       .establish
         (.characteristicChange (.pro .bare .one)
           [.typeLine .adds { subtypes := some [Definitions.dragon] }])

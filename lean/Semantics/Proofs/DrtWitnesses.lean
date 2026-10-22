@@ -45,7 +45,7 @@ theorem historicalReadDoesNotChangeCurrentZone :
 theorem historicalReadDoesNotLeakIntoFollowingAction :
     Action.check destroyedCreature
       (.sequentially [gainLife (powerOf (that (.type .creature))),
-        .putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .one true]) =
+        .putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) true]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 private def brokenVisageBody : Action := .sequentially [

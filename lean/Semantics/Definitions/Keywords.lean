@@ -770,7 +770,7 @@ semantic_definition gravestorm : Ability :=
     [ when (does you (cast thisSpell))
         (sequentially
           [ copyOnStack thisSpell
-              (eventCount die (bare isPermanent) soFarThisTurn),
+              (eventCount die (a isPermanent) soFarThisTurn),
             may (.chooseNewTargets (those .copy)) ]) ]
 semantic_definition harmonize (cost : Cost) : Ability :=
   .keyword (.named "harmonize") [.cost (.inCaller cost)]

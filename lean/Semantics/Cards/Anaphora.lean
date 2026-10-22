@@ -255,18 +255,18 @@ theorem okHypnoticSpecterDiscard :
 
 /-- Wyll, Blade of Frontiers -/
 def wyllExtraDie : Action :=
-  replaceEvent (would you (rollDice anyAmount .anyDie .many))
+  replaceEvent (would you (rollDice anyAmount .anyDie))
     (instead (sequentially
-      [ rollDice (plus thatMuch (.lit 1)) .thoseDice .many .anyResult,
+      [ rollDice (plus thatMuch (.lit 1)) .thoseDice .anyResult,
         ignoreOutcomes (extreme .lowest) ]))
     none
 theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by decide
 
 /-- Vedalken Squirrel-Whacker -/
 def vedalkenSquirrelWhackerReroll : Action :=
-  replaceEvent (would you (rollDice anyAmount (.sides 6) .many))
+  replaceEvent (would you (rollDice anyAmount (.sides 6)))
     (instead (sequentially
-      [ rollDice thatMuch .thoseDice .many .anyResult,
+      [ rollDice thatMuch .thoseDice .anyResult,
         may
           (exchange (values (theOutcome .rollResult) (powerOf thisCreature))) ]))
     none
@@ -554,6 +554,26 @@ def hijack : Spelled := spelled <| .singleFaced
             [ gainControl (target (or [isArtifact, isCreature])) (some untilEndOfTurn) (controller := you),
               untap it,
               gainHaste it (some untilEndOfTurn) ]) ] } }
+
+/-- Zidane, Tantalus Thief. "Gain control of" is the imperative `gainControl`, a Continuous Effect
+[CR#611.2a,613.1b]; "an opponent gains control of a permanent from you" names the control change
+as a trigger event, `gainControlOf`, with the player it was taken from [CR#603.10d]. -/
+def zidaneTantalusThief : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Zidane, Tantalus Thief", cost := some [generic 3, pip .red, pip .white],
+      supertypes := [.legendary], types := [.creature], subtypes := [human, mutant, scout],
+      text :=
+        [ when (does thisCreature enter)
+            (sequentially
+              [ gainControl (target (and [isCreature, anOpponentControls])) (some untilEndOfTurn)
+                  (controller := you),
+                untap it,
+                establishFor it [abilityGrant it lifelink, abilityGrant it haste]
+                  (some untilEndOfTurn) ]),
+          whenever (does anOpponent (gainControlOf (a isPermanent) (some you)))
+            (createToken treasureToken) ],
+      power := stat 3, toughness := stat 3 } }
+theorem okZidaneTantalusThief : zidaneTantalusThief.card.check = [] := zidaneTantalusThief.ok
 
 /-- Open the Vaults -/
 def openTheVaults : Action :=

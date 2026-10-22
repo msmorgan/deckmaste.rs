@@ -97,6 +97,18 @@ theorem putAndReturnExpandToOneTree (subject : NounPhrase) (destination : Locati
     returnTo subject destination riders = putWith subject destination riders :=
   ⟨rfl, rfl, rfl, rfl, rfl⟩
 
+/-! ## The bare plural
+
+A universal bare plural and "all" have one rules meaning and one plural referent: "Creatures you
+control get +1/+1" and "All creatures you control get +1/+1". Separate Templates keep the two
+wordings, and they expand to the same tree. -/
+
+theorem bareAndAllOfExpandToOneTree (p : Predicate) :
+    bare p = allOf p ∧
+      getsPt (bare (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) =
+        getsPt (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) :=
+  ⟨rfl, rfl⟩
+
 /-- A move from a graveyard to a hand is observed on its departure, whichever verb writes it: an
 ability that triggers when a card leaves a graveyard looks back in time [CR#603.10a]. -/
 theorem graveyardToHandObservedOnDeparture :

@@ -45,7 +45,7 @@ theorem conditionalArmAntecedentIsTheToken :
       (exists_ (and [isCreature, youControl])) none
     let out := (stepAction 12 .postEvent .obj (DRS.ofList []) line).1
     Action.check (DRS.ofList [])
-      (.sequentially [line, .putCounters (.lit 1) (.printed p1p1Counter) it .one true]) = [] ∧
+      (.sequentially [line, .putCounters (.lit 1) (.printed p1p1Counter) it true]) = [] ∧
       (resolveCandidates .bare .one (nextClause out)).map (·.payload.orig) = [some .token] := by
   decide
 
@@ -55,7 +55,7 @@ theorem badBothArmsAntecedent :
         [ may (gainLife (.lit 1))
             (some (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier]))))
             (some (create (.lit 2) (.written (creatureToken 1 1 [.white] [soldier])))),
-          .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
+          .putCounters (.lit 1) (.printed p1p1Counter) it true ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Put target creature onto the battlefield." -/
@@ -546,18 +546,18 @@ theorem badCreatureWonFlip :
 
 /-- "the number of dice you rolled this turn" -/
 theorem okRollTally :
-    Amount.check (DRS.ofList []) (.tally ⟨.actor .you, .rollDice (.lit 1) .anyDie .one .anyResult, some (.duration soFarThisTurn none)⟩ .events) = [] := by decide
+    Amount.check (DRS.ofList []) (.tally ⟨.actor .you, .rollDice (.lit 1) .anyDie .anyResult, some (.duration soFarThisTurn none)⟩ .events) = [] := by decide
 
 /-- "the amount of dice you rolled this turn" -/
 theorem badRollAsMagnitude :
-    Amount.check (DRS.ofList []) (.tally ⟨.actor .you, .rollDice (.lit 1) .anyDie .one .anyResult, some (.duration soFarThisTurn none)⟩ .quantity) = [.tallyOk] := by decide
+    Amount.check (DRS.ofList []) (.tally ⟨.actor .you, .rollDice (.lit 1) .anyDie .anyResult, some (.duration soFarThisTurn none)⟩ .quantity) = [.tallyOk] := by decide
 
 theorem youWonAFlipThisTurn :
     Condition.check (DRS.ofList []) (.did ⟨.actor .you, .flipCoins (.count (.lit 1)) (some .wins) none, some (.duration soFarThisTurn none)⟩) =
       [] := by decide
 
 theorem youRolledADieThisTurn :
-    Condition.check (DRS.ofList []) (.did ⟨.actor .you, .rollDice (.lit 1) .anyDie .one .anyResult, some (.duration soFarThisTurn none)⟩) = [] := by decide
+    Condition.check (DRS.ofList []) (.did ⟨.actor .you, .rollDice (.lit 1) .anyDie .anyResult, some (.duration soFarThisTurn none)⟩) = [] := by decide
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
@@ -596,12 +596,12 @@ theorem badCoinCameUpOnOutcome :
 
 /-- "Whenever you roll a 4 or higher, …" -/
 theorem okBoundedRollTest :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.rollDice (.lit 1) .anyDie .one (.resultIn (.range (some 4) none)))) = [] := by
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.rollDice (.lit 1) .anyDie (.resultIn (.range (some 4) none)))) = [] := by
   decide
 
 /-- "Whenever you roll a 0, …" -/
 theorem badZeroRollTest :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.rollDice (.lit 1) .anyDie .one (.resultIn (.range none (some 0)))))
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.rollDice (.lit 1) .anyDie (.resultIn (.range none (some 0)))))
       = [.nonZeroQ] := by
   decide
 
@@ -905,13 +905,13 @@ theorem badStoreResultsWithoutRoll :
 /-- "If you would roll one or more d6, instead roll that many of those dice." -/
 theorem okThoseDiceAfterRollEvent :
     Action.check (DRS.ofList [])
-      (replaceEvent (.would (.actor .you) (.rollDice .anyAmount (.sides 6) .many .anyResult))
-        (instead (.rollDice .thatMuch .thoseDice .many .anyResult)) none) = [] := by
+      (replaceEvent (.would (.actor .you) (.rollDice .anyAmount (.sides 6) .anyResult))
+        (instead (.rollDice .thatMuch .thoseDice .anyResult)) none) = [] := by
   decide
 
 /-- "Roll that many dice." -/
 theorem badAnaphoricSidesWithoutRoll :
-    Action.check (DRS.ofList []) (.rollDice (.lit 1) .thoseDice .one .anyResult)
+    Action.check (DRS.ofList []) (.rollDice (.lit 1) .thoseDice .anyResult)
       = [.outcomeInScope .diceRolled 0] := by
   decide
 
@@ -962,5 +962,17 @@ theorem controllerReadDoesNotPermitUntappingDestroyedPermanent :
       (.sequentially [destroy (target isArtifact),
         .dealDamage (.lit 2) (controllerOf (that .permanent)),
         untap (that .permanent)]) = [.anaphor (.word .permanent) .one 0] := by decide
+
+/-- "Whenever you roll a die" (`.lit 1`, matched by each die rolled [CR#603.2c]) and "Whenever you
+roll one or more dice" (`anyAmount`, matched by the roll) are distinct patterns: the first
+publishes one die's result, the second the roll's. -/
+theorem rollADieAndRollOneOrMoreDiceAreDistinctPatterns :
+    countOutcomes .rollResult
+        (GameEvent.extend (DRS.ofList []) (.does (.actor .you) (rollDice (.lit 1) .anyDie))) = 1 ∧
+      countOutcomes .diceRolled
+        (GameEvent.extend (DRS.ofList []) (.does (.actor .you) (rollDice (.lit 1) .anyDie))) = 0 ∧
+      countOutcomes .diceRolled
+        (GameEvent.extend (DRS.ofList []) (.does (.actor .you) (rollDice anyAmount .anyDie))) = 1 := by
+  decide
 
 end Semantics.Proofs.Anaphora
