@@ -92,7 +92,46 @@ the owner. Lever 1 adds a `NounDistribution` value, which is declared in
 feature is allowed before choosing it; if it is not, and no lever avoids it,
 STOP.
 
+## Resolution
+
+Owner rulings:
+
+- Round 5, item 7c: no one-word `NounDistribution` value. Either a general
+  `Conversion: Converted` twin closure, modelled on `fused_head`, or withdraw
+  the ticket and leave the split to ranking. Lever 1 is therefore closed.
+- After the closure was measured: land it, defer Nameless Race in
+  `deferred.txt` (all 25 of its earlier Readings were known-wrong splits), and
+  mint `english-v4-fused-comparative-predicative` for the missing analysis.
+
+The fix is the general closure, an engine mechanism with no new feature:
+
+- `ProductionDecl::converted_head`, set only on `Determined`, names no word.
+- A Derivation is closed where the Production's `head` begins with a lone
+  converted noun (`Conversion: Converted`; CGEL, Ch. 19 §3.3, p. 1642) as its
+  own head, and the same Production over the same earlier children has a
+  `head` that the noun's adjective twin begins as a one-word premodifier.
+- The noun ends no Constituent before the Nominal its twin premodifies:
+  *[the excess damage dealt …]*.
+- It works for every converted noun in the corpus: *excess*, *total*, *top*,
+  *bottom* and the colour words (*all white Auras*).
+
+Deviation from the wording of ruling 7c, which describes an *unextended* Noun
+Phrase (*[the excess] [damage …]*): at the baseline, most of Archaic's
+Agony's wrong Readings were *[the [excess [damage dealt …]]]*, with the Bare
+Relative Clause postmodifying the noun itself. The closure therefore covers
+any `head` that begins with the lone converted noun as its own head, not only
+the unextended one. The principle is the same, and this ticket's "Done when"
+needs it. A `head` node that the twin's analysis shares is never closed.
+
+Nameless Race (*can't be more than the total number of …*) lost its
+Readings. All of them read *[more than [the total]] [number of …]*, with the
+noun *total* stranded. Its correct analysis is the determinative *more* in
+fused determiner-head use with a *than* Complement (CGEL, Ch. 13 §4.1.1,
+p. 1126), which the grammar does not build yet. It is deferred under
+`english-v4-fused-comparative-predicative`, and its judgment
+(`comparative_quantity_than.txt:16`) is pending while it stays deferred.
+
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `wvwzzlnq` → `vxouvotv`): faces read 28,798 → 28,797, product 219,746 → 218,637, Surplus 92,028 → 91,901, cheapest tier singleton 14,682/17,255 → 14,683/17,253 (summed 20,540 → 20,535, largest 8 → 8); no unit rose; lost face: Nameless Race (deferred, owner ruling; its Readings were all known-wrong).
+Judgment set: 3,018 enforced, 207 pending, all holding (two `+` entries added in `excess_count_noun.txt`; Nameless Race's entry now pending via its deferral).

@@ -9,6 +9,7 @@
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
@@ -216,4 +217,152 @@ fn an_unextended_child_is_first_or_last() {
         )
         .is_err()
     );
+}
+
+/// *excess* is a converted noun and its twin adjective; *card* converts to
+/// nothing.
+fn converted_lexicon() -> Lexicon {
+    let core = || Source {
+        kind: SourceKind::Core,
+        path: "tests/chart_closures.rs".to_owned(),
+        owner: "test".to_owned(),
+    };
+    let converted = |mut lexeme: Lexeme| {
+        lexeme
+            .properties
+            .features
+            .insert("Conversion".into(), "Converted".into());
+        lexeme
+    };
+    Lexicon::new([
+        converted(Lexeme::invariant(
+            "n:excess",
+            "excess",
+            Category::Noun,
+            core(),
+        )),
+        converted(Lexeme::invariant(
+            "a:excess",
+            "excess",
+            Category::Adjective,
+            core(),
+        )),
+        Lexeme::invariant("n:damage", "damage", Category::Noun, core()),
+        Lexeme::invariant("n:card", "card", Category::Noun, core()),
+        Lexeme::invariant("d:the", "the", Category::Determinative, core()),
+    ])
+    .unwrap()
+}
+
+/// A Clause of one or two Noun Phrases; a Nominal takes an adjective before
+/// it or a bare Noun Phrase after it.
+fn converted_grammar(
+    lexicon: &Lexicon,
+    converted: &str,
+) -> Result<CompiledGrammar, deckmaste_syntax::LoadError> {
+    let text = format!(
+        r#"(
+        root: "Sentence",
+        features: {{ "Conversion": ["Converted"] }},
+        categories: {{
+            "Sentence": (),
+            "Clause": (),
+            "NounPhrase": (features: ["Conversion"]),
+            "Nominal": (features: ["Conversion"]),
+            "AdjectivePhrase": (features: ["Conversion"]),
+        }},
+        closed_words: {{ "The": "d:the" }},
+        productions: [
+            (name: "Statement", lhs: "Sentence", rhs: [Cat("head", "Clause"), Punct('.')]),
+            (name: "One", lhs: "Clause", rhs: [Cat("subject", "NounPhrase")]),
+            (name: "Two", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Cat("object", "NounPhrase")]),
+            (name: "Noun", lhs: "Nominal", rhs: [Lex("head", Noun)]),
+            (name: "Adjective", lhs: "AdjectivePhrase", rhs: [Lex("head", Adjective)]),
+            (name: "Premodifier", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal")]),
+            (name: "Postmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "NounPhrase")]),
+            (name: "Bare", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")]),
+            (name: "Determined", lhs: "NounPhrase", rhs: [Word("determiner", "The"), Cat("head", "Nominal")]{converted}),
+        ],
+    )"#
+    );
+    CompiledGrammar::bind(
+        &Grammar::from_ron_str(&text).unwrap(),
+        lexicon,
+        &FrameCatalog::default(),
+    )
+}
+
+fn has_lexeme(reading: &Reading, id: &str) -> bool {
+    match reading {
+        Reading::Leaf(LexicalReading::Word(value)) => value.lexeme.as_str() == id,
+        Reading::Leaf(_) => false,
+        Reading::Node(node) => node.children.iter().any(|c| has_lexeme(c, id)),
+    }
+}
+
+#[test]
+fn a_converted_noun_does_not_end_before_what_its_twin_premodifies() {
+    let lexicon = converted_lexicon();
+    let open = converted_grammar(&lexicon, "").unwrap();
+    // Without the closure, the noun ends its Noun Phrase before *damage*
+    // (`Two`) or takes *damage* as its postmodifier.
+    let stranded: Vec<Reading> = open
+        .parse(&lexicon, "The excess damage.")
+        .readings()
+        .into_iter()
+        .filter(|r| has_lexeme(r, "n:excess"))
+        .collect();
+    assert_eq!(stranded.len(), 2, "{stranded:#?}");
+    assert!(stranded.iter().any(|r| uses(r, "Two")));
+    assert!(stranded.iter().any(|r| uses(r, "Postmodifier")));
+    let grammar = converted_grammar(&lexicon, ", converted_head: true").unwrap();
+    // The adjective premodifies the nominal after it under *the*.
+    let found = grammar.parse(&lexicon, "The excess damage.").readings();
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert!(has_lexeme(&found[0], "a:excess") && !has_lexeme(&found[0], "n:excess"));
+    assert!(uses(&found[0], "One") && uses(&found[0], "Premodifier"));
+    assert_eq!(grammar.admit(&found[0], &lexicon), Ok(()));
+    // Admission agrees with the chart.
+    for reading in &stranded {
+        assert!(grammar.admit(reading, &lexicon).is_err());
+    }
+    // With nothing after it, the noun ends its Noun Phrase.
+    let found = grammar.parse(&lexicon, "The excess.").readings();
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert!(has_lexeme(&found[0], "n:excess"));
+    assert_eq!(grammar.admit(&found[0], &lexicon), Ok(()));
+    // A noun with no twin keeps both analyses.
+    assert_eq!(
+        grammar.parse(&lexicon, "The card damage.").readings().len(),
+        2
+    );
+}
+
+#[test]
+fn a_converted_head_is_a_last_head_after_earlier_children() {
+    let lexicon = converted_lexicon();
+    let text = |production: &str| {
+        format!(
+            r#"(
+            root: "NounPhrase",
+            features: {{ "Conversion": ["Converted"] }},
+            categories: {{ "NounPhrase": (features: ["Conversion"]), "Nominal": (features: ["Conversion"]) }},
+            closed_words: {{ "The": "d:the" }},
+            productions: [
+                (name: "Noun", lhs: "Nominal", rhs: [Lex("head", Noun)]),
+                {production}
+            ],
+        )"#
+        )
+    };
+    let bind = |production: &str| {
+        CompiledGrammar::bind(
+            &Grammar::from_ron_str(&text(production)).unwrap(),
+            &lexicon,
+            &FrameCatalog::default(),
+        )
+    };
+    assert!(bind(r#"(name: "Bare", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")], converted_head: true),"#).is_err());
+    assert!(bind(r#"(name: "Back", lhs: "NounPhrase", rhs: [Cat("head", "Nominal"), Word("determiner", "The")], converted_head: true),"#).is_err());
+    assert!(bind(r#"(name: "Determined", lhs: "NounPhrase", rhs: [Word("determiner", "The"), Cat("head", "Nominal")], converted_head: true),"#).is_ok());
 }

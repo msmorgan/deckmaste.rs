@@ -122,3 +122,6 @@ Agency Outfitter | When this creature enters, you may search your graveyard, han
 
 # english-v4-set-off-first-conjunct
 Aspect of Wolf | Enchanted creature gets +X/+Y, where X is half the number of Forests you control, rounded down, and Y is half the number of Forests you control, rounded up.
+
+# english-v4-fused-comparative-predicative
+Nameless Race | As this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards.

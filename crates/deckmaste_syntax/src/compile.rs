@@ -99,8 +99,17 @@ pub struct CompiledGrammar {
     /// only ones a Summary's `final_preposition` records.
     pub(crate) unextended_prepositions: BTreeSet<LexemeId>,
     /// Productions whose Constituents a closure decided on the whole chart
-    /// can rule out: an `unextended` first child or a fused head.
+    /// can rule out: an `unextended` first child, a fused head or a
+    /// converted head.
     pub(crate) chart_closed: BTreeSet<Ident>,
+    /// The `Conversion: Converted` (feature, value) a `converted_head`
+    /// Production's closure reads.
+    pub(crate) conversion: Option<(usize, u16)>,
+    /// Productions whose `head` does not begin with a lone converted noun
+    /// where its twin premodifies a `head` after the same earlier children
+    /// (`ProductionDecl::converted_head`), a closure decided on the whole
+    /// chart.
+    pub(crate) converted_heads: BTreeSet<usize>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
@@ -609,6 +618,8 @@ impl<'a> Binder<'a> {
                 classes,
                 unextended_prepositions: BTreeSet::new(),
                 chart_closed: BTreeSet::new(),
+                conversion: None,
+                converted_heads: BTreeSet::new(),
                 projected,
                 prediction: crate::prediction::Prediction::default(),
                 report,
@@ -715,6 +726,9 @@ impl<'a> Binder<'a> {
             }
             if declaration.fused_head {
                 self.fused_head(declaration.name)?;
+            }
+            if declaration.converted_head {
+                self.converted_head(declaration.name)?;
             }
         }
         self.auxiliaries()?;
@@ -853,6 +867,43 @@ impl<'a> Binder<'a> {
             return Err(context("has a twin no Production takes before a `head`"));
         }
         self.out.productions[index].fused_twin = Some(twin);
+        self.out.chart_closed.insert(id);
+        Ok(())
+    }
+
+    /// Marks Production `id`, whose last child is its `head` after earlier
+    /// children, as closed where that `head` begins with a lone converted
+    /// noun whose twin premodifies a `head` after the same earlier children.
+    fn converted_head(&mut self, id: Ident) -> Result<(), LoadError> {
+        let context = |e: &str| invalid(format!("production `{id}`: converted head {e}"));
+        let index = *self
+            .out
+            .by_id
+            .get(&id)
+            .ok_or_else(|| context("names no production"))?;
+        let feature = self
+            .feature("Conversion")
+            .map_err(|_| context("needs the feature `Conversion`"))?;
+        let value = self
+            .value(feature, "Converted")
+            .map_err(|_| context("needs the value `Conversion: Converted`"))?;
+        let production = &self.out.productions[index];
+        let last = production.rhs.len() - 1;
+        let head = match production.rhs[last] {
+            crate::step::Symbol::Cat { category, .. }
+                if last > 0 && production.names[last].as_str() == "head" =>
+            {
+                category
+            }
+            _ => return Err(context("needs a last child `head` after earlier children")),
+        };
+        if !self.out.category_features[head].contains(&feature) {
+            return Err(context(
+                "needs a `head` Category with the feature `Conversion`",
+            ));
+        }
+        self.out.converted_heads.insert(index);
+        self.out.conversion = Some((feature, value));
         self.out.chart_closed.insert(id);
         Ok(())
     }
