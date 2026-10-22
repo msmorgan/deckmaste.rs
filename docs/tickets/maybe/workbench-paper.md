@@ -4,12 +4,12 @@ needs: []
 
 # Publish the oracle-typing experiment as a paper
 
-Write up the binder-unification-probe experiment — the dependently-typed
-oracle-English workbench where well-typed = editorially printable — for an
-academic venue. Speculative until that claim integrates and the machinery
+Write up the Lean 4 oracle-English semantics workbench (`lean/Semantics/`) — the
+dependently-typed oracle-English checker where well-typed = editorially printable
+— for an academic venue. Speculative until that claim integrates and the machinery
 stabilizes; actionable after.
 
-Decisions and framing already settled (2026-08-08):
+Decisions and framing already settled (2026-08-08; updated for Lean workbench):
 
 - **Thesis:** surface-faithful dependent typing scales to an industrial
   controlled natural language, and the type layer checks *discourse*
@@ -18,15 +18,16 @@ Decisions and framing already settled (2026-08-08):
   ("target creature an opponent controls or land you control") followed by
   "That player" refuses to typecheck — no unique player referent survives the
   disjunction, the classic DRT accessibility barrier, enforced by the
-  compiler.
+  compiler (`lean/Semantics/Check/`).
 - **Secondary result:** mechanization exposes CR under-determination (no rule
   defines what a block-causing effect does; "could block" exists only as a
   Gatherer ruling) — pairs with the mtg-rules UD registry practice.
 - **Venue ladder:** arXiv preprint first (cs first-submission endorsement
-  needed), then TyDe (ICFP workshop, Idris home turf) or an ICFP functional
-  pearl; the CNL workshop fits the corpus framing. The witness/pin bench is
-  the artifact-evaluation artifact — reviewers can build it and watch the
-  refusals fail with pinned errors.
+  needed), then TyDe (ICFP workshop), ITP/CPP (Lean home turf), or an ICFP
+  functional pearl; the CNL workshop fits the corpus framing. The Lean
+  witness/pin bench (`lean/Semantics/Cards/` and `lean/Semantics/Check/`) is
+  the artifact-evaluation artifact — reviewers can build it (`lean/scripts/build`)
+  and watch the refusals fail with pinned errors.
 - **Author status:** independent author is viable — double-blind review,
   "Independent Researcher" affiliation, precedent in this exact niche (the
   MTG Turing-completeness paper's lead author). AI assistance disclosed per

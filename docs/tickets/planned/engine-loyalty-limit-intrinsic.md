@@ -14,9 +14,8 @@ unlike the per-ability `OncePerTurn`.
 Do: the engine detects loyalty-cost abilities (`is_loyalty_ability`, already
 exists in `activate.rs`) and applies the shared once-per-turn gate
 intrinsically. Then drop the `UseLimit::LoyaltyOncePerTurn` variant, the
-`limits:` boilerplate from the three loyalty macros, the render suppression
-arm (it already prints nothing), and mirror the removal in idris
-(`UsageLimit` in `Semantics.idr`).
+`limits:` boilerplate from the three loyalty macros, and the render suppression
+arm (it already prints nothing).
 
 Behavior unchanged; this is authoring-surface subtraction. Renderer note:
 the restriction stays unprinted, matching real cards.

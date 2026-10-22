@@ -36,18 +36,11 @@ data.
 Uniqueness stays `None` — a deck may designate two carriers
 ([CR#702.124b] partner commanders).
 
-Mirror surfaces (39 sites, 9 files — `DesignationScope` is mirrored, so a new
-variant lands in all of them):
+Mirror surfaces (`DesignationScope` is mirrored across core, semantics, and lowering):
 
 - `crates/deckmaste_core/src/designation.rs` — the enum
 - `crates/deckmaste_semantics/src/designation.rs` — semantics mirror
 - `crates/deckmaste_lowering/src/designation.rs` — the `Lower` impl
-- `crates/deckmaste_plugin/src/idris_emit.rs` — `designation_scope_idris`,
-  which maps to an Idris `Scope` token carrying only `Object`/`Player`
-  (`Game` returns `None`)
-- `idris/src/Core.idr` — note the scope pair is mid-refactor from closed
-  `counterScope`/`designationScope` to dependent indexing; sequence against
-  that rather than extending the closed form
 - `plugins/builtin/macros/designations/Commander.ron` — the row, and its
   self-contradicting comment
 - `crates/deckmaste_plugin/tests/builtin.rs` — pins the wrong value today

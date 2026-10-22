@@ -1,5 +1,5 @@
 ---
-needs: [ci-idris-gate, ci-noncanon-gate, comment-reviewer-hotspots, engine-verb-ident-table, readme-oracle-text-primer, readme-reviewer-path, todo-harness-ci]
+needs: [ci-lean-gate, ci-noncanon-gate, comment-reviewer-hotspots, engine-verb-ident-table, readme-oracle-text-primer, readme-reviewer-path, todo-harness-ci]
 ---
 **Epic: the presentation capstone.** Close the reviewer-facing credibility
 gaps from the 2026-08-03 external review, then verify the result as one cold
@@ -10,7 +10,7 @@ The needs list covers three claims the capstone must be able to defend:
 
 - **The advertised path is real:** a reviewer gets direct artifact links and
   a clean clone can build, run the demo, and execute the documented checks.
-- **The gates are real:** citation, Idris lockstep, noncanon, ticket-graph, and
+- **The gates are real:** citation, Lean lockstep, noncanon, ticket-graph, and
   ordinary Rust suites execute in CI rather than surviving as comments,
   ignored files, or maintainer-machine commands.
 - **Known failure modes are deliberate:** engine-interpreted verbs are not
@@ -31,7 +31,7 @@ Final pass:
    layer is hand-written recursive descent) unless `english-v4` has replaced it
    by then.
 3. **Regression sweep.** Run `kata kanban check`, the complete citation
-   toolchain, the Idris baseline, the noncanon fixed-seed suite, and the
+   toolchain, the Lean baseline, the noncanon fixed-seed suite, and the
    work-log-vocabulary grep from `comment-reviewer-hotspots`.
 
 Explicitly outside this capstone: the full multi-million-token

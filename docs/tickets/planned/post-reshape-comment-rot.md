@@ -24,18 +24,9 @@ during the 2026-08-02 semantics-program recon; none block anything.
   reading.
 - `crates/deckmaste_core/src/action.rs` (~61-63): `EnterRider`'s claim
   that non-battlefield riders are "rejected by the Idris re-emit gate" is
-  false (no such proof exists) — coordinate with
-  `idris-mirror-semantics`, which owns resolving it (mint the proof or
-  correct this prose); do not fix independently.
+  false and references the retired Idris gate — correct this prose.
 
 Line numbers are as of 2026-08-02 — re-grep at claim time.
-
-## Routed ledger items
-
-- `idris/src/Bridge.idr`'s illustrative v1/v2 comparison pseudo-code still names
-  `AnyTarget`, which left the core for `Macros.anyTarget`. Already stale before
-  that round and out of its consumption boundary —
-  `docs/tickets/done/workbench-union-family-macros.md`.
 
 ## Gates
 

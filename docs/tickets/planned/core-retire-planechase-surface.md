@@ -16,8 +16,7 @@ and `EventFilter::RollPlanarDie { by, face }` in both crates' `action.rs` and
 - `crates/deckmaste_engine`: `eval.rs` (the documented never-matches arm),
   `resolve/player_action.rs` (the no-op special action), `payment/fulfill.rs`.
 - `crates/deckmaste_legacy_render`: `render/ability.rs`, `render/effect.rs`.
-- `crates/deckmaste_plugin`: `idris_emit.rs` (`emit_planar_face`,
-  `opt_planar_face`, both emit arms) and the three `BLOCKED` entries in
+- `crates/deckmaste_plugin`: the three `BLOCKED` entries in
   `tests/no_dead_grammar.rs` (`Action::RollPlanarDie`,
   `EventFilter::RollPlanarDie`, `PlanarFace::*`), which are exactly the
   "reserved room" the ruling forbids.
@@ -31,10 +30,7 @@ and `EventFilter::RollPlanarDie { by, face }` in both crates' `action.rs` and
   sentence goes too. `cargo xtask cite check` must report 0 stale and
   `--list-noncompliant` must stay empty afterwards.
 
-The Idris mirror carries the same three names (`RollPlanarDie`, `PlanarFace`
-in `idris/src/Semantics.idr` and the `Experimental/*` emit tables); delete
-them there too unless `idris-retirement` lands first, in which case they go
-with the tree. The Lean workbench never had them (the pin port named its two
+The Lean workbench never had them (the pin port named its two
 Planechase sentences as not ported). The seven `Chaos*` flavor-word stubs
 under `plugins/builtin_v2/macros/stubs/flavor_words/` are unrelated: they are
 card names (Chaos Warp and kin), not the chaos symbol, and stay.
@@ -49,4 +45,4 @@ absent-subsystem branch.
 Tests: `cargo test -p <crate>` and clippy for every crate changed; Lean checks
 only if Lean sources or plugin definitions changed. Assurance: the deleted lowering and
 no-dead-grammar tests have no surviving subject, so they are removed, not
-re-spelled; name each in the landing record's removed count.
+re-spelled.

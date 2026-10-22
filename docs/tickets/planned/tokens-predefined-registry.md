@@ -22,7 +22,7 @@ match arm AND a `.ron` file."
 
 `TokenName::resolve()` is synchronous and dependency-free *because* it
 hardcodes — `deckmaste_core` has no handle to the plugin registry. Options:
-thread a token-registry handle to the resolve sites (engine + idris_emit), or
+thread a token-registry handle to the resolve sites (in the engine), or
 embed `builtin/tokens/*.ron` into core at build time. Pick one with the user.
 `TokenSpec::Named(TokenName)` stays as the typed hook either way.
 
@@ -31,9 +31,7 @@ embed `builtin/tokens/*.ron` into core at build time. Pick one with the user.
 `resolve/player_action.rs` resolves `Named` with
 `.expect("a Named token in a card resolves to a builtin definition")` — a
 hand-authored `Named(Bogus)` reaching resolution panics today (the parser
-gate only protects the migration path). Land a fizzle/gap path with the
-registry change; `idris_emit` already models the graceful form. Sibling
-pattern: `cards-counter-ref-validation`.
+gate only protects the migration path). Land a fizzle/gap path with the registry change.
 
 Relation to `tokens-design`/`tokens-templates` (parked): this ticket is
 narrower — core plumbing only, no token *extraction* work resumes here.

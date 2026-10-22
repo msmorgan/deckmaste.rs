@@ -24,12 +24,7 @@ workspace root so a feature workspace's symlinked `data` resolves.
 
 A name absent from the corpus is a reported skip, not a failure — the bench
 carries synthetic witnesses on purpose. Exit nonzero only on a real mismatch,
-so the command is usable as a positive gate artifact in a landing record.
-
-Note for the implementer: `Macros.card`'s cost slot spells `{0}` two ways in
-the bench today (`Nothing` and `Just []`); decide which the check treats as
-canonical and say so in the landing record — correcting the bench itself is
-`workbench-bench-fidelity`.
+so the command is usable as a positive gate.
 
 Size: M.
 
@@ -37,7 +32,7 @@ Done when: the subcommand exists, is registered, and `cargo xtask <name>
 --help` documents it; run from the workspace root it reads
 `data/derived/cards.jsonl` and no other input, writes nothing, and prints one
 line per mismatch plus a total; it exits nonzero on a mismatch and zero on a
-clean bench; its current output — the mismatch count over today's bench — is
-recorded in the landing record as the baseline
-`workbench-bench-fidelity` must drive to zero; a unit test covers one seeded
-mismatch of each compared field. Standard constraints apply.
+clean bench; its current output — the mismatch count over today's bench —
+establishes the baseline `workbench-bench-fidelity` must drive to zero; a unit
+test covers one seeded mismatch of each compared field. Standard constraints
+apply.

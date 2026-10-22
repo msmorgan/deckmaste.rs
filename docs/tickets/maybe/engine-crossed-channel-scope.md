@@ -28,7 +28,7 @@ of those positions it would panic at runtime with no authoring-time signal.
 Decide one of:
 
 1. **Grammar-gate it.** Restrict `Crossed` to the triggered-ability
-   `condition:` position at macro-expansion or Idris-check time, making it a
+   `condition:` position at macro-expansion or Lean check time, making it a
    build-time error elsewhere. Matches the stated design intent literally.
 2. **Make it self-sufficient.** Have `Crossed` query history for the firing
    counter-placement fact the way `Condition::Happened` already does, needing

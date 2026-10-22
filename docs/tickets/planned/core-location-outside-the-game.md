@@ -95,7 +95,7 @@ and claimable on its own.
 
 ## Done when
 
-- No `Sideboard` `Zone` constructor anywhere (Rust or idris); idris gate green.
+- No `Sideboard` `Zone` constructor anywhere (Rust or Lean); Lean gate (`lean/scripts/build`) green.
 - `Location` exists in `core` with round-trip tests; the flatten spelling keeps
   bare zone names unchanged.
 - The in-game-vs-out-of-game scoping rule above is applied: object positions

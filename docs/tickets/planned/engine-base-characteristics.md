@@ -56,7 +56,6 @@ Stage 1.
 
 ## Gates
 
-Standard constraints apply. Zero behavior change: full workspace suites,
-`cargo xtask idris-check plugins/canon` no regressions, `cargo xtask
-fidelity` PASS. `cargo tree` must still prove `deckmaste_core` does not
-depend on `deckmaste_card`.
+Standard constraints apply. Zero behavior change: full workspace suites green
+(`cargo test -p deckmaste_engine`). `cargo tree` must still prove
+`deckmaste_core` does not depend on `deckmaste_card`.

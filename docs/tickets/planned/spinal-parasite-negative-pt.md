@@ -44,12 +44,8 @@ interlock.
 
 The Rust side now carries the signed base value: `StatValue::Number(Int)` and
 `NumericOp::Set(StatValue)`, with `StatValue::Count(Count)` for a dynamic base.
-But the Idris soundness twin still has `CharValue Power = Count` and Idris
-`Count` is itself **non-negative**, so a printed/base -1 is not representable in
-the twin yet — the model is subtly wrong exactly where Spinal Parasite lives.
-Resolving that (a signed base-value type in `Semantics.idr`, or modelling printed
-negative base P/T distinctly) is part of THIS ticket — it will surface the
-moment the card is emitted through `idris-check`.
+The Lean workbench (`lean/Semantics/`) models signed Int for P/T values cleanly.
+Resolving that across engine and card tests is part of THIS ticket.
 
 Follow the card-surface test conventions (assert by card identity across zone
 changes, drive resolution through the runner). Behavioral equivalence to the CR

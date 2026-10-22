@@ -27,6 +27,5 @@ already; these two residual pieces did not.
 ## Scope
 
 Design both primitives (brainstorm + spec first — this is grammar design, not a mechanical add),
-then implement Idris grammar + Rust mirror + emit + engine + a Balance fixture that round-trips
-and renders verbatim. Confirm with `cargo xtask idris-check plugins/canon "Balance"` +
-`cargo xtask fidelity`.
+then implement in the Lean grammar (`lean/Semantics/`) + Rust core/engine + a Balance fixture.
+Confirm with `lean/scripts/build` and engine tests.
