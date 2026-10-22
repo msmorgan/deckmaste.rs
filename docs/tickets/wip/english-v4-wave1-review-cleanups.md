@@ -44,16 +44,10 @@ Three small follow-ups from the review of the pre-Stratum-7 ambiguity tickets:
    Rename the Production `TargetingMarker` (`english.ron:1066`) to
    `BareTargetingMarker` so it does not collide with the Category name
    `TargetingMarker` (`english.ron:166`).
-3. **Avoid duplicate `PeriodNP` preposition frames (`english-v4-temporal-np-as-direct-object`):**
-   Adding `SlotFill::PeriodNP` / `PeriodNounPhrase` required duplicating
-   `(complement: PeriodNP, ...)` frames alongside `NP` on `of`, `after`,
-   `before` and `during` in `prepositions.ron`. Because prepositions take
-   `NounPhrase` while verb direct objects take `ComplementNounPhrase`
-   (`NonNumericComplement`, `english.ron:397`), representing deictic and
-   distributive period phrases as `NounPhrase` with `NounKind: Period`
-   (excluded on `NonNumericComplement`, alongside `SlotFill::PeriodNP` or a
-   `Period` object frame on `skip`) lets prepositions take them via their
-   existing `NP` frame without duplicate preposition frames.
+3. **Avoid duplicate `PeriodNP` preposition frames:** moved to
+   `english-v4-period-np-frame-duplication`. Its proposed fix needs a new
+   `NounKind` value, which the owner's rulings forbid, so it waits on an owner
+   ruling there.
 
 ## Done when
 
@@ -63,8 +57,6 @@ Three small follow-ups from the review of the pre-Stratum-7 ambiguity tickets:
   `LocatedExistentialBe` would take as its Extension. The Delirium text above
   is pinned by a `+` Judgment.
 - Production `TargetingMarker` is renamed to `BareTargetingMarker`.
-- `of`, `after`, `before` and `during` do not duplicate `NP` and `PeriodNP`
-  frames in `prepositions.ron`.
 - No face is lost, and no unit gains a Reading.
 
 ## Constraint on item 1 (cost-audit defect #7): no new features in `english.ron`
@@ -76,7 +68,7 @@ owner.
 
 Standard constraints apply.
 
-1. **Census delta** (measured on `srporzyt`, items 1 and 2; item 3 open):
+1. **Census delta** (measured on `srporzyt`, items 1 and 2):
    faces read 28,799 → 28,799; total Readings 214,080 → 213,878 (Surplus
    88,371 → 88,248, over 75 units, none rising); lost faces: none.
 2. **Judgment set**: 3,032 enforced at `COMPLETED_STRATUM` 6, all hold; 208
