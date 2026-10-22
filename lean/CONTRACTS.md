@@ -745,7 +745,7 @@ expected child kinds in the incoming `DRS`.
 | `TokenSpec` | `stepTokenSpecMetadataWith` steps it. |
 | `StaticSpec` | `stepStaticSpec` (`StaticSpec.check`) steps it. |
 | `Compulsion` | No Lean type: requirements are `StaticSpec.must` clauses, stepped as a deontic. |
-| `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
+| `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). `payingInstead` is the alternative cost of a cast a permission grants from another zone or at another time, or that an instruction directs; a pure alternative cost, granting no cast, is `StaticSpec.altCost` [CR#118.9,601.3]. |
 | `DeonticRider` | No Lean type: the rider is retired (`lean-v3-authoring-surface` §2.3). |
 | `DamageOp` | `stepDamageOpWith` steps it. |
 | `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). Whether its destination takes an Entry Rider or a Pile Placement is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). An `attachedTo` host is an object or a player (`kindLte`); a negated rider is named only in an event pattern (`riderNegationPattern`). |
@@ -761,7 +761,7 @@ expected child kinds in the incoming `DRS`.
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
 | `StaticParts` | The actual list supplies length; `StaticSpec.conjunction` refuses an empty list, refuses a nested conjunction (`notCoord`) and steps each part in a new clause after the previous one. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` refuses an empty list and steps each cost after the previous one. |
-| `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost no longer require `Cost.offBattlefield`; the card-class rule (`classAbilityOk`) still reads it. |
+| `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost (`StaticSpec.altCost` or `PlayPayment.payingInstead`) no longer require `Cost.offBattlefield`; the card-class rule (`classAbilityOk`) still reads it. |
 | `AbilitySeq` | `Ability.checkText` threads the choices and additional-cost results introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
 
 ### Events
@@ -1015,7 +1015,8 @@ The objects a linked ability acted on are read by a Participial Description, wri
 as the same ability would write it of its own deed ("the exiled card", "the
 sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AST.
 `Ability.textContext` publishes them `linked`: an additional or alternative cost's
-results (emerge, harmonize, offering, and a cast permission's added cost,
+results (emerge's `StaticSpec.altCost` cost, harmonize's cast permission's
+`PlayPayment.payingInstead`, offering, and a cast permission's added cost,
 `PlayPayment.plusAdditional`), the target `addsTarget` adds, stamped
 by targeting so mutate's "the target" is its own spell's [CR#702.140a] (a conditional static
 publishes what its spec does, so mutate's target, required only once its cost is chosen

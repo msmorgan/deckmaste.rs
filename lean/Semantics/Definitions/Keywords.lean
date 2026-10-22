@@ -265,7 +265,7 @@ semantic_definition auraSwap (cost : Cost) : Ability :=
               (a (and [.isCard, .hasSubtype aura, .in_ yourHand]))))) ]
 semantic_definition awaken (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "awaken") [.number (.inCaller amount), .cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       spell
         (doIf (keywordCostPaid (.named "awaken") this_)
           (sequentially
@@ -318,7 +318,7 @@ semantic_definition battleCry : Ability :=
           untilEndOfTurn) ]
 semantic_definition bestow (cost : Cost) : Ability :=
   .keyword (.named "bestow") [.cost (.inCaller cost)]
-    [static (.altCost thisSpell (some (.inCaller cost)))]
+    [static (altCost this_ (some (.inCaller cost)))]
 /-- "Blitz [cost]" [CR#702.152a]. "If this spell's blitz cost was paid, sacrifice the permanent
 this spell becomes at the beginning of the next end step" creates its delayed trigger as the
 permanent is put onto the battlefield as the spell resolves [CR#608.3g], controlled by the
@@ -326,7 +326,7 @@ spell's controller as it resolved [CR#603.7d]: a countered spell creates none, a
 permanent [CR#608.3f] creates its own. -/
 semantic_definition blitz (cost : Cost) : Ability :=
   .keyword (.named "blitz") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
           (doIf (keywordCostPaid (.named "blitz") thisPermanent)
@@ -405,7 +405,7 @@ semantic_definition cipher : Ability :=
                   may (cast (that .copy) (payment := withoutPaying)) ])))) ]
 semantic_definition cleave (cost : Cost) : Ability :=
   .keyword (.named "cleave") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (onlyWhile (.textChange thisSpell .removeBracketed)
           (keywordCostPaid (.named "cleave") thisSpell)) ]
@@ -448,7 +448,7 @@ semantic_definition crew (amount : Amount) : Ability :=
 battlefield as the spell resolves [CR#608.3g,603.7d], as blitz's is. -/
 semantic_definition dash (cost : Cost) : Ability :=
   .keyword (.named "dash") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
           (doIf (keywordCostPaid (.named "dash") thisPermanent)
@@ -563,10 +563,8 @@ semantic_definition embalm (cost : Cost) : Ability :=
 semantic_definition emerge (cost : Cost) : Ability :=
   .keyword (.named "emerge") [.cost (.inCaller cost)]
     [ static
-        (can you
-          (cast this_
-            (payment :=
-              .payingInstead (.compound [.inCaller cost, .perform (sacrifice (a isCreature))])))),
+        (altCost this_
+          (some (.compound [.inCaller cost, .perform (sacrifice (a isCreature))]))),
       static
         (onlyWhile
           (.costShift thisSpell
@@ -579,12 +577,11 @@ quality telling it apart, and its cost is an emerge cost [CR#702.119b]. -/
 semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
   .keyword (.named "emerge") [.quality (.inCaller quality), .cost (.inCaller cost)]
     [ static
-        (can you
-          (cast this_
-            (payment := .payingInstead
-              (.compound
-                [ .inCaller cost,
-                  .perform (sacrifice (a (and [.inCaller quality, isPermanent]))) ])))),
+        (altCost this_
+          (some
+            (.compound
+              [ .inCaller cost,
+                .perform (sacrifice (a (and [.inCaller quality, isPermanent]))) ]))),
       static
         (onlyWhile
           (.costShift thisSpell
@@ -666,7 +663,7 @@ semantic_definition eternalize (cost : Cost) : Ability :=
         asSorcery ]
 semantic_definition evoke (cost : Cost) : Ability :=
   .keyword (.named "evoke") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       when (does thisPermanent enter)
         (if_ := keywordCostPaid (.named "evoke") thisPermanent)
         (instruct (controllerOf thisPermanent) (sacrifice thisPermanent)) ]
@@ -904,7 +901,7 @@ semantic_definition horsemanship : Ability :=
           (.block thisCreature)) ]
 semantic_definition impending (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "impending") [.number (.inCaller amount), .cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (replace (would thisPermanent enter)
           (doIf (keywordCostPaid (.named "impending") thisPermanent)
@@ -1091,7 +1088,7 @@ spell" [CR#702.140a]. One "if you do" gates the added target [CR#601.2c] and the
 the mutate cost's choice was taken. -/
 semantic_definition mutate (cost : Cost) : Ability :=
   .keyword (.named "mutate") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (onlyWhile
           (.addsTarget thisSpell
@@ -1169,7 +1166,7 @@ semantic_definition outlast (cost : Cost) : Ability :=
         asSorcery ]
 semantic_definition overload (cost : Cost) : Ability :=
   .keyword (.named "overload") [.cost (.inCaller cost)]
-    [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
+    [ static (altCost this_ (some (.inCaller cost))),
       static
         (onlyWhile (.textChange thisSpell .targetToEach)
           (keywordCostPaid (.named "overload") thisSpell)) ]
@@ -1257,7 +1254,7 @@ you controlled that shared a creature type with this spell [CR#702.76a]. -/
 semantic_definition prowl (cost : Cost) : Ability :=
   .keyword (.named "prowl") [.cost (.inCaller cost)]
     [ static
-        (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
+        (onlyWhile (altCost this_ (some (.inCaller cost)))
           (did (a (and [.shares (.subtype .creature) .share thisSpell, youControl]))
             (.dealDamage .anyAmount (a isPlayer) (some .combat)) soFarThisTurn)) ]
 semantic_definition rampage (amount : Amount) : Ability :=
@@ -1447,7 +1444,7 @@ semantic_definition soulshift (amount : Amount) : Ability :=
 semantic_definition spectacle (cost : Cost) : Ability :=
   .keyword (.named "spectacle") [.cost (.inCaller cost)]
     [ static
-        (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
+        (onlyWhile (altCost this_ (some (.inCaller cost)))
           (did anOpponent (loseLife .anyAmount) soFarThisTurn)) ]
 /-- "Splice onto [quality] [cost]": "You may reveal this card from your hand as you cast a
 [quality] spell. If you do, that spell gains the text of this card's rules text and you pay [cost]
@@ -1531,7 +1528,7 @@ semantic_definition sunburst : Ability :=
 semantic_definition surge (cost : Cost) : Ability :=
   .keyword (.named "surge") [.cost (.inCaller cost)]
     [ static
-        (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
+        (onlyWhile (altCost this_ (some (.inCaller cost)))
           (did (actor (or [.you, a isTeammate])) (cast (a anotherSpell)) soFarThisTurn)) ]
 semantic_definition suspend (amount : Amount) (cost : Cost) : Ability :=
   keywordNumberCosting (.named "suspend") (.inCaller amount) (.inCaller cost)
@@ -1654,13 +1651,14 @@ semantic_definition ward (cost : Cost) : Ability :=
         (instruct (controllerOf (that .stack))
           (mayOrElse (pay (.inCaller cost) .once)
             (instruct .you (counter (that .stack))))) ]
-/-- "Warp [cost]" [CR#702.185a]. Its delayed trigger is created as the permanent is put onto the
-battlefield as the spell resolves [CR#608.3g,603.7d], as blitz's is. -/
+/-- "Warp [cost]" [CR#702.185a]. Its first static functions on the stack and grants no cast: the
+rules already allow a cast from the hand [CR#601.3], so "cast this card from your hand by paying
+[cost]" is an alternative cost [CR#118.9] that applies only while this spell was cast from your
+hand. Its delayed trigger is created as the permanent is put onto the battlefield as the spell
+resolves [CR#608.3g,603.7d], as blitz's is. -/
 semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
-    [ static
-        (can you
-          (cast this_ (from_ := yourHand) (payment := .payingInstead (.inCaller cost)))),
+    [ static (onlyWhile (altCost this_ (some (.inCaller cost))) (is this_ (castFrom yourHand))),
       static
         (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
           (doIf (keywordCostPaid (.named "warp") thisPermanent)
@@ -1674,10 +1672,11 @@ semantic_definition warp (cost : Cost) : Ability :=
 semantic_definition webSlinging (cost : Cost) : Ability :=
   .keyword (.named "webSlinging") [.cost (.inCaller cost)]
     [ static
-        (can you
-          (cast this_ (payment := .payingInstead (.compound
-                [ .inCaller cost,
-                  .perform (returnToHand (a (and [isCreature, isTapped, youControl]))) ])))) ]
+        (altCost this_
+          (some
+            (.compound
+              [ .inCaller cost,
+                .perform (returnToHand (a (and [isCreature, isTapped, youControl]))) ]))) ]
 semantic_definition wither : Ability := keyword (.named "wither")
 
 open Lean Elab Term in

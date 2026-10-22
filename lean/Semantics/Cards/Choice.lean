@@ -944,9 +944,7 @@ def omniscience : Spelled := spelled <| singleFacedCard
   { name := "Omniscience", cost := [generic 7, pip .blue, pip .blue, pip .blue],
     types := [.enchantment],
     text :=
-      [ static
-          (can you
-             (cast (allOf isSpell) (from_ := yourHand) (payment := withoutPaying))) ] }
+      [ static (altCost (allOf (and [isSpell, castBy you, castFrom yourHand]))) ] }
 
 /-- Tranquil Frillback -/
 def tranquilFrillbackOffer : Action := may (pay [pip .green] (.upTo 3))

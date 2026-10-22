@@ -59,8 +59,7 @@ def awakenCost : Cost := .mana [generic 5, pip .blue]
 this spell's awaken cost was paid, put four +1/+1 counters on target land you control. That land
 becomes a 0/0 Elemental creature with haste. It's still a land." [CR#702.113a] -/
 def awakenDefinition : List Ability :=
-  [ .static (.can (.actor .you) (.procedure .cast .this (.payingInstead awakenCost) none none none)
-      {}),
+  [ .static (.altCost .this (some awakenCost)),
     .spell none
       (doIf (costWasPaid (.byKeyword (.named "awaken")) none .this)
         (.sequentially
