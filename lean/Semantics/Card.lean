@@ -22,7 +22,7 @@ structure SharedLineHalf where
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
 inductive LevelRange where
   | between (from_ to : Nat)
-  | atLeast (from_ : Nat)
+  | plus (from_ : Nat)
   deriving DecidableEq, Repr
 
 /-- One striation of a leveler's text box: the level symbol's range, the abilities printed in

@@ -31,9 +31,9 @@ theorem searchRequiresDistinctMultipleZones :
 
 /-- A multiplier used to express “for each” cannot be literally zero. -/
 theorem zeroMultiplierIsRefused :
-    Amount.check emptyContext (.arith .times (.lit 0) (.lit 2)) = [.amtNonZero] ∧
-    Amount.check emptyContext (.arith .times (.lit 1) (.lit 2)) = [] ∧
-    Amount.check emptyContext (.arith .plus (.lit 0) (.lit 2)) = [] := by decide
+    Amount.check emptyContext (.arith .times 0 2) = [.amtNonZero] ∧
+    Amount.check emptyContext (.arith .times 1 2) = [] ∧
+    Amount.check emptyContext (.arith .plus 0 2) = [] := by decide
 
 /-- Naming payment of a keyword cost requires that keyword to have a cost. -/
 theorem namedPaymentRequiresAPayableKeyword :
@@ -73,12 +73,12 @@ private def selectedCreature : NounPhrase :=
 theorem callerOwnedTestSubjectsDoNotPermitFreshLocalTestSelections :
     let test := Action.doIf
       (.matches (.firstMention "tested.parameter" (.inCaller selectedCreature))
-        (.hasType .creature)) (.draw (.exactlyOf (.lit 1))) none
+        (.hasType .creature)) (.draw (.exactlyOf 1)) none
     Action.check emptyContext (.ownScope none test) = [] ∧
       Condition.check emptyContext (.matches selectedCreature (.hasType .creature)) =
         [.testSubject] ∧
       Action.check emptyContext (.ownScope none
-        (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.exactlyOf (.lit 1))) none)) =
+        (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.exactlyOf 1)) none)) =
         [.testSubject] := by decide
 
 /-- "the creatures put into a graveyard": a definite plural Participial Description. -/
@@ -108,7 +108,7 @@ theorem opponentAndTeammateAreRelational :
     Predicate.checkAt .player emptyContext (.isTeammateOf .you) = [] ∧
     (stepPredicate 64 emptyContext (.isOpponentOf .you)).1.visibleReferents = [] ∧
     Predicate.checkAt .player emptyContext
-      (.isOpponentOf (.described (.target (.exactlyOf (.lit 1))) (.hasType .creature))) =
+      (.isOpponentOf (.described (.target (.exactlyOf 1)) (.hasType .creature))) =
         [.kindMismatch .player .object] := by decide
 
 /-- A shift raises or lowers, never sets: "this spell costs {1} less" and "[−X]" stand, while a
@@ -116,13 +116,13 @@ cost shift, a damage shift, a loyalty symbol or a die-result shift that sets is 
 set instead is an alternative cost [CR#118.9]; a loyalty symbol puts on or removes counters
 [CR#606.4]). -/
 theorem shiftsNeverSet :
-    StaticSpec.check emptyContext (.costShift .this (.generic (.down (.lit 1)) none)) = [] ∧
-    StaticSpec.check emptyContext (.costShift .this (.generic (.set (.lit 1)) none)) =
+    StaticSpec.check emptyContext (.costShift .this (.generic (.down 1) none)) = [] ∧
+    StaticSpec.check emptyContext (.costShift .this (.generic (.set 1) none)) =
       [.shiftSets] ∧
     StaticSpec.check emptyContext (.costShift .this (.bySymbols (.set (.lit [.simple (.generic 1)])) false)) =
       [.shiftSets] ∧
     (stepCost 64 emptyContext (.loyaltySymbol (.down (.letter .x)))).2 = [] ∧
-    (stepCost 64 emptyContext (.loyaltySymbol (.set (.lit 2)))).2 = [.shiftSets] := by decide
+    (stepCost 64 emptyContext (.loyaltySymbol (.set 2))).2 = [.shiftSets] := by decide
 
 /-- A Head Noun is an Object Class, Card Type or Subtype: "this Aura" names the source by its
 subtype, read as an enchantment, while "this player" is no Head Noun [CR#109.1,205.2a,205.3]. -/

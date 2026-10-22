@@ -40,7 +40,7 @@ theorem okPrintedNegativePower :
       { characteristics :=
         { name := "Char-Rumbler", cost := some [generic 2, pip .red, pip .red],
           types := [.creature], subtypes := [elemental],
-          power := some (.lit (-1)), toughness := some (.lit 3) } }) = [] := by
+          power := some (.lit (-1)), toughness := some 3 } }) = [] := by
   decide
 
 /-! ## Clamped slots: an effect's result reads zero -/
@@ -84,7 +84,7 @@ theorem okDefinesLetterClamped :
 /-- "This creature gets +2/+0": the sign is the constructor, and the magnitude beneath it is a
 number the game does not take below zero [CR#107.1b]. -/
 theorem okModifyUpClamped :
-    (Templates.modification thisCreature .power (.up (.lit 2))).numberSlots
+    (Templates.modification thisCreature .power (.up 2)).numberSlots
       = [(.lit 2, .clamped)] := by rfl
 
 /-! ## Signed slots: the negative stands -/
@@ -93,20 +93,20 @@ theorem okModifyUpClamped :
 toughness is the exception [CR#107.1b] names. -/
 theorem okDefinesPtSigned :
     (StaticSpec.characteristicChange (target isCreature)
-      [.stat .sets .power (.lit 0), .stat .sets .toughness (.lit 2)]).numberSlots
+      [.stat .sets .power 0, .stat .sets .toughness 2]).numberSlots
       = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
 
 /-- "This creature's power and toughness are each equal to …": a Characteristic-Defining
 Ability sets them, so a negative it reads stands [CR#107.1b,604.3a]. -/
 theorem okCharacteristicDefiningPtSigned :
-    (ptDefinitions thisCreature (.lit 0) (.lit 2)).numberSlots
+    (ptDefinitions thisCreature 0 2).numberSlots
       = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
 
 /-- "Whenever this creature's power becomes 3": the header watches a game state [CR#603.8], a
 comparison of a game value that may be less than zero [CR#107.1b]; it is no effect's result, so
 it has no clamped number slot. -/
 theorem okStateHeaderHasNoNumberSlot :
-    (stateHolds (compareAmt (powerOf thisCreature) .eq (.lit 3))).numberSlots = [] := by rfl
+    (stateHolds (compareAmt (powerOf thisCreature) .eq 3)).numberSlots = [] := by rfl
 
 /-- "This creature's power becomes -1": a set of a power, the exception [CR#107.1b] names,
 so the printed negative stands where the `up` half of the same `Delta` would clamp. -/
@@ -117,8 +117,8 @@ theorem okModifySetSigned :
 /-- "Your life total becomes twice your life total": doubling a life total is written as a
 set, and a set of a life total is the other half of the [CR#107.1b] exception. -/
 theorem okLifeTotalBecomesSigned :
-    (Action.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2)))).numberSlots
-      = [(.arith .times (lifeTotalOf .you) (.lit 2), .signed)] := by rfl
+    (Action.changeLife (.set (.arith .times (lifeTotalOf .you) 2))).numberSlots
+      = [(.arith .times (lifeTotalOf .you) 2, .signed)] := by rfl
 
 /-- "Exchange life totals" and the other numerical exchanges [CR#701.12g] set each side to the
 other's value, so both stand below zero [CR#107.1b]. -/
@@ -141,29 +141,29 @@ theorem okMultipliedDamageDeclaresNoSlot :
 for a sign, and damage is never negative [CR#107.1b]. -/
 theorem okShiftedDamageClamped :
     (StaticSpec.damageRule .unattributed .everywhere
-      (.scale (.shifted (.up (.lit 1)))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
+      (.scale (.shifted (.up 1))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
 
 /-! ## Printed slots and effect-written expressions -/
 
 theorem badPrintedPowerLiteral :
     Card.check (.singleFaced { characteristics :=
-      { name := "Stat witness", types := [.creature], toughness := some (.lit 1),
+      { name := "Stat witness", types := [.creature], toughness := some 1,
         power := some .thatMuch } }) = [.cardBox] := by decide
 
 theorem okPrintedPowerLiteral :
     Card.check (.singleFaced { characteristics :=
-      { name := "Stat witness", types := [.creature], toughness := some (.lit 1),
-        power := some (.lit 1) } }) = [] := by decide
+      { name := "Stat witness", types := [.creature], toughness := some 1,
+        power := some 1 } }) = [] := by decide
 
 theorem badPrintedToughnessLiteral :
     Card.check (.singleFaced { characteristics :=
-      { name := "Stat witness", types := [.creature], power := some (.lit 1),
+      { name := "Stat witness", types := [.creature], power := some 1,
         toughness := some .thatMuch } }) = [.cardBox] := by decide
 
 theorem okPrintedToughnessLiteral :
     Card.check (.singleFaced { characteristics :=
-      { name := "Stat witness", types := [.creature], power := some (.lit 1),
-        toughness := some (.lit 1) } }) = [] := by decide
+      { name := "Stat witness", types := [.creature], power := some 1,
+        toughness := some 1 } }) = [] := by decide
 
 theorem badPrintedLoyaltyLiteral :
     Card.check (.singleFaced { characteristics :=
@@ -173,7 +173,7 @@ theorem badPrintedLoyaltyLiteral :
 theorem okPrintedLoyaltyLiteral :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", types := [.planeswalker],
-        loyalty := some (.lit 1) } }) = [] := by decide
+        loyalty := some 1 } }) = [] := by decide
 
 theorem badPrintedDefenseLiteral :
     Card.check (.singleFaced { characteristics :=
@@ -183,53 +183,53 @@ theorem badPrintedDefenseLiteral :
 theorem okPrintedDefenseLiteral :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", types := [.battle],
-        defense := some (.lit 1) } }) = [] := by decide
+        defense := some 1 } }) = [] := by decide
 
 /-- A valid expression still cannot occupy a printed literal slot. -/
 theorem badPrintedArithmetic :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", types := [.creature],
-        power := some (.arith .plus (.lit 1) (.lit 1)), toughness := some (.lit 1) } })
+        power := some (.arith .plus 1 1), toughness := some 1 } })
       = [.cardBox] := by decide
 
 theorem okPrintedArithmeticLiteralTwin :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", types := [.creature],
-        power := some (.lit 2), toughness := some (.lit 1) } }) = [] := by decide
+        power := some 2, toughness := some 1 } }) = [] := by decide
 
 /-- Even a letter bound by the mana cost remains an expression in a printed slot. -/
 theorem badPrintedBoundLetter :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", cost := some [.variable], types := [.creature],
-        power := some (.letter .x), toughness := some (.lit 1) } }) = [.cardBox] := by decide
+        power := some (.letter .x), toughness := some 1 } }) = [.cardBox] := by decide
 
 theorem okPrintedBoundLetterLiteralTwin :
     Card.check (.singleFaced { characteristics :=
       { name := "Stat witness", cost := some [.variable], types := [.creature],
-        power := some (.lit 0), toughness := some (.lit 1) } }) = [] := by decide
+        power := some 0, toughness := some 1 } }) = [] := by decide
 
 theorem badSharedLinePowerLiteral :
     Card.check (.sharedLineSplit
       { characteristics :=
-        { types := [.creature], toughness := some (.lit 1), power := some .thatMuch } }
+        { types := [.creature], toughness := some 1, power := some .thatMuch } }
       { name := "Left" } { name := "Right" }) = [.cardBox, .cardBox] := by decide
 
 theorem okSharedLinePowerLiteral :
     Card.check (.sharedLineSplit
       { characteristics :=
-        { types := [.creature], toughness := some (.lit 1), power := some (.lit 1) } }
+        { types := [.creature], toughness := some 1, power := some 1 } }
       { name := "Left" } { name := "Right" }) = [] := by decide
 
 theorem badSharedLineToughnessLiteral :
     Card.check (.sharedLineSplit
       { characteristics :=
-        { types := [.creature], power := some (.lit 1), toughness := some .thatMuch } }
+        { types := [.creature], power := some 1, toughness := some .thatMuch } }
       { name := "Left" } { name := "Right" }) = [.cardBox, .cardBox] := by decide
 
 theorem okSharedLineToughnessLiteral :
     Card.check (.sharedLineSplit
       { characteristics :=
-        { types := [.creature], power := some (.lit 1), toughness := some (.lit 1) } }
+        { types := [.creature], power := some 1, toughness := some 1 } }
       { name := "Left" } { name := "Right" }) = [] := by decide
 
 theorem badSharedLineLoyaltyLiteral :
@@ -239,7 +239,7 @@ theorem badSharedLineLoyaltyLiteral :
 
 theorem okSharedLineLoyaltyLiteral :
     Card.check (.sharedLineSplit
-      { characteristics := { types := [.planeswalker], loyalty := some (.lit 1) } }
+      { characteristics := { types := [.planeswalker], loyalty := some 1 } }
       { name := "Left" } { name := "Right" }) = [] := by decide
 
 theorem badSharedLineDefenseLiteral :
@@ -249,71 +249,71 @@ theorem badSharedLineDefenseLiteral :
 
 theorem okSharedLineDefenseLiteral :
     Card.check (.sharedLineSplit
-      { characteristics := { types := [.battle], defense := some (.lit 1) } }
+      { characteristics := { types := [.battle], defense := some 1 } }
       { name := "Left" } { name := "Right" }) = [] := by decide
 
 theorem badLevelBandPowerLiteral :
     Card.check (.leveler
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      [{ power := some .thatMuch, toughness := some (.lit 1), range := .atLeast 1 }])
+          power := some 1, toughness := some 1 } }
+      [{ power := some .thatMuch, toughness := some 1, range := .plus 1 }])
       = [.cardBox] := by decide
 
 theorem okLevelBandPowerLiteral :
     Card.check (.leveler
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      [{ power := some (.lit (-1)), toughness := some (.lit 1), range := .atLeast 1 }])
+          power := some 1, toughness := some 1 } }
+      [{ power := some (.lit (-1)), toughness := some 1, range := .plus 1 }])
       = [] := by decide
 
 theorem badLevelBandToughnessLiteral :
     Card.check (.leveler
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      [{ toughness := some .thatMuch, power := some (.lit 1), range := .atLeast 1 }])
+          power := some 1, toughness := some 1 } }
+      [{ toughness := some .thatMuch, power := some 1, range := .plus 1 }])
       = [.cardBox] := by decide
 
 theorem okLevelBandToughnessLiteral :
     Card.check (.leveler
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      [{ toughness := some (.lit (-1)), power := some (.lit 1), range := .atLeast 1 }])
+          power := some 1, toughness := some 1 } }
+      [{ toughness := some (.lit (-1)), power := some 1, range := .plus 1 }])
       = [] := by decide
 
 theorem badPrototypePowerLiteral :
     Card.check (.prototype
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      { power := some .thatMuch, toughness := some (.lit 1), cost := some [generic 1] })
+          power := some 1, toughness := some 1 } }
+      { power := some .thatMuch, toughness := some 1, cost := some [generic 1] })
       = [.cardBox] := by decide
 
 theorem okPrototypePowerLiteral :
     Card.check (.prototype
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      { power := some (.lit (-1)), toughness := some (.lit 1), cost := some [generic 1] })
+          power := some 1, toughness := some 1 } }
+      { power := some (.lit (-1)), toughness := some 1, cost := some [generic 1] })
       = [] := by decide
 
 theorem badPrototypeToughnessLiteral :
     Card.check (.prototype
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      { toughness := some .thatMuch, power := some (.lit 1), cost := some [generic 1] })
+          power := some 1, toughness := some 1 } }
+      { toughness := some .thatMuch, power := some 1, cost := some [generic 1] })
       = [.cardBox] := by decide
 
 theorem okPrototypeToughnessLiteral :
     Card.check (.prototype
       { characteristics :=
         { name := "Stat witness", types := [.creature],
-          power := some (.lit 1), toughness := some (.lit 1) } }
-      { toughness := some (.lit (-1)), power := some (.lit 1), cost := some [generic 1] })
+          power := some 1, toughness := some 1 } }
+      { toughness := some (.lit (-1)), power := some 1, cost := some [generic 1] })
       = [] := by decide
 
 theorem badDynamicPowerContext :
@@ -350,6 +350,6 @@ theorem okDynamicDefenseContext :
 
 theorem okDynamicArithmetic :
     CharacteristicBundle.check (DRS.ofList [])
-      { characteristics := { power := some (.arith .plus (.lit 1) (.lit 1)) } } = [] := by decide
+      { characteristics := { power := some (.arith .plus 1 1) } } = [] := by decide
 
 end Semantics.Proofs.Numbers

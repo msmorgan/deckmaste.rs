@@ -32,7 +32,7 @@ theorem historicalDeathDoesNotMakeTheDeadCreatureCurrent :
       Action.check out (.setStatus .untapped creatureRead) =
         [.anaphor (.word (.type .creature)) .one 0] ∧
       Action.check out
-        (.putCounters (.lit 1) (.printed (.named "p1p1Counter")) creatureRead true) =
+        (.putCounters 1 (.printed (.named "p1p1Counter")) creatureRead true) =
         [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 /-- An ordinary move and a lookback from another origin cannot borrow battlefield type reach. -/

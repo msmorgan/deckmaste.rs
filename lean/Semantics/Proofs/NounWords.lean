@@ -142,7 +142,7 @@ theorem playerSubsetRetainsItsGroupKindAndIdentity :
         [{ kind := .player, sourceGroup := some 0, chosen := false, scope := 0 }] := by decide
 
 theorem playerSubsetCanPerformAPlayerAction :
-    Action.check (DRS.ofList []) (instruct selectedOpponent (draw (.lit 1))) = [] := by
+    Action.check (DRS.ofList []) (instruct selectedOpponent (draw 1)) = [] := by
   decide
 
 theorem playerSubsetCannotFillAnObjectContext :

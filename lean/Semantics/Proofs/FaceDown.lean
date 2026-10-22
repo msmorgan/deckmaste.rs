@@ -60,6 +60,6 @@ theorem okPlot : Ability.check (DRS.ofList []) (plot (.mana [generic 1, pip .blu
   decide
 
 /-- Hideaway 4 [CR#702.75a]. -/
-theorem okHideaway : Ability.check (DRS.ofList []) (hideaway (.lit 4)) = [] := by decide
+theorem okHideaway : Ability.check (DRS.ofList []) (hideaway 4) = [] := by decide
 
 end Semantics.Proofs.FaceDown

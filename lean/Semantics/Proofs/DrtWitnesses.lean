@@ -10,7 +10,7 @@ private def kalitasBody : Action := .sequentially [
   .doIf (was (.move (that (.type .creature)) (battlefield)
         (some (graveyardOf .any)) .departure none []) thisWay)
     (.sequentially [
-      create (.lit 1)
+      create 1
         (.written { characteristics :=
             { colors := [.black], types := [.creature], subtypes := [vampire] } }),
       .establish (getsPt it (.set (powerOf (that (.type .creature))))
@@ -45,12 +45,12 @@ theorem historicalReadDoesNotChangeCurrentZone :
 theorem historicalReadDoesNotLeakIntoFollowingAction :
     Action.check destroyedCreature
       (.sequentially [gainLife (powerOf (that (.type .creature))),
-        .putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) true]) =
+        .putCounters 1 (.printed p1p1Counter) (that (.type .creature)) true]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 private def brokenVisageBody : Action := .sequentially [
   destroy (target (.and [isCreature, .not isArtifact, isAttacking])),
-  create (.lit 1)
+  create 1
     (.written { characteristics :=
         { colors := [.black], types := [.creature], subtypes := [spirit] } }),
   .establish (getsPt it (.set (powerOf (that (.type .creature))))

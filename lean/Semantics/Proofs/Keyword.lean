@@ -21,7 +21,7 @@ def activatedAbility (cost : Cost) (action : Action) : Ability :=
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okSacrificeAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- "Target creature gains flying." -/
@@ -30,7 +30,7 @@ theorem okGainsKeyword :
 
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
-    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [isCreature, isSpell])) (.generic (.down (.lit 1)) none)) = [] :=
+    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [isCreature, isSpell])) (.generic (.down 1) none)) = [] :=
         by
   decide
 
@@ -43,8 +43,8 @@ theorem okBattlefieldFlying :
 theorem okFlatCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [ Templates.modification (target isCreature) .power (.up (.lit 1)),
-          Templates.modification it .toughness (.up (.lit 1)),
+        [ Templates.modification (target isCreature) .power (.up 1),
+          Templates.modification it .toughness (.up 1),
           Templates.abilityGrant it (keyword (.named "flying")),
           Templates.abilityGrant it (keyword (.named "trample")) ]) = [] := by
   decide
@@ -54,8 +54,8 @@ theorem badNestedCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [ .conjunction none
-            [ Templates.modification (target isCreature) .power (.up (.lit 1)),
-              Templates.modification it .toughness (.up (.lit 1)),
+            [ Templates.modification (target isCreature) .power (.up 1),
+              Templates.modification it .toughness (.up 1),
               Templates.abilityGrant it (keyword (.named "flying")) ],
           Templates.abilityGrant it (keyword (.named "trample")) ]) = [.notCoord] := by
   decide
@@ -70,8 +70,8 @@ theorem okThatCreatureAfterAntecedent :
 /-- "This creature gets +1/+1 and that creature has flying." -/
 theorem staticSelfRemainsReadableAsThatCreature :
     let spec := StaticSpec.conjunction none
-      [Templates.modification thisCreature .power (.up (.lit 1)),
-        Templates.modification it .toughness (.up (.lit 1)),
+      [Templates.modification thisCreature .power (.up 1),
+        Templates.modification it .toughness (.up 1),
         Templates.abilityGrant (that (.type .creature)) (keyword (.named "flying"))]
     let after := (stepStaticSpec 64 (DRS.ofList []) spec).1
     Ability.check (DRS.ofList []) (.static spec) = [] ∧
@@ -83,8 +83,8 @@ theorem okCoordinatedPlural :
     Ability.check (DRS.ofList [])
       (.static
         (.conjunction none
-          [ Templates.modification (allOf (and [isCreature, youControl])) .power (.up (.lit 1)),
-            Templates.modification them .toughness (.up (.lit 1)),
+          [ Templates.modification (allOf (and [isCreature, youControl])) .power (.up 1),
+            Templates.modification them .toughness (.up 1),
             Templates.abilityGrant them (keyword (.named "flying")) ])) = [] := by
   decide
 
@@ -93,24 +93,24 @@ theorem badCoordinatedHostPlural :
     Ability.check (DRS.ofList [])
       (.static
         (.conjunction none
-          [ Templates.modification (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
-            Templates.modification it .toughness (.up (.lit 1)),
+          [ Templates.modification (.attachHost .enchanted (.type .creature)) .power (.up 1),
+            Templates.modification it .toughness (.up 1),
             Templates.abilityGrant them (keyword (.named "flying")) ])) = [.anaphor .bare .many 0] := by
   decide
 
 /-- "Create a 1/1 white Soldier creature token with flying." -/
 theorem okTokenKeywordAbility :
     Action.check (DRS.ofList [])
-      (create (.lit 1)
+      (create 1
         (.written { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [soldier],
-            power := some (.lit 1), toughness := some (.lit 1), text := [keyword (.named "flying")] } }))
+            power := some 1, toughness := some 1, text := [keyword (.named "flying")] } }))
       = [] := by
   decide
 
 /-- "Creatures you control have '{T}: Draw a card.'" -/
 theorem okQuotedGrantOnPermanent :
-    StaticSpec.check (DRS.ofList []) (Templates.abilityGrant (allOf (and [isCreature, youControl])) (activatedAbility .tapSymbol (draw (.lit 1))))
+    StaticSpec.check (DRS.ofList []) (Templates.abilityGrant (allOf (and [isCreature, youControl])) (activatedAbility .tapSymbol (draw 1)))
       = [] := by
   decide
 
@@ -134,7 +134,7 @@ def choosesCreatureType : Ability :=
 /-- "Creatures of the chosen type get +1/+1." -/
 def chosenTypeGets : Ability :=
   .static
-    (getsPt (allOf (.and [isCreature, ofChosen (.subtype .creature)])) (.up (.lit 1)) (.up (.lit 1)))
+    (getsPt (allOf (.and [isCreature, ofChosen (.subtype .creature)])) (.up 1) (.up 1))
 
 /-- "As this enchantment enters, choose a creature type. Creatures of the chosen type get
 +1/+1." -/
@@ -183,7 +183,7 @@ theorem badAscribedQualityBeforeChoice :
 
 /-- "{T}: Draw a card. Activate only once each turn." -/
 theorem okActivatedTurnLimit :
-    Ability.check (DRS.ofList []) (.activated .tapSymbol (draw (.lit 1)) none (some oncePerTurn)
+    Ability.check (DRS.ofList []) (.activated .tapSymbol (draw 1) none (some oncePerTurn)
         none none)
       = [] := by
   decide
@@ -204,7 +204,7 @@ theorem okKeywordListOverGrant :
 refutes the extension; the keyword list has no base keyword to repeat either. -/
 theorem badKeywordListOnPlainLine :
     Ability.check (DRS.ofList [])
-      (.alsoForKeywords (.static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1))))
+      (.alsoForKeywords (.static (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1)))
         [.the (.named "menace"), .the (.named "trample")]) = [.keywordExtendable, .keywordListOk] := by
   decide
 
@@ -254,12 +254,12 @@ theorem okActivatedOpensItsOwnLetter :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
         (.sequentially
-          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget))), define .x (.lit 3)])) = [] := by
+          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget))), define .x 3])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/
 theorem badActivatedClosesCardLetter :
-    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (define .x (.lit 3)))
+    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (define .x 3))
       = [.openLetter .x] := by
   decide
 
@@ -273,8 +273,8 @@ theorem sharedSubjectSurvivesSecondSingular :
       (.sequentially
         [ exile (target isArtifact),
           establishFor (.firstMention "sharedSubject.subject" (target isCreature))
-            [ Templates.modification (.laterMention "sharedSubject.subject" (target isCreature)) .power (.up (.lit 1)),
-              Templates.modification (.laterMention "sharedSubject.subject" (target isCreature)) .toughness (.up (.lit 1)),
+            [ Templates.modification (.laterMention "sharedSubject.subject" (target isCreature)) .power (.up 1),
+              Templates.modification (.laterMention "sharedSubject.subject" (target isCreature)) .toughness (.up 1),
               Templates.abilityGrant (.laterMention "sharedSubject.subject" (target isCreature)) (keyword (.named "flying")) ]
             (some untilEndOfTurn) ]) = [] := by
   decide
@@ -291,7 +291,7 @@ theorem badSharedSubjectEmptyDelta :
   decide
 
 /-- "Pay 2 life: Draw a card." -/
-theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLife 2) (draw (.lit 1))) =
+theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLife 2) (draw 1)) =
     [] := by
   decide
 
@@ -309,7 +309,7 @@ theorem okCompanionCharacteristicRead :
     Ability.check (DRS.ofList [])
       (companion
         (.everyCardIs isPermanentCard
-          (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2))))) = [] := by
+          (.aCharacteristic (.compare [.stat .manaValue] .atMost 2)))) = [] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a card type." -/
@@ -327,11 +327,11 @@ theorem okCompanionSharedColor :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Action.check (DRS.ofList []) (Templates.instruct (each .anyPlayer) (scry (.lit 1))) = [] := by decide
+    Action.check (DRS.ofList []) (Templates.instruct (each .anyPlayer) (scry 1)) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :
-    Action.check (DRS.ofList []) (fateseal (.lit 2)) = [] := by decide
+    Action.check (DRS.ofList []) (fateseal 2) = [] := by decide
 
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :

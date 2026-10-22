@@ -22,7 +22,7 @@ namespace Semantics.Proofs.OffStack
 entering it replaces, which still happens [CR#614.1c]. -/
 theorem okAsEnteringAlso :
     StaticSpec.check (DRS.ofList [])
-      (replace (would thisPermanent enter) (also (may (draw (.lit 1))))) = [] := by
+      (replace (would thisPermanent enter) (also (may (draw 1)))) = [] := by
   decide
 
 /-- "As it becomes night, transform this permanent": an action carried out as an event that is
@@ -39,7 +39,7 @@ theorem okWhileHoldsCitysBlessing :
       (.whileHolds
         (.and
           [ .compareAmt (.countOf (.described .bare (.and [isPermanent, .hasPossessor .controller .you])))
-              .atLeast (.lit 10),
+              .atLeast 10,
             .not (.matches .you (.hasDesignation (.named "citysBlessing") none)) ])
         (.gainDesignation .you (.named "citysBlessing") (some (.between none none)))) = [] := by
   decide
@@ -101,19 +101,19 @@ theorem okDaybound : Ability.check (DRS.ofList []) daybound = [] := by decide
 theorem okNightbound : Ability.check (DRS.ofList []) nightbound = [] := by decide
 
 /-- Devour 1 [CR#702.82a]. -/
-theorem okDevour : Ability.check (DRS.ofList []) (devour (.lit 1)) = [] := by decide
+theorem okDevour : Ability.check (DRS.ofList []) (devour 1) = [] := by decide
 
 /-- Devour artifact 2 [CR#702.82c]: devour's general form, labelled devour. Re-spelled from
 `okDevourQualityExpansion`, which checked the same definition as a helper before the general form
 was declared (`semantics-v2-devour-quality-keyword`). -/
 theorem okDevourQuality :
-    Ability.check (DRS.ofList []) (devourQuality isArtifact (.lit 2)) = [] := by decide
+    Ability.check (DRS.ofList []) (devourQuality isArtifact 2) = [] := by decide
 
 /-- Riot [CR#702.136a]. -/
 theorem okRiot : Ability.check (DRS.ofList []) riot = [] := by decide
 
 /-- Tribute 3 [CR#702.104a]. -/
-theorem okTribute : Ability.check (DRS.ofList []) (tribute (.lit 3)) = [] := by decide
+theorem okTribute : Ability.check (DRS.ofList []) (tribute 3) = [] := by decide
 
 /-- Unleash [CR#702.98a]. -/
 theorem okUnleash : Ability.check (DRS.ofList []) unleash = [] := by decide
@@ -125,29 +125,29 @@ theorem okFear : Ability.check (DRS.ofList []) fear = [] := by decide
 theorem okIntimidate : Ability.check (DRS.ofList []) intimidate = [] := by decide
 
 /-- Amplify 1 [CR#702.38a]. -/
-theorem okAmplify : Ability.check (DRS.ofList []) (amplify (.lit 1)) = [] := by decide
+theorem okAmplify : Ability.check (DRS.ofList []) (amplify 1) = [] := by decide
 
 /-! ## The readbacks (`semantics-v2-linked-readback`) -/
 
 /-- "When this creature enters, draw a card for each creature it devoured." -/
 def drawForEachDevoured : Ability :=
   when (does thisCreature enter)
-    (doForEach (each (and [isCreature, did it (devour which)])) (draw (.lit 1)))
+    (doForEach (each (and [isCreature, did it (devour which)])) (draw 1))
 
 /-- Skullmulcher: "Devour 1 … When this creature enters, draw a card for each creature it
 devoured." [CR#702.82b]: "it devoured" reads back the creatures devour's entry sacrificed, the
 objects of a linked ability. -/
 theorem okItDevouredCount :
-    Ability.checkText (DRS.ofList []) [devour (.lit 1), drawForEachDevoured] = [] := by
+    Ability.checkText (DRS.ofList []) [devour 1, drawForEachDevoured] = [] := by
   decide
 
 /-- Voracious Dragon: "When this creature enters, it deals damage to any target equal to twice
 the number of Goblins it devoured." [CR#702.82b] -/
 theorem okGoblinsItDevoured :
     Ability.checkText (DRS.ofList [])
-      [ devour (.lit 1),
+      [ devour 1,
         when (does thisCreature enter)
-          (dealDamage (times (.lit 2) (countOf (and [hasSubtype goblin, did it (devour which)])))
+          (dealDamage (times 2 (countOf (and [hasSubtype goblin, did it (devour which)])))
             (target isAnyTarget)) ] = [] := by
   decide
 

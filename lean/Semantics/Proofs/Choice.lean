@@ -51,14 +51,14 @@ theorem badGroupPower :
 /-- "Choose target creature. Its owner loses 1 life." -/
 theorem okSingleOwner :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (target isCreature), instruct (ownerOf it) (loseLife (.lit 1))]) = [] := by
+      (.sequentially [choose (target isCreature), instruct (ownerOf it) (loseLife 1)]) = [] := by
   decide
 
 /-- "Choose two target creatures. Their owners each lose 1 life." -/
 theorem okGroupOwners :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target (exactly 2)) isCreature), instruct (ownerOf them) (loseLife (.lit 1))])
+        [choose (.described (.target (exactly 2)) isCreature), instruct (ownerOf them) (loseLife 1)])
       = [] := by
   decide
 
@@ -135,7 +135,7 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Action.check (DRS.ofList [])
-      (may (.pay (payLife 1) .once .paid none none) none (some (draw (.lit 1)))) = [] := by
+      (may (.pay (payLife 1) .once .paid none none) none (some (draw 1))) = [] := by
   decide
 
 /-- "Choose new targets for target instant or sorcery spell." -/
@@ -365,7 +365,7 @@ theorem badMemberInComparisonBound :
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okGetsBattlefield :
     Action.check (DRS.ofList [])
-      (get (target isCreature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
+      (get (target isCreature) (.up 3) (.up 3) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/
@@ -373,13 +373,13 @@ theorem okNotChosenAfterOneChoice :
     Action.check (DRS.ofList [])
       (.sequentially
         [ choose (a isCreature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])))) ]) = [] := by
+          (Action.instruct .this (.dealDamage 3 (each (.and [isCreature, .notChosen])))) ]) = [] := by
   decide
 
 /-- "This deals 3 damage to each creature not chosen this way." Nothing was chosen, so "this
 way" reads back no choice (`okNotChosenAfterOneChoice` is the same read with one standing). -/
 theorem badNotChosenWithoutAChoice :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen]))))
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage 3 (each (.and [isCreature, .notChosen]))))
       = [.choiceInScope .object] := by
   decide
 
@@ -391,7 +391,7 @@ theorem okNotChosenAfterTwoChoices :
       (.sequentially
         [ choose (a isCreature),
           choose (a isCreature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])))) ]) = [] := by
+          (Action.instruct .this (.dealDamage 3 (each (.and [isCreature, .notChosen])))) ]) = [] := by
   decide
 
 /-- "Choose a creature you control, then each opponent chooses a creature they control.
@@ -438,14 +438,14 @@ theorem badOrderedSingularChooser :
 theorem okChoseThisWayAfterChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (a isCreature), doIf (.choseThisWay .you isCreature) (draw (.lit 1))])
+        [choose (a isCreature), doIf (.choseThisWay .you isCreature) (draw 1)])
       = [] := by
   decide
 
 /-- "If you chose a creature this way, draw a card.": nothing was chosen, so "this way" reads
 back no choice (`okChoseThisWayAfterChoice` is the same read with one standing). -/
 theorem badChoseThisWayWithoutAChoice :
-    Action.check (DRS.ofList []) (doIf (.choseThisWay .you isCreature) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.choseThisWay .you isCreature) (draw 1))
       = [.choiceInScope .object] := by
   decide
 
@@ -469,7 +469,7 @@ theorem badDistributedChoiceReadSingular :
 printed card on the bench. -/
 theorem lookAtTopThenBin :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice (.lit 1)), may (putInto (that .card) graveyard)])
+      (.sequentially [lookAt (topSlice 1), may (putInto (that .card) graveyard)])
       = [] := by
   decide
 
@@ -494,7 +494,7 @@ your hand." No printed card on the bench. -/
 theorem millThenPutFromAmongMilled :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ mill (.lit 3),
+        [ mill 3,
           may
             (putInto
               (fromAmong (exactly 1) isArtifact
@@ -519,7 +519,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (may
-        (.sequentially [discard (allOf (.and [.isCard, .in_ (handOf they)])), instruct they (draw (.lit 7))])))
+        (.sequentially [discard (allOf (.and [.isCard, .in_ (handOf they)])), instruct they (draw 7)])))
       = [] := by
   decide
 
@@ -529,12 +529,12 @@ def eachPlayerOffered : NounPhrase := each .anyPlayer
 
 theorem eachPlayerOfferBindsOneMember :
     Action.check (DRS.ofList [])
-      (instruct eachPlayerOffered (may (instruct they (draw (.lit 1))))) = [] := by decide
+      (instruct eachPlayerOffered (may (instruct they (draw 1)))) = [] := by decide
 
 theorem eachPlayerOfferDropsTheGroup :
     Action.check (DRS.ofList [])
       (instruct eachPlayerOffered (may
-        (instruct (those .player) (draw (.lit 1))))) = [.anaphor (.word .player) .many 0] := by decide
+        (instruct (those .player) (draw 1)))) = [.anaphor (.word .player) .many 0] := by decide
 
 /-- "target opponent who has more life than you do" -/
 def opponentWithMoreLife : NounPhrase :=
@@ -560,7 +560,7 @@ theorem okChoseExtremeAfterNumbers :
 
 /-- The same read with no number chosen anywhere in the text. -/
 theorem badChoseExtremeWithoutChoice :
-    Action.check (DRS.ofList []) (instruct (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife (.lit 1)))
+    Action.check (DRS.ofList []) (instruct (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife 1))
       = [.numberChoiceInScope] := by
   decide
 
@@ -655,7 +655,7 @@ theorem okEscalateTimesPaid :
 
 /-- Spree: one or more [CR#702.172a]. -/
 theorem okModeChoiceSpree :
-    StaticSpec.check (DRS.ofList []) (.modeChoice (.setQuantity (atLeast 1))) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (.modeChoice (.setQuantity (orMore 1))) = [] := by decide
 
 /-- Tiered: exactly one [CR#702.183a]. -/
 theorem okModeChoiceTiered :
@@ -677,14 +677,14 @@ artifact." [CR#700.2i] -/
 theorem okModalWorth :
     Action.check (DRS.ofList [])
       (.chooseModes (.worth 5)
-        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target isArtifact))]) = [] := by
+        [(none, some 1, draw 1), (none, some 2, destroy (target isArtifact))]) = [] := by
   decide
 
 /-- "Choose up to zero {P} worth of modes" chooses nothing. -/
 theorem badModalWorthZero :
     Action.check (DRS.ofList [])
       (.chooseModes (.worth 0)
-        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target isArtifact))])
+        [(none, some 1, draw 1), (none, some 2, destroy (target isArtifact))])
       = [.nonZeroQ] := by
   decide
 

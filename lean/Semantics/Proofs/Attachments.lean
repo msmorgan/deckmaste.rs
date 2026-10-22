@@ -49,7 +49,7 @@ theorem badEquipmentAttachedToPlayer :
 
 theorem okCountedAuraAttachments :
     Condition.check (DRS.ofList []) (.matches thisCreature (.attachment .host (some .enchanted)
-      (some (counted (atLeast 2) (.hasSubtype (aura)))))) = [] := by decide
+      (some (counted (orMore 2) (.hasSubtype (aura)))))) = [] := by decide
 
 theorem badPlayerCounterpartOnHostSide :
     Predicate.checkAt .object (DRS.ofList []) (.attachment .host none (some .you)) =

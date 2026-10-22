@@ -33,7 +33,7 @@ private semantic_template powerEquals (amount : Amount) : Predicate := .compare 
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
 private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : StaticSpec :=
   Templates.modification subject .power (.up amount)
-private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.exactlyOf (.lit 1))
+private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.exactlyOf 1)
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
 private semantic_template moveSubject (subject : NounPhrase) : Action :=
   .move subject .anyLocation (some graveyard) .arrival none []
@@ -41,19 +41,19 @@ private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhr
   body chosen
 private abbrev SubjectBody := NounPhrase → Action
 private semantic_template withSubjectBody (subject : NounPhrase) (body : splice SubjectBody) : Action := body subject
-private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.exactlyOf (.lit 1))
+private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.exactlyOf 1)
 private structure Flag where
   bit : Bool
 private def discardedAction (_ : Action) : Flag := ⟨true⟩
 private def ordinarySubjectIdentity (subject : NounPhrase) : NounPhrase := subject
-private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Action := draw (.lit 1)
+private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Action := draw 1
 private def applyWithForgedContext (body : AuthoringContext → NounPhrase → Action)
     (left right : NounPhrase) : Action := instruct left (body ⟨999⟩ right)
 private def discardedSubjectFunction : Bool :=
   let _function : NounPhrase → NounPhrase := fun subject => subject
   true
 private def subjectFunctions : List (NounPhrase → NounPhrase) := [fun subject => subject]
-private semantic_template functionListConfig (_functions : List (NounPhrase → NounPhrase)) : Action := draw (.lit 1)
+private semantic_template functionListConfig (_functions : List (NounPhrase → NounPhrase)) : Action := draw 1
 
 private semantic_definition selectThenTap (subject : NounPhrase) : Action :=
   .ownScope none (.sequentially
@@ -69,17 +69,17 @@ private semantic_definition announceThen (chosen : NounPhrase) (body : Action) :
 /-- "Draw a card. If you control three or more artifacts, <replacement> instead", the
 replacement supplied by the caller. -/
 private semantic_definition drawUnlessReplaced (replacement : Replacement) : Action :=
-  .ownScope none (.replace (draw (.lit 1))
-    (doIf (compareAmt (countOf isArtifact) .atLeast (.lit 3)) (.inCaller replacement)))
+  .ownScope none (.replace (draw 1)
+    (doIf (compareAmt (countOf isArtifact) .atLeast 3) (.inCaller replacement)))
 /-- The same Definition, forgetting that its replacement is its caller's. -/
 private semantic_definition drawUnlessReplacedHere (replacement : Replacement) : Action :=
-  .ownScope none (.replace (draw (.lit 1))
-    (doIf (compareAmt (countOf isArtifact) .atLeast (.lit 3)) replacement))
+  .ownScope none (.replace (draw 1)
+    (doIf (compareAmt (countOf isArtifact) .atLeast 3) replacement))
 
 private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Expansion witness", types := [.sorcery],
-      text := [spell (expand (drawTwice (.lit 1)))] } }
+      text := [spell (expand (drawTwice 1))] } }
 theorem explicitExpansionPreservesAuthorship : explicitExpansion.authoring.onlyAuthored = true := explicitExpansion.onlyAuthored
 theorem explicitExpansionChecksItsResult : explicitExpansion.card.check = [] := explicitExpansion.ok
 private def explicitBodyParameter : Spelled := spelled <| .singleFaced
@@ -141,17 +141,17 @@ theorem forgottenParameterDoesNotSurvivePrivately :
     NounPhrase.check after (.laterMention "library.subject" .any) = [.bindingIdentity "library.subject"] ∧
       countReach .bare .one after = 0 := by decide
 
-theorem quantitiesAcceptTemplateValues : (stepQuantityWith (stepOps 64) (DRS.ofList []) (quantityFor (.lit 1))).2 = [] := by decide
+theorem quantitiesAcceptTemplateValues : (stepQuantityWith (stepOps 64) (DRS.ofList []) (quantityFor 1)).2 = [] := by decide
 theorem templateValuesPreserveLiteralFacts :
-    let value := literalEcho (.lit 1)
+    let value := literalEcho 1
     (value.exact, value.plur, value.unit) =
       (some 1, .one, true) := by decide
 theorem amountTemplatesCanReuseAValue :
     (repeatedValueSum .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
 theorem quantityParameterPreservesOneCardinality :
-    ((quantityFor (.lit 1)).plur) = .one := by decide
+    ((quantityFor 1).plur) = .one := by decide
 theorem zonesAcceptTemplateOwners : (graveyardFor Primitives.NounPhrase.you).check (DRS.ofList []) = [] := by decide
-theorem costsAcceptTemplateValues : (lifeCost (.lit 1)).check (DRS.ofList []) = [] := by decide
+theorem costsAcceptTemplateValues : (lifeCost 1).check (DRS.ofList []) = [] := by decide
 theorem staticSpecsAcceptTemplateValues :
     (powerBoost (target isCreature) .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
 theorem amountTemplatesAcceptSubjects : (subjectPower (target isCreature)).check (DRS.ofList []) = [] := by decide
@@ -184,12 +184,12 @@ theorem eventParametersPublishTheirOutcome :
     countOutcomes .damageDealt (GameEvent.extend (DRS.ofList [])
       (.does (.actor thisCreature) (.dealDamage .anyAmount .you))) = 1 := by decide
 theorem templateUseRemainsInsideCondition :
-    Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target isCreature)) none =
-      .doIf (.compareAmt (.lit 1) .eq (.lit 1))
+    Action.doIf (.compareAmt 1 .eq 1) (moveSubject (target isCreature)) none =
+      .doIf (.compareAmt 1 .eq 1)
         (.move (target isCreature) .anyLocation (some graveyard) .arrival none []) none := by rfl
 theorem templateUseRemainsInsideRepetition :
-    Action.repeat_ (.fixed (.lit 2) (moveSubject (target isCreature))) =
-      .repeat_ (.fixed (.lit 2)
+    Action.repeat_ (.fixed 2 (moveSubject (target isCreature))) =
+      .repeat_ (.fixed 2
         (.move (target isCreature) .anyLocation (some graveyard) .arrival none [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
     (Amount.countOf (forwardedSubject (counted (exactly 2) isCreature))).check (DRS.ofList []) = [] := by decide
@@ -206,7 +206,7 @@ theorem firstMentionMakesLaterMentionAvailable :
         .setStatus .untapped (.laterMention "early" .any)]) = [] := by decide
 
 theorem scopedNumberRegimeIsPreserved :
-    (Action.ownScope none (.establish (.letterDefinition .x (.lit 2)) none)).numberSlots =
+    (Action.ownScope none (.establish (.letterDefinition .x 2) none)).numberSlots =
       [(.lit 2, .clamped)] := rfl
 
 theorem possessorQueryPreservesSubjectUpdate :
@@ -224,7 +224,7 @@ theorem expressionAmountObservesNewOutcomes :
     (rereadDamage .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [.quantOutcomeInScope 2] := by decide
 
 private semantic_template definedPower (subject : NounPhrase) : StaticSpec :=
-  ptDefinition subject .powerAlone (.lit 1)
+  ptDefinition subject .powerAlone 1
 theorem scopedStaticDefinitionsRemainVisibleToPrintedBoxes :
     (definedPower thisCreature).definedStats = [.power] := by decide
 
@@ -260,13 +260,13 @@ theorem forwardedBareThisRetainsDefinitionZoneExemption :
 
 theorem forwardedLibraryOwnerRetainsOpponentClassification :
     (Action.enact (.action "fateseal")
-      (lookAndSortSlice (.slice .top (.lit 2) (libraryOf (forwardedSubject anOpponent))) onBottom
+      (lookAndSortSlice (.slice .top 2 (libraryOf (forwardedSubject anOpponent))) onBottom
         [(.inOrder .anyOrder)]) none none).check
       (DRS.ofList []) = [] := by decide
 
 theorem librarySlicePreservesExplicitOwnerUpdate :
     ((nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (libraryOf (.possessorOf .controller (.becomes it))))).findById? 0).bind
+      (.slice .top 2 (libraryOf (.possessorOf .controller (.becomes it))))).findById? 0).bind
         (·.zone) = some .battlefield := by decide
 
 theorem forwardedCoordinationRetainsTwoParties :
@@ -295,7 +295,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded projection witness", types := [.sorcery],
         text := [spell
-        (configuredDraw (discardedAction (.draw (.exactlyOf (.lit 1)))).bit)] } }
+        (configuredDraw (discardedAction (.draw (.exactlyOf 1))).bit)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.setStatus] -/
 #guard_msgs in
@@ -310,14 +310,14 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Expansion witness", types := [.sorcery],
-        text := [spell (expand (.draw (.exactlyOf (.lit 1))))] } }
+        text := [spell (expand (.draw (.exactlyOf 1)))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Expansion witness", types := [.sorcery],
-        text := [spell (expand (instruct .you (drawTwice (.lit 1))))] } }
+        text := [spell (expand (instruct .you (drawTwice 1)))] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
@@ -363,7 +363,7 @@ theorem amountBodyReadsItsCallerSubject :
       (amountBodyInCaller (target isArtifact) (.statOf (.stat .power) it)) = [] := by decide
 
 theorem amountBodyPreservesLiteralFacts :
-    let amount := amountBodyInCaller (target isCreature) (.lit 1)
+    let amount := amountBodyInCaller (target isCreature) 1
     (amount.exact, amount.plur, amount.unit) =
       (some 1, .one, true) := by decide
 
@@ -409,7 +409,7 @@ theorem nounCoordinationPreservesItsWholeContext :
 
 theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
     let after := nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (libraryOf (playerIgnoringSubject (.becomes it))))
+      (.slice .top 2 (libraryOf (playerIgnoringSubject (.becomes it))))
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(2, .object, some .library), (1, .player, none), (0, .object, some .stack)] := by decide
 
@@ -448,7 +448,7 @@ theorem templateBareThisRetainsEnactedZoneExemption :
 after its condition, so both can name the same creature. -/
 theorem conditionalReplacementActionFollowsItsCondition :
     Action.check callerCreature
-      (replace (draw (.lit 1)) (doIf (is it isCreature) (instead (tap it)))) = [] := by
+      (replace (draw 1) (doIf (is it isCreature) (instead (tap it)))) = [] := by
   decide
 
 /-- A Definition's condition over its caller's replacement reads the caller's action in the
@@ -460,7 +460,7 @@ theorem conditionOverCallerReplacementReadsItsActionInTheCallersScope :
 /-- It keeps the caller's own condition inside its own, read in the caller's scope too. -/
 theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
     Action.check callerCreature
-      (drawUnlessReplaced (doIf (is it isCreature) (instead (draw (.lit 2))))) = [] := by
+      (drawUnlessReplaced (doIf (is it isCreature) (instead (draw 2)))) = [] := by
   decide
 
 /-- "If you sacrificed a creature this turn": a caller's condition introducing the creature its
@@ -481,9 +481,9 @@ theorem callerConditionIntroducesWhatItsActionReads :
 creature the condition introduced is gone by the time the action reads "it". -/
 theorem callerConditionReadInItsOwnFrameLosesItsReferent :
     Action.check (DRS.ofList [])
-      (.ownScope none (.replace (draw (.lit 1))
+      (.ownScope none (.replace (draw 1)
         (.onlyIf
-          (.and [compareAmt (countOf isArtifact) .atLeast (.lit 3), .inCaller sacrificedACreature])
+          (.and [compareAmt (countOf isArtifact) .atLeast 3, .inCaller sacrificedACreature])
           (.instead (.inCaller (returnToHand it graveyard)))))) = [.anaphor .bare .one 0] := by
   decide
 
@@ -496,7 +496,7 @@ theorem callerReplacementActionReadHereNamesNothing :
 /-- Nor does the caller's condition. -/
 theorem callerReplacementConditionReadHereNamesNothing :
     Action.check callerCreature
-      (drawUnlessReplacedHere (doIf (is it isCreature) (instead (draw (.lit 2))))) =
+      (drawUnlessReplacedHere (doIf (is it isCreature) (instead (draw 2)))) =
       [.anaphor .bare .one 0] := by
   decide
 

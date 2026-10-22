@@ -25,7 +25,7 @@ private def damageResultCheck (rule : DamageResult) : List Refusal :=
 /-- [CR#704.5f] "If a creature has toughness 0 or less, it's put into its owner's graveyard." -/
 def toughnessZero : SbaRule :=
   { scope := isCreature,
-    when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
+    when := .compareAmt (toughnessOf .this) .atMost 0,
     then_ := putInto .this graveyard }
 theorem okToughnessZero : SbaRule.check toughnessZero = [] := by decide
 
@@ -34,7 +34,7 @@ A planeswalker's loyalty on the battlefield is its loyalty-counter count [CR#306
 so the condition reads the counters and not the printed characteristic. -/
 def loyaltyZero : SbaRule :=
   { scope := .hasType .planeswalker,
-    when := .compareAmt (countersOn (.named "loyaltyCounter") .this) .eq (.lit 0),
+    when := .compareAmt (countersOn (.named "loyaltyCounter") .this) .eq 0,
     then_ := putInto .this graveyard }
 theorem okLoyaltyZero : SbaRule.check loyaltyZero = [] := by decide
 
@@ -43,7 +43,7 @@ graveyard." A battle's defense on the battlefield is its defense-counter count [
 the Siege exclusion is a subtype read, not a seam. -/
 def battleDefenseZero : SbaRule :=
   { scope := .and [.hasType .battle, .not (.hasSubtype siege)],
-    when := .compareAmt (countersOn (.named "defenseCounter") .this) .eq (.lit 0),
+    when := .compareAmt (countersOn (.named "defenseCounter") .this) .eq 0,
     then_ := putInto .this graveyard }
 theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide
 
@@ -51,7 +51,7 @@ theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide
 theorem badSbaScopeKind :
     SbaRule.check
       { scope := .qualityNoun .color none,
-        when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
+        when := .compareAmt (toughnessOf .this) .atMost 0,
         then_ := putInto .this graveyard }
       = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
@@ -119,9 +119,9 @@ theorem grantsIsTheKeywordConferral :
     grants (.named "flying") =
       .property (.characteristicChange .this [.addedAbilities [keyword (.named "flying")]]) := rfl
 theorem boostIsOneStatChange :
-    boost (.up (.lit 1)) (.up (.lit 1)) =
+    boost (.up 1) (.up 1) =
       .property (.characteristicChange .this
-        [.stat .adds .power (.lit 1), .stat .adds .toughness (.lit 1)]) := rfl
+        [.stat .adds .power 1, .stat .adds .toughness 1]) := rfl
 
 /-- [CR#122.1a] "A +X/+Y counter on a creature … adds X to that object's power and Y to that
 object's toughness." The definition states what ONE counter confers, "+1/+1" in layer 7c
@@ -131,14 +131,14 @@ The conferral is about its bearer wherever the bearer is: a +1/+1 counter also c
 creature card in a zone other than the battlefield" [CR#122.1a], and the checker asserts no zone
 for the bearer of a stat change, a definition's or a card's (`lean-checker-sweep-zone`). -/
 def p1p1CounterDefinition : Definition :=
-  .counter (.named "p1p1Counter") .object [boost (.up (.lit 1)) (.up (.lit 1))]
+  .counter (.named "p1p1Counter") .object [boost (.up 1) (.up 1)]
 theorem p1p1CounterDefinitionZone :
     Definition.check p1p1CounterDefinition = [] := by decide
 
 /-- [CR#122.1a]: the minus counter's twin of `p1p1CounterDefinition`, subtracting 1 from each
 stat. -/
 def m1m1CounterDefinition : Definition :=
-  .counter (.named "m1m1Counter") .object [boost (.down (.lit 1)) (.down (.lit 1))]
+  .counter (.named "m1m1Counter") .object [boost (.down 1) (.down 1)]
 theorem m1m1CounterDefinitionZone :
     Definition.check m1m1CounterDefinition = [] := by decide
 
@@ -239,12 +239,12 @@ as its controller's precombat main phase begins, and is sacrificed once its lore
 its final chapter number. -/
 def sagaDefinition : Definition :=
   .subtype Semantics.Definitions.saga
-    [ .ability (.static (onlyUnless (entersWithCounters thisSaga (.lit 1) (.named "loreCounter"))
+    [ .ability (.static (onlyUnless (entersWithCounters thisSaga 1 (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
-        (.putCounters (.lit 1) (.printed (.named "loreCounter")) thisSaga true),
+        (.putCounters 1 (.printed (.named "loreCounter")) thisSaga true),
       .stateBased
-        (.and [ .compareAmt (finalChapterNumber thisSaga) .atLeast (.lit 1),
+        (.and [ .compareAmt (finalChapterNumber thisSaga) .atLeast 1,
                 .compareAmt (countersOn (.named "loreCounter") thisSaga) .atLeast
                   (finalChapterNumber thisSaga) ])
         (sacrifice thisSaga) ]
@@ -292,7 +292,7 @@ def treasure : PredefinedToken :=
           { types := [.artifact], subtypes := [Semantics.Definitions.treasure],
             text :=
               [ activated (.compound [.tapSymbol, .perform (sacrifice .this)])
-                  (.addMana (.lit 1) (.anyColor .sameColor) []) ] } } }
+                  (.addMana 1 (.anyColor .sameColor) []) ] } } }
 theorem okTreasure : PredefinedToken.check treasure = [] := by decide
 
 /-- [CR#111.10b] "A Food token is a colorless Food artifact token with '{2}, {T}, Sacrifice
@@ -304,7 +304,7 @@ def food : PredefinedToken :=
           { types := [.artifact], subtypes := [Semantics.Definitions.food],
             text :=
               [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice .this)])
-                  (gainLife (.lit 3)) ] } } }
+                  (gainLife 3) ] } } }
 theorem okFood : PredefinedToken.check food = [] := by decide
 
 /-- [CR#111.10c] "A Gold token is a colorless Gold artifact token with 'Sacrifice this token:
@@ -316,7 +316,7 @@ def gold : PredefinedToken :=
           { types := [.artifact], subtypes := [Semantics.Definitions.gold],
             text :=
               [ activated (.perform (sacrifice .this))
-                  (.addMana (.lit 1) (.anyColor .sameColor) []) ] } } }
+                  (.addMana 1 (.anyColor .sameColor) []) ] } } }
 theorem okGold : PredefinedToken.check gold = [] := by decide
 
 /-- [CR#111.10f] "A Clue token is a colorless Clue artifact token with '{2}, Sacrifice this
@@ -328,7 +328,7 @@ def clue : PredefinedToken :=
           { types := [.artifact], subtypes := [Semantics.Definitions.clue],
             text :=
               [ activated (.compound [.mana [generic 2], .perform (sacrifice .this)])
-                  (draw (.lit 1)) ] } } }
+                  (draw 1) ] } } }
 theorem okClue : PredefinedToken.check clue = [] := by decide
 
 /-- [CR#111.10g] "A Blood token is a colorless Blood artifact token with '{1}, {T}, Discard a
@@ -343,7 +343,7 @@ def blood : PredefinedToken :=
                   (.compound
                     [ .mana [generic 1], .tapSymbol, .perform (discard (a (.and [.isCard, .in_ yourHand]))),
                       .perform (sacrifice .this) ])
-                  (draw (.lit 1)) ] } } }
+                  (draw 1) ] } } }
 theorem okBlood : PredefinedToken.check blood = [] := by decide
 
 /-- [CR#111.10h] "A Powerstone token is a colorless Powerstone artifact token with '{T}: Add
@@ -355,7 +355,7 @@ def powerstone : PredefinedToken :=
           { types := [.artifact], subtypes := [Semantics.Definitions.powerstone],
             text :=
               [ activated .tapSymbol
-                  (.addMana (.lit 1) (.runs [[.colorless]])
+                  (.addMana 1 (.runs [[.colorless]])
                     [.spendNotOn [.toCast (.and [.not isArtifact, isSpell])]]) ] } } }
 theorem okPowerstone : PredefinedToken.check powerstone = [] := by decide
 
@@ -369,7 +369,7 @@ def vibranium : PredefinedToken :=
             text :=
               [ keyword (.named "indestructible"),
                 activated .tapSymbol
-                  (.addMana (.lit 1) (.runs [[.colorless]])
+                  (.addMana 1 (.runs [[.colorless]])
                     [.spendNotOn [.toCast (.and [.not isArtifact, isSpell])]]) ] } } }
 theorem okVibranium : PredefinedToken.check vibranium = [] := by decide
 

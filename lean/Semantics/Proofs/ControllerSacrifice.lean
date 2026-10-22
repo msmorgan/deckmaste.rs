@@ -75,7 +75,7 @@ theorem formerPermanentReadIsAdmitted :
 
 theorem thatPlayerCanTakeTheFollowingAction :
     Action.check (DRS.ofList [])
-      (.sequentially [action, instruct (that .player) (draw (.lit 1))]) = [] := by decide
+      (.sequentially [action, instruct (that .player) (draw 1)]) = [] := by decide
 
 private def nestedAfter : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) nestedAction).1

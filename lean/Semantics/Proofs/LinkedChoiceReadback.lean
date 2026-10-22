@@ -30,7 +30,7 @@ def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
 
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
-def chosenDraws : Action := instruct (the isChosenPlayer) (draw (.lit 1))
+def chosenDraws : Action := instruct (the isChosenPlayer) (draw 1)
 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
@@ -52,7 +52,7 @@ theorem okGiftReadsChosenPlayer :
 
 /-- Required pin: with no player choice in scope there is none to read [CR#607.2d]. -/
 theorem badUnlinkedChosenPlayer :
-    Ability.check (DRS.ofList []) (.spell none (instruct (the isChosenPlayer) (draw (.lit 1))))
+    Ability.check (DRS.ofList []) (.spell none (instruct (the isChosenPlayer) (draw 1)))
       = [.choiceRef .theChoice .player 0] := by
   decide
 
@@ -66,7 +66,7 @@ theorem badTwoChosenPlayers :
 theorem badKickerChoosesNoPlayer :
     Ability.checkText (DRS.ofList [])
       [ .static (.addedCost (.mana [generic 1]) true .once),
-        .spell none (instruct (the isChosenPlayer) (draw (.lit 1))) ] =
+        .spell none (instruct (the isChosenPlayer) (draw 1)) ] =
       [.choiceRef .theChoice .player 0] := by
   decide
 

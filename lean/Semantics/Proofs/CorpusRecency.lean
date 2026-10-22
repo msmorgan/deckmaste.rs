@@ -40,7 +40,7 @@ private def selected (word : NounWord) (drs : DRS) : List (List BindingId) :=
 
 private def tahngarthHeader : GameEvent :=
   .does (.actor (.firstMention "tahngarth.opponent" anOpponent))
-    (.attackWith (counted (atLeast 1) isCreature) none)
+    (.attackWith (counted (orMore 1) isCreature) none)
 private def tahngarthAfter : DRS := (stepGameEvent 64 (DRS.ofList []) tahngarthHeader).1
 private def tahngarthDefender : NounPhrase :=
   .firstMention "tahngarth.defender"
@@ -193,7 +193,7 @@ theorem vampiricDeadCreatureIsExcludedByZone :
 
 theorem vampiricCountersUseEnchantedCreature :
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause vampiricAfterDeath)
-      (.putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) true)
+      (.putCounters 1 (.printed p1p1Counter) (that (.type .creature)) true)
     let patients := (after.pendingRoles.filter (fun p => p.2 == .obj)).map (·.1)
     errors = [] ∧ patients.length = 1 ∧
       patients = (vampiricAfterDeath.referents.filter (·.attachmentHost)).map (·.id) ∧

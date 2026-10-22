@@ -114,7 +114,7 @@ private def sharedAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .subj true creatureX).1
 private def previousAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
-    (.putCounters (.lit 1) (.printed p1p1Counter) creatureX false)).1
+    (.putCounters 1 (.printed p1p1Counter) creatureX false)).1
 private def conditionAfter (drs : DRS) : DRS :=
   (stepCondition 64 drs (.matches creatureX isCreature)).1
 
@@ -150,7 +150,7 @@ theorem conditionSubjectKeepsCreature :
 
 private def playerX : NounPhrase :=
   each (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .eq (.letter .x)])
-private def libraryCards : NounPhrase := .slice .top (.lit 2) (libraryOf playerX)
+private def libraryCards : NounPhrase := .slice .top 2 (libraryOf playerX)
 private def libraryAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .obj true (.firstMention "scope.library" libraryCards)).1
 private def libraryRead : NounPhrase := .laterMention "scope.library" libraryCards
@@ -179,11 +179,11 @@ theorem explicitChooserWinsOverOuterPlayers :
 
 theorem agentWithoutOuter :
     Action.check (DRS.ofList [])
-      (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
+      (instruct playerX (instruct .actor (gainLife 1))) = [] := by decide
 
 theorem agentWithOuter :
     Action.check (DRS.ofList [playerBinding, letterB .x])
-      (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
+      (instruct playerX (instruct .actor (gainLife 1))) = [] := by decide
 
 theorem scopedMovePreservesTheOuterBindings :
     let before := nextClause (powerAfter outer)
@@ -244,9 +244,9 @@ theorem loopExportsPluralGroupWithoutSingularMember :
       resolveCandidates (.word .player) .one (nextClause after) = [] := by decide
 
 theorem optionalBranchesDoNotExportCreatedObjects :
-    let branch := may (gainLife (.lit 1))
-      (some (create (.lit 1) (.written (creatureToken 1 1 [.white] []))))
-      (some (create (.lit 2) (.written (creatureToken 1 1 [.white] []))))
+    let branch := may (gainLife 1)
+      (some (create 1 (.written (creatureToken 1 1 [.white] []))))
+      (some (create 2 (.written (creatureToken 1 1 [.white] []))))
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) branch).1
     resolveCandidates (.word (.type .creature)) .one (nextClause after) = [] := by decide
 
@@ -267,7 +267,7 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
 theorem optionalBodyReadsItsEnclosingPlayer :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
-        (may (instruct they (gainLife (.lit 1))))) = [] := by
+        (may (instruct they (gainLife 1)))) = [] := by
   decide
 
 private def powerSubject : Referent := {

@@ -94,7 +94,7 @@ cannot read it without the choice. -/
 theorem entryAndAttachmentChoicesPublishTheirSort :
     let colorReader := Ability.static (.characteristicChange .any
       [.quality .adds (.chosen (.ofChosen .theChoice .color))])
-    let playerReader := at_ (beginningOfPossessed .upkeep (the isChosenPlayer)) (loseLife (.lit 1))
+    let playerReader := at_ (beginningOfPossessed .upkeep (the isChosenPlayer)) (loseLife 1)
     Ability.checkText (DRS.ofList []) [.static (entersChoosing thisCreature .color), colorReader]
         = [] ∧
       Ability.checkText (DRS.ofList []) [.static (attachChoosing thisCreature .color), colorReader]
@@ -175,7 +175,7 @@ theorem applicabilityReadsTheSpecSubject :
 
 theorem applicabilityPreservesNumericDefinition :
     Amount.check (stepStaticSpec 64 (DRS.ofList [])
-      (partScope .turn none (.letterDefinition .x (.lit 2)))).1
+      (partScope .turn none (.letterDefinition .x 2))).1
       (.letter .x) = [] := by decide
 
 theorem ownedOutsideCardsAreAdmitted :

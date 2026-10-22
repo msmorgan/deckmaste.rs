@@ -21,7 +21,7 @@ theorem optionalChoiceKeepsEvidenceWithoutTheCreature :
 
 private def fiveCards : DRS :=
   (stepNounPhrase 64 (DRS.ofList []) .obj true
-    (.slice .top (.lit 5) (.zone .library none))).1
+    (.slice .top 5 (.zone .library none))).1
 
 private def optionalSubset : Action :=
   .withContinuation .optional
@@ -49,7 +49,7 @@ theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
         (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional
             (.expose .reveal (.cards (.someOf (.counted (.range (some 1) (some 1))) none
-              (.slice .top (.lit 5) (.zone .library none)))) ) none none)).1
+              (.slice .top 5 (.zone .library none)))) ) none none)).1
         (.theRest .object .many) = [.theRestFits .object] := by decide
 
 theorem optionalSubsetCannotPromiseOneRemainingCard :
@@ -78,7 +78,7 @@ theorem possibleChoiceHistoryDoesNotExportLoopReferences :
       (leaveRelative (DRS.ofList []) afterOptionalCreature).choiceWasPossible .object = false ∧
       Ability.checkText (DRS.ofList [])
         [.spell none optionalCreature,
-         .spell none (.dealDamage (.lit 1)
+         .spell none (.dealDamage 1
            (.described .each (.and [.hasType .creature, .notChosen])))] =
         [.choiceInScope .object] ∧
       let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
@@ -154,7 +154,7 @@ theorem preexistingTargetsAreNotReaggregated :
       payload := .object [.artifact] (some .battlefield) none none none,
       announcedTargetResult := true }]
     let out := (stepAction 64 .postEvent .obj outer
-      (.doForEach (.described .each .anyPlayer) (.draw (.exactlyOf (.lit 1))))).1
+      (.doForEach (.described .each .anyPlayer) (.draw (.exactlyOf 1)))).1
     (out.findById? 10).map (·.plur) = some .one ∧
       countManys .object out = 0 ∧ countOnes .object out = 1 := by decide
 
@@ -186,7 +186,7 @@ theorem attachmentSourceRemainsAvailableAfterProhibition :
     out.referents.map (·.id) = [0] ∧
       NounPhrase.check out (.pro .bare .one) = [] := by decide
 
-private def tollCost : Cost := .scaled (.mana [.simple (.generic 1)]) (.arith .times (.lit 1) .groupSize)
+private def tollCost : Cost := .scaled (.mana [.simple (.generic 1)]) (.arith .times 1 .groupSize)
 
 /-- A toll reads the actor group after the action: a coordinated actor ("creatures and
 artifacts") is the one group the coordination publishes. -/
@@ -261,7 +261,7 @@ theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
 theorem eachModificationHasAMemberViewAndAPluralResult :
     let subject := NounPhrase.described .each (.hasType .creature)
     let modification := StaticSpec.characteristicChange subject
-      [.stat .adds .power (.statOf (.stat .power) (.pro .bare .one)), .stat .adds .toughness (.lit 1)]
+      [.stat .adds .power (.statOf (.stat .power) (.pro .bare .one)), .stat .adds .toughness 1]
     let out := (stepStaticSpec 64 (DRS.ofList []) modification).1
     StaticSpec.check (DRS.ofList []) modification = [] ∧
       countManys .object out = 1 ∧ countOnes .object out = 0 ∧
@@ -300,7 +300,7 @@ theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
       Amount.check prospective .thatMuch = [.quantOutcomeInScope 0] ∧
       countOutcomes .repeatCount
         (stepAction 64 .postEvent .obj (DRS.ofList [])
-          (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.exactlyOf (.lit 1))))) none none)).1 = 0 := by decide
+          (.withContinuation .optional (.repeat_ (.fixed 2 (.draw (.exactlyOf 1)))) none none)).1 = 0 := by decide
 
 theorem oneDiceBatchHasOneNumericResultRead :
     let batch := DRS.ofList [outcomeB .diceRolled]
@@ -329,6 +329,6 @@ theorem performedReplacementResultTakesPriorityOverItsDiceCount :
       countOutcomes .diceRolled performed = 1 ∧
       countOutcomes .rollResult performed = 1 ∧
       Amount.check performed (.theOutcome .rollResult) = [] ∧
-      Condition.check performed (.anyResultIs .atLeast (.lit 1)) = [] := by decide
+      Condition.check performed (.anyResultIs .atLeast 1) = [] := by decide
 
 end Semantics.Proofs.SelectionEvidence

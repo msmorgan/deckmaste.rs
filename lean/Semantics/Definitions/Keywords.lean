@@ -21,7 +21,7 @@ this permanent. Activate only as a sorcery." [CR#702.87a] -/
 semantic_definition levelUp (cost : Cost) : Ability :=
   .keyword (.named "levelUp") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
-        (putCounters (.lit 1) levelCounter thisPermanent) asSorcery ]
+        (putCounters 1 levelCounter thisPermanent) asSorcery ]
 /-- "Storm" with its reminder text: "When you cast this spell, copy it for each other spell that
 was cast before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 semantic_definition storm : Ability :=
@@ -42,10 +42,10 @@ semantic_definition cascade : Ability :=
     [ when (does you (cast thisSpell))
         (sequentially
           [ exile (.run .top (and [non isLand, cheaper]) (libraryOf .you)),
-            may (castWithoutPaying (that .card) (some cheaper)),
+            may (castWithoutPaying (that .card) cheaper),
             .move
               (allOf (and [isCard, was (exile which) thisWay, not (was (cast which) thisWay)]))
-              .anyLocation (some onBottom) .arrival none [(.inOrder .randomOrder)] ]) ]
+              .anyLocation onBottom .arrival none [(.inOrder .randomOrder)] ]) ]
 /-- "Ripple N" with its definition [CR#702.60a]: "When you cast this spell, you may reveal the top
 N cards of your library. If you do, you may cast any of those cards with the same name as this
 spell without paying their mana costs, then put all revealed cards not cast this way on the bottom
@@ -63,7 +63,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
                 .move
                   (allOf
                     (and [isCard, was (reveal which) thisWay, not (was (cast which) thisWay)]))
-                  .anyLocation (some onBottom) .arrival none [.inOrder .anyOrder] ]))) ]
+                  .anyLocation onBottom .arrival none [.inOrder .anyOrder] ]))) ]
 /-- "Renown N" with its reminder text: "When this creature deals combat damage to a player, if it
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_definition renown (count : Amount) : Ability :=
@@ -77,11 +77,11 @@ semantic_definition renown (count : Amount) : Ability :=
 semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword (.named "cumulativeUpkeep") [.cost (.inCaller cost)]
     [ at_ (.beginningOf .upkeep (some .you) (.each none))
-        (if_ := some (is thisPermanent isPermanent))
+        (if_ := is thisPermanent isPermanent)
         (sequentially
-          [ putCounters (.lit 1) ageCounter thisPermanent,
+          [ putCounters 1 ageCounter thisPermanent,
             doUnless (sacrifice thisPermanent)
-              (.scaled (.inCaller cost) (times (.lit 1) (countersOn ageCounter thisPermanent))) ]) ]
+              (.scaled (.inCaller cost) (times 1 (countersOn ageCounter thisPermanent))) ]) ]
 semantic_definition reach : Ability := keyword (.named "reach")
 /-- "Flying" with its definition, a static ability: "This creature can't be blocked except by
 creatures with flying and/or reach." [CR#702.9b] -/
@@ -94,7 +94,7 @@ semantic_definition flying : Ability :=
 semantic_definition bushido (count : Amount) : Ability :=
   .keyword (.named "bushido") [.number (.inCaller count)]
     [ whenever (does thisCreature block) (or_ := [does any (block thisCreature)])
-        (get thisCreature (.up (.inCaller count)) (.up (.inCaller count)) (some untilEndOfTurn)) ]
+        (get thisCreature (.up (.inCaller count)) (.up (.inCaller count)) untilEndOfTurn) ]
 /-- "Modular N" with its definition, a static ability and a triggered one [CR#702.43a]. -/
 semantic_definition modular (count : Amount) : Ability :=
   .keyword (.named "modular") [.number (.inCaller count)]
@@ -106,7 +106,7 @@ semantic_definition modular (count : Amount) : Ability :=
 card." [CR#702.29a] -/
 semantic_definition cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost (.inCaller cost)]
-    [activated (.compound [.inCaller cost, .perform (discard this_)]) (draw (.lit 1))]
+    [activated (.compound [.inCaller cost, .perform (discard this_)]) (draw 1)]
 
 /-! ## Ability words
 
@@ -194,7 +194,7 @@ semantic_definition affinity (quality : Predicate) : Ability :=
   .keyword (.named "affinity") [.quality (.inCaller quality)]
     [ static
         (.costShift thisSpell
-          (.generic (.down (forEach (.lit 1) (and [.inCaller quality, youControl]))) none)) ]
+          (.generic (.down (forEach 1 (and [.inCaller quality, youControl]))) none)) ]
 semantic_definition afflict (amount : Amount) : Ability :=
   .keyword (.named "afflict") [.number (.inCaller amount)]
     [ whenever (does .any (.block thisCreature))
@@ -206,7 +206,7 @@ semantic_definition afterlife (amount : Amount) : Ability :=
 semantic_definition aftermath : Ability :=
   .keyword (.named "aftermath") []
     [ static
-        (can theActor (cast this_ (from_ := some yourGraveyard))),
+        (can theActor (cast this_ (from_ := yourGraveyard))),
       static
         (cant theActor
           (cast this_ (from_ := some (not yourGraveyard)))),
@@ -236,17 +236,17 @@ semantic_definition ascend : Ability :=
         (onlyIfSo
           (.whileHolds
             (and
-              [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast (.lit 10),
+              [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast 10,
                 not (is .you (hasDesignation citysBlessing)) ])
-            (gainDesignation .you citysBlessing (some restOfGame)))
+            (gainDesignation .you citysBlessing restOfGame))
           (is this_ isPermanentType)),
       spell
         (doIf (is this_ isInstantOrSorcery)
           (doIf
             (and
-              [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast (.lit 10),
+              [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast 10,
                 not (is .you (hasDesignation citysBlessing)) ])
-            (gainDesignation .you citysBlessing (some restOfGame))
+            (gainDesignation .you citysBlessing restOfGame)
             none)
           none) ]
 semantic_definition assist : Ability := keyword (.named "assist")
@@ -269,8 +269,8 @@ semantic_definition awaken (amount : Amount) (cost : Cost) : Ability :=
                 (.characteristicChange (that land)
                   [ .typeLine .adds
                       { types := some [.creature], subtypes := some [elemental] },
-                    .stat .sets .power (.lit 0),
-                    .stat .sets .toughness (.lit 0),
+                    .stat .sets .power 0,
+                    .stat .sets .toughness 0,
                     .addedAbilities [keyword (.named "haste")] ])
                 none ])
           none) ]
@@ -308,7 +308,7 @@ semantic_definition battleCry : Ability :=
     [ whenever (does thisCreature (.attack none))
         (establishThroughout
           (Templates.getsPt (each (and [isCreature, isAttacking, isOther]))
-            (.up (.lit 1)) (.up (.lit 0)))
+            (.up 1) (.up 0))
           untilEndOfTurn) ]
 semantic_definition bestow (cost : Cost) : Ability :=
   .keyword (.named "bestow") [.cost (.inCaller cost)]
@@ -319,7 +319,7 @@ semantic_definition blitz (cost : Cost) : Ability :=
       static
         (.asEvent
           (does you
-            (.pay .itsManaCost .once .paid (some thisSpell) (some (.named "blitz"))))
+            (.pay .itsManaCost .once .paid thisSpell (some (.named "blitz"))))
           (atNext .endStep (sacrifice (.becomes thisSpell)))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
@@ -327,7 +327,7 @@ semantic_definition blitz (cost : Cost) : Ability :=
       static
         (onlyWhile
           (abilityGrant thisPermanent
-            (when (does thisPermanent die) (draw (.lit 1))))
+            (when (does thisPermanent die) (draw 1)))
           (keywordCostPaid (.named "blitz") thisPermanent)) ]
 semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
@@ -337,16 +337,16 @@ semantic_definition bloodthirst (amount : Amount) : Ability :=
             (withRiders [.withCounters (.inCaller amount) p1p1Counter .fresh]))) ]
 semantic_definition boast (ability : Ability) : Ability :=
   .keyword (.named "boast") [.ability (.inCaller ability)]
-    [ .qualified (.inCaller ability) none (some oncePerTurn)
-        (some (is thisCreature (did which (.attack none) soFarThisTurn)))
+    [ .qualified (.inCaller ability) none oncePerTurn
+        (is thisCreature (did which (.attack none) soFarThisTurn))
         none ]
 semantic_definition buyback (cost : Cost) : Ability :=
   .keyword (.named "buyback") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .once),
       static
-        (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+        (replace (.would .any (.move thisSpell stack graveyard .departure none []))
           (doIf (keywordCostPaid (.named "buyback") thisSpell)
-            (instead (.move thisSpell .anyLocation (some hand) .arrival none [])))) ]
+            (instead (.move thisSpell .anyLocation hand .arrival none [])))) ]
 semantic_definition casualty (amount : Amount) : Ability :=
   .keyword (.named "casualty") [.number (.inCaller amount)]
     [ static
@@ -354,7 +354,7 @@ semantic_definition casualty (amount : Amount) : Ability :=
           (.perform (sacrifice (a (and [isCreature, hasPower .atLeast (.inCaller amount)]))))
           true .once),
       when (does you (cast thisSpell))
-        (if_ := some (keywordCostPaid (.named "casualty") thisSpell))
+        (if_ := keywordCostPaid (.named "casualty") thisSpell)
         (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
 semantic_definition champion (quality : Predicate) : Ability :=
   .keyword (.named "champion") [.subject (.inCaller quality)]
@@ -388,8 +388,8 @@ semantic_definition cipher : Ability :=
             (may
               (sequentially
                 [ .copy .fromCardZone
-                    (the (and [.isCard, .related encodedOn (some thisCreature)]))
-                    (.lit 1) [],
+                    (the (and [.isCard, .related encodedOn thisCreature]))
+                    1 [],
                   may (cast (that .copy) (payment := withoutPaying)) ])))) ]
 semantic_definition cleave (cost : Cost) : Ability :=
   .keyword (.named "cleave") [.cost (.inCaller cost)]
@@ -408,7 +408,7 @@ semantic_definition conspire : Ability :=
                 (and [isUntapped, isCreature, youControl, .shares .color .share thisSpell]))))
           true .once),
       when (does you (cast thisSpell))
-        (if_ := some (keywordCostPaid (.named "conspire") thisSpell))
+        (if_ := keywordCostPaid (.named "conspire") thisSpell)
         (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
 semantic_definition convoke : Ability :=
   .keyword (.named "convoke") []
@@ -438,7 +438,7 @@ semantic_definition dash (cost : Cost) : Ability :=
       static
         (.asEvent
           (does you
-            (.pay .itsManaCost .once .paid (some thisSpell) (some (.named "dash"))))
+            (.pay .itsManaCost .once .paid thisSpell (some (.named "dash"))))
           (atNext .endStep (returnToHand (.becomes thisSpell)))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
@@ -485,7 +485,7 @@ semantic_definition dethrone : Ability :=
           (.attack
             (some
               (the (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))))
-        (putCounters (.lit 1) p1p1Counter thisCreature) ]
+        (putCounters 1 p1p1Counter thisCreature) ]
 /-- "Devoid" means "This object is colorless": a Characteristic-Defining Ability
 [CR#702.114a,604.3a]. -/
 semantic_definition devoid : Ability :=
@@ -529,7 +529,7 @@ semantic_definition dredge (amount : Amount) : Ability :=
   .keyword (.named "dredge") [.number (.inCaller amount)]
     [ static
         (onlyWhile
-          (replace (would you (draw (.lit 1)))
+          (replace (would you (draw 1))
             (instead
               (may (sequentially [mill (.inCaller amount), returnToHand this_ yourGraveyard]))))
           (.compareAmt (countOf (cardIn yourLibrary)) .atLeast (.inCaller amount))) ]
@@ -540,12 +540,12 @@ semantic_definition embalm (cost : Cost) : Ability :=
         (.compound
           [ .inCaller cost,
             .perform (exileFrom thisCard yourGraveyard) ])
-        (create (.lit 1)
+        (create 1
           (.copyOf this_
             [ .edits
                 [ .colors .sets (.some [.white]),
                   .manaCost none,
-                  .typeLine .adds { subtypes := some [zombie] } ] ]))
+                  .typeLine .adds { subtypes := [zombie] } ] ]))
         asSorcery ]
 semantic_definition emerge (cost : Cost) : Ability :=
   .keyword (.named "emerge") [.cost (.inCaller cost)]
@@ -584,7 +584,7 @@ semantic_definition enchant (quality : Predicate) : Ability :=
     [ static (.addsTarget thisAura (.inCaller quality)),
       static (mayBeAttachedTo thisAura (allOf (.inCaller quality))),
       static
-        (.asEvent (does .any (.move thisAura (not stack) (some battlefield) .arrival none []))
+        (.asEvent (does .any (.move thisAura (not stack) battlefield .arrival none []))
           (attachTo thisAura (a (.inCaller quality)))) ]
 semantic_definition encore (cost : Cost) : Ability :=
   keywordCosting (.named "encore") (.inCaller cost)
@@ -599,7 +599,7 @@ semantic_definition epic : Ability :=
       spell
         (delayWithin (beginningOfYour .upkeep) restOfGame
           (sequentially
-            [ .copy .fromStack thisSpell (.lit 1)
+            [ .copy .fromStack thisSpell 1
                 [.edits [.removedAbilities (.specified [.term (.the (.named "epic"))])]],
               may (.chooseNewTargets (that .copy)) ])) ]
 semantic_definition equip (cost : Cost) : Ability :=
@@ -616,25 +616,25 @@ semantic_definition escape (cost : Cost) : Ability :=
   .keyword (.named "escape") [.cost (.inCaller cost)]
     [ static
         (can you
-          (cast this_ (from_ := some yourGraveyard) (payment := .payingInstead (.inCaller cost)))) ]
+          (cast this_ (from_ := yourGraveyard) (payment := .payingInstead (.inCaller cost)))) ]
 semantic_definition eternalize (cost : Cost) : Ability :=
   .keyword (.named "eternalize") [.cost (.inCaller cost)]
     [ activatedOnlyDuring
         (.compound
           [ .inCaller cost,
             .perform (exileFrom thisCard yourGraveyard) ])
-        (create (.lit 1) (.copyOf this_ [ .edits
+        (create 1 (.copyOf this_ [ .edits
                   [ .colors .sets (.some [.black]),
-                    .stat .sets .power (.lit 4),
-                    .stat .sets .toughness (.lit 4),
+                    .stat .sets .power 4,
+                    .stat .sets .toughness 4,
                     .manaCost none,
-                    .typeLine .adds { subtypes := some [zombie] } ] ]) [])
+                    .typeLine .adds { subtypes := [zombie] } ] ]) [])
         asSorcery ]
 semantic_definition evoke (cost : Cost) : Ability :=
   .keyword (.named "evoke") [.cost (.inCaller cost)]
     [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
       when (does thisPermanent enter)
-        (if_ := some (keywordCostPaid (.named "evoke") thisPermanent))
+        (if_ := keywordCostPaid (.named "evoke") thisPermanent)
         (instruct (controllerOf thisPermanent) (sacrifice thisPermanent)) ]
 semantic_definition evolve : Ability :=
   .keyword (.named "evolve") []
@@ -642,17 +642,17 @@ semantic_definition evolve : Ability :=
         (if_ := some (or
           [ .compareAmt (powerOf (that creature)) .greater (powerOf thisCreature),
             .compareAmt (toughnessOf (that creature)) .greater (toughnessOf thisCreature) ]))
-        (putCounters (.lit 1) p1p1Counter thisCreature) ]
+        (putCounters 1 p1p1Counter thisCreature) ]
 /-- "Whenever a creature you control attacks alone" [CR#702.83a]: a creature attacks alone when it
 is the only creature declared as an attacker [CR#702.83b], so the trigger event is you attacking
 with exactly one creature, not a check made again on resolution. -/
 semantic_definition exalted : Ability :=
   .keyword (.named "exalted") []
     [ whenever (does you (attackWith (counted (exactly 1) (and [isCreature, youControl]))))
-        (get (that creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) ]
+        (get (that creature) (.up 1) (.up 1) untilEndOfTurn) ]
 semantic_definition exhaust (ability : Ability) : Ability :=
   .keyword (.named "exhaust") [.ability (.inCaller ability)]
-    [.qualified (.inCaller ability) none (some oncePerObject) none none]
+    [.qualified (.inCaller ability) none oncePerObject none none]
 semantic_definition exploit : Ability :=
   .keyword (.named "exploit") []
     [ when (does thisCreature enter)
@@ -661,7 +661,7 @@ semantic_definition extort : Ability :=
   .keyword (.named "extort") []
     [ whenever (does you (cast (a isSpell)))
         (may (pay (.mana [hybridPip .white .black]) .once)
-          (some (sequentially [instruct eachOpponent (loseLife (.lit 1)), gainLife .thatMuch]))) ]
+          (sequentially [instruct eachOpponent (loseLife 1), gainLife .thatMuch])) ]
 semantic_definition fabricate (amount : Amount) : Ability :=
   .keyword (.named "fabricate") [.number (.inCaller amount)]
     [ when (does thisPermanent enter)
@@ -671,8 +671,8 @@ semantic_definition fading (amount : Amount) : Ability :=
   .keyword (.named "fading") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) fadeCounter),
       at_ (beginningOfYour .upkeep)
-        (doIfDone (removeCounters (oneThrough 1) (some fadeCounter) thisPermanent) none
-          (some (sacrifice thisPermanent))) ]
+        (doIfDone (removeCounters (oneThrough 1) fadeCounter thisPermanent) none
+          (sacrifice thisPermanent)) ]
 /-- "Fear": "This creature can't be blocked except by artifact creatures and/or black
 creatures." [CR#702.36b] -/
 semantic_definition fear : Ability :=
@@ -691,14 +691,14 @@ semantic_definition flanking : Ability :=
     [ whenever
         (does (.by (a (and [isCreature, not (.hasKeyword (.the (.named "flanking")))])))
           (.block thisCreature))
-        (get (that creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)) ]
+        (get (that creature) (.down 1) (.down 1) untilEndOfTurn) ]
 semantic_definition flash : Ability :=
-  .keyword (.named "flash") [] [static (can you (play thisCard) (timing := some asInstant))]
+  .keyword (.named "flash") [] [static (can you (play thisCard) (timing := asInstant))]
 semantic_definition flashback (cost : Cost) : Ability :=
   .keyword (.named "flashback") [.cost (.inCaller cost)]
     [ static
         (can you
-          (cast this_ (from_ := some yourGraveyard) (payment := .payingInstead (.inCaller cost)))),
+          (cast this_ (from_ := yourGraveyard) (payment := .payingInstead (.inCaller cost)))),
       static
         (replace (would thisSpell (leave stack))
           (doIf (keywordCostPaid (.named "flashback") thisSpell) (instead (exile thisSpell)))) ]
@@ -710,19 +710,19 @@ semantic_definition forMirrodin : Ability :=
             attachTo thisEquipment thatToken ]) ]
 semantic_definition forecast (ability : Ability) : Ability :=
   .keyword (.named "forecast") [.ability (.inCaller ability)]
-    [ .qualified (.inCaller ability) (some (duringPart .upkeep (some (ownerOf this_))))
-        (some oncePerTurn) none (some .hand) ]
+    [ .qualified (.inCaller ability) (duringPart .upkeep (some (ownerOf this_)))
+        oncePerTurn none (some .hand) ]
 semantic_definition foretell (cost : Cost) : Ability :=
   .keyword (.named "foretell") [.cost (.inCaller cost)]
     [ static
-        (specialAction (duringPart .turn (some you)) (mana [generic 2])
+        (specialAction (duringPart .turn you) (mana [generic 2])
           (sequentially
             [ exileFaceDown thisCard,
               establishThroughout (visibility .lookAt you (objects it))
                 (forAsLongAs (is it (in_ exileZone))),
               establishThroughout
                 (can you
-                  (cast it (from_ := some exileZone) (payment := payingInstead (.inCaller cost))))
+                  (cast it (from_ := exileZone) (payment := payingInstead (.inCaller cost))))
                 onALaterTurn ])) ]
 semantic_definition fortify (cost : Cost) : Ability :=
   .keyword (.named "fortify") [.cost (.inCaller cost)]
@@ -737,7 +737,7 @@ semantic_definition fuse : Ability := keyword (.named "fuse")
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
-      when (does thisPermanent enter) (if_ := some (is this_ isPermanentType))
+      when (does thisPermanent enter) (if_ := is this_ isPermanentType)
         (doIf (keywordCostPaid (.named "gift") this_)
           (instruct (the isChosenPlayer) (.inCaller promise))
           none),
@@ -750,12 +750,12 @@ semantic_definition gift (promise : Action) : Ability :=
 /-! The licensed phrasings of gift: its templating is not normative ("Gift a card", "Gift a
 tapped Fish"), so each is a Template over `gift` [CR#702.174a,702.174d..702.174i]. -/
 
-semantic_template giftACard : Ability := gift (draw (.lit 1))
+semantic_template giftACard : Ability := gift (draw 1)
 semantic_template giftAFood : Ability := gift (createToken foodToken)
 semantic_template giftATappedFish : Ability :=
   gift (createTappedToken (creatureToken 1 1 [.blue] [fish]))
 semantic_template giftATreasure : Ability := gift (createToken treasureToken)
-semantic_template giftAnExtraTurn : Ability := gift (extraTurn (.lit 1))
+semantic_template giftAnExtraTurn : Ability := gift (extraTurn 1)
 semantic_template giftAnOctopus : Ability :=
   gift (createToken (creatureToken 8 8 [.blue] [octopus]))
 semantic_definition graft (amount : Amount) : Ability :=
@@ -763,8 +763,8 @@ semantic_definition graft (amount : Amount) : Ability :=
     [ static (entersWithCounters thisPermanent (.inCaller amount) p1p1Counter),
       whenever
         (does (a (and [isCreature, isOther])) enter)
-        (if_ := some (is thisPermanent (.hasCounters (some p1p1Counter))))
-        (may (moveCounters (.lit 1) thisPermanent (that creature) (some p1p1Counter))) ]
+        (if_ := is thisPermanent (.hasCounters (some p1p1Counter)))
+        (may (moveCounters 1 thisPermanent (that creature) p1p1Counter)) ]
 semantic_definition gravestorm : Ability :=
   .keyword (.named "gravestorm") []
     [ when (does you (cast thisSpell))
@@ -776,7 +776,7 @@ semantic_definition harmonize (cost : Cost) : Ability :=
   .keyword (.named "harmonize") [.cost (.inCaller cost)]
     [ static
         (can you
-          (cast this_ (from_ := some yourGraveyard)
+          (cast this_ (from_ := yourGraveyard)
             (payment := .payingInstead
               (.compound
                 [ .inCaller cost,
@@ -798,12 +798,12 @@ semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration :
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
     [ when (does thisPermanent die)
-        (if_ := some (is this_ isPermanentType))
+        (if_ := is this_ isPermanentType)
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]),
-      when (does .any (.move thisSpell stack (some graveyard) .departure none []))
-        (if_ := some (is this_ isInstantOrSorcery))
+      when (does .any (.move thisSpell stack graveyard .departure none []))
+        (if_ := is this_ isInstantOrSorcery)
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]) ]
@@ -832,7 +832,7 @@ semantic_definition hideaway (amount : Amount) : Ability :=
         (sequentially
           [ lookAt (topSlice (.inCaller amount)),
             exileFaceDown (someOf (oneThrough 1) them),
-            .move (theRest .object) .anyLocation (some onBottom) .arrival none
+            .move (theRest .object) .anyLocation onBottom .arrival none
               [.inOrder .randomOrder],
             establishThroughout (visibility .lookAt you (objects exiledCard))
               (forAsLongAs (is exiledCard (in_ exileZone))) ]) ]
@@ -853,12 +853,12 @@ semantic_definition impending (amount : Amount) (cost : Cost) : Ability :=
           (.characteristicChange thisPermanent [.typeLine .loses { types := some [.creature] }])
           (and
             [ keywordCostPaid (.named "impending") thisPermanent,
-              is thisPermanent (.hasCounters (some timeCounter)) ])),
+              is thisPermanent (.hasCounters timeCounter) ])),
       at_ (beginningOfYour .endStep)
         (if_ := some (and
           [ keywordCostPaid (.named "impending") thisPermanent,
-            is thisPermanent (.hasCounters (some timeCounter)) ]))
-        (removeCounters (oneThrough 1) (some timeCounter) thisPermanent) ]
+            is thisPermanent (.hasCounters timeCounter) ]))
+        (removeCounters (oneThrough 1) timeCounter thisPermanent) ]
 semantic_definition improvise : Ability :=
   .keyword (.named "improvise") []
     [ static
@@ -874,7 +874,7 @@ semantic_definition increment : Ability :=
               [ .compareAmt (manaValueSpentToCast (that .spell)) .greater (powerOf thisCreature),
                 .compareAmt (manaValueSpentToCast (that .spell)) .greater
                   (toughnessOf thisCreature) ] ]))
-        (putCounters (.lit 1) p1p1Counter thisCreature) ]
+        (putCounters 1 p1p1Counter thisCreature) ]
 semantic_definition indestructible : Ability :=
   .keyword (.named "indestructible") []
     [ static
@@ -890,7 +890,7 @@ semantic_definition ingest : Ability :=
   .keyword (.named "ingest") []
     [ whenever (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
         (instruct they
-          (exile (.slice .top (.lit 1) (libraryOf they)))) ]
+          (exile (.slice .top 1 (libraryOf they)))) ]
 /-- "Intimidate": "This creature can't be blocked except by artifact creatures and/or creatures
 that share a color with it." [CR#702.13b] -/
 semantic_definition intimidate : Ability :=
@@ -932,26 +932,26 @@ semantic_definition madness (cost : Cost) : Ability :=
     [ static
         (replace (would (a isPlayer) (discard thisCard))
           (instead
-            (enact (.action "discard") (.move thisCard hand (some exileZone) .arrival none [])))),
+            (enact (.action "discard") (.move thisCard hand exileZone .arrival none [])))),
       when
         (.causes (.event (does any (discard thisCard)))
-          (does any (.move thisCard hand (some exileZone) .arrival none [])))
+          (does any (.move thisCard hand exileZone .arrival none [])))
         (instruct (ownerOf thisCard)
           (mayOrElse
             (establish
               (can theActor
-                (cast thisCard (from_ := some exileZone)
+                (cast thisCard (from_ := exileZone)
                   (payment := .payingInstead (.inCaller cost)))))
             (putInto thisCard graveyard))) ]
 semantic_definition maxSpeed (ability : Ability) : Ability :=
   .keyword (.named "maxSpeed") [.ability (.inCaller ability)]
-    [static (onlyWhile (abilityGrant this_ ability) (.compareAmt (speedOf .you) .eq (.lit 4)))]
+    [static (onlyWhile (abilityGrant this_ ability) (.compareAmt (speedOf .you) .eq 4))]
 semantic_definition mayhem (cost : Cost) : Ability :=
   .keyword (.named "mayhem") [.cost (.inCaller cost)]
     [ static
         (onlyWhile
           (can you
-            (cast thisCard (from_ := some yourGraveyard)
+            (cast thisCard (from_ := yourGraveyard)
               (payment := .payingInstead (.inCaller cost))))
           (did you (discard thisCard) soFarThisTurn)) ]
 semantic_definition megamorph (cost : Cost) : Ability :=
@@ -959,28 +959,28 @@ semantic_definition megamorph (cost : Cost) : Ability :=
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
       static
         (.specialAction none (.inCaller cost)
-          (sequentially [turnFaceUp this_, putCounters (.lit 1) p1p1Counter this_])) ]
+          (sequentially [turnFaceUp this_, putCounters 1 p1p1Counter this_])) ]
 semantic_definition melee : Ability :=
   .keyword (.named "melee") []
     [ whenever (does thisCreature (.attack none))
         (get thisCreature
           (.up
-            (times (.lit 1)
+            (times 1
               (eventCount (.attackWith (a isCreature) (some .which)) you thisCombat)))
           (.up
-            (times (.lit 1)
+            (times 1
               (eventCount (.attackWith (a isCreature) (some .which)) you thisCombat)))
-          (some untilEndOfTurn)) ]
+          untilEndOfTurn) ]
 /-- "Menace": "This creature can't be blocked except by two or more creatures."
 [CR#702.111b] -/
 semantic_definition menace : Ability :=
   .keyword (.named "menace") []
     [ static (cant any (block thisCreature)
-        (except := byObjects (counted (atLeast 2) isCreature))) ]
+        (except := byObjects (counted (orMore 2) isCreature))) ]
 semantic_definition mentor : Ability :=
   .keyword (.named "mentor") []
     [ whenever (does thisCreature (.attack none))
-        (putCounters (.lit 1) p1p1Counter
+        (putCounters 1 p1p1Counter
           (target (and [isCreature, isAttacking, hasPower .less (powerOf thisCreature)]))) ]
 semantic_definition miracle (cost : Cost) : Ability :=
   keywordCosting (.named "miracle") (.inCaller cost)
@@ -1024,7 +1024,7 @@ semantic_definition myriad : Ability :=
                   [ .entersAs .tapped,
                     .entersAttacking
                       (some (or [they, a (and [isPlaneswalker, controlledBy they])])) ])),
-            doIf (.compareAmt (.countOf thoseTokens) .atLeast (.lit 1))
+            doIf (.compareAmt (.countOf thoseTokens) .atLeast 1)
               (atNext .endOfCombat (exile thoseTokens))
               none ]) ]
 semantic_definition nightbound : Ability :=
@@ -1056,20 +1056,20 @@ semantic_definition offering (quality : Predicate) : Ability :=
             (.manaCostOf (the (and [was (sacrifice which), isPermanent]))))
           (keywordCostPaid (.named "offering") thisSpell)),
       static
-        (onlyWhile (can you (cast this_) (some asInstant))
+        (onlyWhile (can you (cast this_) asInstant)
           (keywordCostPaid (.named "offering") this_)) ]
 semantic_definition offspring (cost : Cost) : Ability :=
   .keyword (.named "offspring") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .once),
       when (does thisPermanent enter)
-        (if_ := some (keywordCostPaid (.named "offspring") thisPermanent))
-        (create (.lit 1)
+        (if_ := keywordCostPaid (.named "offspring") thisPermanent)
+        (create 1
           (.copyOf thisPermanent
-            [.edits [.stat .sets .power (.lit 1), .stat .sets .toughness (.lit 1)]])) ]
+            [.edits [.stat .sets .power 1, .stat .sets .toughness 1]])) ]
 semantic_definition outlast (cost : Cost) : Ability :=
   .keyword (.named "outlast") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.compound [.inCaller cost, .tapSymbol])
-        (putCounters (.lit 1) p1p1Counter thisCreature)
+        (putCounters 1 p1p1Counter thisCreature)
         asSorcery ]
 semantic_definition overload (cost : Cost) : Ability :=
   .keyword (.named "overload") [.cost (.inCaller cost)]
@@ -1090,7 +1090,7 @@ semantic_definition persist : Ability :=
     [ when (does thisPermanent die)
         (if_ := some (not (is thisPermanent (.hasCounters (some m1m1Counter)))))
         (returnTo thisPermanent battlefield
-          [.under (ownerOf thisPermanent), .withCounters (.lit 1) m1m1Counter .fresh]) ]
+          [.under (ownerOf thisPermanent), .withCounters 1 m1m1Counter .fresh]) ]
 semantic_definition phasing : Ability := keyword (.named "phasing")
 semantic_definition plot (cost : Cost) : Ability :=
   .keyword (.named "plot") [.cost (.inCaller cost)]
@@ -1099,8 +1099,8 @@ semantic_definition plot (cost : Cost) : Ability :=
           (sequentially
             [ exile thisCard,
               establishThroughout
-                (can you (cast it (from_ := some exileZone) (payment := withoutPaying))
-                  (timing := some asSorcery))
+                (can you (cast it (from_ := exileZone) (payment := withoutPaying))
+                  (timing := asSorcery))
                 onALaterTurn ])) ]
 semantic_definition poisonous (amount : Amount) : Ability :=
   .keyword (.named "poisonous") [.number (.inCaller amount)]
@@ -1108,7 +1108,7 @@ semantic_definition poisonous (amount : Amount) : Ability :=
         (putCounters (.inCaller amount) poison they) ]
 semantic_definition powerUp (ability : Ability) : Ability :=
   .keyword (.named "powerUp") [.ability (.inCaller ability)]
-    [ .qualified (.inCaller ability) none (some oncePerObject) none none,
+    [ .qualified (.inCaller ability) none oncePerObject none none,
       static
         (onlyWhile (reducedBySymbols thisAbility (.manaCostOf thisPermanent))
           (did thisPermanent enter soFarThisTurn)) ]
@@ -1146,12 +1146,12 @@ semantic_definition provoke : Ability :=
             (must (target (and [isCreature, controlledBy defendingPlayer]))
               (.block thisCreature))
             untilEndOfCombat)
-          (some (untap (that creature)))) ]
+          (untap (that creature))) ]
 semantic_definition prowess : Ability :=
   .keyword (.named "prowess") []
     [ whenever
         (does you (cast (a (and [.in_ stack, non isCreature]))))
-        (get thisCreature (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) ]
+        (get thisCreature (.up 1) (.up 1) untilEndOfTurn) ]
 /-- "Prowl <cost>": cast for <cost> if a player was dealt combat damage this turn by a source
 you controlled that shared a creature type with this spell [CR#702.76a]. -/
 semantic_definition prowl (cost : Cost) : Ability :=
@@ -1166,19 +1166,19 @@ semantic_definition rampage (amount : Amount) : Ability :=
         (get thisCreature
           (.up
             (times (.inCaller amount)
-              (minus (countOf (and [isCreature, .inCombat .blockerOf (some thisCreature)]))
-                (.lit 1))))
+              (minus (countOf (and [isCreature, .inCombat .blockerOf thisCreature]))
+                1)))
           (.up
             (times (.inCaller amount)
-              (minus (countOf (and [isCreature, .inCombat .blockerOf (some thisCreature)]))
-                (.lit 1))))
-          (some untilEndOfTurn)) ]
+              (minus (countOf (and [isCreature, .inCombat .blockerOf thisCreature]))
+                1)))
+          untilEndOfTurn) ]
 semantic_definition ravenous : Ability :=
   .keyword (.named "ravenous") []
     [ static (entersWithCounters thisPermanent (.letter .x) p1p1Counter),
       when (does thisPermanent enter)
-        (if_ := some (.compareAmt (.letter .x) .atLeast (.lit 5)))
-        (draw (.lit 1)) ]
+        (if_ := some (.compareAmt (.letter .x) .atLeast 5))
+        (draw 1) ]
 semantic_definition readAhead : Ability :=
   .keyword (.named "readAhead") []
     [ static
@@ -1194,7 +1194,7 @@ semantic_definition readAhead : Ability :=
 semantic_definition rebound : Ability :=
   .keyword (.named "rebound") []
     [ static
-        (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+        (replace (.would .any (.move thisSpell stack graveyard .departure none []))
           (doIf (is thisSpell (.castFrom yourHand))
             (instead
               (sequentially
@@ -1208,15 +1208,15 @@ semantic_definition reconfigure (cost : Cost) : Ability :=
         asSorcery,
       .activated (.inCaller cost)
         (enact (.action "attach") (.attachment .unattached thisPermanent none))
-        (some asSorcery) none
-        (some (is thisPermanent (.attachment .attachment none (some (a isCreature)))))
+        asSorcery none
+        (is thisPermanent (.attachment .attachment none (some (a isCreature))))
         none ]
 semantic_definition recover (cost : Cost) : Ability :=
   .keyword (.named "recover") [.cost (.inCaller cost)]
     [ when
-        (does .any (.move (a isCreature) battlefield (some yourGraveyard) .departure none []))
-        (may (pay (.inCaller cost) .once) (some (returnToHand this_ yourGraveyard))
-          (some (exile this_))) ]
+        (does .any (.move (a isCreature) battlefield yourGraveyard .departure none []))
+        (may (pay (.inCaller cost) .once) (returnToHand this_ yourGraveyard)
+          (exile this_)) ]
 semantic_definition reinforce (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "reinforce") [.number (.inCaller amount), .cost (.inCaller cost)]
     [ activated
@@ -1228,7 +1228,7 @@ semantic_definition replicate (cost : Cost) : Ability :=
   .keyword (.named "replicate") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .anyNumberOfTimes),
       when (does you (cast thisSpell))
-        (if_ := some (keywordCostPaid (.named "replicate") thisSpell))
+        (if_ := keywordCostPaid (.named "replicate") thisSpell)
         (sequentially
           [ copyOnStack thisSpell (timesPaid (.byKeyword (.named "replicate")) thisSpell),
             may (.chooseNewTargets (those .copy)) ]) ]
@@ -1236,7 +1236,7 @@ semantic_definition retrace : Ability :=
   .keyword (.named "retrace") []
     [ static
         (can you
-          (cast this_ (from_ := some yourGraveyard)
+          (cast this_ (from_ := yourGraveyard)
             (payment := .payingInstead
               (.compound
                 [.itsManaCost, .perform (discard (a (and [.isCard, isLand, .in_ yourHand])))])))) ]
@@ -1245,7 +1245,7 @@ semantic_definition riot : Ability :=
     [ static
         (replace (would thisPermanent enter)
           (also
-            (mayOrElse (putCounters (.lit 1) p1p1Counter thisPermanent)
+            (mayOrElse (putCounters 1 p1p1Counter thisPermanent)
               (gainHaste thisPermanent)))) ]
 semantic_definition saddle (amount : Amount) : Ability :=
   .keyword (.named "saddle") [.number (.inCaller amount)]
@@ -1257,7 +1257,7 @@ semantic_definition saddle (amount : Amount) : Ability :=
                 (and
                   [ isUntapped,
                     and [isCreature, youControl, isOther] ])))))
-        (gainDesignation thisPermanent saddled (some untilEndOfTurn))
+        (gainDesignation thisPermanent saddled untilEndOfTurn)
         asSorcery ]
 semantic_definition scavenge (cost : Cost) : Ability :=
   .keyword (.named "scavenge") [.cost (.inCaller cost)]
@@ -1296,7 +1296,7 @@ semantic_definition sneak (cost : Cost) : Ability :=
 semantic_definition solved (ability : Ability) : Ability :=
   .keyword (.named "solved") [.ability (.inCaller ability)]
     [ .qualified (.inCaller ability) none none
-        (some (is thisCase (hasDesignation DesignationLabel.solved)))
+        (is thisCase (hasDesignation DesignationLabel.solved))
         none ]
 semantic_definition soulbond : Ability :=
   .keyword (.named "soulbond") []
@@ -1364,12 +1364,12 @@ semantic_definition splitSecond : Ability :=
                 (activate (allOf (and [.abilityHead .anyActivated, non isManaAbility]))) ])
           (is thisSpell (.in_ stack))) ]
 semantic_definition spree : Ability :=
-  .keyword (.named "spree") [] [static (.modeChoice (.setQuantity (atLeast 1)))]
+  .keyword (.named "spree") [] [static (.modeChoice (.setQuantity (orMore 1)))]
 semantic_definition squad (cost : Cost) : Ability :=
   .keyword (.named "squad") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .anyNumberOfTimes),
       when (does thisCreature enter)
-        (if_ := some (keywordCostPaid (.named "squad") thisCreature))
+        (if_ := keywordCostPaid (.named "squad") thisCreature)
         (create (timesPaid (.byKeyword (.named "squad")) thisCreature) (.copyOf thisCreature [])) ]
 semantic_definition startYourEngines : Ability := keyword (.named "startYourEngines")
 semantic_definition station : Ability :=
@@ -1393,9 +1393,9 @@ semantic_definition storied : Ability :=
                         [ isArtifact,
                           .hasSubtype saga,
                           .hasSupertype .legendary ] ]))
-                .atLeast (.lit 3),
+                .atLeast 3,
               not (is .you (hasDesignation enduringStory)) ])
-          (gainDesignation .you enduringStory (some restOfGame))) ]
+          (gainDesignation .you enduringStory restOfGame)) ]
 semantic_definition sunburst : Ability :=
   .keyword (.named "sunburst") []
     [ static
@@ -1435,13 +1435,13 @@ semantic_definition training : Ability :=
           (.actor
             (and
               [ thisCreature,
-                counted (atLeast 1)
+                counted (orMore 1)
                   (and
                     [ isCreature,
                       isOther,
                       hasPower .greater (powerOf thisCreature) ]) ]))
           (.attack none))
-        (putCounters (.lit 1) p1p1Counter thisCreature) ]
+        (putCounters 1 p1p1Counter thisCreature) ]
 semantic_definition trample : Ability := keyword (.named "trample")
 semantic_definition transfigure (cost : Cost) : Ability :=
   .keyword (.named "transfigure") [.cost (.inCaller cost)]
@@ -1492,18 +1492,18 @@ semantic_definition umbraArmor : Ability :=
           (instead (sequentially [clearDamage (enchanted .permanent), destroy thisAura]))) ]
 semantic_definition undaunted : Ability :=
   .keyword (.named "undaunted") []
-    [static (.costShift thisSpell (.generic (.down (forEach (.lit 1) isOpponent)) none))]
+    [static (.costShift thisSpell (.generic (.down (forEach 1 isOpponent)) none))]
 semantic_definition undying : Ability :=
   .keyword (.named "undying") []
     [ when (does thisPermanent die)
         (if_ := some (not (is thisPermanent (.hasCounters (some p1p1Counter)))))
         (returnTo thisPermanent battlefield
-          [.under (ownerOf thisPermanent), .withCounters (.lit 1) p1p1Counter .fresh]) ]
+          [.under (ownerOf thisPermanent), .withCounters 1 p1p1Counter .fresh]) ]
 semantic_definition unearth (cost : Cost) : Ability :=
   .keyword (.named "unearth") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
         (sequentially
-          [ returnToBattlefield thisCard (from_ := some yourGraveyard),
+          [ returnToBattlefield thisCard (from_ := yourGraveyard),
             gainHaste thisPermanent,
             atNext .endStep
               (exile thisPermanent),
@@ -1515,16 +1515,16 @@ semantic_definition unleash : Ability :=
   .keyword (.named "unleash") []
     [ static
         (replace (would thisPermanent enter)
-          (also (may (putCounters (.lit 1) p1p1Counter thisPermanent)))),
+          (also (may (putCounters 1 p1p1Counter thisPermanent)))),
       static
         (onlyWhile (cant thisPermanent (.block .any))
-          (is thisPermanent (.hasCounters (some p1p1Counter)))) ]
+          (is thisPermanent (.hasCounters p1p1Counter))) ]
 semantic_definition vanishing (amount : Amount) : Ability :=
   .keyword (.named "vanishing") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) timeCounter),
       at_ (beginningOfYour .upkeep)
-        (if_ := some (is thisPermanent (.hasCounters (some timeCounter))))
-        (removeCounters (oneThrough 1) (some timeCounter) thisPermanent),
+        (if_ := is thisPermanent (.hasCounters (some timeCounter)))
+        (removeCounters (oneThrough 1) timeCounter thisPermanent),
       when (lastCounterRemoved timeCounter thisPermanent)
         (sacrifice thisPermanent) ]
 semantic_definition vigilance : Ability := keyword (.named "vigilance")
@@ -1538,17 +1538,17 @@ semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
     [ static
         (can you
-          (cast this_ (from_ := some yourHand) (payment := .payingInstead (.inCaller cost)))),
+          (cast this_ (from_ := yourHand) (payment := .payingInstead (.inCaller cost)))),
       static
         (.asEvent
           (does you
-            (.pay .itsManaCost .once .paid (some thisSpell) (some (.named "warp"))))
+            (.pay .itsManaCost .once .paid thisSpell (some (.named "warp"))))
           (atNext .endStep
             (sequentially
               [ exile (.becomes thisSpell),
                 establishThroughout
                   (can (ownerOf it)
-                    (cast it (from_ := some exileZone)))
+                    (cast it (from_ := exileZone)))
                   onALaterTurn ]))) ]
 semantic_definition webSlinging (cost : Cost) : Ability :=
   .keyword (.named "webSlinging") [.cost (.inCaller cost)]

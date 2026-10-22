@@ -45,6 +45,24 @@ Standard constraints apply.
      retains explicit `.lit` and top-level combinator templates (`and`,
      `sequentially`, `compound`, `conjunction`) so Lean's elaborator and kernel
      `by decide` never pay typeclass search or projection-unfolding overhead.
+   - **Amended (owner ruling C, 2026-10-21; the `lean-v3-authoring-boilerplate`
+     probe):**
+     Lean now takes five coercions, because their measured cost is negligible:
+     core's `α → Option α`, `ManaCost → Cost` (`mana`), `Action → Cost`
+     (`perform`), `Subtype → Predicate` (`hasSubtype`), and `OfNat Amount`
+     (a numeral for `.lit n`). Each was measured on `Cards/Cost.lean` and
+     `Cards/Damage.lean` alone and all together. Kernel type checking and
+     `decide` stayed within run-to-run noise (Cost 22.3–22.8 s before, 22.0–22.5 s
+     after; Damage 26.2–26.3 s before, 25.6–26.9 s after). Typeclass inference rose
+     by 0.1–0.3 s per file, and the numeral's `evalExpr` interpretation by about
+     0.3 s. Over the whole swept bench (15 card files, profiled one after another),
+     wall time went from 365 s to 368 s (+0.8%), typeclass inference from
+     3.1 s to 4.6 s, kernel type checking from 320 s to 322 s, and `decide`
+     tactic time stayed at 138 s. `spelled` accepts all five. The four
+     coercions leave the retained `Authoring.Form` unchanged. A numeral's Form
+     names the same Templates and literals. Leading-dot enum names still need
+     their head (`some .combat`, `mana [.snow]`), and list combinators keep their
+     explicit templates.
 4. **No `v1`/`v2` Holdover Names:**
    - Retire the `Semantics.Macros` hierarchy, `Declared.lean` split,
      `semantic_macro` command, `MacroParameters` / `MacroContext` / `MacroSplice`

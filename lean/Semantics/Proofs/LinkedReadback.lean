@@ -149,7 +149,7 @@ theorem badThisWayReadsNoLinkedObject :
 ("whenever you sacrifice a creature") was sacrificed by something else. -/
 theorem badTriggerEventObjectNotLinked :
     Ability.checkText (DRS.ofList [])
-      [ when (does you (sacrifice (a isCreature))) (draw (.lit 1)),
+      [ when (does you (sacrifice (a isCreature))) (draw 1),
         spell (draw (statOf (.stat .manaValue) theSacrificed)) ] =
       [.participialDescription (.deed sacrificing) 0] := by
   decide
@@ -179,8 +179,8 @@ theorem okArmAfterManyOptions :
     Ability.checkText (DRS.ofList [])
       [ when (does thisPermanent enter)
           (sequentially
-            [ mayOrElse (draw (.lit 1)) (exile (target (and [isCard, in_ graveyard]))),
-              may (draw (.lit 1)), may (draw (.lit 1)), may (draw (.lit 1)) ]),
+            [ mayOrElse (draw 1) (exile (target (and [isCard, in_ graveyard]))),
+              may (draw 1), may (draw 1), may (draw 1) ]),
         returnToTheBattlefield theExiledCard ] = [] := by
   decide
 

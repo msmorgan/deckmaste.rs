@@ -16,7 +16,7 @@ namespace Semantics.Proofs.Static
 theorem okGetsBattlefieldSubject :
     Ability.check (DRS.ofList [])
       (.static
-        (onlyWhile (getsPt thisCreature (.up (.lit 2)) (.up (.lit 0)))
+        (onlyWhile (getsPt thisCreature (.up 2) (.up 0))
           (.matches thisCreature isAttacking))) = [] := by
   decide
 
@@ -25,7 +25,7 @@ the anaphor. The subject is written once, so it is refused once. -/
 theorem badThatCreatureIsCondSubject :
     Ability.check (DRS.ofList [])
       (.static
-        (onlyWhile (getsPt (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)))
+        (onlyWhile (getsPt (that (.type .creature)) (.up 2) (.up 0))
           (.matches thisCreature isAttacking)))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -33,7 +33,7 @@ theorem badThatCreatureIsCondSubject :
 /-- "Equipped creature gets +1/+1." -/
 theorem okEquippedCreature :
     Ability.check (DRS.ofList [])
-      (.static (getsPt (.attachHost .equipped (.type .creature)) (.up (.lit 1)) (.up (.lit 1))))
+      (.static (getsPt (.attachHost .equipped (.type .creature)) (.up 1) (.up 1)))
       = [] := by
   decide
 
@@ -46,7 +46,7 @@ theorem okSingleStaticXRider :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [ Templates.modification thisCreature .power (.up (.letter .x)),
-          Templates.modification thisCreature .toughness (.up (.lit 0)),
+          Templates.modification thisCreature .toughness (.up 0),
           .letterDefinition .x (countOf (and [isCreature, youControl])) ]) = [] := by
   decide
 
@@ -54,7 +54,7 @@ theorem badDoubleStaticRider :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [ Templates.modification thisCreature .power (.up (.letter .x)),
-          Templates.modification thisCreature .toughness (.up (.lit 0)),
+          Templates.modification thisCreature .toughness (.up 0),
           .letterDefinition .x (countOf (and [isCreature, youControl])),
           .letterDefinition .x (countOf isCreature) ]) = [.openLetter .x] := by
   decide
@@ -68,7 +68,7 @@ theorem okSelfDefinedPt :
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousClause :
     Action.check (DRS.ofList [])
-      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))
+      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -105,13 +105,13 @@ theorem okStillALand :
     StaticSpec.check (DRS.ofList [])
       (qualityChange (allOf isLand) .sets
         (.bundle { characteristics :=
-                   { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
+                   { types := [.creature], power := some 2, toughness := some 2 } }
           (some .land))) = [] := by
   decide
 
 /-- "Target creature gets +1/+0." -/
 theorem okSingletonCoordination :
-    StaticSpec.check (DRS.ofList []) (.conjunction none [Templates.modification (target isCreature) .power (.up (.lit 1))])
+    StaticSpec.check (DRS.ofList []) (.conjunction none [Templates.modification (target isCreature) .power (.up 1)])
       = [] := by
   decide
 
@@ -129,7 +129,7 @@ theorem okSingleExtension :
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :
-    StaticSpec.check (DRS.ofList []) (replace (would you (draw (.lit 1))) (instead (draw (.lit 2))))
+    StaticSpec.check (DRS.ofList []) (replace (would you (draw 1)) (instead (draw 2)))
       = [] := by
   decide
 
@@ -140,58 +140,58 @@ accepts one [CR#614.1a]. -/
 
 /--
 error: Application type mismatch: The argument
-  instead (draw (Amount.lit 1))
+  instead (draw 1)
 has type
   Replacement
 but is expected to have type
   Action
 in the application
-  @spell instAuthoringContext (instead (draw (Amount.lit 1)))
+  @spell instAuthoringContext (instead (draw 1))
 -/
 #guard_msgs in
-example : Ability := spell (instead (draw (.lit 1)))
+example : Ability := spell (instead (draw 1))
 
 /--
 error: Application type mismatch: The argument
-  instead (draw (Amount.lit 1))
+  instead (draw 1)
 has type
   Replacement
 but is expected to have type
   Action
 in the application
-  instead (instead (draw (Amount.lit 1)))
+  instead (instead (draw 1))
 -/
 #guard_msgs in
-example : Replacement := instead (instead (draw (.lit 1)))
+example : Replacement := instead (instead (draw 1))
 
 /--
 error: Application type mismatch: The argument
-  draw (Amount.lit 2)
+  draw 2
 has type
   Action
 but is expected to have type
   Replacement
 in the application
-  @Templates.StaticSpec.replace instAuthoringContext (would (actor you) (draw (Amount.lit 1))) (draw (Amount.lit 2))
+  @Templates.StaticSpec.replace instAuthoringContext (would (actor you) (draw 1)) (draw 2)
 -/
 #guard_msgs in
-example : StaticSpec := replace (would you (draw (.lit 1))) (draw (.lit 2))
+example : StaticSpec := replace (would you (draw 1)) (draw 2)
 
 /-- "Draw a card. If you control three or more artifacts, draw two cards instead.": the
 condition is the replacement's own, so the draw happens unreplaced while it fails
 [CR#614.15]. -/
 theorem conditionalReplacementCarriesItsCondition :
-    (replace (draw (.lit 1))
-      (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
-        (instead (draw (.lit 2)))) : Action) =
-      .replace (draw (.lit 1))
-        (.onlyIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
-          (.instead (draw (.lit 2)))) := rfl
+    (replace (draw 1)
+      (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast 3)
+        (instead (draw 2))) : Action) =
+      .replace (draw 1)
+        (.onlyIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast 3)
+          (.instead (draw 2))) := rfl
 
 /-- The replacement's condition is read: one naming nothing it can resolve is refused. -/
 theorem conditionalReplacementChecksItsCondition :
     Action.check (DRS.ofList [])
-      (replace (draw (.lit 1)) (doIf (is it isCreature) (instead (draw (.lit 2))))) =
+      (replace (draw 1) (doIf (is it isCreature) (instead (draw 2)))) =
       [.anaphor .bare .one 0] := by
   decide
 
@@ -200,9 +200,9 @@ is checked as the land would enter, so the replacement carries it, not the stati
 [CR#614.1d,614.12]. -/
 theorem entersTappedUnlessConditionsTheReplacement :
     entersTappedUnless thisLand
-        (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast (.lit 8)) =
+        (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast 8) =
       .replace (would thisLand enter)
-        (.onlyIf (.not (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast (.lit 8)))
+        (.onlyIf (.not (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast 8))
           (.withRiders [.entersAs .tapped])) none .repeatedly none := rfl
 
 private def nestCallers : Nat → Replacement → Replacement
@@ -213,9 +213,9 @@ private def nestCallers : Nat → Replacement → Replacement
 than read as a replacement that does nothing. -/
 theorem conditionOverTooDeepReplacementIsRefused :
     (StaticSpec.check (DRS.ofList [])
-      (replace (would you (draw (.lit 1)))
+      (replace (would you (draw 1))
         (doIf (is you (hasDesignation citysBlessing))
-          (nestCallers 9 (instead (draw (.lit 2))))))).contains .recursionLimit = true := by
+          (nestCallers 9 (instead (draw 2)))))).contains .recursionLimit = true := by
   decide
 
 /-! ### What a replacement makes of its event
@@ -234,7 +234,7 @@ theorem entersTappedRidesTheEntering :
 entering is ridden the same way, with no pronoun to agree with it [CR#614.1d]. -/
 theorem okPluralEnteringRidden :
     StaticSpec.check (DRS.ofList [])
-      (entersWithAdditionalCounters (allOf (and [isCreature, youControl])) (.lit 1)
+      (entersWithAdditionalCounters (allOf (and [isCreature, youControl])) 1
         p1p1Counter) = [] := by
   decide
 
@@ -242,14 +242,14 @@ theorem okPluralEnteringRidden :
 [CR#614.1c,614.12]. -/
 theorem badRidersOverADraw :
     StaticSpec.check (DRS.ofList [])
-      (replace (would you (draw (.lit 1))) (withRiders [.entersAs .tapped])) =
+      (replace (would you (draw 1)) (withRiders [.entersAs .tapped])) =
       [.riddenEntering] := by
   decide
 
 /-- The same refusal for a spell's own replacement: "Draw a card; it enters tapped instead". -/
 theorem badSelfReplacementRidersOverADraw :
     Action.check (DRS.ofList [])
-      (replace (draw (.lit 1)) (withRiders [.entersAs .tapped])) = [.riddenEntering] := by
+      (replace (draw 1) (withRiders [.entersAs .tapped])) = [.riddenEntering] := by
   decide
 
 /-- A move is not enough: "If this creature would die, it enters tapped" is refused, dying being
@@ -266,7 +266,7 @@ theorem okRidersOverATokenCreation :
     StaticSpec.check (DRS.ofList [])
       (replace
         (would any
-          (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true
+          (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) true
             (some you)))
         (withRiders [.entersAs .tapped])) = [] := by
   decide
@@ -297,7 +297,7 @@ theorem okAlsoReadsItsOwnChoice :
           (sequentially
             [ choose anOpponent,
               instruct (the isChosenPlayer)
-                (may (putCounters (.lit 1) (.printed p1p1Counter) thisCreature)) ]))) = [] := by
+                (may (putCounters 1 (.printed p1p1Counter) thisCreature)) ]))) = [] := by
   decide
 
 /-- "<spec> unless <condition>" is "<spec> if not <condition>": the negation is the
@@ -322,7 +322,7 @@ theorem okLandBecomesBlocking :
 
 /-- "this creature gets +1/+0" -/
 theorem okAddPtUpward :
-    StaticSpec.check (DRS.ofList []) (Templates.modification thisCreature .power (.up (.lit 1))) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (Templates.modification thisCreature .power (.up 1)) = [] := by decide
 
 /-- "During target opponent's next turn, …" -/
 theorem okSingularNextTurnDuration :

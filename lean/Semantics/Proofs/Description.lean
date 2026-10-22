@@ -40,12 +40,12 @@ theorem badEachOfSingular :
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
-    Action.check (DRS.ofList []) (lookAt (.slice .top (.lit 1) (libraryOf (target .anyPlayer)))) = [] := by decide
+    Action.check (DRS.ofList []) (lookAt (.slice .top 1 (libraryOf (target .anyPlayer)))) = [] := by decide
 
 /-- "Look at the top card of two target players' library." -/
 theorem badSliceOfCountedPossessor :
     Action.check (DRS.ofList [])
-      (lookAt (.slice .top (.lit 1) (libraryOf (.described (.target (exactly 2)) .anyPlayer))))
+      (lookAt (.slice .top 1 (libraryOf (.described (.target (exactly 2)) .anyPlayer))))
       = [.slicePossessor] := by
   decide
 
@@ -54,7 +54,7 @@ theorem okThatPlayer :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .setStatus .tapped (target (.and [isCreature, .hasPossessor .controller anOpponent])),
-          instruct (that .player) (loseLife (.lit 1)) ]) = [] := by
+          instruct (that .player) (loseLife 1) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
@@ -63,7 +63,7 @@ theorem badDisjunctAntecedent :
       (.sequentially
         [ .setStatus .tapped (target (.or [.and [isCreature, .hasPossessor .controller anOpponent],
                                            .and [isLand, .hasPossessor .controller .you]])),
-          instruct (that .player) (loseLife (.lit 1)) ])
+          instruct (that .player) (loseLife 1) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -82,7 +82,7 @@ theorem okKeywordSelfNegation :
 
 /-- "creature with power 2 or less" -/
 theorem okContradictionFreeAnd :
-    Predicate.checkAt .object (DRS.ofList []) (.and [isCreature, .compare [.stat .power] .atMost (.lit 2)]) = [] := by
+    Predicate.checkAt .object (DRS.ofList []) (.and [isCreature, .compare [.stat .power] .atMost 2]) = [] := by
   decide
 
 /-- "blocked creature that's unblocked" -/
@@ -128,7 +128,7 @@ theorem badMatchesTargetSubject :
 theorem okMatchesArtifact :
     Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target isCreature),
-                      doOnlyIf (gainLife (.lit 1)) (.matches it isArtifact) none]) =
+                      doOnlyIf (gainLife 1) (.matches it isArtifact) none]) =
                           [] := by
   decide
 
@@ -136,20 +136,20 @@ theorem okMatchesArtifact :
 theorem badMatchesNothing :
     Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target isCreature),
-                      doOnlyIf (gainLife (.lit 1)) (.matches it (.and [])) none])
+                      doOnlyIf (gainLife 1) (.matches it (.and [])) none])
       = [.predSays] := by
   decide
 
 /-- "if the number of artifacts you control is 4 or greater" -/
 theorem okCompareCountSubject :
     Condition.check (DRS.ofList [])
-      (.compareAmt (countOf (.and [isArtifact, .hasPossessor .controller .you])) .atLeast (.lit 4))
+      (.compareAmt (countOf (.and [isArtifact, .hasPossessor .controller .you])) .atLeast 4)
       = [] := by
   decide
 
 /-- "if 3 is 4 or greater" -/
 theorem badCompareLiteralSubject :
-    Condition.check (DRS.ofList []) (.compareAmt (.lit 3) .atLeast (.lit 4)) = [.readAmount] := by decide
+    Condition.check (DRS.ofList []) (.compareAmt 3 .atLeast 4) = [.readAmount] := by decide
 
 /-- "each of each creature" -/
 theorem badEachOfDistributive :
@@ -252,13 +252,13 @@ theorem badObjectMonarch :
 /-- "one of the top two cards of your library" -/
 theorem okPartitiveOfSlice :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.someOf (.counted (exactly 1)) none (.slice .top (.lit 2) (libraryOf .you))) = [] := by
+      (.someOf (.counted (exactly 1)) none (.slice .top 2 (libraryOf .you))) = [] := by
   decide
 
 /-- "one of one or more creatures" -/
 theorem badPartitiveOfCountedGroup :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.someOf (.counted (exactly 1)) none (counted (atLeast 1) isCreature)) = [.partitiveBase] := by
+      (.someOf (.counted (exactly 1)) none (counted (orMore 1) isCreature)) = [.partitiveBase] := by
   decide
 
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
@@ -271,17 +271,17 @@ theorem okItAfterAntecedent :
 theorem badOtherwiseReadsLeadingArm :
     Action.check (DRS.ofList [])
       (.doIf (exists_ (and [isCreature, youControl]))
-        (create (.lit 1) (.written (creatureToken 1 1 [.black] [zombie])))
+        (create 1 (.written (creatureToken 1 1 [.black] [zombie])))
         (some (.setStatus .tapped it)))
       = [.anaphor .bare .one 0] := by
   decide
 
 theorem noElseConditionExportsItsOpponent :
     let conditional := .doIf (.compareAmt (lifeTotalOf .you) .less
-      (lifeTotalOf anOpponent)) (gainLife (.lit 6)) none
+      (lifeTotalOf anOpponent)) (gainLife 6) none
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) conditional).1
     Action.check (DRS.ofList [])
-      (.sequentially [conditional, instruct (that .player) (loseLife (.lit 1))]) = [] ∧
+      (.sequentially [conditional, instruct (that .player) (loseLife 1)]) = [] ∧
       (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) = [1] ∧
       (after.findById? 1).map (·.kind) = some .player := by decide
 
@@ -309,27 +309,27 @@ theorem badNestedConjunction :
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Action.check (DRS.ofList [])
-      (.sequentially [ rollDice (.lit 2) (.sides 6),
-                       doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
+      (.sequentially [ rollDice 2 (.sides 6),
+                       doIf (.compareAmt (.theOutcome .rollResult) .eq 7)
                               (sacrifice thisCreature) ]) = [] := by
   decide
 
 /-- "If you rolled 7, sacrifice this creature." -/
 theorem badTotalWithoutRoll :
     Action.check (DRS.ofList [])
-      (doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice thisCreature))
+      (doIf (.compareAmt (.theOutcome .rollResult) .eq 7) (sacrifice thisCreature))
       = [.outcomeInScope .rollResult 0] := by
   decide
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
 theorem okReadsLookedAtLibraryCard :
-    NounPhrase.checkAt (some .object) (actionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))) (that .card)
+    NounPhrase.checkAt (some .object) (actionResult (DRS.ofList []) (lookAt (topSlice 1))) (that .card)
       = [] := by
   decide
 
 theorem badReadsShuffledIntoLibraryCard :
     NounPhrase.checkAt (some .object)
-      (actionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .this]))
+      (actionResult (DRS.ofList []) (.sequentially [lookAt (topSlice 1), shuffleInto .this]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
 
@@ -359,7 +359,7 @@ theorem okColorsSpentOnThis : Amount.check (DRS.ofList []) (colorsSpentToCast .t
 
 /-- "if colored mana was spent to cast it" is a read of `paid colorsSpent` -/
 theorem coloredManaSpentIsPaidColorsSpent :
-    coloredManaSpentToCast .this = .compareAmt (.paid .colorsSpent .this) .atLeast (.lit 1) := rfl
+    coloredManaSpentToCast .this = .compareAmt (.paid .colorsSpent .this) .atLeast 1 := rfl
 
 /-- "spell that targets this creature" -/
 theorem okSpellTargeter :
@@ -371,24 +371,24 @@ theorem badPlayerTargeter :
 
 /-- "a creature with power or toughness 2 or greater" -/
 theorem okSingleScopeAxisComparison :
-    Predicate.checkAt .object (DRS.ofList []) (.compare [.stat .power, .stat .toughness] .atLeast (.lit 2)) = [] := by
+    Predicate.checkAt .object (DRS.ofList []) (.compare [.stat .power, .stat .toughness] .atLeast 2) = [] := by
   decide
 
 /-- "a creature with power or life total 3 or greater" -/
 theorem badMixedAxisComparison :
-    Predicate.checkAt .object (DRS.ofList []) (.compare [.stat .power, .playerStat .lifeTotal] .greater (.lit 1))
+    Predicate.checkAt .object (DRS.ofList []) (.compare [.stat .power, .playerStat .lifeTotal] .greater 1)
       = [.axesAt .object] := by
   decide
 
 /-- "a player with 13 or less life" -/
 theorem okPlayerReadInPlayerDomain :
     Predicate.checkAt .player (DRS.ofList [])
-      (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .atMost (.lit 13)]) = [] := by
+      (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .atMost 13]) = [] := by
   decide
 
 /-- "an object with 13 or less life" -/
 theorem badPlayerReadInObjectDomain :
-    Predicate.checkAt .object (DRS.ofList []) (.compare [.playerStat .lifeTotal] .atMost (.lit 13))
+    Predicate.checkAt .object (DRS.ofList []) (.compare [.playerStat .lifeTotal] .atMost 13)
       = [.axesAt .object] := by
   decide
 
@@ -433,9 +433,9 @@ theorem okFortifiedLand :
 /-- "the top card of each player's library" is one card per player, collected: plural, so it reads
 back as "those cards". "the top card of your library" stays one card. -/
 theorem eachPlayerTopCardSliceIsPlural :
-    (slice .top (.lit 1) (libraryOf eachPlayer)).plur = .many ∧
-      (slice .top (.lit 1) (graveyardOf eachPlayer)).plur = .many ∧
-      (slice .top (.lit 1) (libraryOf you)).plur = .one := by
+    (slice .top 1 (libraryOf eachPlayer)).plur = .many ∧
+      (slice .top 1 (graveyardOf eachPlayer)).plur = .many ∧
+      (slice .top 1 (libraryOf you)).plur = .one := by
   decide
 
 end Semantics.Proofs.Description

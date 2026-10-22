@@ -218,7 +218,7 @@ card exiled this way.": the group is every card the three exiles acted on. -/
 theorem okEachCardOfSeveralExiles :
     Action.check (DRS.ofList [])
       (sequentially
-        [ exile (topSlice (.lit 1)), exile (topSlice (.lit 1)), exile (topSlice (.lit 1)),
+        [ exile (topSlice 1), exile (topSlice 1), exile (topSlice 1),
           doForEach (each (and [non isLand, isCard, was (exile which) thisWay]))
             (createToken (creatureToken 1 1 [.red] [warrior])) ]) = [] := by
   decide

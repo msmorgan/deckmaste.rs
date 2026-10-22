@@ -57,12 +57,12 @@ shared predicates.
 Actions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`), except that a replacement
 effect is `replace`, the word it shares with a self-replacement action, its replacement marked
-`instead` where the text says so (`replace (would you (draw (.lit 1))) (instead (draw (.lit 2)))`).
+`instead` where the text says so (`replace (would you (draw 1)) (instead (draw 2))`).
 Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
 lives in `Repetition.fixed`. No action writes its performer: it is
 `actor`, the controller unless an enclosing `act performer body` hands it to
 another player or a permanent; "target player draws a card" is
-`act (target .anyPlayer) (draw (.lit 1))`. A choice's chooser and an added
+`act (target .anyPlayer) (draw 1)`. A choice's chooser and an added
 turn's taker are the actor too ("target player chooses a creature" is
 `act (target .anyPlayer) (choose (a creature))`). `choose` accepts
 `(disclosure := .secretly)`.

@@ -115,6 +115,17 @@ and nested template and definition arguments are inspected; opaque or variable
 semantic content without authoring evidence is refused, including expressions
 nested in printed-data records.
 
+The authoring coercions expand before `inspect` reads the term, so `spelled` sees the Template
+they stand for and the retained Form is the one the written-out call gives: core's `α → Option α`
+(`untilEndOfTurn` for `some untilEndOfTurn`), a written mana cost as a `Cost` (`[generic 1]` for
+`mana [generic 1]`), an `Action` as a `Cost` (`sacrifice thisArtifact` for `perform (…)`), and a
+catalog `Subtype` as a `Predicate` (`goblin` for `hasSubtype goblin`). A leading-dot name resolves
+against the expected type before any coercion applies, so `some .combat`, `mana [.snow]` and
+`hasColor .white` keep their heads. A numeral is an `Amount` (`3` for `.lit 3`): it stays an
+`OfNat.ofNat` term that `inspect` reads through to its `Amount.lit` leaf, naming the same Templates
+and literals. A single-faced card is `singleFacedCard { name := …, … }`. The pins are
+`Proofs/Authoring`.
+
 Semantic expressions must use authored declarations: a `semantic_definition`
 (a Definition, the rules-defined vocabulary of a keyword action, keyword
 ability, counter, token or designation) or a `semantic_template` (a Template,
@@ -1166,7 +1177,7 @@ an occasion enum while retaining choice sort, domain, and disclosure.
 A counter event's amount or quantity, and a roll's count, is what its pattern watches; no batch
 field is carried (owner ruling 2026-10-21). "A counter is put" is `.lit 1`, "a counter is removed"
 `exactly 1` and "you roll a die" `.lit 1`, each matched by every counter or die, since one event
-can contain several occurrences [CR#603.2c]; "one or more" is `anyAmount` or `atLeast 1`, matched
+can contain several occurrences [CR#603.2c]; "one or more" is `anyAmount` or `orMore 1`, matched
 by the event [CR#714.2b]; "the last counter is removed" is `Quantity.theLast`
 [CR#702.62a,310.12b]. Only a plural amount or quantity publishes the count (`countersPut`,
 `countersRemoved`, `diceRolled`) that "that many" or "the result" reads, and nothing reads a

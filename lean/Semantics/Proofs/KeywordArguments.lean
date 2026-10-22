@@ -23,7 +23,7 @@ theorem numberedCostNeedsBothArguments :
 
 theorem extraArgumentIsRefused :
     Ability.check (DRS.ofList []) (.keyword (.named "suspend")
-      [.number (.lit 2), .cost (.mana [generic 2]), .number (.lit 3)] []) =
+      [.number 2, .cost (.mana [generic 2]), .number 3] []) =
       [.keywordParamFits (.named "suspend")] := by decide
 
 theorem qualifiedCostRequiresObjectQuality :

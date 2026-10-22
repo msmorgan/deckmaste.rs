@@ -9,7 +9,7 @@ private def outerArtifact : DRS := DRS.ofList [{
 private def ownPower : Amount := .statOf (.stat .power) (.pro .bare .one)
 
 private def comparison : Predicate :=
-  .compareOver (.hasType .creature) ownPower .atLeast (.lit 1)
+  .compareOver (.hasType .creature) ownPower .atLeast 1
 
 /-- The subordinate comparison candidate outranks an enclosing subject from the older clause. -/
 theorem comparisonReadsItsCandidateRatherThanTheOuterArtifact :
@@ -103,7 +103,7 @@ private def comparisonContext (drs : DRS) : DRS :=
 private theorem comparisonErrors (n : Nat) (drs : DRS) :
     ((stepOps (n + 4)).pred drs
       (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
-        .atLeast (.lit 1))).2 =
+        .atLeast 1)).2 =
     ((stepOps (n + 3)).amt (comparisonContext drs)
       (.statOf (.stat .power) (.pro .bare .one))).2 := by
   change [] ++ [] ++ ((stepOps (n + 3)).amt (comparisonContext drs)
@@ -147,11 +147,11 @@ theorem comparisonScopeIgnoresEveryEarlierOuterContext (rs : List Referent) (c i
     (older : ∀ r ∈ rs, r.clause ≤ c) :
     Predicate.checkAt .object { referents := rs, currentClause := c, nextId := id }
       (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
-        .atLeast (.lit 1)) = [] := by
+        .atLeast 1) = [] := by
   change (stepPredicate 64 {
       referents := rs, currentClause := c, nextId := id, relativeKind := some .object }
     (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
-      .atLeast (.lit 1))).2 ++ [] = []
+      .atLeast 1)).2 ++ [] = []
   rw [stepPredicate, comparisonErrors 60]
   let normalized := rs.map (fun r => { r with pronounResolved := false })
   have normalizedOlder : ∀ r ∈ normalized, r.clause < c + 1 := by

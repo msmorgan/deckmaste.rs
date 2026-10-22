@@ -181,31 +181,31 @@ private def scryBy (amount : Amount) : Action :=
   .enact (.action "scry") (lookAndSortSlice (.slice .top amount (libraryOf .actor)) onBottom [(.inOrder .anyOrder)]) none none
 
 /-- "Scry 1." -/
-theorem okScryOne : Action.check (DRS.ofList []) (scryBy (.lit 1)) = [] := by decide
+theorem okScryOne : Action.check (DRS.ofList []) (scryBy 1) = [] := by decide
 
 /-- "Scry 2." -/
-theorem okScryTwo : Action.check (DRS.ofList []) (scryBy (.lit 2)) = [] := by decide
+theorem okScryTwo : Action.check (DRS.ofList []) (scryBy 2) = [] := by decide
 
 /-- Scry 1's read back is singular: "that card". -/
 theorem scryOneReadsThatCard :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top (.lit 1) (libraryOf .actor))).plur
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top 1 (libraryOf .actor))).plur
       = .one := by decide
 
 /-- Scry 2's read back is plural: "those cards". -/
 theorem scryTwoReadsThoseCards :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top (.lit 2) (libraryOf .actor))).plur
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top 2 (libraryOf .actor))).plur
       = .many := by decide
 
 /-- "Surveil 2." [CR#701.25a] -/
 theorem okSurveilTwo :
     Action.check (DRS.ofList [])
-      (.enact (.action "surveil") (lookAndSortSlice (.slice .top (.lit 2) (libraryOf .actor)) graveyard []) none none)
+      (.enact (.action "surveil") (lookAndSortSlice (.slice .top 2 (libraryOf .actor)) graveyard []) none none)
       = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
     Action.check (DRS.ofList [])
-      (.enact (.action "fateseal") (lookAndSortSlice (.slice .top (.lit 2) (libraryOf (a (.isOpponentOf .you)))) onBottom
+      (.enact (.action "fateseal") (lookAndSortSlice (.slice .top 2 (libraryOf (a (.isOpponentOf .you)))) onBottom
           [(.inOrder .anyOrder)]) none none)
       = [] := by decide
 
@@ -220,24 +220,24 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
     [ discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not isLand, .isCard,
         .did ⟨.any, discard .which, some .thisWay⟩]))
-        (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) true) ]
+        (.putCounters 1 (.printed p1p1Counter) (that .permanent) true) ]
 
 private def conniveBy (amount : Amount) : Action :=
   .enact (.action "connive") (instruct (controllerOf .actor)
     (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)])) none none
 
 /-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
-theorem okConniveOne : Action.check (DRS.ofList []) (conniveBy (.lit 1)) = [] := by decide
+theorem okConniveOne : Action.check (DRS.ofList []) (conniveBy 1) = [] := by decide
 
 /-- "Target creature connives 2." [CR#701.50d]: the action is handed to the creature. -/
 theorem okConniveTwoHandedToTarget :
-    Action.check (DRS.ofList []) (instruct (target isCreature) (conniveBy (.lit 2))) = [] := by decide
+    Action.check (DRS.ofList []) (instruct (target isCreature) (conniveBy 2)) = [] := by decide
 
 /-- The discarded cards are read back with the discard's number: one card for connive 1,
 several for connive 2. -/
 theorem conniveReadsTheDiscardsNumber :
-    ((NounPhrase.laterMention "d" (counted (.exactlyOf (.lit 1)) .isCard)).plur,
-     (NounPhrase.laterMention "d" (counted (.exactlyOf (.lit 2)) .isCard)).plur) =
+    ((NounPhrase.laterMention "d" (counted (.exactlyOf 1) .isCard)).plur,
+     (NounPhrase.laterMention "d" (counted (.exactlyOf 2) .isCard)).plur) =
       (.one, .many) := by decide
 
 /-! ## Regenerate

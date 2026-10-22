@@ -41,17 +41,17 @@ theorem badDiscardedCreatureWord :
 
 /-- "{1}, {T}: Draw a card." -/
 theorem okSingleTapCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.compound [.mana [generic 1], .tapSymbol]) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (activatedAbility (.compound [.mana [generic 1], .tapSymbol]) (draw 1))
       = [] := by
   decide
 
 /-- "{1}: Draw a card." -/
 theorem okNonEmptyManaCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.mana [generic 1]) (draw (.lit 1))) = [] := by decide
+    Ability.check (DRS.ofList []) (activatedAbility (.mana [generic 1]) (draw 1)) = [] := by decide
 
 /-- ": Draw a card.": an empty mana run is no cost at all, refused as an empty list is. -/
 theorem badEmptyManaCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.mana []) (draw (.lit 1))) = [.nonEmpty] := by decide
+    Ability.check (DRS.ofList []) (activatedAbility (.mana []) (draw 1)) = [.nonEmpty] := by decide
 
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
@@ -75,7 +75,7 @@ theorem okUnlessManaCost :
 /-- "Activate only before the combat damage step." -/
 theorem okBeforeCombatDamage :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw (.lit 1)) (some (beforePart .combatDamage
+      (activatedAbility (.mana [generic 2]) (draw 1) (some (beforePart .combatDamage
           none)))
       = [] := by
   decide
@@ -83,13 +83,13 @@ theorem okBeforeCombatDamage :
 /-- "Activate only before each player's attackers are declared." -/
 theorem okDistributiveAttackWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw (.lit 1))
+      (activatedAbility (.mana [generic 2]) (draw 1)
         (some (beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
   decide
 
 /-- "Cast this spell only before the combat damage step." -/
 theorem okCastBeforeCombatDamage :
-    Ability.check (DRS.ofList []) (.spell (some (beforePart .combatDamage none)) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (.spell (some (beforePart .combatDamage none)) (draw 1))
       = [] := by
   decide
 
@@ -119,30 +119,30 @@ theorem badUnknownKeywordLabel :
 
 /-- "Add {R}." -/
 theorem okSingleProduction :
-    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red]]) []) = [] := by
+    Action.check (DRS.ofList []) (.addMana 1 (.runs [[.of .red]]) []) = [] := by
         decide
 
 /-- "Add." -/
 theorem badEmptyProduction :
-    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs []) []) = [.producedRuns] := by
+    Action.check (DRS.ofList []) (.addMana 1 (.runs []) []) = [.producedRuns] := by
         decide
 
 /-- "Add {R} or ." -/
 theorem badEmptyAlternative :
-    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red], []]) [])
+    Action.check (DRS.ofList []) (.addMana 1 (.runs [[.of .red], []]) [])
       = [.producedRuns] := by
   decide
 
 /-- "Add {C}. Spend this mana only to activate abilities." -/
 theorem okSpendPurpose :
     Action.check (DRS.ofList [])
-      (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly [.toActivate none]]) =
+      (.addMana 1 (.runs [[.colorless]]) [.spendOnly [.toActivate none]]) =
           [] := by
   decide
 
 /-- "Add {C}. Spend this mana only." -/
 theorem badPurposelessSpend :
-    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly []])
+    Action.check (DRS.ofList []) (.addMana 1 (.runs [[.colorless]]) [.spendOnly []])
       = [.nonEmpty] := by
   decide
 
@@ -190,7 +190,7 @@ theorem okAddedCostSacrifice :
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousPumpClause :
     Action.check (DRS.ofList [])
-      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))
+      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -199,7 +199,7 @@ def landWith (text : List Ability) : Card :=
   .singleFaced { characteristics := { name := "", types := [.land], text } }
 
 /-- "{T}: Add one mana of the chosen color." -/
-def tapForChosenColor : Ability := activatedAbility .tapSymbol (.addMana (.lit 1) (.ofChosenColor none) [])
+def tapForChosenColor : Ability := activatedAbility .tapSymbol (.addMana 1 (.ofChosenColor none) [])
 
 /-- "…choose a color. {T}: Add one mana of the chosen color." -/
 theorem okChosenColorAfterChooser :
@@ -227,12 +227,12 @@ theorem badBareCumulativeUpkeep :
 /-- "… pays {1} for each artifact you control." -/
 theorem okForEachScaledMana :
     Cost.check (DRS.ofList [])
-      (Primitives.Cost.scaled (.mana [generic 1]) (forEach (.lit 1) (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
+      (Primitives.Cost.scaled (.mana [generic 1]) (forEach 1 (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "Counter target spell unless its controller pays {2}." -/
 theorem badLiteralScaledMana :
-    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (.lit 2)) = [.forEachAmount] := by decide
+    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) 2) = [.forEachAmount] := by decide
 
 theorem badBareCountScaledMana :
     Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (countOf (.and [isArtifact, .hasPossessor .controller .you])))
@@ -254,28 +254,28 @@ def permanentsYouControl : NounPhrase := allOf (.and [isPermanent, .hasPossessor
 theorem okChosenColorPerColor :
     Action.check (DRS.ofList [])
       (.doForEachKind .color (some permanentsYouControl) .color
-        (.addMana (.lit 1) (.ofChosenColor none) [])) = [] := by
+        (.addMana 1 (.ofChosenColor none) [])) = [] := by
   decide
 
 /-- "For each color among permanents you control, add one mana of that color" -/
 theorem badRepeatedCarriesNoColor :
     Action.check (DRS.ofList [])
       (repeatTimes (.distinctCount .color permanentsYouControl)
-        (.addMana (.lit 1) (.ofChosenColor none) []))
+        (.addMana 1 (.ofChosenColor none) []))
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 
 /-- "For each color among permanents you control, … of that creature type." -/
 theorem badAxisValueCrossing :
     Action.check (DRS.ofList [])
-      (.doForEachKind .color (some permanentsYouControl) (.subtype .creature) (draw (.lit 1)))
+      (.doForEachKind .color (some permanentsYouControl) (.subtype .creature) (draw 1))
       = [.kindAxisSort] := by
   decide
 
 /-- "For each creature type, …" -/
 theorem badDomainlessOpenAxis :
     Action.check (DRS.ofList [])
-      (.doForEachKind (.subtype .creature .any) none (.subtype .creature) (draw (.lit 1)))
+      (.doForEachKind (.subtype .creature .any) none (.subtype .creature) (draw 1))
       = [.kindDomainOk] := by
   decide
 
@@ -296,7 +296,7 @@ def artifactWith (text : List Ability) : Card :=
 def drawOnTapForChosenColor : Ability :=
   whenever
     (.does .any (.tapForMana (a (.and [isLand, .hasSupertype .basic])) (some (.ofColor thatColor))))
-    (draw (.lit 1))
+    (draw 1)
 
 /-- "As this artifact enters, choose a color. Whenever a basic land is tapped for mana of the
 chosen color, draw a card." -/
@@ -341,7 +341,7 @@ theorem badProducedByEventWithoutEvent :
   decide
 
 def afterManaAdded : DRS :=
-  actionResult (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [])
+  actionResult (DRS.ofList []) (.addMana 1 (.runs [[.colorless]]) [])
 
 /-- "You don't lose this mana as steps and phases end." -/
 theorem okThisManaAfterAdd :

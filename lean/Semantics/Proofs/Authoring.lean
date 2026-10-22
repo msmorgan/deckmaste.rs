@@ -1,6 +1,8 @@
 import Semantics.Check
 import Semantics.Check.Card
 import Semantics.Definitions
+import Semantics.Cards.Choice
+import Semantics.Cards.Cost
 
 open Semantics Semantics.Templates Semantics.Definitions
 
@@ -19,7 +21,7 @@ private def withKeyword : Spelled := spelled <| .singleFaced
 private def withDraw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (draw (.lit 1))] } }
+      text := [Primitives.Ability.spell none (draw 1)] } }
 
 theorem printedDataNeedsNoExpressionTemplate : plain.authoring.onlyAuthored = true := plain.onlyAuthored
 
@@ -47,14 +49,14 @@ example : Spelled := spelled <| rawKeywordCard
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (instruct .you (draw (.lit 1)))] } }
+      text := [Primitives.Ability.spell none (instruct .you (draw 1))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.exactlyOf (.lit 1))) none none)] } }
+      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.exactlyOf 1)) none none)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
@@ -77,7 +79,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [spell (replace (draw (.lit 1)) (.instead (draw (.lit 2))))] } }
+      text := [spell (replace (draw 1) (.instead (draw 2)))] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in
@@ -127,7 +129,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.instant], subtypes := [.spell "Adventure"],
-      cost := some [generic 1], text := [Primitives.Ability.spell none (draw (.lit 1))] } }
+      cost := some [generic 1], text := [Primitives.Ability.spell none (draw 1)] } }
 
 /-- error: Unknown identifier `Semantics.Primitives.Subtype.of` -/
 #guard_msgs in
@@ -136,5 +138,130 @@ example : Subtype := Semantics.Primitives.Subtype.of .creature "Dragon"
 /-- error: Unknown identifier `Semantics.Primitives.Subtype.spell` -/
 #guard_msgs in
 example : Subtype := Semantics.Primitives.Subtype.spell "Adventure"
+
+/-! ## Coercions and the card envelope
+
+`spelled` accepts the authoring coercions: core's `α → Option α`, a written mana cost and an action
+as a `Cost`, a subtype as a `Predicate`, and a numeral as an `Amount`. A coercion is expanded by
+the elaborator before `Authoring.inspect` reads the term, so it reaches `inspect` as the Template
+call it unfolds to. A numeral stays an `OfNat.ofNat` term that `inspect` reads through to its
+`Amount.lit` leaf. `singleFacedCard` frames a single-faced card's characteristics. Each pin below
+restates a corpus card as it was written before the sweep and compares the two. -/
+
+mutual
+  /-- The Template and Definition calls a Form names, in order. -/
+  private def formCalls : Authoring.Form → List Lean.Name
+    | .call name arguments => name :: formsCalls arguments
+    | .data children | .constructor _ children => formsCalls children
+    | .binder _ body => formCalls body
+    | .literal _ | .parameter _ | .raw _ => []
+
+  private def formsCalls : List Authoring.Form → List Lean.Name
+    | [] => []
+    | form :: forms => formCalls form ++ formsCalls forms
+end
+
+mutual
+  /-- The numeric literals a Form names, in order. -/
+  private def formNumerals : Authoring.Form → List Nat
+    | .literal (.natVal value) => [value]
+    | .call _ children | .data children | .constructor _ children => formsNumerals children
+    | .binder _ body => formNumerals body
+    | .literal (.strVal _) | .parameter _ | .raw _ => []
+
+  private def formsNumerals : List Authoring.Form → List Nat
+    | [] => []
+    | form :: forms => formNumerals form ++ formsNumerals forms
+end
+
+/-- A numeral is retained more than once along the path `inspect` reads it through, so literals
+are compared as runs: repeats of one literal in a row count once. -/
+private def runs : List Nat → List Nat
+  | a :: b :: rest => if a = b then runs (b :: rest) else a :: runs (b :: rest)
+  | other => other
+
+/-- The characteristics of a single-faced card's Form, under either envelope. -/
+private def faceOf : Authoring.Form → Authoring.Form
+  | .call `Semantics.Templates.singleFacedCard [characteristics] => characteristics
+  | .constructor `Semantics.Card.singleFaced
+      [.constructor `Semantics.CardFace.mk [characteristics]] => characteristics
+  | form => form
+
+/-- *Cold Storage* before the sweep: `some`, `mana [...]` and `perform (...)` written out. -/
+private def coldStorageWritten : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Cold Storage", cost := some [generic 4], types := [.artifact],
+      text :=
+        [ activated (mana [generic 3]) (exile (target (and [isCreature, youControl]))),
+          activated (perform (sacrifice thisArtifact))
+            (returnToBattlefield (each (and [isCreature, exiledWithThisArtifact]))
+              [(under you)]) ] } }
+
+theorem costCoercionsKeepTheCard : Cards.coldStorage.card = coldStorageWritten.card := rfl
+
+theorem costCoercionsKeepTheAuthoring :
+    faceOf Cards.coldStorage.authoring = faceOf coldStorageWritten.authoring := rfl
+
+theorem envelopeIsTheSingleFacedCardTemplate :
+    (formCalls Cards.coldStorage.authoring).head? = some ``Templates.singleFacedCard := rfl
+
+/-- *Korlessa, Scale Singer* before the sweep: `hasSubtype dragon` written out. -/
+private def korlessaWritten : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Korlessa, Scale Singer", cost := some [pip .green, pip .blue],
+      supertypes := [.legendary], types := [.creature],
+      subtypes := [dragon, bard],
+      text :=
+        [ static (visibility .lookAt you topOfLibrary),
+          static (Cards.castFromTop (and [isSpell, hasSubtype dragon])) ],
+      power := stat 1, toughness := stat 4 } }
+
+theorem subtypeCoercionKeepsTheCard : Cards.korlessaScaleSinger.card = korlessaWritten.card := rfl
+
+theorem subtypeCoercionKeepsTheAuthoring :
+    faceOf Cards.korlessaScaleSinger.authoring = faceOf korlessaWritten.authoring := rfl
+
+/-- *Char-Rumbler* before the sweep: `.lit 1`, `.lit 0` and `some untilEndOfTurn` written out. -/
+private def charRumblerWritten : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Char-Rumbler", cost := some [generic 2, pip .red, pip .red], types := [.creature],
+      subtypes := [elemental],
+      text :=
+        [ doubleStrike,
+          activated (mana [pip .red])
+            (get thisCreature (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn)) ],
+      power := some (.lit (-1)), toughness := stat 3 } }
+
+theorem numeralsKeepTheCard : Cards.charRumbler.card = charRumblerWritten.card := rfl
+
+theorem numeralsKeepTheTemplates :
+    formCalls (faceOf Cards.charRumbler.authoring) = formCalls (faceOf charRumblerWritten.authoring) := rfl
+
+theorem numeralsKeepTheLiterals :
+    runs (formNumerals (faceOf Cards.charRumbler.authoring)) =
+      runs (formNumerals (faceOf charRumblerWritten.authoring)) := rfl
+
+-- A leading-dot name resolves against the expected type before any coercion applies, so an
+-- optional kind keeps its `some` (lean-v3-deal-damage-kind) and a mana cost of leading-dot
+-- symbols alone keeps its `mana`.
+
+/--
+error: Unknown constant `Option.combat`
+
+Note: Inferred this name from the expected resulting type of `.combat`:
+  Option DamageKind
+-/
+#guard_msgs in
+example : Action := dealDamage (to := a isPlayer) (kind := .combat)
+
+/--
+error: Invalid dotted identifier notation: The expected type of `.snow` could not be determined
+
+Hint: Using one of these would be unambiguous:
+  [apply] `ManaSymbol.snow`
+  [apply] `Supertype.snow`
+-/
+#guard_msgs in
+example : Ability := activated [.snow] (draw 1)
 
 end Semantics.Proofs.Authoring

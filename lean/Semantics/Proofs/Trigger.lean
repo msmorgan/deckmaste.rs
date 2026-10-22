@@ -16,13 +16,13 @@ namespace Semantics.Proofs.Trigger
 
 /-- "Whenever you cast a spell, draw a card." -/
 theorem okCastsSingularComplement :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)) (draw 1))
       = [] := by
   decide
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none)) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none)) (draw 1))
       = [.singular] := by
   decide
 
@@ -31,19 +31,19 @@ theorem okWhileDoingCast :
     Ability.check (DRS.ofList [])
       (whenever (does thisCreature attack)
         (while_ := some (.whileDoing (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))))
-        (draw (.lit 1))) = [] := by
+        (draw 1)) = [] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check (DRS.ofList []) (whenever (does (a isCreature) die) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (whenever (does (a isCreature) die) (draw 1)) = [] := by
   decide
 
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
 theorem okThatCreatureAfterAttack :
     Ability.check (DRS.ofList [])
       (whenever (does (a isCreature) attack)
-        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
+        (get (that (.type .creature)) (.up 2) (.up 0) (some untilEndOfTurn)))
       = [] := by
   decide
 
@@ -52,7 +52,7 @@ theorem selfAttackPublishesItsCreature :
     let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
       (whenever event
-        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn))) = [] ∧
+        (get (that (.type .creature)) (.up 2) (.up 0) (some untilEndOfTurn))) = [] ∧
       (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
@@ -85,18 +85,18 @@ theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (does you attack
 theorem okHeaderOwnTurnWindow :
     Ability.check (DRS.ofList [])
       (whenever (does (a isCreature) enter) (during := some (duringPart .turn (some .you)))
-        (draw (.lit 1))) = [] := by
+        (draw 1)) = [] := by
   decide
 
 /-- "If one or more tokens would be created under your control, …" -/
 theorem okTokenCreationSubject :
-    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false (some .you)))
+    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false (some .you)))
       = [] := by
   decide
 
 /-- "If one or more creatures would be created under your control, …" -/
 theorem badNonTokenCreationSubject :
-    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) isCreature) []) []) false (some .you)))
+    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) isCreature) []) []) false (some .you)))
       = [.tokenPhrase] := by
   decide
 
@@ -104,7 +104,7 @@ theorem badNonTokenCreationSubject :
 theorem okTriggerLimitOffChapter :
     Ability.check (DRS.ofList [])
       (whenever (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))
-        (draw (.lit 1)) (limit := some oncePerTurn)) = [] := by
+        (draw 1) (limit := some oncePerTurn)) = [] := by
   decide
 
 /-- "Whenever a creature attacks a player" -/
@@ -143,25 +143,25 @@ theorem okManyCountersOnPlacement :
 
 /-- "Whenever you create one or more tokens, …" -/
 theorem okTokensCreatedByYou :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false none))
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false none))
       = [] := by
   decide
 
 /-- "Whenever an effect and you would create one or more tokens, …" -/
 theorem badTokensCreatedByCauserAndPlayer :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) true none))
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) true none))
       = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever one or more tokens are created under your opponents' control, …" -/
 theorem badTokensCreatedUnderPlural :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false (some (.described .all (.isOpponentOf .you))))) = [.verbedVoiceOk] := by
+      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false (some (.described .all (.isOpponentOf .you))))) = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever an opponent creates one or more tokens, …" -/
 theorem badTokensCreatedByMintingNoun :
-    GameEvent.check (DRS.ofList []) (.does (.actor anOpponent) (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false none))
+    GameEvent.check (DRS.ofList []) (.does (.actor anOpponent) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false none))
       = [.verbedVoiceOk] := by
   decide
 
@@ -203,7 +203,7 @@ theorem dayAndNightAreTheGamesDesignations :
 
 /-- "Whenever it becomes night, draw a card.": the game gaining night is a trigger event. -/
 theorem okWheneverItBecomesNight :
-    Ability.check (DRS.ofList []) (whenever (gameBecomes night) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (whenever (gameBecomes night) (draw 1)) = [] := by
   decide
 
 /-- "If it's neither day nor night, it becomes day.": the game reads and gains its own
@@ -232,7 +232,7 @@ theorem okExchangeTwoParties :
 
 /-- "Whenever an opponent commits a crime, draw a card." -/
 theorem okCrimeBySinglePlayer :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor anOpponent) .commitCrime) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor anOpponent) .commitCrime) (draw 1))
       = [] := by
   decide
 
@@ -241,7 +241,7 @@ an opponent controls, or a card in an opponent's graveyard [CR#700.13]; the whol
 no opponent, so such a crime has no opponent-owned object. One player at a time commits one
 (`okCrimeBySinglePlayer`). -/
 theorem badCrimeByAllPlayers :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor (allOf .anyPlayer)) .commitCrime) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor (allOf .anyPlayer)) .commitCrime) (draw 1))
       = [.singular] := by
   decide
 
@@ -249,12 +249,12 @@ theorem badCrimeByAllPlayers :
 result by 1." -/
 def rollShiftBody : Action :=
   may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature true)
-    (some (shiftResult (.lit 1)))
+    (some (shiftResult 1))
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
 increase or decrease the result by 1." (Xenosquirrels) -/
 theorem okAfterRollShift :
-    Ability.check (DRS.ofList []) (after (.does (.actor .you) (.rollDice (.lit 1) .anyDie .anyResult)) rollShiftBody)
+    Ability.check (DRS.ofList []) (after (.does (.actor .you) (.rollDice 1 .anyDie .anyResult)) rollShiftBody)
       = [] := by
   decide
 
@@ -267,7 +267,7 @@ theorem badShiftWithoutRoll :
 
 /-- "0 — Draw a card.": chapter symbols start at I, which represents 1 [CR#714.2a]. -/
 theorem badChapterZero :
-    Ability.check (DRS.ofList []) (when (.chapterMark [0]) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (when (.chapterMark [0]) (draw 1))
       = [.chapterMarks] := by
   decide
 
@@ -281,7 +281,7 @@ This ability triggers only once each turn.": a window, an intervening "if" [CR#6
 on one header. -/
 def wheneverDuringIfOnlyOnce : Ability :=
   whenever (does anOpponent (loseLife anyAmount)) (during := some (duringPart .turn (some you)))
-    (if_ := some (exists_ (and [isArtifact, youControl]))) (draw (.lit 1))
+    (if_ := some (exists_ (and [isArtifact, youControl]))) (draw 1)
     (limit := some oncePerTurn)
 
 /-- Required pin: the header's window, intervening "if" and limit are fields of one triggered
@@ -290,7 +290,7 @@ theorem wheneverDuringIfOnlyOnceIsOneTrigger :
     wheneverDuringIfOnlyOnce =
       .triggered (does anOpponent (loseLife anyAmount)) [] none []
         (some (duringPart .turn (some you))) (some oncePerTurn)
-        (some (exists_ (and [isArtifact, youControl]))) (draw (.lit 1)) :=
+        (some (exists_ (and [isArtifact, youControl]))) (draw 1) :=
   rfl
 
 theorem okWheneverDuringIfOnlyOnce :

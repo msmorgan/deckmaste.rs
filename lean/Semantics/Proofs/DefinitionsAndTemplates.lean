@@ -8,7 +8,7 @@ namespace Semantics.Proofs.DefinitionsAndTemplates
 
 /-- error: An Action Definition must establish its own Reference Scope -/
 #guard_msgs in
-semantic_definition missingReferenceScope : Action := .draw (.exactlyOf (.lit 1))
+semantic_definition missingReferenceScope : Action := .draw (.exactlyOf 1)
 
 open Lean Elab Command in
 run_cmd do
@@ -25,13 +25,13 @@ theorem okAirbendUpToTwo :
     (airbend (.described (.target (upTo 2)) isCreature)).check (DRS.ofList []) = [] := by decide
 
 theorem okConniveOne :
-    (connive (.lit 1)).check (DRS.ofList []) = [] := by decide
+    (connive 1).check (DRS.ofList []) = [] := by decide
 
 theorem okConniveTarget :
-    (instruct (target isCreature) (connive (.lit 2))).check (DRS.ofList []) = [] := by decide
+    (instruct (target isCreature) (connive 2)).check (DRS.ofList []) = [] := by decide
 
 theorem okRippleFour :
-    (ripple (.lit 4)).check = [] := by decide
+    (ripple 4).check = [] := by decide
 
 private def callerContext : DRS :=
   nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) (tap (target isCreature))).1
@@ -105,8 +105,8 @@ wordings, and they expand to the same tree. -/
 
 theorem bareAndAllOfExpandToOneTree (p : Predicate) :
     bare p = allOf p ∧
-      getsPt (bare (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) =
-        getsPt (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) :=
+      getsPt (bare (and [isCreature, youControl])) (up 1) (up 1) =
+        getsPt (allOf (and [isCreature, youControl])) (up 1) (up 1) :=
   ⟨rfl, rfl⟩
 
 /-- A move from a graveyard to a hand is observed on its departure, whichever verb writes it: an

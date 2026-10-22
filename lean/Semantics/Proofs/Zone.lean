@@ -34,7 +34,7 @@ theorem loopLocalMovedCardsDoNotEscape :
 /-- "For each color among permanents on the battlefield, draw a card." -/
 theorem okKindLoopKeepsOuter :
     Action.check (DRS.ofList [])
-      (.doForEachKind .color (some (allOf isPermanent)) .color (draw (.lit 1)))
+      (.doForEachKind .color (some (allOf isPermanent)) .color (draw 1))
       = [] := by
   decide
 
@@ -77,7 +77,7 @@ theorem okPositiveAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .setStatus .tapped (target (.and [isCreature, .hasPossessor .controller anOpponent])),
-          instruct (that .player) (loseLife (.lit 1)) ]) = [] := by
+          instruct (that .player) (loseLife 1) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent doesn't control. That player loses 1 life." -/
@@ -86,7 +86,7 @@ theorem badNegatedAntecedent :
       (.sequentially
         [ .setStatus .tapped
             (target (.and [isCreature, .not (.hasPossessor .controller anOpponent)])),
-          instruct (that .player) (loseLife (.lit 1)) ]) = [.anaphor (.word .player) .one 0] := by
+          instruct (that .player) (loseLife 1) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Destroy target creature on the battlefield." -/
@@ -144,11 +144,11 @@ theorem badAgentedAgentlessAct :
   decide
 
 /-- "1 life for each creature" -/
-theorem okForEachOne : Amount.check (DRS.ofList []) (forEach (.lit 1) isCreature) = [] := by decide
+theorem okForEachOne : Amount.check (DRS.ofList []) (forEach 1 isCreature) = [] := by decide
 
 /-- "0 life for each creature" does not supply a nonzero per-member multiplier. -/
 theorem badForEachZero :
-    Amount.check (DRS.ofList []) (forEach (.lit 0) isCreature) = [.amtNonZero] := by decide
+    Amount.check (DRS.ofList []) (forEach 0 isCreature) = [.amtNonZero] := by decide
 
 /-- "creature on the battlefield" -/
 theorem okConsistentZoneConjunct :
@@ -236,23 +236,23 @@ theorem okChosenCardRemention :
 
 /-- "Draw a card. Exile that card." -/
 theorem drawnCardCanBeExiled :
-    Action.check (DRS.ofList []) (.sequentially [draw (.lit 1), exile (that .card)])
+    Action.check (DRS.ofList []) (.sequentially [draw 1, exile (that .card)])
       = [] := by
   decide
 
 theorem drawnCardDemonstrativeSelectsTheHandCard :
-    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) (draw (.lit 1))).1
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) (draw 1)).1
     (firstReach (.word .card) .one (nextClause after)).map (fun ref => (ref.id, ref.zone)) =
       some (0, some .hand) := by decide
 
 theorem twoDrawnCardsPublishAPluralReferent :
-    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) (draw (.lit 2))).1
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) (draw 2)).1
     (firstReach (.word .card) .many (nextClause after)).map (fun ref => (ref.id, ref.zone)) =
       some (0, some .hand) ∧ firstReach (.word .card) .one (nextClause after) = none := by decide
 
 /-- "Draw a card and you gain 1 life." -/
 theorem okNonEmptyBatch :
-    Action.check (DRS.ofList []) (.simultaneously [draw (.lit 1), gainLife (.lit 1)]) = [] := by
+    Action.check (DRS.ofList []) (.simultaneously [draw 1, gainLife 1]) = [] := by
   decide
 
 /-- an empty batch -/
@@ -262,7 +262,7 @@ theorem badEmptySimultaneous : Action.check (DRS.ofList []) (.simultaneously [])
 /-- "Deal 2 damage to target creature. Then tap it." -/
 theorem okTapAfterSimultaneousDamage :
     Action.check (DRS.ofList [])
-      (.sequentially [.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target isCreature)))], tap it])
+      (.sequentially [.simultaneously [(Action.instruct .this (.dealDamage 2 (target isCreature)))], tap it])
       = [] := by
   decide
 
@@ -274,18 +274,18 @@ theorem okGainControlBattlefield :
 theorem okPluralOrderRider :
     Action.check (DRS.ofList [])
       (.sequentially
-        [reveal (topSlice (.lit 4)), (.move (those .card) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)])]) = [] := by
+        [reveal (topSlice 4), (.move (those .card) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)])]) = [] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/
 theorem okSliceCardRead :
-    Action.check (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 4)), (.move (those .card) .anyLocation (some hand) .arrival none [])])
+    Action.check (DRS.ofList []) (.sequentially [lookAt (topSlice 4), (.move (those .card) .anyLocation (some hand) .arrival none [])])
       = [] := by
   decide
 
 theorem badSliceTypeRead :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice (.lit 4)), (.move (those (.type .creature)) .anyLocation (some hand) .arrival none [])])
+      (.sequentially [lookAt (topSlice 4), (.move (those (.type .creature)) .anyLocation (some hand) .arrival none [])])
       = [.anaphor (.word (.type .creature)) .many 0] := by
   decide
 
@@ -304,7 +304,7 @@ theorem okInsteadOfSearchRevealsIt :
 /-- "Each player mills a card. Exile it." -/
 theorem badDistributedMillSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .anyPlayer) (mill (.lit 1)), exile it])
+      (.sequentially [instruct (each .anyPlayer) (mill 1), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -324,14 +324,14 @@ theorem badPartitiveOfDescription :
 /-- "Look at the top four cards of your library. Exile one of them." -/
 theorem okPartitiveOfThem :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice (.lit 4)), exile (someOf (exactly 1) them)]) = [] := by
+      (.sequentially [lookAt (topSlice 4), exile (someOf (exactly 1) them)]) = [] := by
   decide
 
 /-- "two of one of them" -/
 theorem badPartitiveOfPartitive :
     Action.check (DRS.ofList [])
       (.sequentially
-        [lookAt (topSlice (.lit 4)), exile (someOf (exactly 1) (someOf (exactly 1) them))])
+        [lookAt (topSlice 4), exile (someOf (exactly 1) (someOf (exactly 1) them))])
       = [.partitiveBase] := by
   decide
 
@@ -339,7 +339,7 @@ theorem badPartitiveOfPartitive :
 theorem badEachOfTheRest :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ lookAt (topSlice (.lit 4)), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival none []),
+        [ lookAt (topSlice 4), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival none []),
           exile (.eachOf (theRest .object)) ]) = [.groupMention] := by
   decide
 
@@ -353,7 +353,7 @@ theorem okWouldDieOnBattlefield :
 /-- "Reveal the top card of your library. Put that card into your hand." -/
 theorem okSingularCardRetag :
     Action.check (DRS.ofList [])
-      (.sequentially [reveal (topSlice (.lit 1)), (.move (that .card) .anyLocation (some hand) .arrival none [])]) = [] := by
+      (.sequentially [reveal (topSlice 1), (.move (that .card) .anyLocation (some hand) .arrival none [])]) = [] := by
   decide
 
 /-- "Exile target creature until this creature leaves the battlefield. Put that card into
@@ -414,13 +414,13 @@ theorem okUntapCapBattlefieldSet :
 theorem okMatchesBattlefieldZone :
     Ability.check (DRS.ofList [])
       (when (lastCounterRemoved (.named "timeCounter") thisCreature)
-        (if_ := some (.matches thisCreature isAttacking)) (draw (.lit 1))) = [] := by
+        (if_ := some (.matches thisCreature isAttacking)) (draw 1)) = [] := by
   decide
 
 /-- "Draw cards equal to the difference." under a comparison -/
 theorem okDifferenceAfterComparison :
     Action.check (DRS.ofList [])
-      (.doIf (.compareAmt (countOf (.and [.isCard, .in_ (handOf .you)])) .less (.lit 7))
+      (.doIf (.compareAmt (countOf (.and [.isCard, .in_ (handOf .you)])) .less 7)
         (draw .theDifference) none) = [] := by
   decide
 
@@ -433,7 +433,7 @@ to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check (DRS.ofList [])
       (when (does thisCreature enter)
-        (if_ := some (.compareAmt (countOf (and [isCreature, youControl])) .less (.lit 7)))
+        (if_ := some (.compareAmt (countOf (and [isCreature, youControl])) .less 7))
         (draw .theDifference)) = [] := by
   decide
 
@@ -459,7 +459,7 @@ theorem okPlaneswalkerAttackDefender :
 theorem okAgentChoosesSomeOf :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ lookAt (topSlice (.lit 4)),
+        [ lookAt (topSlice 4),
           instruct (a (.isOpponentOf .you)) (.choose none (someOf (exactly 1) them) .openly none) ]) =
               [] := by
   decide
@@ -467,7 +467,7 @@ theorem okAgentChoosesSomeOf :
 theorem badAgentChooseTheRest :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ lookAt (topSlice (.lit 4)), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival none []),
+        [ lookAt (topSlice 4), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival none []),
           instruct (a (.isOpponentOf .you)) (.choose none (theRest .object) .openly none) ])
             = [.choiceClause] := by
   decide
@@ -526,7 +526,7 @@ theorem badDistributedAnnouncedDiscardSingular :
 
 /-- "Draw a card. You gain 1 life." -/
 theorem okNonEmptySequence :
-    Action.check (DRS.ofList []) (.sequentially [draw (.lit 1), gainLife (.lit 1)]) = [] := by
+    Action.check (DRS.ofList []) (.sequentially [draw 1, gainLife 1]) = [] := by
   decide
 
 /-- an empty sentence list -/
@@ -545,14 +545,14 @@ theorem badInterceptReplacementAntecedent :
       (.sequentially
         [ replaceNextEvent (.would (.actor .you) (.draw (.exactlyOf .anyAmount)))
             (instead
-              (create (.lit 1) (.written (creatureToken 1 1 [.green] [soldier]))))
+              (create 1 (.written (creatureToken 1 1 [.green] [soldier]))))
             (some thisTurn),
           sacrifice it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okFlatInstead :
-    Action.check (DRS.ofList []) (.replace (draw (.lit 1)) (instead (draw (.lit 2))))
+    Action.check (DRS.ofList []) (.replace (draw 1) (instead (draw 2)))
         = [] := by decide
 
 /-- "Untap target creature." -/

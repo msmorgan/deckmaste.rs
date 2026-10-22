@@ -65,19 +65,19 @@ semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
     (enact (.action "destroy")
       (.move (.firstMention "destroy.subject" (.inCaller subject)) (.zone .battlefield none)
-        (some graveyard) .departure none []))
+        graveyard .departure none []))
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
-      (.move (.firstMention "exile.subject" (.inCaller subject)) .anyLocation (some exileZone)
+      (.move (.firstMention "exile.subject" (.inCaller subject)) .anyLocation exileZone
         .arrival none []))
 /-- "exile <subject> face down" (`Definition`, [CR#701.13,406.3]). -/
 semantic_definition exileFaceDown (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileFaceDown.subject" (.inCaller subject)) .anyLocation
-        (some exileZone) .arrival none
+        exileZone .arrival none
         [.faceDown exiledFaceDown]))
 /-- "exile <subject> with N <kind> counters on it" (`Definition`, [CR#701.13]). -/
 semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount)
@@ -85,14 +85,14 @@ semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount)
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileWithCounters.subject" (.inCaller subject)) .anyLocation
-        (some exileZone) .arrival none
+        exileZone .arrival none
         [.withCounters (.inCaller amount) kind .fresh]))
 /-- "sacrifice <subject>" (`Definition`, [CR#701.21]). -/
 semantic_definition sacrifice (subject : NounPhrase) : Action :=
   .ownScope (some (.action "sacrifice"))
     (enact (.action "sacrifice")
       (.move (.firstMention "sacrifice.subject" (.inCaller subject)) (.zone .battlefield none)
-        (some graveyard) .departure none []))
+        graveyard .departure none []))
 /-- "transform <subject>" (`Definition`, [CR#701.27]). -/
 semantic_definition transform (subject : NounPhrase) : Action :=
   .ownScope (some (.action "transform"))
@@ -102,14 +102,14 @@ semantic_definition transform (subject : NounPhrase) : Action :=
 semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))
     (enact (.action "meld")
-      (.move (.firstMention "meldInto.subject" (.inCaller subject)) .anyLocation (some battlefield)
+      (.move (.firstMention "meldInto.subject" (.inCaller subject)) .anyLocation battlefield
         .arrival none [.entersMelded into]))
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a]. -/
 semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (enact (.action "manifest")
       (.move (.firstMention "manifestPlacement.subject" (.inCaller subject)) .anyLocation
-        (some battlefield) .arrival none []))
+        battlefield .arrival none []))
 /-- "tap <subject>" (`Definition`, [CR#701.26a]). -/
 semantic_definition tap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "tap"))
@@ -144,7 +144,7 @@ semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (enact (.action "discard")
       (.move (.firstMention "discard.subject" (.inCaller subject)) (.zone .hand (some .actor))
-        (some graveyard) .arrival none []))
+        graveyard .arrival none []))
 /-- A bare "shuffle": the performer's own library (`Definition`, [CR#701.24a]). -/
 semantic_definition shuffle : Action :=
   .ownScope (some (.action "shuffle"))
@@ -160,14 +160,14 @@ semantic_definition mill (amount : Amount) : Action :=
   .ownScope (some (.action "mill"))
     (enact (.action "mill")
       (.move (.slice .top (.inCaller amount) (libraryOf .actor))
-        (.zone .library none) (some graveyard) .arrival none []))
+        (.zone .library none) graveyard .arrival none []))
 /-- "<cards> are milled": the mill whose patient is a card description, as an event a trigger
 watches ("Whenever one or more nonland cards are milled") (`Definition`, [CR#701.17a,701.17c]). -/
 semantic_definition millCards (cards : NounPhrase) : Action :=
   .ownScope (some (.action "mill"))
     (enact (.action "mill")
       (.move (.firstMention "millCards.cards" (.inCaller cards))
-        library (some graveyard) .arrival none []))
+        library graveyard .arrival none []))
 /-- "search <whose> graveyard, hand, and library for <for_>", the owner written once
 (`Definition`, [CR#701.23]). -/
 semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Action :=
@@ -246,14 +246,14 @@ semantic_definition proliferate : Action :=
     (enact (.action "proliferate") (sequentially
       [ .choose none (counted anyNumber (and [andOr [isPermanent, isPlayer], .hasCounters none]))
           .openly none,
-        .doForEach (those .join) (putCounters (.lit 1) (.sameAs it) it) ]))
+        .doForEach (those .join) (putCounters 1 (.sameAs it) it) ]))
 /-- "<performer> amasses <subtype> N" with its reminder text (`Definition`, [CR#701.47a]): the
 chosen Army is `that (.type .creature)` and `it`, resolved inside `ownScope`. -/
 semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
   .ownScope (some (.action "amass"))
     (enact (.action "amass") (sequentially
       [ doIf (not (exists_ army))
-          (create (.lit 1) (.written (creatureToken 0 0 [.black] [subtype, Subtype.army])))
+          (create 1 (.written (creatureToken 0 0 [.black] [subtype, Subtype.army])))
           none,
         choose (a army),
         putCounters (.inCaller count) p1p1Counter (that (.type .creature)),
@@ -310,7 +310,7 @@ semantic_definition exileFrom (subject : NounPhrase) (from_ : Location) : Action
   .ownScope (some (.action "exile"))
     (enact (.action "exile")
       (.move (.firstMention "exileFrom.subject" (.inCaller subject)) (.inCaller from_)
-        (some exileZone) .arrival none []))
+        exileZone .arrival none []))
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
 semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))
@@ -338,22 +338,22 @@ semantic_definition discover (amount : Amount) : Action :=
   .ownScope (some (.action "discover"))
     (enact (.action "discover") (sequentially
       [ exile (.run .top (and [non isLand, fits]) (libraryOf .actor)),
-        .withContinuation .optional (castWithoutPaying (that .card) (some fits)) none
-          (some (putInto (that .card) hand)),
-        .move (theRest .object) .anyLocation (some onBottom) .arrival none
+        .withContinuation .optional (castWithoutPaying (that .card) fits) none
+          (putInto (that .card) hand),
+        .move (theRest .object) .anyLocation onBottom .arrival none
           [(.inOrder .randomOrder)] ]))
 /-- "<performer> incubates N" (`Definition`, [CR#701.53a,701.53b]). -/
 semantic_definition incubate (amount : Amount) : Action :=
   .ownScope (some (.action "incubate"))
     (enact (.action "incubate")
-      (create (.lit 1)
+      (create 1
         (.doubleFaced
           { characteristics :=
               { types := [.artifact], subtypes := [incubator],
                 text := [activated (mana [generic 2]) (transform this_)] } }
           { characteristics :=
               { name := some "Phyrexian Token", types := [.artifact, .creature],
-                subtypes := [phyrexian], power := some (.lit 0), toughness := some (.lit 0) } })
+                subtypes := [phyrexian], power := some 0, toughness := some 0 } })
         [.withCounters (.inCaller amount) p1p1Counter .fresh]))
 /-- "<performer> waterbends <cost>" (`Definition`, [CR#701.67a,701.67b]). -/
 semantic_definition waterbend (cost : Cost) : Action :=
@@ -369,27 +369,27 @@ semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (enact (.action "manifest") (sequentially
       [ .turnFaceDown (.firstMention "manifest.subject" (.inCaller subject)) faceDownCreature,
-        .move (that .card) .anyLocation (some battlefield) .arrival none
+        .move (that .card) .anyLocation battlefield .arrival none
           [(.faceDown faceDownCreature)] ]))
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
 semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (enact (.action "cloak") (sequentially
       [ .turnFaceDown (.firstMention "cloak.subject" (.inCaller subject)) faceDownWardedCreature,
-        .move (that .card) .anyLocation (some battlefield) .arrival none
+        .move (that .card) .anyLocation battlefield .arrival none
           [(.faceDown faceDownWardedCreature)] ]))
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
 semantic_definition manifestDread : Action :=
   .ownScope (some (.action "manifestDread"))
     (enact (.action "manifestDread") (sequentially
-      [ .expose .lookAt (.cards (.slice .top (.lit 2) (libraryOf .actor))),
+      [ .expose .lookAt (.cards (.slice .top 2 (libraryOf .actor))),
         manifest (someOf (exactly 1) them),
         putInto (theRest .object) graveyard ]))
 /-- "support N" (`Definition`, [CR#701.41a]). -/
 semantic_definition support (amount : Amount) : Action :=
   .ownScope (some (.action "support"))
     (enact (.action "support")
-      (putCounters (.lit 1) p1p1Counter
+      (putCounters 1 p1p1Counter
         (.eachOf
           (.described (.target (.upToOf (.inCaller amount)))
             (and [isCreature, isOther])))))
@@ -400,17 +400,17 @@ semantic_definition explore : Action :=
     (enact (.action "explore")
       (instruct (controllerOf (.firstMention "explore.permanent" .actor))
         (sequentially
-          [ reveal (.slice .top (.lit 1) (libraryOf .actor)),
+          [ reveal (.slice .top 1 (libraryOf .actor)),
             doIf (is (that .card) isLand)
-              (putInto (that .card) (.zone .hand (some (ownerOf (that .card)))))
-              (some (sequentially
-                [ putCounters (.lit 1) p1p1Counter
+              (putInto (that .card) (.zone .hand (ownerOf (that .card))))
+              (sequentially
+                [ putCounters 1 p1p1Counter
                     (.laterMention "explore.permanent" .actor),
-                  may (putInto (that .card) graveyard) ])) ])))
+                  may (putInto (that .card) graveyard) ]) ])))
 /-- "<performer> connives [N]" (`Definition`, [CR#701.50a,701.50d]): loops over
 `"each nonland card discarded this way"`
 (`allOf(and([not(land), card, did(any, discard(which), thisWay)]))`). -/
-semantic_definition connive (amount : Amount := .lit 1) : Action :=
+semantic_definition connive (amount : Amount := 1) : Action :=
   .ownScope (some (.action "connive"))
     (enact (.action "connive")
       (instruct (controllerOf (.firstMention "connive.permanent" .actor))
@@ -419,7 +419,7 @@ semantic_definition connive (amount : Amount := .lit 1) : Action :=
             discard (counted (.exactlyOf (.inCaller amount)) .isCard),
             .doForEach (allOf (and [non isLand, .isCard,
                 .did ⟨.any, discard .which, some .thisWay⟩]))
-              (putCounters (.lit 1) p1p1Counter
+              (putCounters 1 p1p1Counter
                 (.laterMention "connive.permanent" .actor)) ])))
 /-- "Airbend <subject>" (`Definition`, [CR#701.65a]): per-card `doForEach` loop over
 `allOf(and([card, did(any, exile(which), thisWay)]))` where `it` resolves by `D′` to the
@@ -433,7 +433,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
             (instruct (ownerOf it)
               (.establish
                 (can (ownerOf it)
-                  (cast it (from_ := some exileZone)
+                  (cast it (from_ := exileZone)
                     (payment := .payingInstead (.mana [generic 2]))))
                 (some (.forAsLongAs (is it (.in_ exileZone)))))) ]))
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
@@ -441,7 +441,7 @@ semantic_definition doublePower (subject : NounPhrase) (duration : Option Durati
     Action :=
   .ownScope (some (.action "double"))
     (get (.firstMention "doublePower.subject" (.inCaller subject))
-      (.up (powerOf (.laterMention "doublePower.subject" (.inCaller subject)))) (.up (.lit 0))
+      (.up (powerOf (.laterMention "doublePower.subject" (.inCaller subject)))) (.up 0)
       duration)
 /-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
 (`Definition`, [CR#701.10b,701.10c]). -/
@@ -457,7 +457,7 @@ semantic_definition doublePowerAndToughness (subject : NounPhrase)
 semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "double"))
-    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up (.lit 0))
+    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up 0)
       (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
       duration)
 /-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
@@ -466,10 +466,10 @@ semantic_definition triplePowerAndToughness (subject : NounPhrase)
   .ownScope (some (.action "triple"))
     (get (.firstMention "triplePowerAndToughness.subject" (.inCaller subject))
       (.up
-        (times (.lit 2)
+        (times 2
           (powerOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
       (.up
-        (times (.lit 2)
+        (times 2
           (toughnessOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
       duration)
 /-- "triple <subject>'s power": it gets +X/+0, X twice its power (`Definition`,
@@ -478,23 +478,23 @@ semantic_definition triplePower (subject : NounPhrase) (duration : Option Durati
     Action :=
   .ownScope (some (.action "triple"))
     (get (.firstMention "triplePower.subject" (.inCaller subject))
-      (.up (times (.lit 2) (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
-      (.up (.lit 0)) duration)
+      (.up (times 2 (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
+      (.up 0) duration)
 /-- "triple <subject>'s toughness": it gets +0/+X, X twice its toughness (`Definition`,
 [CR#701.11b,701.11c]). -/
 semantic_definition tripleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "triple"))
-    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up (.lit 0))
+    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up 0)
       (.up
-        (times (.lit 2)
+        (times 2
           (toughnessOf (.laterMention "tripleToughness.subject" (.inCaller subject)))))
       duration)
 /-- "double <performer>'s life total" (`Definition`, [CR#701.10d]), written as that total's set
 [CR#119.5]. -/
 semantic_definition doubleLifeTotal : Action :=
   .ownScope (some (.action "double"))
-    (.changeLife (.set (times (.lit 2) (lifeTotalOf .actor))))
+    (.changeLife (.set (times 2 (lifeTotalOf .actor))))
 
 /-! ## Tokens -/
 
@@ -505,7 +505,7 @@ semantic_definition foodToken : CharacteristicBundle :=
       { types := [.artifact], subtypes := [food],
         text :=
           [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice thisArtifact)])
-              (gainLife (.lit 3)) ] } }
+              (gainLife 3) ] } }
 /-- A Treasure token's characteristics: "a colorless Treasure artifact token with '{T},
 Sacrifice this token: Add one mana of any color.'" [CR#111.10a] -/
 semantic_definition treasureToken : CharacteristicBundle :=
@@ -513,7 +513,7 @@ semantic_definition treasureToken : CharacteristicBundle :=
       { types := [.artifact], subtypes := [treasure],
         text :=
           [ activated (.compound [.tapSymbol, .perform (sacrifice thisArtifact)])
-              (.addMana (.lit 1) (.anyColor .sameColor) []) ] } }
+              (.addMana 1 (.anyColor .sameColor) []) ] } }
 
 /-- A Clue token's characteristics: "a colorless Clue artifact token with '{2}, Sacrifice this
 token: Draw a card.'" [CR#111.10f] -/
@@ -522,7 +522,7 @@ semantic_definition clueToken : CharacteristicBundle :=
       { types := [.artifact], subtypes := [clue],
         text :=
           [ activated (.compound [.mana [generic 2], .perform (sacrifice thisArtifact)])
-              (draw (.lit 1)) ] } }
+              (draw 1) ] } }
 
 /-! ## Templates over Definitions -/
 
@@ -563,10 +563,10 @@ role [CR#701.3a,301.5]. -/
 semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
   can any (attachTo subject host)
 /-- "create <count> <token>" -/
-semantic_template createToken (token : CharacteristicBundle) (count : Amount := .lit 1) : Action :=
+semantic_template createToken (token : CharacteristicBundle) (count : Amount := 1) : Action :=
   create count (.written token)
 /-- "create <count> tapped <token>" -/
-semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := .lit 1) :
+semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := 1) :
     Action :=
   create count (.written token) [.entersAs .tapped]
 /-- "create <count> <token> tapped and attacking" -/
@@ -574,7 +574,7 @@ semantic_template createTappedAttacking (count : Amount) (token : Characteristic
   create count (.written token) [.entersAs .tapped, .entersAttacking none]
 /-- "create a token that's a copy of <source> [riders]" -/
 semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider := []) : Action :=
-  create (.lit 1) (.copyOf source []) riders
+  create 1 (.copyOf source []) riders
 
 
 /-- A resolving regeneration action installs a single-use shield for this turn;
@@ -584,14 +584,14 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
     (.establish (.replace
       (.would .any (destroy (.firstMention "regenerate.subject" (.inCaller subject))))
       (instead (regeneration (.laterMention "regenerate.subject" (.inCaller subject))))
-      none .nextTimeOnly none) (some thisTurn))
+      none .nextTimeOnly none) thisTurn)
 
 /-! ## Keyword actions -/
 
 semantic_definition adapt (amount : Amount) : Action :=
   .ownScope (some (.action "adapt"))
     (enact (.action "adapt")
-      (doIf (not (is .actor (.hasCounters (some p1p1Counter))))
+      (doIf (not (is .actor (.hasCounters p1p1Counter)))
         (putCounters (.inCaller amount) p1p1Counter .actor)
         none))
 semantic_definition behold (quality : Predicate) : Action :=
@@ -620,7 +620,7 @@ semantic_definition clash : Action :=
   .ownScope (some (.action "clash"))
     (enact (.action "clash")
       (sequentially
-        [ .expose .reveal (.cards (.slice .top (.lit 1) (libraryOf .actor))),
+        [ .expose .reveal (.cards (.slice .top 1 (libraryOf .actor))),
           may (putInto (that .card) onBottom) ]))
 semantic_definition convert (subject : NounPhrase) : Action :=
   .ownScope (some (.action "convert"))
@@ -646,14 +646,14 @@ semantic_definition earthbend (amount : Amount) : Action :=
         [ .establish
             (.characteristicChange (target (and [isLand, actorControls]))
               [ .typeLine .adds { types := some [.creature] },
-                .stat .sets .power (.lit 0),
-                .stat .sets .toughness (.lit 0),
+                .stat .sets .power 0,
+                .stat .sets .toughness 0,
                 .addedAbilities [keyword (.named "haste")] ])
             none,
           putCounters (.inCaller amount) p1p1Counter (that land),
           delay (does (that land) die)
             (returnTo (that land) battlefield [.entersAs .tapped, .under .actor])
-            [does .any (.move (that land) battlefield (some exileZone) .departure none [])] ]))
+            [does .any (.move (that land) battlefield exileZone .departure none [])] ]))
 semantic_definition endure (amount : Amount) : Action :=
   .ownScope (some (.action "endure"))
     (enact (.action "endure")
@@ -663,7 +663,7 @@ semantic_definition endure (amount : Amount) : Action :=
 semantic_definition exert (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exert"))
     (enact (.action "exert")
-      (.skipUntap (.firstMention "exert.subject" (.inCaller subject)) (.lit 1)))
+      (.skipUntap (.firstMention "exert.subject" (.inCaller subject)) 1))
 semantic_definition faceAVillainousChoice (first second : Action) : Action :=
   .ownScope (some (.action "faceAVillainousChoice"))
     (enact (.action "faceAVillainousChoice") (chooseOne (.inCaller first) (.inCaller second)))
@@ -677,7 +677,7 @@ semantic_definition goad (subject : NounPhrase) : Action :=
   .ownScope (some (.action "goad"))
     (enact (.action "goad")
       (gainDesignation (.firstMention "goad.subject" (.inCaller subject)) goaded
-        (some (untilNextTurnOf (controllerOf this_)))))
+        (untilNextTurnOf (controllerOf this_))))
 semantic_definition harness (subject : NounPhrase) : Action :=
   .ownScope (some (.action "harness"))
     (enact (.action "harness")
@@ -702,7 +702,7 @@ semantic_definition recruit : Action :=
   .ownScope (some (.action "recruit"))
     (enact (.action "recruit")
       (sequentially
-        [ draw (.lit 1),
+        [ draw 1,
           discard (a (cardIn (handOf .actor))),
           doIf (not (is (the (and [isCard, was (discard which) thisWay])) isLand))
             (createToken (creatureToken 1 1 [.white] [human, soldier]))
@@ -752,8 +752,8 @@ semantic_definition theRingTemptsYou : Action :=
                   (onlyWhile
                     (abilityGrant this_
                       (whenever (does (a ringBearers) attack)
-                        (sequentially [draw (.lit 1), discard (a (cardIn hand))])))
-                    (compareAmt timesTempted .atLeast (.lit 2))),
+                        (sequentially [draw 1, discard (a (cardIn hand))])))
+                    (compareAmt timesTempted .atLeast 2)),
                 static
                   (onlyWhile
                     (abilityGrant this_
@@ -761,15 +761,15 @@ semantic_definition theRingTemptsYou : Action :=
                         (does (by_ (a isCreature)) (block (a ringBearers)))
                         (atNext .endOfCombat
                           (instruct (controllerOf (that creature)) (sacrifice (that creature))))))
-                    (compareAmt timesTempted .atLeast (.lit 3))),
+                    (compareAmt timesTempted .atLeast 3)),
                 static
                   (onlyWhile
                     (abilityGrant this_
                       (whenever
                         (does (a ringBearers)
                           (dealDamage (to := a isPlayer) (kind := some .combat)))
-                        (instruct eachOpponent (loseLife (.lit 3)))))
-                    (compareAmt timesTempted .atLeast (.lit 4))) ])
+                        (instruct eachOpponent (loseLife 3))))
+                    (compareAmt timesTempted .atLeast 4)) ])
             :: tempting)))
 semantic_definition timeTravel : Action :=
   .ownScope (some (.action "timeTravel"))
@@ -778,11 +778,11 @@ semantic_definition timeTravel : Action :=
         [ choose
             (counted anyNumber
               (andOr
-                [ and [isPermanent, actorControls, .hasCounters (some timeCounter)],
+                [ and [isPermanent, actorControls, .hasCounters timeCounter],
                   and
-                    [.isCard, .in_ exileZone, ownedBy .actor, .hasCounters (some timeCounter)] ])),
+                    [.isCard, .in_ exileZone, ownedBy .actor, .hasCounters timeCounter] ])),
           .doForEach them
-            (chooseOne (putCounters (.lit 1) timeCounter it)
-              (removeCounters (oneThrough 1) (some timeCounter) it)) ]))
+            (chooseOne (putCounters 1 timeCounter it)
+              (removeCounters (oneThrough 1) timeCounter it)) ]))
 
 end Semantics.Definitions

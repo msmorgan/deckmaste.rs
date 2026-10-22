@@ -44,7 +44,7 @@ theorem okSpellAbilityOnInstant :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [spell (draw (.lit 1))] }) = [] := by
+          text := [spell (draw 1)] }) = [] := by
   decide
 
 /-- "Draw a card." -/
@@ -52,7 +52,7 @@ theorem badSpellAbilityOnPermanent :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.creature],
-          text := [spell (draw (.lit 1))], power := stat 1, toughness := stat
+          text := [spell (draw 1)], power := stat 1, toughness := stat
               1 })
       = [.cardText] := by
   decide
@@ -62,7 +62,7 @@ theorem badStaticOnSorcery :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))] })
+          text := [static (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1))] })
       = [.cardText] := by
   decide
 
@@ -71,7 +71,7 @@ theorem okCastWindowOnSpell :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [spell (draw (.lit 1)) (some (duringPart .declareAttackers none))] })
+          text := [spell (draw 1) (some (duringPart .declareAttackers none))] })
       = [] := by
   decide
 
@@ -86,7 +86,7 @@ theorem badCastWindowAsDeonticStatic :
             [ static
                 (partScope .declareAttackers none
                   (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
-              spell (draw (.lit 1)) ] }) = [.cardText] := by
+              spell (draw 1) ] }) = [.cardText] := by
   decide
 
 /-- "Flying" -/
@@ -102,7 +102,7 @@ theorem badTapSorcery :
     Card.check
       (one
         { name := some "Impossible Tap Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [activatedAbility .tapSymbol (draw (.lit 1))] }) = [.cardText] := by
+          text := [activatedAbility .tapSymbol (draw 1)] }) = [.cardText] := by
   decide
 
 /-- a creature card printed with no power or toughness -/
@@ -147,12 +147,12 @@ theorem badCardDuplicateType :
 
 theorem turnedFaceDownHeader :
     Ability.check (DRS.ofList [])
-      (whenever (.does .any (.setStatus .faceDown (a isPermanent))) (draw (.lit 1))) = [] := by
+      (whenever (.does .any (.setStatus .faceDown (a isPermanent))) (draw 1)) = [] := by
   decide
 
 /-- "Target creature doesn't untap during its controller's next untap step." -/
 theorem okDoesntUntapNextOnBattlefield :
-    Action.check (DRS.ofList []) (.skipUntap (target isCreature) (.lit 1)) = [] := by decide
+    Action.check (DRS.ofList []) (.skipUntap (target isCreature) 1) = [] := by decide
 
 /-- "Turn target creature face down." -/
 theorem okTurnFaceDownOnBattlefield :
@@ -236,7 +236,7 @@ theorem okEachOfATargetGroup :
 
 /-- "each of one or more creatures" -/
 theorem badEachOfCountedGroup :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (counted (atLeast 1) isCreature))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (counted (orMore 1) isCreature))
       = [.groupMention] := by
   decide
 
@@ -309,7 +309,7 @@ def jace : Characteristics :=
 theorem okLoyaltyOnPlaneswalker :
     Card.check
       (one
-        { jace with text := [activatedAbility (.loyaltySymbol (.up (.lit 1))) (draw (.lit 1))],
+        { jace with text := [activatedAbility (.loyaltySymbol (.up 1)) (draw 1)],
                     loyalty := stat 3 }) = [] := by
   decide
 
@@ -318,26 +318,26 @@ theorem badLoyaltySorcery :
     Card.check
       (one
         { name := some "Impossible Loyalty Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [activatedAbility (.loyaltySymbol (.up (.lit 1))) (draw (.lit 1))] }) = [.cardText] :=
+          text := [activatedAbility (.loyaltySymbol (.up 1)) (draw 1)] }) = [.cardText] :=
               by
   decide
 
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Action.check (DRS.ofList [])
-      (create (.lit 1) (.copyOf (target isCreature) [isAlso [.artifact] []]) []) = []
+      (create 1 (.copyOf (target isCreature) [isAlso [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Action.check (DRS.ofList []) (create (.lit 1) (.copyOf (target isCreature) [isAlso [] []]) [])
+    Action.check (DRS.ofList []) (create 1 (.copyOf (target isCreature) [isAlso [] []]) [])
       = [.lineNonEmpty] := by
   decide
 
 /-- "Copy target instant or sorcery spell." -/
 theorem okCopyStackSpell :
     Action.check (DRS.ofList [])
-      (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) []) = []
+      (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) 1 []) = []
           := by
   decide
 
@@ -345,7 +345,7 @@ theorem okCopyStackSpell :
 theorem okSetStatusOnBattlefield :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ create (.lit 1) (.copyOf (target isCreature) []) [],
+        [ create 1 (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -354,7 +354,7 @@ anaphor. -/
 theorem badStackCopyAsToken :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
+        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) 1 [],
           .setStatus .untapped (that .token) ])
       = [.anaphor (.word .token) .one 0] := by
   decide
@@ -363,7 +363,7 @@ theorem badStackCopyAsToken :
 theorem badTokenCopyAsCopyMention :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ create (.lit 1) (.copyOf (target isCreature) []) [],
+        [ create 1 (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0] := by
   decide
@@ -375,16 +375,16 @@ theorem okChapterOnSaga :
         { name := some "", cost := some [pip .white], types := [.enchantment],
           subtypes := [saga],
           text :=
-            [ when (.chapterMark [1]) (draw (.lit 1)),
-              when (.chapterMark [2]) (draw (.lit 1)),
-              when (.chapterMark [3]) (draw (.lit 1)) ] }) = [] := by
+            [ when (.chapterMark [1]) (draw 1),
+              when (.chapterMark [2]) (draw 1),
+              when (.chapterMark [3]) (draw 1) ] }) = [] := by
   decide
 
 theorem badChapterOnNonSaga :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.enchantment],
-          text := [when (.chapterMark [1]) (draw (.lit 1))] })
+          text := [when (.chapterMark [1]) (draw 1)] })
       = [.chapterFrame] := by
   decide
 
@@ -405,8 +405,8 @@ theorem okEscalateWithModes :
             [ keywordCosting (.named "escalate") (.mana [generic 2]),
               spell
                 (chooseModes (.range (some 1) (some 2))
-                  [ get (target isCreature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-                    get (target isCreature) (.down (.lit 1)) (.down (.lit 1))
+                  [ get (target isCreature) (.up 1) (.up 1) (some untilEndOfTurn),
+                    get (target isCreature) (.down 1) (.down 1)
                       (some untilEndOfTurn) ]) ] }) = [] := by
   decide
 
@@ -443,7 +443,7 @@ theorem okModeChoiceOnTriggeredModes :
         { name := some "", cost := some [generic 3], types := [.artifact],
           text :=
             [ whenever (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))
-                (chooseModes (exactly 1) [draw (.lit 1), destroy (target isArtifact)]),
+                (chooseModes (exactly 1) [draw 1, destroy (target isArtifact)]),
               static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
   decide
 
@@ -479,7 +479,7 @@ theorem badCumulativeUpkeepOnSpell :
   decide
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
-theorem okRenownWithRenownDefinition : Ability.check (DRS.ofList []) (renown (.lit 1)) = [] := by
+theorem okRenownWithRenownDefinition : Ability.check (DRS.ofList []) (renown 1) = [] := by
   decide
 
 /-- "Flying (This creature can't be blocked except by creatures with flying and/or reach.)" -/
@@ -487,7 +487,7 @@ theorem okFlyingWithFlyingDefinition : Ability.check (DRS.ofList []) flying = []
 
 /-- "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of
 turn.)" -/
-theorem okBushidoWithBushidoDefinition : Ability.check (DRS.ofList []) (bushido (.lit 2)) = [] := by decide
+theorem okBushidoWithBushidoDefinition : Ability.check (DRS.ofList []) (bushido 2) = [] := by decide
 
 /-- "Cycling {2} ({2}, Discard this card: Draw a card.)" -/
 theorem okCyclingWithCyclingDefinition :
@@ -500,7 +500,7 @@ theorem okProwl : Ability.check (DRS.ofList []) (prowl (.mana [generic 2, pip .b
 /-- "Modular 1 (This permanent enters with a +1/+1 counter on it. When it dies, you may put a
 +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.)": a
 definition of two abilities in two categories [CR#702.43a]. -/
-theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular (.lit 1)) = [] := by decide
+theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular 1) = [] := by decide
 
 /-- "your commander" -/
 theorem okPossessedCommander :
@@ -558,36 +558,36 @@ theorem okThatMuchAfterQuantity :
     Action.check (DRS.ofList [])
       (.sequentially
         [ Templates.instruct (target (.isOpponentOf .you)) (loseLife
-            (forEach (.lit 1) (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
+            (forEach 1 (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
 
 /-- "Flip a coin. Draw that many cards." -/
 theorem badThatMuchAfterFlip :
-    Action.check (DRS.ofList []) (.sequentially [flipCoins (.lit 1), draw .thatMuch])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, draw .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
     Action.check (DRS.ofList [])
-      (.sequentially [flipCoins (.lit 1), doIf (.flipCalled .you .wins) (draw (.lit 1))])
+      (.sequentially [flipCoins 1, doIf (.flipCalled .you .wins) (draw 1)])
       = [] := by
   decide
 
 /-- "If you win the flip, draw a card." -/
 theorem badFlipArmWithoutFlip :
-    Action.check (DRS.ofList []) (doIf (.flipCalled .you .wins) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.flipCalled .you .wins) (draw 1))
       = [.coinFlipInScope] := by
   decide
 
 /-- "Roll a d6." -/
-theorem okSixSidedDie : Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 6) .anyResult) = [] :=
+theorem okSixSidedDie : Action.check (DRS.ofList []) (.rollDice 1 (.sides 6) .anyResult) = [] :=
     by decide
 
 /-- "Roll a d0." -/
 theorem badNoughtSidedDie :
-    Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 0) .anyResult) = [.nonZeroQ] := by decide
+    Action.check (DRS.ofList []) (.rollDice 1 (.sides 0) .anyResult) = [.nonZeroQ] := by decide
 
 /-- a planeswalker card printing its starting loyalty -/
 theorem okPlaneswalkerLoyaltyBox : Card.check (one { jace with loyalty := stat 3 }) = [] := by
@@ -683,7 +683,7 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Action.check (DRS.ofList []) (.sequentially [flipCoins (.lit 1), extraTurn (.coinsShowing .heads)])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, extraTurn (.coinsShowing .heads)])
       = [] := by
   decide
 
@@ -739,7 +739,7 @@ theorem playerItRead :
     NounPhrase.checkAt (some .player) [({ det := .a, plur := .one, payload := .player false, idents := [] } : Referent)] they = [] := by decide
 
 theorem delayedDoorTraversal :
-    Action.namesThisDoor (delay (.does (.actor .you) (.unlock .thisDoor)) (draw (.lit 1)))
+    Action.namesThisDoor (delay (.does (.actor .you) (.unlock .thisDoor)) (draw 1))
       = true := by
   decide
 
@@ -747,7 +747,7 @@ theorem distributiveGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
         [ Templates.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (libraryOf .actor)) none none),
-          Templates.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
+          Templates.instruct (those .player) (.changeLife (.down 1)) ]) = [] := by
   decide
 
 theorem redundantSameClauseShuffleHandoffIsRefused :
@@ -788,7 +788,7 @@ theorem modalCostReadbacks :
 /-- "It doesn't untap during its controller's next untap step." -/
 theorem okUntapNextSingleIt :
     Action.check (DRS.ofList [])
-      (.sequentially [.setStatus .tapped (target isCreature), .skipUntap it (.lit 1)])
+      (.sequentially [.setStatus .tapped (target isCreature), .skipUntap it 1])
       = [] := by
   decide
 
@@ -796,36 +796,36 @@ theorem recentTappedArtifactIsSelectedForUntapSkip :
     let taps := .sequentially [.setStatus .tapped (target isCreature), .setStatus .tapped (target isArtifact)]
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) taps).1
     Action.check (DRS.ofList []) (.sequentially
-      [.setStatus .tapped (target isCreature), .setStatus .tapped (target isArtifact), .skipUntap it (.lit 1)]) = [] ∧
+      [.setStatus .tapped (target isCreature), .setStatus .tapped (target isArtifact), .skipUntap it 1]) = [] ∧
       (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
       (after.findById? 1).map (·.ty) = some [.artifact] := by decide
 
 /-- "I — Draw a card." -/
 theorem okChapterMark :
-    Ability.check (DRS.ofList []) (when (.chapterMark [1]) (draw (.lit 1))) = [] := by decide
+    Ability.check (DRS.ofList []) (when (.chapterMark [1]) (draw 1)) = [] := by decide
 
 /-- "— Draw a card." -/
 theorem badEmptyChapterMark :
-    Ability.check (DRS.ofList []) (when (.chapterMark []) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (when (.chapterMark []) (draw 1))
       = [.chapterMarks] := by
   decide
 
 /-- "II, II — Draw a card." -/
 theorem badRepeatedChapterMark :
-    Ability.check (DRS.ofList []) (when (.chapterMark [2, 2]) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (when (.chapterMark [2, 2]) (draw 1))
       = [.chapterMarks] := by
   decide
 
 /-- "Roll a d20. 1—9 | Draw a card." -/
 theorem okResultsTableAfterRoll :
     Action.check (DRS.ofList [])
-      (.sequentially [rollDice (.lit 1) (.sides 20), .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩]])
+      (.sequentially [rollDice 1 (.sides 20), .applyResultsTable [⟨fromTo 1 9, draw 1⟩]])
       = [] := by
   decide
 
 /-- "1—9 | Draw a card." -/
 theorem badTableWithoutRoll :
-    Action.check (DRS.ofList []) (.applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩])
+    Action.check (DRS.ofList []) (.applyResultsTable [⟨fromTo 1 9, draw 1⟩])
       = [.outcomeInScope .rollResult 0] := by
   decide
 
@@ -841,7 +841,7 @@ def band (range : LevelRange) (power toughness : Nat) : LevelBand :=
 
 /-- "LEVEL 1-2 [2/3]" beside "LEVEL 3+ [2/4]" on a 2/2 creature -/
 theorem okLevelerBands :
-    Card.check (.leveler redCreature [band (.between 1 2) 2 3, band (.atLeast 3) 2 4]) = [] := by
+    Card.check (.leveler redCreature [band (.between 1 2) 2 3, band (.plus 3) 2 4]) = [] := by
   decide
 
 /-- "LEVEL 4-2 [2/3]": no number of level counters is at least 4 and at most 2 [CR#711.2a] -/
@@ -851,7 +851,7 @@ theorem badEmptyLevelRange :
 /-- "LEVEL 1-4 [2/3]" beside "LEVEL 3+ [2/4]": level 3 falls in both, each setting base power
 and toughness [CR#711.2a,711.2b] -/
 theorem badOverlappingLevelBands :
-    Card.check (.leveler redCreature [band (.between 1 4) 2 3, band (.atLeast 3) 2 4])
+    Card.check (.leveler redCreature [band (.between 1 4) 2 3, band (.plus 3) 2 4])
       = [.bandsDisjoint] := by
   decide
 
@@ -860,7 +860,7 @@ theorem badLevelBandOffLevelerFrame :
     Card.check
       (.leveler
         { characteristics := { name := some "", cost := some [pip .red], types := [.sorcery] } }
-        [band (.atLeast 1) 2 2]) = [.levelerFrame] := by
+        [band (.plus 1) 2 2]) = [.levelerFrame] := by
   decide
 
 /-- A 2/2 artifact creature face for the prototype pins. -/

@@ -314,15 +314,15 @@ def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
 def LevelRange.ok : LevelRange → Bool
   | .between from_ to => from_ ≤ to
-  | .atLeast _ => true
+  | .plus _ => true
 
 def LevelRange.low : LevelRange → Nat
   | .between from_ _ => from_
-  | .atLeast from_ => from_
+  | .plus from_ => from_
 
 def LevelRange.high : LevelRange → Option Nat
   | .between _ to => some to
-  | .atLeast _ => none
+  | .plus _ => none
 
 def rangesOverlap (a b : LevelRange) : Bool :=
   match a.high, b.high with

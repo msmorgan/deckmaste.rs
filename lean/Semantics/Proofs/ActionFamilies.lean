@@ -36,30 +36,30 @@ theorem okDetachWithoutKnowingOldHost :
     Action.check (DRS.ofList []) (.attachment .unattached thisArtifact none) = [] := by decide
 
 theorem okExtraTurnPublishesTurnReference :
-    TurnRef.check (actionResult (DRS.ofList []) (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
+    TurnRef.check (actionResult (DRS.ofList []) (.addTurnPart .turn none 1 none)) .that = [] := by
   decide
 
 /-- "Target creature takes an extra turn after this one." An extra turn is taken by a player
 [CR#500.7]: the turn's taker is the player the action is handed to, and a permanent is
 not one. -/
 theorem badExtraTurnWithoutPlayer :
-    Action.check (DRS.ofList []) (instruct (target isCreature) (.addTurnPart .turn none (.lit 1) none))
+    Action.check (DRS.ofList []) (instruct (target isCreature) (.addTurnPart .turn none 1 none))
       = [.kindMismatch .player .object] := by decide
 
 def emblemAbilities : List Ability := [.static (Templates.abilityGrant (allOf (and [isCreature, youControl])) (keyword (.named "haste")))]
 
 theorem okCreateSeveralEmblems :
-    Action.check (DRS.ofList []) (.createObject (.lit 2) (.emblem none emblemAbilities) true none) = [] := by decide
+    Action.check (DRS.ofList []) (.createObject 2 (.emblem none emblemAbilities) true none) = [] := by decide
 
 theorem okEmblemPublication :
     (actionResult (DRS.ofList [])
-      (.createObject (.lit 1) (.emblem none emblemAbilities) true none)).sameReferents
+      (.createObject 1 (.emblem none emblemAbilities) true none)).sameReferents
       (DRS.ofList [({ det := .a, plur := .one, payload := .object [] (some .command) none none none } : Referent)]) = true := by decide
 
 theorem copiedTokenUsesItsSelectedSourceRatherThanANeighbor :
     let source := nounResult (DRS.ofList []) (.firstMention "token.source" (target isArtifact))
     let before := nounResult source (target isCreature)
-    let after := actionResult before (.createObject (.lit 1)
+    let after := actionResult before (.createObject 1
       (.token (.copyOf (.laterMention "token.source" .any) []) []) true none)
     (after.findById? 0).map (·.ty) = some [.artifact] ∧
       (after.findById? 1).map (·.ty) = some [.creature] ∧
@@ -93,7 +93,7 @@ theorem movementAcceptsAnAbilitySubject :
     Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none []) = [] := by decide
 
 theorem graveyardDestinationAcceptsCounterRiders :
-    Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none [(.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none [(.withCounters 1 (.printed p1p1Counter) .fresh)]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
     (actionResult (DRS.ofList [
@@ -224,7 +224,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (actionResult (DRS.ofList [])
       (loseCounters (some (.printed (.named "poison")))
-        (some (.lit 1)) .you)) = 1 := by decide
+        (some 1) .you)) = 1 := by decide
 
 theorem ownPowerCanReadAnExistingReference :
     Action.check (nounResult (DRS.ofList []) (target isCreature)) (dealDamageOwnPower it .you) = [] := by decide
@@ -285,7 +285,7 @@ theorem capturePreservesTheResolvedPermanentView :
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
-    let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage (.lit 3) .you))
+    let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage 3 .you))
     Amount.check context .thatMuch = [] ∧
       Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 
@@ -302,6 +302,6 @@ theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
       countOnes .object shield = 0 ∧
       Action.check (DRS.ofList [])
         (.triggerReflexively (regenerate thisCreature) (some event)
-          (putCounters (.lit 1) m1m1Counter it)) = [] := by decide
+          (putCounters 1 m1m1Counter it)) = [] := by decide
 
 end Semantics.Proofs.ActionFamilies

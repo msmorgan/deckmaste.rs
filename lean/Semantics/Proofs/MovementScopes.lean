@@ -188,7 +188,7 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
 
 theorem revealedTopCardDoesNotAcquireSearchProvenance :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
-      (.sequentially [reveal (topSlice (.lit 1)), shuffle])
+      (.sequentially [reveal (topSlice 1), shuffle])
     errors = [] ∧ resolveCandidates .bare .one (nextClause after) = [] := by decide
 
 theorem zoneMoveClearsSearchProvenance :

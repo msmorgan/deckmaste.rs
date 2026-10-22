@@ -25,10 +25,10 @@ def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 /-- The permanent half: "When this permanent enters, if this is a permanent card, draw a
 card." -/
 def permanentHalf : Ability :=
-  when (does thisPermanent enter) (if_ := some onPermanentCard) (draw (.lit 1))
+  when (does thisPermanent enter) (if_ := some onPermanentCard) (draw 1)
 
 /-- The spell half: "If this is an instant or sorcery, draw a card." -/
-def spellHalf : Ability := .spell none (doIf onInstantOrSorcery (draw (.lit 1)))
+def spellHalf : Ability := .spell none (doIf onInstantOrSorcery (draw 1))
 
 /-- Both halves are each well-formed with no class context. -/
 theorem okEachHalfChecksClassBlind : Ability.checkAll (DRS.ofList []) [permanentHalf, spellHalf] = [] := by

@@ -114,7 +114,7 @@ theorem joinedObjectHalfDoesNotBorrowBetweenAlternatives :
       (afterTarget (.or [artifactCreature, isCreature, .anyPlayer])) = 0 := by decide
 
 theorem damageAcceptsArtifactCreature :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (target artifactCreature))) = [] := by decide
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage 1 (target artifactCreature))) = [] := by decide
 
 private def equipmentHost : NounPhrase :=
   .attachHost .equipped (.ofType (.type .artifact) .creature)

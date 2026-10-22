@@ -43,7 +43,7 @@ def gift (effect : Action) : Ability :=
       .spell none (doIf onInstantOrSorcery (handed effect)) ]
 
 /-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/
-def giftACard : Ability := gift (draw (.lit 1))
+def giftACard : Ability := gift (draw 1)
 
 /-- "Gift a tapped Fish": the chosen player creates a tapped 1/1 blue Fish creature token
 [CR#702.174f]. -/

@@ -44,7 +44,7 @@ theorem okTransformedArrivalOnField :
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Action :=
-  [reveal (topSlice (.lit 5)), instruct anOpponent (.separateIntoPiles them 2 [])]
+  [reveal (topSlice 5), instruct anOpponent (.separateIntoPiles them 2 [])]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
@@ -64,7 +64,7 @@ theorem okCardWordReadsPiles :
 /-- "Reveal the top five cards of your library. Put those piles into your hand." -/
 theorem badPileWordWithoutAPartition :
     Card.check
-      (instantSaying (.sequentially [reveal (topSlice (.lit 5)), putInto (those .pile) hand]))
+      (instantSaying (.sequentially [reveal (topSlice 5), putInto (those .pile) hand]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
@@ -97,7 +97,7 @@ theorem badMembershipWithoutAPartition :
     Card.check
       (instantSaying
         (.sequentially
-          [ reveal (topSlice (.lit 5)),
+          [ reveal (topSlice 5),
             putInto (allOf (.and [.isCard, .in_ (.pile (those .pile))])) hand ]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
@@ -140,13 +140,13 @@ theorem zonePilesFixTheirFaces :
 
 /-- "Exile the top card of your graveyard.": a graveyard is ordered too [CR#404.2]. -/
 theorem okSliceOfAGraveyard :
-    Action.check (DRS.ofList []) (exile (.slice .top (.lit 1) (.zone .graveyard (some .you)))) = [] := by
+    Action.check (DRS.ofList []) (exile (.slice .top 1 (.zone .graveyard (some .you)))) = [] := by
   decide
 
 /-- The slice of a graveyard is a group in that graveyard: grouping moves nothing, and the order
 it is read in is the graveyard's [CR#700.3c]. -/
 theorem sliceOfAGraveyardStaysInIt :
-    (nounSelected (DRS.ofList []) (.slice .top (.lit 1) (.zone .graveyard (some .you)))).map
+    (nounSelected (DRS.ofList []) (.slice .top 1 (.zone .graveyard (some .you)))).map
       Referent.zone = [some .graveyard] := by decide
 
 /-- Bare "Shuffle" uses the performer's library in this fixture; shuffling randomizes the
@@ -175,7 +175,7 @@ revealed cards not cast this way on the bottom of your library in any order." Th
 remains accessible through the cast selection and subsequent move. -/
 theorem rippleRevealedCardsRemainAccessible :
     Action.check (DRS.ofList [])
-      (may (reveal (.slice .top (.lit 4) (libraryOf .actor)))
+      (may (reveal (.slice .top 4 (libraryOf .actor)))
         (some (.sequentially
           [ castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
@@ -235,7 +235,7 @@ theorem badVotesForWithoutVote :
 /-- "If beta gets more votes, draw a card.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` is the same condition after a vote). -/
 theorem badVoteLeadWithoutVote :
-    Action.check (DRS.ofList []) (doIf (.voteLead "beta" true) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.voteLead "beta" true) (draw 1))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 
@@ -247,7 +247,7 @@ theorem badWithMostVotesWithoutVote :
   decide
 
 theorem oneWayResultShift :
-    Action.check (DRS.ofList []) (.sequentially [rollDice (.lit 1) (.sides 6), .shiftResult [.up (.lit 1)]])
+    Action.check (DRS.ofList []) (.sequentially [rollDice 1 (.sides 6), .shiftResult [.up 1]])
       = [] := by
   decide
 
@@ -255,7 +255,7 @@ theorem oneWayResultShift :
 stack is an object [CR#109.1], so it may hold counters. -/
 theorem abilityCounterRecipient :
     Action.check (DRS.ofList [])
-      (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters (.lit 1) (.sameAs it) it true))
+      (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters 1 (.sameAs it) it true))
       = [] := by
   decide
 
@@ -264,7 +264,7 @@ theorem removeOwnCounterKinds :
     Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some (.sameAs .you)) .you true) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
-    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) (.lit 1) none)
+    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) 1 none)
       = [] := by
   decide
 
@@ -283,7 +283,7 @@ theorem okDoorHeaderOnSharedLine :
   decide
 
 theorem badDelayedDoorDeixis :
-    Card.check (instantSaying (delay (.does (.actor .you) (.unlock .thisDoor)) (draw (.lit 1))))
+    Card.check (instantSaying (delay (.does (.actor .you) (.unlock .thisDoor)) (draw 1)))
       = [.doorFrame] := by
   decide
 

@@ -33,11 +33,11 @@ theorem chooseSecretlyNamedAgent :
 /-- A player mills from their own library [CR#701.17a]: the performer's, as the handoff names
 it. -/
 theorem millNamedAgent :
-    instruct .you (mill (.lit 3)) =
+    instruct .you (mill 3) =
       Action.instruct .you
         (Action.ownScope (some (.action "mill"))
           (.enact (.action "mill")
-            (.move (.slice .top (.inCaller (.lit 3)) (libraryOf .actor))
+            (.move (.slice .top (.inCaller 3) (libraryOf .actor))
               (.zone .library none) (some graveyard) .arrival none []) none none)) := by rfl
 
 end Semantics.Proofs.ActionForms

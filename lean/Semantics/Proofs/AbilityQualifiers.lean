@@ -18,11 +18,11 @@ namespace Semantics.Proofs.AbilityQualifiers
 def backupLabel : KeywordLabel := .named "backup"
 
 /-- "{T}: Draw a card." -/
-def tapToDraw : Ability := activated .tapSymbol (draw (.lit 1))
+def tapToDraw : Ability := activated .tapSymbol (draw 1)
 /-- "This creature gets +1/+0." -/
-def pumpSelf : Ability := .static (Templates.modification thisCreature .power (.up (.lit 1)))
+def pumpSelf : Ability := .static (Templates.modification thisCreature .power (.up 1))
 /-- "When this creature dies, draw a card." -/
-def drawOnDeath : Ability := when (does thisCreature die) (draw (.lit 1))
+def drawOnDeath : Ability := when (does thisCreature die) (draw 1)
 /-- "this Case is solved" -/
 def caseSolved : Condition := .matches thisCase (.hasDesignation (.named "solved") none)
 
@@ -59,12 +59,12 @@ theorem qualifiedCategory :
 
 /-- Required pin: "your speed is 4" [CR#702.178a,702.179a]. -/
 theorem okYourSpeedIsFour :
-    Condition.check (DRS.ofList []) (.compareAmt (speedOf .you) .eq (.lit 4)) = [] := by
+    Condition.check (DRS.ofList []) (.compareAmt (speedOf .you) .eq 4) = [] := by
   decide
 
 /-- Speed is a player's: an object's speed is refused. -/
 theorem badSpeedOfAnObject :
-    (Condition.check (DRS.ofList []) (.compareAmt (speedOf thisCreature) .eq (.lit 4))).isEmpty = false := by
+    (Condition.check (DRS.ofList []) (.compareAmt (speedOf thisCreature) .eq 4)).isEmpty = false := by
   decide
 
 /-! ## Printed-position selection -/
@@ -83,7 +83,7 @@ theorem badPrintedAfterAbsentKeyword :
 
 /-- The same selection on a card printing the keyword is admitted. -/
 theorem okPrintedAfterPresentKeyword :
-    printedAfterLaws [.keyword backupLabel [.number (.lit 1)] [], grantBelowBackup] = [] := by
+    printedAfterLaws [.keyword backupLabel [.number 1] [], grantBelowBackup] = [] := by
   decide
 
 /-- An unknown keyword is refused as a keyword term. -/
@@ -117,7 +117,7 @@ theorem okMaxSpeed : Ability.check (DRS.ofList []) (maxSpeed tapToDraw) = [] := 
 /-- Required pin: power-up [CR#702.193a]. -/
 theorem okPowerUp : Ability.check (DRS.ofList []) (powerUp tapToDraw) = [] := by decide
 /-- Required pin: backup [CR#702.165a]. -/
-theorem okBackup : Ability.check (DRS.ofList []) (backup (.lit 1)) = [] := by decide
+theorem okBackup : Ability.check (DRS.ofList []) (backup 1) = [] := by decide
 
 end Bodies
 

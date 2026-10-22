@@ -65,17 +65,17 @@ theorem badRequiredFailureReadsBody :
       none (some (exile it))) = [.anaphor .bare .one 0] := by decide
 
 theorem okNumericDefinitionAsCost :
-    Cost.check [letterB .x] (.perform (.establish (.letterDefinition .x (.lit 2)) none)) = [] := by decide
+    Cost.check [letterB .x] (.perform (.establish (.letterDefinition .x 2) none)) = [] := by decide
 
 theorem badDefinitionWithoutEarlierUse :
-    Action.check (DRS.ofList []) (.establish (.letterDefinition .x (.lit 2)) none) = [.openLetter .x] := by decide
+    Action.check (DRS.ofList []) (.establish (.letterDefinition .x 2) none) = [.openLetter .x] := by decide
 
 theorem okFixedRepetitionKeepsOuterBindings :
-    Action.check [letterB .x] (.repeat_ (.fixed (.letter .x) (draw (.lit 1)))) = [] := by decide
+    Action.check [letterB .x] (.repeat_ (.fixed (.letter .x) (draw 1))) = [] := by decide
 
 theorem okFixedRepetitionPublishesCount :
     ((stepAction 64 .postEvent .obj (DRS.ofList [])
-      (.repeat_ (.fixed (.lit 3) (draw (.lit 1))))).1.visibleReferents.filter
+      (.repeat_ (.fixed 3 (draw 1)))).1.visibleReferents.filter
         (fun ref => match ref.payload with | .outcome .repeatCount => true | _ => false)).length = 1 := by decide
 
 theorem badEmptySequentialComposition :
@@ -85,7 +85,7 @@ theorem badEmptySimultaneousComposition :
     Action.check (DRS.ofList []) (.simultaneously []) = [.nonEmpty] := by decide
 
 theorem okThreeDamageRecipientAlternatives :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.or [thisCreature, .you, thisCreature]))) =
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage 1 (.or [thisCreature, .you, thisCreature]))) =
       [] := by decide
 
 end Semantics.Proofs.Composition

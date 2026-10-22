@@ -47,7 +47,7 @@ theorem okCantBeBlocked :
 
 /-- "creature with power 2 or less" -/
 theorem okCreaturePower :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), isCreature])
+    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost 2, isCreature])
       = [] := by
   decide
 
@@ -55,14 +55,14 @@ theorem okCreaturePower :
 theorem okDistinctComparisonDisjuncts :
     Predicate.checkAt .object (DRS.ofList [])
       (.or
-        [ .compare [.stat .power] .atMost (.lit 2),
-          .compare [.stat .toughness] .atMost (.lit 2) ]) = [] := by
+        [ .compare [.stat .power] .atMost 2,
+          .compare [.stat .toughness] .atMost 2 ]) = [] := by
   decide
 
 /-- "with power 2 or less or with power 2 or less" -/
 theorem okRepeatedComparisonDisjunct :
     Predicate.checkAt .object (DRS.ofList [])
-      (.or [.compare [.stat .power] .atMost (.lit 2), .compare [.stat .power] .atMost (.lit 2)])
+      (.or [.compare [.stat .power] .atMost 2, .compare [.stat .power] .atMost 2])
       = [] := by
   decide
 
@@ -70,8 +70,8 @@ theorem okRepeatedComparisonDisjunct :
 theorem okMixedCharacteristicDisjunct :
     Predicate.checkAt .object (DRS.ofList [])
       (.or
-        [ .compare [.stat .power] .atMost (.lit 2),
-          .compare [.stat .manaValue] .atMost (.lit 3) ]) = [] := by
+        [ .compare [.stat .power] .atMost 2,
+          .compare [.stat .manaValue] .atMost 3 ]) = [] := by
   decide
 
 /-- "You pay 2 life." -/
@@ -80,15 +80,15 @@ theorem okPayLifeCost : Action.check (DRS.ofList []) (.pay (payLife 2) .once .pa
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- a reflexive trigger written as a cost: the reflexive trigger's enclosure law fails on the
 term. -/
 theorem badReflexiveAsCost :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (.triggerReflexively (gainLife (.lit 2)) none (draw (.lit 1))))
-        (draw (.lit 1))) = [.reflexEnclosure] := by
+      (activatedAbility (.perform (.triggerReflexively (gainLife 2) none (draw 1)))
+        (draw 1)) = [.reflexEnclosure] := by
   decide
 
 /-- "Discard a card, Sacrifice a creature: Draw a card." -/
@@ -97,12 +97,12 @@ theorem okCompoundCost :
       (activatedAbility
         (.compound
           [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))])
-        (draw (.lit 1))) = [] := by
+        (draw 1)) = [] := by
   decide
 
 /-- a compound cost of no components -/
 theorem badEmptyCompound :
-    Ability.check (DRS.ofList []) (activatedAbility (.compound []) (draw (.lit 1))) = [.nonEmpty] := by decide
+    Ability.check (DRS.ofList []) (activatedAbility (.compound []) (draw 1)) = [.nonEmpty] := by decide
 
 /-- "Creatures can't attack." -/
 theorem okStaticUntargeting :
@@ -194,8 +194,8 @@ theorem okCoordinatedLandHostBlocks :
     Ability.check (DRS.ofList [])
       (.static
         (.conjunction none
-          [ Templates.modification (.attachHost .enchanted (.type .land)) .power (.up (.lit 1)),
-            Templates.modification it .toughness (.up (.lit 1)),
+          [ Templates.modification (.attachHost .enchanted (.type .land)) .power (.up 1),
+            Templates.modification it .toughness (.up 1),
             .cant (.actor it) (.block .any) {} ])) = [] := by
   decide
 
@@ -203,7 +203,7 @@ theorem okCoordinatedLandHostBlocks :
 theorem okTheDamageAfterDealing :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 4) (target isCreature))),
+        [ (Action.instruct .this (.dealDamage 4 (target isCreature))),
           .establish (.preventionBan .thatDamage .noPreventionOnly) none ]) = [] := by
   decide
 
@@ -211,13 +211,13 @@ theorem okTheDamageAfterDealing :
 theorem badTheDamageAfterLifeGain :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .changeLife (.up (.lit 3)),
+        [ .changeLife (.up 3),
           .establish (.preventionBan .thatDamage .noPreventionOnly) none ])
       = [.damageDealtInScope] := by
   decide
 
 def afterDamageDealt : DRS :=
-  actionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature)))
+  actionResult (DRS.ofList []) (Action.instruct .this (.dealDamage 4 (target isCreature)))
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :
@@ -240,7 +240,7 @@ theorem okObjectPremiseAtCast :
 /-- "This creature can't be blocked by more than one creature." -/
 theorem okBlockBoundOnBlock :
     StaticSpec.check (DRS.ofList [])
-      (.cant (.by (counted (.moreThanOf (.lit 1)) isCreature)) (.block thisCreature) {}) = [] := by
+      (.cant (.by (counted (.moreThanOf 1) isCreature)) (.block thisCreature) {}) = [] := by
   decide
 
 /-- "Spells and abilities can't be countered.": an effect that says so counters abilities
@@ -263,7 +263,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
       (.sequentially
         [ Templates.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))),
           discard them,
-          doIf (.matches (those .card) isCreature) (gainLife (.lit 1)) ]) = [] := by
+          doIf (.matches (those .card) isCreature) (gainLife 1) ]) = [] := by
   decide
 
 /-- "... sacrificed permanents can't be regenerated." -/
@@ -347,7 +347,7 @@ quantity, the rate the rule's timing. -/
 theorem okMoreThanOneSpellEachTurn :
     StaticSpec.check (DRS.ofList [])
       (.cant (.actor (each .anyPlayer))
-        (.procedure .cast (counted (.moreThanOf (.lit 1)) isSpell) .itsOwnCost none none none)
+        (.procedure .cast (counted (.moreThanOf 1) isSpell) .itsOwnCost none none none)
         { timing := some (.inPart .turn none (.each none)) }) = [] := by decide
 
 /-- "You may play an additional land on each of your turns." -/

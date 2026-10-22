@@ -39,9 +39,9 @@ semantic_template eitherOf (left right : NounPhrase) : NounPhrase := .or [left, 
 semantic_template either (left right : Cost) : Cost := .or [left, right]
 /-- "enchanted by <by_>", "equipped by <by_>": the host of an attachment `by_` names. -/
 semantic_template attachedBy (word : Option AttachWord) (by_ : NounPhrase) : Predicate :=
-  .attachment .host word (some by_)
+  .attachment .host word by_
 /-- "attached to <host>" -/
-semantic_template attachedTo (host : NounPhrase) : Predicate := .attachment .attachment none (some host)
+semantic_template attachedTo (host : NounPhrase) : Predicate := .attachment .attachment none host
 /-- A quality change: `op` applied to `payload` on `subject`'s characteristics. -/
 semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
     StaticSpec := .characteristicChange subject (payload.edits op)
@@ -71,7 +71,7 @@ semantic_template stopBlocking (subject blocked : NounPhrase) : Action :=
 semantic_template unattach (subject : NounPhrase) : Action := .attachment .unattached subject none
 /-- "you get an emblem with <abilities>" -/
 semantic_template getEmblem (abilities : List Ability) : Action :=
-  .createObject (.lit 1) (.emblem none abilities) true none
+  .createObject 1 (.emblem none abilities) true none
 
 /-! ## Pronouns -/
 
@@ -152,11 +152,11 @@ instance [AuthoringContext] : AnyValue Location := ⟨wherever⟩
 instance [AuthoringContext] : AnyValue Timing := ⟨anyTiming⟩
 /-! ## Quantities -/
 
-semantic_template exactly (n : Nat) : Quantity := .range (some n) (some n)
-semantic_template upTo (n : Nat) : Quantity := .range none (some n)
+semantic_template exactly (n : Nat) : Quantity := .range n n
+semantic_template upTo (n : Nat) : Quantity := .range none n
 semantic_template anyNumber : Quantity := .range none none
-semantic_template atLeast (n : Nat) : Quantity := .range (some n) none
-semantic_template oneThrough (n : Nat) : Quantity := .range (some 1) (some n)
+semantic_template orMore (n : Nat) : Quantity := .range n none
+semantic_template oneThrough (n : Nat) : Quantity := .range (some 1) n
 semantic_template exactlyOf (amount : Amount) : Quantity := .exactlyOf amount
 semantic_template range (low : Option Nat := none) (high : Option Nat := none) : Quantity :=
   .range low high
@@ -219,11 +219,11 @@ semantic_template stack : Location := .zone .stack none
 /-- "the command zone", scoped to nobody. -/
 semantic_template commandZone : Location := .zone .command none
 /-- "<player>'s library": a face-down pile [CR#401.2]. -/
-semantic_template libraryOf (player : NounPhrase) : Location := .zone .library (some player)
+semantic_template libraryOf (player : NounPhrase) : Location := .zone .library player
 /-- "<player>'s hand" -/
-semantic_template handOf (player : NounPhrase) : Location := .zone .hand (some player)
+semantic_template handOf (player : NounPhrase) : Location := .zone .hand player
 /-- "<player>'s graveyard" -/
-semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard (some player)
+semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard player
 /-- "your library" -/
 semantic_template yourLibrary : Location := libraryOf you
 /-- "libraries": every player's library, as "Players can't search libraries". -/
@@ -551,6 +551,8 @@ semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := 
 semantic_template named (name : NameSource) : Predicate := .named name
 semantic_template hasType (t : CardType) : Predicate := .hasType t
 semantic_template hasSubtype (s : Subtype) : Predicate := .hasSubtype s
+/-- A subtype is a predicate on objects of it: `goblin` for `hasSubtype goblin`. -/
+instance [AuthoringContext] : Coe Subtype Predicate := ⟨hasSubtype⟩
 semantic_template hasSupertype (s : Supertype) : Predicate := .hasSupertype s
 semantic_template hasColor (c : Color) : Predicate := .colorIs c
 /-- "with power <cmp> <amt>" -/
@@ -582,12 +584,12 @@ semantic_template castBy (player : NounPhrase) : Predicate := .castBy player non
 /-- "the Nth spell <player> cast <period>" -/
 semantic_template nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : Period) :
     Predicate :=
-  .castBy player (some (ordinal, period))
+  .castBy player (ordinal, period)
 /-- "a color", "a creature type": a quality noun. -/
 semantic_template quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
 semantic_template qualityFrom (sort : QualitySort) (domain : ChoiceDomain) : Predicate :=
-  .qualityNoun sort (some domain)
+  .qualityNoun sort domain
 /-- "itself": the member a comparison over a domain is measuring (`semantics-v3.md` §1.3 Box 5). -/
 semantic_template ownMember : NounPhrase := .pro .bare .one
 /-- "a <dom> with <stat> <r> <bound>": the stat of `member`, the member itself unless written. -/
@@ -696,7 +698,7 @@ semantic_template among (group : NounPhrase) : NounPhrase := .someOf .whole none
 /-- "N <p> from among <group>" -/
 semantic_template fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) :
     NounPhrase :=
-  .someOf (.counted quantity) (some p) group
+  .someOf (.counted quantity) p group
 /-- "<group> with the same name" -/
 semantic_template withTheSameName (group : NounPhrase) : NounPhrase := .agree .cardName .share group
 /-- "<group> with different names" -/
@@ -704,14 +706,14 @@ semantic_template withDifferentNames (group : NounPhrase) : NounPhrase :=
   .agree .cardName .differ group
 /-- "the <p> [from] among <group>": every member the description picks. -/
 semantic_template allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase :=
-  .someOf .whole (some p) group
+  .someOf .whole p group
 /-- "each object" -/
 semantic_template everyObject : NounPhrase := allOf (.and [])
 /-- "one pile": one of the piles just made. -/
 semantic_template onePile : NounPhrase := .pileOf (.counted (exactly 1)) none
 /-- "the pile of <player>'s choice" -/
 semantic_template pileOfChoice (player : NounPhrase) : NounPhrase :=
-  .pileOf (.counted (exactly 1)) (some player)
+  .pileOf (.counted (exactly 1)) player
 /-- "you and <subject>" -/
 semantic_template youAnd (subject : NounPhrase) : NounPhrase :=
   both .you subject
@@ -724,7 +726,7 @@ semantic_template ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .o
 /-- "the top N cards of your library" -/
 semantic_template topSlice (amount : Amount) : NounPhrase := .slice .top amount (libraryOf .you)
 /-- "the bottom card of your library" -/
-semantic_template bottomCard : NounPhrase := .slice .bottom (.lit 1) (libraryOf .you)
+semantic_template bottomCard : NounPhrase := .slice .bottom 1 (libraryOf .you)
 /-- "[a player]'s party" [CR#700.8]. -/
 semantic_template partyOf (player : NounPhrase) : NounPhrase :=
   .oneEachOf partyRoles (allOf (.and [isCreature, .hasPossessor .controller player]))
@@ -735,7 +737,7 @@ semantic_template partySizeOf (player : NounPhrase) : Amount := .countOf (partyO
 semantic_template partySize : Amount := partySizeOf .you
 /-- "<player> has a full party": four creatures in that party [CR#700.8c]. -/
 semantic_template fullPartyOf (player : NounPhrase) : Condition :=
-  .compareAmt (partySizeOf player) .eq (.lit 4)
+  .compareAmt (partySizeOf player) .eq 4
 semantic_template fullParty : Condition := fullPartyOf .you
 semantic_template agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase) :
     NounPhrase :=
@@ -834,9 +836,9 @@ semantic_template untilYourNextEndStep : Duration :=
   .between none (some (.beginningOf .endStep (some .you) (.next none)))
 /-- "until <player>'s next turn" -/
 semantic_template untilNextTurnOf (player : NounPhrase) : Duration :=
-  .between none (some (.beginningOf .turn (some player) (.next none)))
+  .between none (some (.beginningOf .turn player (.next none)))
 /-- "until <event>" -/
-semantic_template untilEvent (event : GameEvent) : Duration := .between none (some event)
+semantic_template untilEvent (event : GameEvent) : Duration := .between none event
 /-- "for the rest of the game" -/
 semantic_template restOfGame : Duration := .between none none
 /-- "during <player>'s next turn" (`firstMention` / `laterMention` so `player` is not duplicated
@@ -847,7 +849,7 @@ semantic_template duringNextTurnOf (player : NounPhrase) : Duration :=
     (some (.endOf .turn (some (.laterMention "duringNextTurnOf.player" player)) (.next none)))
 /-- "on a later turn": from the end of this turn on [CR#702.143a,702.170d]. -/
 semantic_template onALaterTurn : Duration := .between (some (.endOf .turn none .current)) none
-semantic_template between (start end_ : GameEvent) : Duration := .between (some start) (some end_)
+semantic_template between (start end_ : GameEvent) : Duration := .between start end_
 semantic_template forAsLongAs (condition : Condition) : Duration := .forAsLongAs condition
 /-! ## History windows
 
@@ -907,13 +909,13 @@ semantic_template whileTrue (condition : Condition) : Timing := .onlyIf conditio
 /-! ## Usage limits -/
 
 /-- "only once each turn" [CR#602.5b] -/
-semantic_template oncePerTurn : UsageLimit := ⟨.lit 1, .turn⟩
+semantic_template oncePerTurn : UsageLimit := ⟨1, .turn⟩
 /-- "only once each game" -/
-semantic_template oncePerGame : UsageLimit := ⟨.lit 1, .game⟩
+semantic_template oncePerGame : UsageLimit := ⟨1, .game⟩
 /-- "only once during each of your turns" -/
-semantic_template onceEachYourTurn : UsageLimit := ⟨.lit 1, .yourTurn⟩
+semantic_template onceEachYourTurn : UsageLimit := ⟨1, .yourTurn⟩
 /-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
-semantic_template oncePerObject : UsageLimit := ⟨.lit 1, .thisObject⟩
+semantic_template oncePerObject : UsageLimit := ⟨1, .thisObject⟩
 /-- "<action>. Do this only once each turn.": its ability triggers only if its source's controller
 has not yet taken the action this turn [CR#603.2h]. -/
 semantic_template doOnlyOnceEachTurn (action : Action) : Action :=
@@ -933,7 +935,7 @@ semantic_template countersOn (kind : CounterKind) (holder : NounPhrase) : Amount
 semantic_template finalChapterNumber (saga : NounPhrase) : Amount := .aggregate .max .chapter saga
 /-- "a chapter ability of <saga>" [CR#714.2,714.2a] -/
 semantic_template chapterAbilityOf (saga : NounPhrase) : Predicate :=
-  .and [.abilityOf saga, .compare [.chapter] .atLeast (.lit 1)]
+  .and [.abilityOf saga, .compare [.chapter] .atLeast 1]
 semantic_template plus (left right : Amount) : Amount := .arith .plus left right
 semantic_template minus (left right : Amount) : Amount := .arith .minus left right
 semantic_template times (per amount : Amount) : Amount := .arith .times per amount
@@ -961,7 +963,7 @@ semantic_template down (amount : Amount) : (Delta Amount) := .down amount
 span. -/
 semantic_template eventTally (subj : Subject) (action : Action) (within : LookbackSpan)
     (mode : TallyMode) : Amount :=
-  .tally ⟨subj, action, some within⟩ mode
+  .tally ⟨subj, action, within⟩ mode
 semantic_template greatestStoredMatch (subject : NounPhrase) : Amount :=
   .greatestStoredMatch subject
 semantic_template groupSize : Amount := .groupSize
@@ -1069,7 +1071,7 @@ private semantic_template zoneChange (subject : NounPhrase) (destination : Locat
           ((destination.sort == some .hand || destination.sort == some .library) &&
             (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
     | none => false
-  .move subject from_ (some destination) (if before then .departure else .arrival) none riders
+  .move subject from_ destination (if before then .departure else .arrival) none riders
 /-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
 its owner's control". -/
 semantic_template putInto (subject : NounPhrase) (destination : Location)
@@ -1113,8 +1115,8 @@ semantic_template flipCoins (count : Amount := anyAmount)
     (call : Option FlipCall := none) (outcome : Option CoinFace := none) : Action :=
   .flipCoins (.count count) call outcome
 /-- "roll <count> <sides>-sided dice [and watch for <watch>]": as a pattern, "roll a die" is the
-default `.lit 1` and "roll one or more dice" `anyAmount`. -/
-semantic_template rollDice (count : Amount := .lit 1)
+default `1` and "roll one or more dice" `anyAmount`. -/
+semantic_template rollDice (count : Amount := 1)
     (sides : DieSides := .sides 6) (watch : RollWatch := anyResult) : Action :=
   .rollDice count sides watch
 
@@ -1124,13 +1126,13 @@ semantic_template rollDice (count : Amount := .lit 1)
 semantic_template exiledFaceDown : FaceDown := ⟨none⟩
 /-- A 2/2 face-down creature with no text, no name, no subtypes and no mana cost [CR#708.2a]. -/
 semantic_template faceDownCreature : FaceDown :=
-  ⟨some { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }⟩
+  ⟨some { types := [.creature], power := some 2, toughness := some 2 }⟩
 /-- A 2/2 face-down creature with ward {2}, no name, no subtypes and no mana cost
 [CR#701.58a,702.168a]. Ward is written bare by its label: cloak, a keyword action, reads it, and
 keyword actions are declared below the keyword abilities. -/
 semantic_template faceDownWardedCreature : FaceDown :=
   ⟨some { types := [.creature], text := [.keyword (.named "ward") [.cost (.mana [generic 2])] []],
-          power := some (.lit 2), toughness := some (.lit 2) }⟩
+          power := some 2, toughness := some 2 }⟩
 /-- "put <subject> <destination>" -/
 semantic_template put (subject : NounPhrase) (destination : Location) : Action :=
   zoneChange subject destination .anyLocation []
@@ -1195,7 +1197,7 @@ semantic_template choose (subject : NounPhrase) (disclosure : Disclosure := .ope
   .choose none subject disclosure none
 /-- "choose <subject> as you <event>" -/
 semantic_template chooseWhile (subject : NounPhrase) (while_ : Timing) : Action :=
-  .choose none subject .openly (some while_)
+  .choose none subject .openly while_
 /-- One row of a results table: "<results> — <action>". -/
 semantic_template rollRow (results : Quantity) (action : Action) : RollRow :=
   ⟨results, action⟩
@@ -1206,7 +1208,7 @@ semantic_template offerWhen (body : Action) (triggerBody : Action) : Action :=
 semantic_template chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
 semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
-  .chooseModes (atLeast 1) (modes.map fun (c, e) => (c, none, e))
+  .chooseModes (orMore 1) (modes.map fun (c, e) => (c, none, e))
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
@@ -1222,8 +1224,8 @@ semantic_template creatureTokenOf (power toughness : Amount) (colors : List Colo
     (subtypes : List Subtype)
     (abilities : List Ability := []) : CharacteristicBundle :=
   { characteristics :=
-      { colors, types := [.creature], subtypes, text := abilities, power := some power,
-        toughness := some toughness } }
+      { colors, types := [.creature], subtypes, text := abilities, power := power,
+        toughness := toughness } }
 semantic_template creatureToken (power toughness : Nat) (colors : List Color)
     (subtypes : List Subtype) (abilities : List Ability := []) : CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes abilities
@@ -1231,17 +1233,17 @@ semantic_template creatureToken (power toughness : Nat) (colors : List Color)
 semantic_template colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
 /-- "if colored mana was spent to cast <spell>" -/
 semantic_template coloredManaSpentToCast (spell : NounPhrase) : Condition :=
-  .compareAmt (colorsSpentToCast spell) .atLeast (.lit 1)
+  .compareAmt (colorsSpentToCast spell) .atLeast 1
 /-- "if no colored mana was spent to cast <spell>" -/
 semantic_template noColoredManaSpentToCast (spell : NounPhrase) : Condition :=
-  .compareAmt (colorsSpentToCast spell) .eq (.lit 0)
+  .compareAmt (colorsSpentToCast spell) .eq 0
 /-- "the amount of mana spent to cast <spell>" -/
 semantic_template manaValueSpentToCast (spell : NounPhrase) : Amount := .paid .manaValueSpent spell
 /-- "if no mana was spent to cast <spell>" -/
 semantic_template noManaSpentToCast (spell : NounPhrase) : Condition :=
-  .compareAmt (manaValueSpentToCast spell) .eq (.lit 0)
+  .compareAmt (manaValueSpentToCast spell) .eq 0
 /-- "between N and M" -/
-semantic_template fromTo (low high : Nat) : Quantity := .range (some low) (some high)
+semantic_template fromTo (low high : Nat) : Quantity := .range low high
 /-- The participant described by the nearest enclosing lookback (`NounPhrase.which`). -/
 semantic_template which : NounPhrase := .which
 /-- The number of occurrences of a historical action clause. -/
@@ -1265,11 +1267,11 @@ semantic_template timesPaid (which : LinkSource) (subject : NounPhrase) : Amount
 /-- "if <subject>'s <cost> was paid" -/
 semantic_template costWasPaid (which : LinkSource) (window : Option Duration)
     (subject : NounPhrase) : Condition :=
-  .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
+  .compareAmt (paidCostRead which window subject) .atLeast 1
 /-- "if <subject>'s <which> was taken": the choice the Link Source offered was taken
 [CR#702.104b]. -/
 semantic_template choiceWasTaken (which : LinkSource) (subject : NounPhrase) : Condition :=
-  .compareAmt (.paid (.taken which) subject) .atLeast (.lit 1)
+  .compareAmt (.paid (.taken which) subject) .atLeast 1
 /-- "<object>'s mana cost" as the mana a cost shift changes by [CR#702.48a]. -/
 semantic_template manaCostOf (object : NounPhrase) : ManaCostTerm := .manaCostOf object
 /-- "<subject>'s total cost is reduced by <cost>", symbol by symbol [CR#702.48c,118.7]. -/
@@ -1287,13 +1289,13 @@ semantic_template removedThisWay : Amount := .theOutcome .countersRemoved
 semantic_template shiftResult (amount : Amount) : Action := .shiftResult [.up amount, .down amount]
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (can you (.procedure .play this_ .itsOwnCost none (some zone) none)
-    (timing := some timing))
+  .property (can you (.procedure .play this_ .itsOwnCost none zone none)
+    (timing := timing))
 /-- "You may cast this card from <zone> <timing>": the instant type's cast permission
 [CR#304.1]. -/
 semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (can you (.procedure .cast this_ .itsOwnCost none (some zone) none)
-    (timing := some timing))
+  .property (can you (.procedure .cast this_ .itsOwnCost none zone none)
+    (timing := timing))
 /-- "When <event>, <action>" as a delayed trigger. -/
 semantic_template delay (event : GameEvent) (action : Action)
     (alternatives : List GameEvent := []) : Action :=
@@ -1301,7 +1303,7 @@ semantic_template delay (event : GameEvent) (action : Action)
 /-- "When <event> <duration>, <action>": a delayed trigger with a window. -/
 semantic_template delayWithin (event : GameEvent) (duration : Duration) (action : Action)
     (alternatives : List GameEvent := []) : Action :=
-  .delay event alternatives (some duration) action
+  .delay event alternatives duration action
 /-- "<subject> phases out until <event>" -/
 semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (.setStatus .phasedOut subject) event
@@ -1328,7 +1330,7 @@ semantic_template distributeCounters (amount : Amount) (kind : CounterKind) (amo
 /-- "remove <q> <kind> counters from <from>" -/
 semantic_template removeCounters (quantity : Quantity) (kind : Option CounterKindSource)
     (from_ : NounPhrase) (byEffect : Bool := true) : Action :=
-  .removeCounters (some quantity) kind from_ byEffect
+  .removeCounters quantity kind from_ byEffect
 /-- "<who> loses all [<kind>] counters" -/
 semantic_template loseAllCounters (kind : Option CounterKindSource)
     (agent : NounPhrase := you) : Action :=
@@ -1339,7 +1341,7 @@ semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : N
   .removeCounters none kind from_ byEffect
 /-- "may pay <cost>. If they don't, <action>." -/
 semantic_template doUnless (action : Action) (cost : Cost) : Action :=
-  .withContinuation .optional (.pay cost .once .paid none none) none (some action)
+  .withContinuation .optional (.pay cost .once .paid none none) none action
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .characteristicChange subject [statEdit .power power, statEdit .toughness toughness]
@@ -1353,8 +1355,8 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
-        (some spill) .arrival none spillRiders,
-      .move (theRest .object) .anyLocation (some onTop) .arrival none
+        spill .arrival none spillRiders,
+      .move (theRest .object) .anyLocation onTop .arrival none
         [(.inOrder .anyOrder)] ]
 /-- "<subject> gets +P/+T [until …]" as an action. -/
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
@@ -1374,7 +1376,7 @@ semantic_template becomeColor (subject : NounPhrase) (colors : ColorSpec)
 /-- Several static clauses sharing one subject, as one action. -/
 semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)
     (duration : Option Duration := none) : Action :=
-  .establish (.conjunction (some subject) parts) duration
+  .establish (.conjunction subject parts) duration
 /-- "If <clause> would happen, <replacement> instead [duration]." -/
 semantic_template replaceEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
@@ -1419,7 +1421,7 @@ semantic_template onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticS
   .conditional spec condition .ifSo
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
 semantic_template establishThroughout (spec : StaticSpec) (duration : Duration) : Action :=
-  .establish spec (some duration)
+  .establish spec duration
 /-- "<spec> during [<whose>] untap step" -/
 semantic_template duringUntapStep (whose : Option NounPhrase) (spec : StaticSpec) : StaticSpec :=
   partScope .untapStep whose spec
@@ -1451,13 +1453,13 @@ semantic_template conclude (verb : OutcomeVerb) : Action := .conclude verb none
 /-- "copy <subject> [<times> times] [, except …]": a copy of a spell or of an ability on the stack,
 put onto the stack (Twincast's spell, Strionic Resonator's triggered ability, Fork's red copy)
 [CR#707.10]. -/
-semantic_template copyOnStack (subject : NounPhrase) (times : Amount := (Amount.lit 1))
+semantic_template copyOnStack (subject : NounPhrase) (times : Amount := 1)
     (exceptions : List CopyExcept := []) : Action :=
   .copy .fromStack subject times exceptions
 semantic_template copyTargets (copy original : NounPhrase) : Action := .copyTargets copy original
 semantic_template createDoubleFacedToken (front back : CharacteristicBundle)
     (riders : List MoveRider := []) : Action :=
-  .createObject (.lit 1) (.token (.doubleFaced front back) riders) true none
+  .createObject 1 (.token (.doubleFaced front back) riders) true none
 semantic_template createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool := true)
     (under : Option NounPhrase := none) : Action :=
   .createObject count spec byEffect under
@@ -1467,7 +1469,7 @@ semantic_template distribute (verb : DividedVerb) (amount : Amount) (among : Nou
 `forbidden` until end of turn, its patient read back from the action ("It can't be
 regenerated"). -/
 semantic_template doAndForbid (action forbidden : Action) : Action :=
-  .sequentially [action, .establish (.cant .any forbidden {}) (some untilEndOfTurn)]
+  .sequentially [action, .establish (.cant .any forbidden {}) untilEndOfTurn]
 semantic_template doForEach (group : NounPhrase) (body : Action) : Action := .doForEach group body
 semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : Action)
     (domain : Option NounPhrase := none) : Action :=
@@ -1492,7 +1494,7 @@ semantic_template gainDesignation (subject : NounPhrase) (designation : Designat
     (duration : Option Duration := none) : Action :=
   .gainDesignation subject designation duration
 semantic_template getNamedEmblem (name : String) (abilities : List Ability) : Action :=
-  createObject (.lit 1) (.emblem (some name) abilities)
+  createObject 1 (.emblem name abilities)
 semantic_template getsBoth (subject : NounPhrase) (delta : Delta Amount)
     (duration : Option Duration := none) : Action :=
   get subject delta delta duration
@@ -1504,7 +1506,7 @@ semantic_template limited (action : Action) (limit : UsageLimit) : Action :=
 semantic_template may (body : Action) (ifDid : Option Action := none)
     (ifNot : Option Action := none) : Action :=
   .withContinuation .optional body ifDid ifNot
-semantic_template mayOrElse (body otherwise : Action) : Action := may body none (some otherwise)
+semantic_template mayOrElse (body otherwise : Action) : Action := may body none otherwise
 semantic_template merge (subject onto : NounPhrase) (position : MergePosition) : Action :=
   .merge subject onto position
 /-- "move <amount> [<kind>] counters from <source> onto <destination>": remove them from the
@@ -1564,7 +1566,7 @@ semantic_template triggerReflexively (body triggerBody : Action) : Action :=
 /-- "<body>. When <event> this way, <trigger>" [CR#603.12] -/
 semantic_template triggerThisWay (body : Action) (event : GameEvent) (triggerBody : Action) :
     Action :=
-  .triggerReflexively body (some event) triggerBody
+  .triggerReflexively body event triggerBody
 semantic_template turnFaceDown (subject : NounPhrase) (spec : FaceDown) : Action :=
   .turnFaceDown subject spec
 semantic_template turnOver (subject : NounPhrase) : Action := .turnOver subject
@@ -1623,7 +1625,7 @@ semantic_template would (subj : Subject) (action : Action) : WouldClause := .wou
 semantic_template wouldAny (clauses : List WouldClause) : WouldClause := .wouldAny clauses
 /-- "at the beginning of <possessor>'s <part>", each time it comes -/
 semantic_template beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
-  .beginningOf part (some possessor) (.each none)
+  .beginningOf part possessor (.each none)
 /-- "at the beginning of your <part>", each time it comes -/
 semantic_template beginningOfYour (part : TurnPart) : GameEvent :=
   .beginningOf part (some .you) (.each none)
@@ -1635,22 +1637,22 @@ semantic_template beginningOfNext (part : TurnPart) : GameEvent :=
   .beginningOf part none (.next none)
 /-- "at the beginning of that turn's <part>" -/
 semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
-/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`.lit 1`) or
+/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`1`) or
 "one or more +1/+1 counters are put" (`anyAmount`). -/
 semantic_template countersPut (kind : CounterKind) (amount : Amount) (subject : NounPhrase) :
     GameEvent :=
   .does .any (.putCounters amount (.printed kind) subject false)
 /-- "<quantity> <kind> counters are removed from <subject>": "a … counter is removed"
-(`exactly 1`) or "one or more … are removed" (`atLeast 1`). -/
+(`exactly 1`) or "one or more … are removed" (`orMore 1`). -/
 semantic_template countersRemoved (kind : CounterKind) (quantity : Quantity)
     (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters (some quantity) (some (.printed kind)) subject false)
+  .does .any (.removeCounters quantity (some (.printed kind)) subject false)
 /-- "<amount> counters are put on <subject>", the kind unsaid. -/
 semantic_template bareCountersPut (amount : Amount) (subject : NounPhrase) : GameEvent :=
   .does .any (.putCounters amount .anyKind subject false)
 /-- "<quantity> counters are removed from <subject>", the kind unsaid. -/
 semantic_template bareCountersRemoved (quantity : Quantity) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters (some quantity) none subject false)
+  .does .any (.removeCounters quantity none subject false)
 /-- "the last <kind> counter is removed from <subject> by <who>" -/
 semantic_template lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) :
     GameEvent :=
@@ -1671,7 +1673,7 @@ semantic_template tokensCreated (tokens : NounPhrase) : GameEvent :=
   tokenCreationEvent tokens false none none
 /-- "one or more tokens would be created under <under>'s control by an effect" -/
 semantic_template tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameEvent :=
-  tokenCreationEvent tokens true none (some under)
+  tokenCreationEvent tokens true none under
 /-- "the last <kind> counter is removed from <subject>" -/
 semantic_template lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
   .does .any (.removeCounters (some .theLast) (some (.printed kind)) subject false)
@@ -1796,7 +1798,7 @@ semantic_template entersWithFewerCounters (subject : NounPhrase) (amount : Amoun
 semantic_template joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
 /-- A joined "whenever <event> while <concurrent>" header. -/
 semantic_template joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
-  ⟨event, [], some while_, none⟩
+  ⟨event, [], while_, none⟩
 /-! The trigger words. `when`, `whenever`, `at_` and `after` expand to the same triggered
 ability [CR#603.1]; the word is the Template's printed wording, never a field. Each takes the
 header's optional parts: alternative events (`or_`, "whenever <event> or <event>"), further
@@ -1832,18 +1834,18 @@ semantic_template activated (cost : Cost) (action : Action) : Ability :=
 /-- "[cost]: <action>. Activate only <timing>." -/
 semantic_template activatedOnlyDuring (cost : Cost) (action : Action) (timing : Timing) :
     Ability :=
-  .activated cost action (some timing) none none none
+  .activated cost action timing none none none
 /-- "[cost]: <action>. Only <who> may activate this ability." -/
 semantic_template activatedBy (cost : Cost) (action : Action) (who : NounPhrase) : Ability :=
-  .activated cost action none none none (some who)
+  .activated cost action none none none who
 /-- "[cost]: <action>. Activate only once <limit>." -/
 semantic_template activatedOnlyOnce (cost : Cost) (action : Action) (limit : UsageLimit) :
     Ability :=
-  .activated cost action none (some limit) none none
+  .activated cost action none limit none none
 /-- "[cost]: <action>. Activate only if <guard>." -/
 semantic_template activatedOnlyIf (cost : Cost) (action : Action) (guard : Condition) :
     Ability :=
-  .activated cost action none none (some guard) none
+  .activated cost action none none guard none
 /-- `ability` with the restrictions a keyword or a granting effect adds to it [CR#113.10a]. -/
 semantic_template qualified (ability : Ability) (timing : Option Timing := none)
     (limit : Option UsageLimit := none) (guard : Option Condition := none)
@@ -1856,7 +1858,7 @@ semantic_template abilityGrantSelected (subject : NounPhrase) (source : NounPhra
 /-- "[cost]: <action>. Activate only once <limit> and only if <guard>." -/
 semantic_template activatedOnlyOnceIf (cost : Cost) (action : Action) (limit : UsageLimit)
     (guard : Condition) : Ability :=
-  .activated cost action none (some limit) (some guard) none
+  .activated cost action none limit guard none
 /-- "<subject> has <ability>" -/
 semantic_template abilityGrant (subject : NounPhrase) (ability : Ability) : StaticSpec :=
   .characteristicChange subject [.addedAbilities [ability]]
@@ -1865,7 +1867,7 @@ semantic_template abilityGrantFrom (subject source : NounPhrase)
     (classes : List AbilityClass := []) (except : Option Predicate := none) : StaticSpec :=
   .characteristicChange subject [.addedAbilitiesOf source classes except]
 semantic_template addSubtype (subject : NounPhrase) (subtype : Subtype) : StaticSpec :=
-  .characteristicChange subject [.typeLine .adds { subtypes := some [subtype] }]
+  .characteristicChange subject [.typeLine .adds { subtypes := [subtype] }]
 semantic_template addedCost (cost : Cost) (offered : Bool) (times : PayTimes := PayTimes.once) :
     StaticSpec :=
   .addedCost cost offered times
@@ -1944,6 +1946,8 @@ semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticS
   .letterDefinition letter amount
 semantic_template loyaltySymbol (change : Delta Amount) : Cost := .loyaltySymbol change
 semantic_template mana (cost : List ManaSymbol) : Cost := .mana cost
+/-- A written mana cost is a cost: `[generic 1, pip .black]` for `mana [generic 1, pip .black]`. -/
+instance [AuthoringContext] : Coe ManaCost Cost := ⟨mana⟩
 semantic_template manaRetention (player : NounPhrase) (mana : ManaHeld) : StaticSpec :=
   .manaRetention player mana
 semantic_template mayBeginOnBattlefield : Ability := .mayBeginOnBattlefield
@@ -1958,6 +1962,9 @@ semantic_template partSkip (player : NounPhrase) (part : TurnPart) : StaticSpec 
 semantic_template paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute) : StaticSpec :=
   .paySubstitute subject substitute
 semantic_template perform (action : Action) : Cost := .perform action
+/-- An action is the cost of performing it: `sacrifice thisArtifact` for
+`perform (sacrifice thisArtifact)`. -/
+instance [AuthoringContext] : Coe Action Cost := ⟨perform⟩
 semantic_template preventionBan (damage : Unpreventable) (ban : PreventionBan)
     (kind : Option DamageKind := none) : StaticSpec :=
   .preventionBan damage ban kind
@@ -1989,7 +1996,7 @@ semantic_template retention (spec : StaticSpec) (subject : NounPhrase) : StaticS
 semantic_template scaled (cost : Cost) (amount : Amount) : Cost := .scaled cost amount
 semantic_template setQuantity (quantity : Quantity) : ModeChange := .setQuantity quantity
 semantic_template specialAction (when : Timing) (cost : Cost) (does : Action) : StaticSpec :=
-  .specialAction (some when) cost does
+  .specialAction when cost does
 /-- An instant or sorcery's spell ability: `body`, as it resolves [CR#113.3a]. -/
 semantic_template spell (body : Action) (timing : Option Timing := none) : Ability :=
   .spell timing body
@@ -2010,13 +2017,16 @@ semantic_template written (characteristics : CharacteristicBundle) : TokenSpec :
 
 /-- A printed power, toughness, loyalty, or defense. -/
 semantic_template stat (value : Nat) : Option Amount := some (.lit value)
+/-- A single-faced card, written as the characteristics of its one Card Face. -/
+semantic_template singleFacedCard (characteristics : Characteristics) : Card :=
+  .singleFaced { characteristics }
 /-- One level band of a leveler: its range, power/toughness box, and text [CR#711.2a]. -/
 semantic_template levelBand (range : LevelRange) (power toughness : Nat) (text : List Ability) :
     LevelBand :=
   { range, text, power := stat power, toughness := stat toughness }
 /-- A prototype frame's inset set: its mana cost and power/toughness box [CR#718.1]. -/
 semantic_template prototypeAlt (cost : ManaCost) (power toughness : Nat) : PrototypeFrame :=
-  { cost := some cost, power := stat power, toughness := stat toughness }
+  { cost := cost, power := stat power, toughness := stat toughness }
 /-! ## Conditions -/
 
 semantic_template anyResultIs (comparator : Comparator) (bound : Amount) : Condition :=
@@ -2095,7 +2105,7 @@ semantic_template Predicate.did (subj : Subject) (action : Action)
 /-- "if <subj> <action>ed <within>": a condition always reads a written span. -/
 semantic_template Condition.did (subj : Subject) (action : Action) (within : LookbackSpan) :
     Condition :=
-  .did ⟨subj, action, some within⟩
+  .did ⟨subj, action, within⟩
 /-- "<action>ed [<within>]", the passive with no agent: "the exiled card", "each creature
 destroyed this way", "creatures that were dealt damage this turn". -/
 semantic_template Predicate.was (action : Action) (within : Option LookbackSpan := none) :
@@ -2103,7 +2113,7 @@ semantic_template Predicate.was (action : Action) (within : Option LookbackSpan 
   .did ⟨.any, action, within⟩
 /-- "if <action> was done <within>", the passive with no agent. -/
 semantic_template Condition.was (action : Action) (within : LookbackSpan) : Condition :=
-  .did ⟨.any, action, some within⟩
+  .did ⟨.any, action, within⟩
 /-- "if <cause> would cause <clause>" -/
 semantic_template causedBy (cause : Causing) (clause : WouldClause) : WouldClause :=
   .causedBy cause clause
@@ -2368,7 +2378,7 @@ semantic_template abilitiesAmong (keywords : List KeywordTerm) : ChoiceDomain :=
 /-- "choose <chosen> starting with <first>" -/
 semantic_template chooseStartingWith (first chosen : NounPhrase) (disclosure : Disclosure := .openly)
     (when : Option Timing := none) : Action :=
-  .choose (some first) chosen disclosure when
+  .choose first chosen disclosure when
 /-- "for <options>", as a vote's choices -/
 semantic_template byLabel (options : List VoteLabel) : Ballot := .byLabel options
 /-- "for <candidates>", as a vote's candidates -/

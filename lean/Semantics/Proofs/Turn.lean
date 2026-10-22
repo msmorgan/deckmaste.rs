@@ -35,8 +35,8 @@ mention in scope, so the delayed "any other target" contrasts with it, not with 
 (`semantics-v3.md` §0.1). -/
 theorem okDelayedOtherAnchorsOnTheSettledTarget :
     let action := Action.sequentially
-      [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget))),
-        delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))) ]
+      [ (Action.instruct .this (.dealDamage 2 (target isAnyTarget))),
+        delay atTheEndStep (Action.instruct .this (.dealDamage 1 (target isAnyOtherTarget))) ]
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
     Action.check (DRS.ofList []) action = [] ∧ after.contrastAnchors = [.mention 2] ∧
       (after.findById? 2).map (·.kind) = some (.join .object .player) := by
@@ -50,7 +50,7 @@ theorem badStaleCarrier :
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okActivatedCostAndEffect :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor. -/
@@ -139,75 +139,75 @@ theorem okTapOnBattlefield : Action.check (DRS.ofList []) (.setStatus .tapped (t
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okTriggerAtYourUpkeep :
     Ability.check (DRS.ofList [])
-      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw (.lit 1))) = [] := by
+      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw 1)) = [] := by
   decide
 
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okUntilEndOfTurnDuration :
     Action.check (DRS.ofList [])
-      (get (target isCreature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
+      (get (target isCreature) (.up 3) (.up 3) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Sacrifice a creature. When you do, draw a card." -/
 theorem okReflexiveOnSacrifice :
     Action.check (DRS.ofList []) (.triggerReflexively (sacrifice (a isCreature)) none
-        (draw (.lit 1)))
+        (draw 1))
       = [] := by
   decide
 
 /-- "This creature deals 3 damage to any target. When you do, draw a card." -/
 theorem badReflexiveOnSourceDeed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget)))
-        none (draw (.lit 1)))
+      (.triggerReflexively (Action.instruct .this (.dealDamage 3 (target isAnyTarget)))
+        none (draw 1))
       = [.reflexEnclosure] := by
   decide
 
 /-- "You gain 2 life. When you do, draw a card." -/
 theorem badReflexiveOnLifeGain :
-    Action.check (DRS.ofList []) (.triggerReflexively (gainLife (.lit 2)) none (draw (.lit 1)))
+    Action.check (DRS.ofList []) (.triggerReflexively (gainLife 2) none (draw 1))
       = [.reflexEnclosure] := by
   decide
 
 /-- "Draw a card, then sacrifice a creature. When you do, draw a card." -/
 theorem badReflexiveOnSequence :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (.sequentially [draw (.lit 1), sacrifice (a isCreature)]) none
-        (draw (.lit 1))) = [.reflexEnclosure] := by
+      (.triggerReflexively (.sequentially [draw 1, sacrifice (a isCreature)]) none
+        (draw 1)) = [.reflexEnclosure] := by
   decide
 
 theorem badReflexiveOnDelayed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
-        none (draw (.lit 1))) = [.reflexEnclosure] := by
+      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw 1))
+        none (draw 1)) = [.reflexEnclosure] := by
   decide
 
 /-- "Regenerate this creature. If it regenerates this way, draw a card." -/
 theorem okThisWayOnRegenerate :
     Action.check (DRS.ofList [])
       (.triggerReflexively (regenerate thisCreature)
-        (some (does any (regeneration thisCreature))) (draw (.lit 1)))
+        (some (does any (regeneration thisCreature))) (draw 1))
       = [] := by
   decide
 
 theorem badThisWayOnDelayed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
-        (some (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))) (draw (.lit 1))) = [.thisWayOutcome] := by
+      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw 1))
+        (some (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))) (draw 1)) = [.thisWayOutcome] := by
   decide
 
 theorem badReflexiveOnBranchedMay :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (may (sacrifice (a isCreature)) (some (draw (.lit 1)))) none
-        (draw (.lit 1))) = [.reflexEnclosure] := by
+      (.triggerReflexively (may (sacrifice (a isCreature)) (some (draw 1))) none
+        (draw 1)) = [.reflexEnclosure] := by
   decide
 
 /-- The Idris pin refutes the anaphor. -/
 theorem badAfterReflexiveReadsTrigger :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .triggerReflexively (mill (.lit 4)) none
-            (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier]))),
+        [ .triggerReflexively (mill 4) none
+            (create 1 (.written (creatureToken 1 1 [.white] [soldier]))),
           .setStatus .tapped (that (.type .creature)) ])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -221,7 +221,7 @@ theorem okBlockingThisCreature :
 /-- "Activate only during each player's end step." -/
 theorem okDistributivePartWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw (.lit 1))
+      (activatedAbility (.mana [generic 2]) (draw 1)
         (some (duringPart .endStep (some (each .anyPlayer))))) = [] := by
   decide
 
@@ -248,7 +248,7 @@ theorem badDurationEndAnOpponent :
 theorem okTriggeredEmblem :
     Action.check (DRS.ofList [])
       (getEmblem
-        [at_ (.beginningOf .endStep (some .you) (.each none)) (draw (.lit 1))])
+        [at_ (.beginningOf .endStep (some .you) (.each none)) (draw 1)])
       = [] := by
   decide
 
@@ -260,7 +260,7 @@ theorem badEmptyEmblem :
 theorem okDeicticTurnAfterExtraTurn :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ extraTurn (.lit 1),
+        [ extraTurn 1,
           delay (.beginningOf .endStep none .that) (.conclude .loseGame) ])
       = [] := by
   decide
@@ -269,14 +269,14 @@ theorem okDeicticTurnAfterExtraTurn :
 theorem badDeicticTurnWithoutIntroducer :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ draw (.lit 1),
+        [ draw 1,
           delay (.beginningOf .endStep none .that) (.conclude .loseGame) ])
       = [.turnAntecedent 0] := by
   decide
 
 /-- "After this combat phase, there is an additional upkeep step." -/
 theorem okAdditionalUpkeep :
-    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .combat) (.lit 1) none) = [] := by
+    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .combat) 1 none) = [] := by
   decide
 
 /-- "Spells with the chosen name can't be cast." -/
@@ -297,14 +297,14 @@ theorem okAbilityDisjunctionActivated :
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okSingularPartPossessor :
     Ability.check (DRS.ofList [])
-      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw (.lit 1))) = [] := by
+      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw 1)) = [] := by
   decide
 
 /-- "At the beginning of combat on your turn, draw a card." The beginning of combat step is
 its own part of the combat phase [CR#506.1]. -/
 theorem okBeginningOfCombatPossessor :
     Ability.check (DRS.ofList [])
-      (at_ (.beginningOf .beginningOfCombat (some .you) (.each none)) (draw (.lit 1)))
+      (at_ (.beginningOf .beginningOfCombat (some .you) (.each none)) (draw 1))
       = [] := by
   decide
 
@@ -312,14 +312,14 @@ theorem okBeginningOfCombatPossessor :
 last of the turn's five phases [CR#500.1]. -/
 theorem okEndingPhaseWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw (.lit 1))
+      (activatedAbility (.mana [generic 2]) (draw 1)
         (some (duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
   decide
 
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/
 theorem okAdditionalEndingPhase :
     Action.check (DRS.ofList [])
-      (Primitives.Action.addTurnPart .endingPhase (some .postcombatMain) (.lit 1) none) = [] := by
+      (Primitives.Action.addTurnPart .endingPhase (some .postcombatMain) 1 none) = [] := by
   decide
 
 /-- "creature that could block each attacking creature" -/
@@ -335,7 +335,7 @@ theorem okAttackedByPlayer :
 
 /-- "Sacrifice a creature. If you do, draw a card." -/
 theorem okIfDoneWithArm :
-    Action.check (DRS.ofList []) (doIfDone (sacrifice (a isCreature)) (some (draw (.lit 1))))
+    Action.check (DRS.ofList []) (doIfDone (sacrifice (a isCreature)) (some (draw 1)))
       = [] := by
   decide
 
@@ -348,22 +348,22 @@ theorem badIfDoneWithNeitherArm :
 /-- "This creature deals 3 damage to any target. If you do, draw a card." -/
 theorem badIfDoneOverAgentlessBody :
     Action.check (DRS.ofList [])
-      (doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget))) (some (draw (.lit 1)))) = [.reflexEnclosure] := by
+      (doIfDone (Action.instruct thisCreature (.dealDamage 3 (target isAnyTarget))) (some (draw 1))) = [.reflexEnclosure] := by
   decide
 
 /-- "Take an extra turn after this one. If you do, draw a card." -/
 theorem badIfDoneOverScheduledBody :
-    Action.check (DRS.ofList []) (doIfDone (extraTurn (.lit 1)) (some (draw (.lit 1))))
+    Action.check (DRS.ofList []) (doIfDone (extraTurn 1) (some (draw 1)))
       = [.reflexEnclosure] := by
   decide
 
-def oneExtraTurn : DRS := actionResult (DRS.ofList []) (extraTurn (.lit 1))
+def oneExtraTurn : DRS := actionResult (DRS.ofList []) (extraTurn 1)
 
 /-- "Take an extra turn after this one. Skip the draw step of that turn." -/
 theorem okThatTurnAfterASingleTurn :
     TurnRef.check oneExtraTurn .that = [] := by decide
 
-def twoExtraTurns : DRS := actionResult oneExtraTurn (extraTurn (.lit 1))
+def twoExtraTurns : DRS := actionResult oneExtraTurn (extraTurn 1)
 
 theorem badThatTurnAfterTwoTurns :
     TurnRef.check twoExtraTurns .that = [.turnAntecedent 2] := by
@@ -372,21 +372,21 @@ theorem badThatTurnAfterTwoTurns :
 /-- "create a legendary 20/20 black Avatar creature token named Marit Lage" -/
 theorem okTokenSingleSupertype :
     Action.check (DRS.ofList [])
-      (create (.lit 1)
+      (create 1
         (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary],
             types := [.creature], subtypes := [avatar],
-            power := some (.lit 20), toughness := some (.lit 20) } })) = [] := by
+            power := some 20, toughness := some 20 } })) = [] := by
   decide
 
 /-- "create a legendary legendary 20/20 black Avatar creature token" -/
 theorem badTokenDuplicateSupertype :
     Action.check (DRS.ofList [])
-      (create (.lit 1)
+      (create 1
         (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
             types := [.creature], subtypes := [avatar],
-            power := some (.lit 20), toughness := some (.lit 20) } })) = [.distinct] := by
+            power := some 20, toughness := some 20 } })) = [.distinct] := by
   decide
 
 /-! ## Constructor fields share the preceding discourse -/
@@ -405,7 +405,7 @@ theorem badExtraTurnForwardSubject :
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))]) =
+      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf 1))]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
@@ -428,7 +428,7 @@ theorem badSkipNextForwardSubject :
 
 theorem okSkipNextAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))])
+      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf 1))])
       = [] := by
   decide
 
@@ -455,7 +455,7 @@ theorem badAdditionalPartForwardSubject :
 theorem okAdditionalPartAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
       [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Templates.instruct they (.draw
-          (.exactlyOf (.lit 1)))])
+          (.exactlyOf 1))])
       = [] := by
   decide
 
@@ -481,7 +481,7 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipUntap (target isCreature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))])
+      [.skipUntap (target isCreature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf 1))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :
@@ -582,7 +582,7 @@ this turn (Iron Man, Bleeding Edge and Donal, Herald of Wings; the retired
 `UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
     Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
-      (doOnlyOnceEachTurn (may (draw (.lit 1))))) = [] := by
+      (doOnlyOnceEachTurn (may (draw 1)))) = [] := by
   decide
 
 /-- The limited action is checked as the action it wraps. -/

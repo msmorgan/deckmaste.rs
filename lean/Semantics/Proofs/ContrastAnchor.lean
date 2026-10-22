@@ -89,7 +89,7 @@ theorem screamingNemesisAnchorsOnTheSource :
 /-- Olivia Voldaren, the example under [CR#707.11]: "Olivia Voldaren deals 1 damage to another
 target creature." -/
 theorem oliviaAnchorsOnTheSource :
-    let olivia := instruct this_ (dealDamage (.lit 1) (target (and [isCreature, isOther])))
+    let olivia := instruct this_ (dealDamage 1 (target (and [isCreature, isOther])))
     Action.check (framed [.creature]) olivia = [] ∧ anchorsOf olivia (framed [.creature]) = [.source]
     := by
   decide
@@ -105,7 +105,7 @@ player, it deals that much damage plus 1 to that permanent or player instead." "
 player" is no particular, so no participant anchors it: the anchor is the Source. -/
 theorem embermawHellionAnchorsOnTheSource :
     let rule := damageRule (dealtBy (a (and [isSource, hasColor .red, youControl, isOther])))
-      (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted (up (.lit 1)))) .repeatedly
+      (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted (up 1))) .repeatedly
     let after := stepStaticSpec 64 (framed [.creature]) rule
     after.2 = [] ∧ after.1.contrastAnchors = [.source] := by
   decide
@@ -120,7 +120,7 @@ def probeEquipment : Card := .singleFaced
     { name := some "Probe", cost := some [generic 1], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ whenever (does (a (and [isCreature, isOther])) die) (draw (.lit 1)),
+        [ whenever (does (a (and [isCreature, isOther])) die) (draw 1),
           equip (mana [generic 1]) ] } }
 
 theorem okCreatureHeadedOtherOnANoncreatureSource :
@@ -138,13 +138,13 @@ def goliathTruck : Spelled := spelled <| .singleFaced
       subtypes := [vehicle],
       text :=
         [ whenever (does thisVehicle attack)
-            (putCounters (.lit 2) p1p1Counter (target (and [isCreature, isAttacking, isOther]))),
-          crew (.lit 2) ],
+            (putCounters 2 p1p1Counter (target (and [isCreature, isAttacking, isOther]))),
+          crew 2 ],
       power := stat 4, toughness := stat 4 } }
 
 theorem goliathTruckAnchorsOnTheSource :
     effectAnchors (whenever (does thisVehicle attack)
-      (putCounters (.lit 2) p1p1Counter (target (and [isCreature, isAttacking, isOther]))))
+      (putCounters 2 p1p1Counter (target (and [isCreature, isAttacking, isOther]))))
       (framed [.artifact]) = [.source] := by
   decide
 
@@ -152,13 +152,13 @@ theorem goliathTruckAnchorsOnTheSource :
 
 /-- "Choose a player. Each other player draws a card." The chosen player, not "you". -/
 theorem otherPlayerAnchorsOnTheChosenPlayer :
-    mentionsOf (sequentially [choose (a isPlayer), instruct (each isOtherPlayer) (draw (.lit 1))])
+    mentionsOf (sequentially [choose (a isPlayer), instruct (each isOtherPlayer) (draw 1)])
       = [some (.a, [])] := by
   decide
 
 /-- With no player mentioned first, "each other player" is other than "you". -/
 theorem otherPlayerAnchorsOnYou :
-    anchorsOf (sequentially [draw (.lit 2), instruct (each isOtherPlayer) (draw (.lit 1))])
+    anchorsOf (sequentially [draw 2, instruct (each isOtherPlayer) (draw 1)])
       = [.you] := by
   decide
 
@@ -251,7 +251,7 @@ theorem soulbondAnchorsOnTheSource :
 …" The subject of `is` is no candidate, so the contrast is with this creature, the Source. -/
 theorem backupAnchorsOnTheSourceNotThatCreature :
     let put := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (putCounters (.lit 1) p1p1Counter (target isCreature))).1
+      (putCounters 1 p1p1Counter (target isCreature))).1
     (stepCondition 64 (nextClause put) (is (that creature) (and [isCreature, isOther]))).1
       |>.contrastAnchors = [.source] := by
   decide

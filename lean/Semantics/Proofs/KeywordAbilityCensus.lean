@@ -18,13 +18,13 @@ namespace Semantics.Proofs.KeywordAbilityCensus
 permanent becomes saddled until end of turn. Activate only as a sorcery." [CR#702.171a,702.171b] -/
 def saddleDefinition : List Ability :=
   [ .activated
-      (.perform (tap (withTotal (.stat .power) .atLeast (.lit 2)
+      (.perform (tap (withTotal (.stat .power) .atLeast 2
         (allOf (.and [isUntapped, and [isCreature, youControl, isOther]])))))
       (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
 
 /-- "Saddle 2" with its Definition checks [CR#702.171a]. -/
 theorem okSaddleDefinition :
-    Ability.check (DRS.ofList []) (.keyword (.named "saddle") [.number (.lit 2)] saddleDefinition)
+    Ability.check (DRS.ofList []) (.keyword (.named "saddle") [.number 2] saddleDefinition)
       = [] := by
   decide
 
@@ -42,13 +42,13 @@ theorem badSaddleUnresolvedBound :
 with total power 2 or more." [CR#702.194a] -/
 def teamworkDefinition : List Ability :=
   [ .static (.addedCost
-      (.perform (tap (withTotal (.stat .power) .atLeast (.lit 2) (allOf (and [isCreature, youControl])))))
+      (.perform (tap (withTotal (.stat .power) .atLeast 2 (allOf (and [isCreature, youControl])))))
       true .once) ]
 
 /-- "Teamwork 2" with its Definition checks
 [CR#702.194a]. -/
 theorem okTeamworkDefinition :
-    Ability.check (DRS.ofList []) (.keyword (.named "teamwork") [.number (.lit 2)] teamworkDefinition)
+    Ability.check (DRS.ofList []) (.keyword (.named "teamwork") [.number 2] teamworkDefinition)
       = [] := by
   decide
 
@@ -64,19 +64,19 @@ def awakenDefinition : List Ability :=
     .spell none
       (doIf (costWasPaid (.byKeyword (.named "awaken")) none .this)
         (.sequentially
-          [ .putCounters (.lit 4) (.printed p1p1Counter)
+          [ .putCounters 4 (.printed p1p1Counter)
               (target (.and [isLand, .hasPossessor .controller .you])) true,
             .establish
               (.characteristicChange (that (.type .land))
                 [ .typeLine .adds { types := some [.creature], subtypes := some [elemental] },
-                  .stat .sets .power (.lit 0), .stat .sets .toughness (.lit 0),
+                  .stat .sets .power 0, .stat .sets .toughness 0,
                   .addedAbilities [keyword (.named "haste")] ])
               none ])) ]
 
 /-- "Awaken 4—{5}{U}" with its Definition checks
 [CR#702.113a]. -/
 theorem okAwakenDefinition :
-    Ability.check (DRS.ofList []) (.keyword (.named "awaken") [.number (.lit 4), .cost awakenCost]
+    Ability.check (DRS.ofList []) (.keyword (.named "awaken") [.number 4, .cost awakenCost]
         awakenDefinition)
       = [] := by
   decide

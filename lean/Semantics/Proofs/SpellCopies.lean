@@ -42,7 +42,7 @@ namespace Bodies
 def cost : Cost := .mana [generic 1, pip .blue]
 
 /-- Required pin: casualty N [CR#702.153a]. -/
-theorem okCasualty : Ability.check (DRS.ofList []) (casualty (.lit 2)) = [] := by decide
+theorem okCasualty : Ability.check (DRS.ofList []) (casualty 2) = [] := by decide
 /-- Required pin: replicate [cost] [CR#702.56a]. -/
 theorem okReplicate : Ability.check (DRS.ofList []) (replicate cost) = [] := by decide
 /-- Required pin: epic [CR#702.50a]. -/

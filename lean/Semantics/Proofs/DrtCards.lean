@@ -7,13 +7,13 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.DrtCards
 
 private def feralContest : Action := .sequentially [
-  .putCounters (.lit 1) (.printed p1p1Counter) (target (and [isCreature, youControl])) true,
+  .putCounters 1 (.printed p1p1Counter) (target (and [isCreature, youControl])) true,
   .establish
     (.must (.actor (target (.and [isCreature, .other]))) (.block it) {})
     (some thisTurn)]
 
 private def monstrousStep : Action := .sequentially [
-  get (target isCreature) (.up (.lit 7)) (.up (.lit 7)) (some untilEndOfTurn),
+  get (target isCreature) (.up 7) (.up 7) (some untilEndOfTurn),
   .establish
     (.must (.actor (.described (.target (upTo 1)) (.and [isCreature, .other])))
       (.block it) {}) (some thisTurn)]
@@ -60,7 +60,7 @@ theorem battlefieldProhibitionIsNotInstantStaticText :
 theorem counterAlternativesUseTheirOwnHolderKinds :
     Predicate.checkAt (.join .object .player) (DRS.ofList [])
       (.or [.and [.in_ battlefield, .hasCounters none],
-        .compare [.anyCounter .player] .atLeast (.lit 1)]) = [] := by decide
+        .compare [.anyCounter .player] .atLeast 1]) = [] := by decide
 
 theorem mixedCounterAxesStillRejectOneHolder :
     axesAt .object [.anyCounter .object, .anyCounter .player] = false ∧
@@ -68,15 +68,15 @@ theorem mixedCounterAxesStillRejectOneHolder :
 
 theorem anyDieResultReadsOneRollBatch :
     Condition.check (DRS.ofList [outcomeB .diceRolled])
-      (.anyResultIs .atLeast (.lit 10)) = [] := by decide
+      (.anyResultIs .atLeast 10) = [] := by decide
 
 theorem anyDieResultRequiresARoll :
-    Condition.check (DRS.ofList []) (.anyResultIs .atLeast (.lit 10)) =
+    Condition.check (DRS.ofList []) (.anyResultIs .atLeast 10) =
       [.outcomeInScope .rollResult 0] := by decide
 
 theorem anyDieResultRejectsAmbiguousBatches :
     Condition.check (DRS.ofList [outcomeB .diceRolled, outcomeB .diceRolled])
-      (.anyResultIs .atLeast (.lit 10)) = [.outcomeInScope .rollResult 2] := by decide
+      (.anyResultIs .atLeast 10) = [.outcomeInScope .rollResult 2] := by decide
 
 theorem distributedLifeLossKeepsOneScalarLetter :
     let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
@@ -91,7 +91,7 @@ theorem alternativeConditionsCannotBorrowOtherBranchParticipants :
 
 theorem powerDefinitionPublishesItsNumber :
     let out := (stepStaticSpec 64 (DRS.ofList [])
-      (ptDefinition thisCreature .powerAlone (.lit 2))).1
+      (ptDefinition thisCreature .powerAlone 2)).1
     countOutcomes .namedNumber out = 1 := by decide
 
 theorem grantedKeywordPublishesItsScalarParameter :
@@ -118,15 +118,15 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
 
 theorem distributedDamagePublishesItsRecipientGroup :
     let out := (stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.dealDamage (.lit 1) (each (.isOpponentOf .you)))).1
+      (.dealDamage 1 (each (.isOpponentOf .you)))).1
     (resolveCandidates (.word .player) .many (nextClause out)).map (·.id) = [0] := by decide
 
 /-- "Target creature gets +2/+2 if its power is 2. …": the condition reads the target, chosen as
 the spell is cast, and the target is the one later antecedent. -/
 theorem conditionalModificationKeepsItsAnnouncedTarget :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (doOnlyIf (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
-        (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
+      (doOnlyIf (get (target isCreature) (.up 2) (.up 2) none)
+        (.compareAmt (.statOf (.stat .power) it) .eq 2) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
 
 /-- "Deal X damage to target creature if X is 2. Tap it.": the condition brings X into scope,
@@ -134,7 +134,7 @@ so the branch, stepped again, introduces one referent fewer than it announced; i
 clear of the condition's, no two referents share one, and "it" reads the target. -/
 theorem conditionalBranchIdsNeverCollideWithTheCondition :
     let line := doOnlyIf (dealDamage (letter .x) (target isCreature))
-      (compareAmt (letter .x) .eq (.lit 2)) none
+      (compareAmt (letter .x) .eq 2) none
     let out := (stepAction 12 .postEvent .obj (DRS.ofList []) line).1
     let ids := out.referents.map (·.id)
     Action.check (DRS.ofList []) (.sequentially [line, .setStatus .tapped it]) = [] ∧
@@ -154,8 +154,8 @@ not chosen when the condition is checked, so the condition cannot read it; only 
 targets are [CR#601.2c]. -/
 theorem conditionReadsOnlyTheBranchsTargets :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (doOnlyIf (get (a isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
-        (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
+      (doOnlyIf (get (a isCreature) (.up 2) (.up 2) none)
+        (.compareAmt (.statOf (.stat .power) it) .eq 2) none)
     out.2 = [.anaphor .bare .one 0] := by decide
 
 theorem prohibitionsReadTheirCallerScopedSpellParameter :
@@ -177,7 +177,7 @@ theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
     let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
       (destroy (allOf isCreature))).1
     let out := stepAction 16 .postEvent .obj (nextClause dead)
-      (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw (.lit 1))))
+      (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw 1)))
     out.2 = [] ∧ (out.1.visibleReferents.filter (fun ref => ref.kind == .object)).all
       (fun ref => ref.zone == some .graveyard) = true := by decide +kernel
 
@@ -198,7 +198,7 @@ theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
       (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
 
 private def createdCreature : Action :=
-  .createObject (.lit 1)
+  .createObject 1
     (.token (.written { characteristics := { types := [.creature] } }) []) true none
 
 private def creatureCreationLoop : Action :=
@@ -213,7 +213,7 @@ theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
       NounPhrase.checkAt (some .object) (nextClause out.1) (those .token) = [] := by decide +kernel
 
 theorem aTokenMentionIsNotACreationResult :
-    let mention := Action.putCounters (.lit 1) (.printed p1p1Counter)
+    let mention := Action.putCounters 1 (.printed p1p1Counter)
       (.described (.a .unmarked) (.isToken)) true
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) mention)

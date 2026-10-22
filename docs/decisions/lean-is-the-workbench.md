@@ -86,4 +86,4 @@ authoring and checking.
 | `{auto 0 ok : So (f x)}` | a rule `refuse (f x) .reason` in `Check/*Rules` |
 | `Unspellable T (\ok => term)` … `Oh impossible` | `theorem bad… : X.check … term = [.reason] := by decide` |
 | a twin `ok… : T = term` | `theorem ok… : X.check … term = [] := by decide` |
-| a bench card | `def c : Spelled := spelled <| .singleFaced { characteristics := { name := …, … } }` |
+| a bench card | `def c : Spelled := spelled <| singleFacedCard { name := …, … }` |

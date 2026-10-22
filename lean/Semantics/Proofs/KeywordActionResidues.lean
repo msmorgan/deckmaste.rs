@@ -15,7 +15,7 @@ named emblem. Each keyword action's Definition checks clean, and each shape has 
 namespace Semantics.Proofs.KeywordActionResidues
 
 /-- "Collect evidence 3" [CR#701.59a]. -/
-theorem okCollectEvidence : Action.check (DRS.ofList []) (collectEvidence (.lit 3)) = [] := by decide
+theorem okCollectEvidence : Action.check (DRS.ofList []) (collectEvidence 3) = [] := by decide
 
 /-- A total's bound is an amount like any other: an unresolved "its power" is refused. -/
 theorem badWithTotalUnresolvedBound :
@@ -26,7 +26,7 @@ theorem badWithTotalUnresolvedBound :
 
 /-- "Discover 5" [CR#701.57a]: "that card" reads the card that stopped the run, and "the
 remaining exiled cards" the rest of the run. -/
-theorem okDiscover : Action.check (DRS.ofList []) (discover (.lit 5)) = [] := by decide
+theorem okDiscover : Action.check (DRS.ofList []) (discover 5) = [] := by decide
 
 /-- A run comes from a pile, and a library pile is a player's: a creature has none, so "its
 library" names no pile to run. -/
@@ -35,11 +35,11 @@ theorem badLibraryRunOfAnObject :
       [.kindMismatch .player .object] := by decide
 
 /-- "Incubate 3" [CR#701.53a,701.53b]. -/
-theorem okIncubate : Action.check (DRS.ofList []) (incubate (.lit 3)) = [] := by decide
+theorem okIncubate : Action.check (DRS.ofList []) (incubate 3) = [] := by decide
 
 /-- Each face of a double-faced token is a characteristics set, written once per value. -/
 theorem badDoubleFacedRepeatedType :
-    Action.check (DRS.ofList []) (.createObject (.lit 1) (.token (.doubleFaced
+    Action.check (DRS.ofList []) (.createObject 1 (.token (.doubleFaced
       { characteristics := { types := [.artifact, .artifact] } }
       { characteristics := { types := [.creature] } }) []) true none) = [.distinct] := by decide
 
@@ -71,24 +71,24 @@ theorem badSubstitutePaysWithoutAntecedent :
 /-- Crew 3's cost [CR#702.122a]: "tap any number of other untapped creatures you control with
 total power 3 or greater". -/
 theorem okCrewCost :
-    Cost.check (DRS.ofList []) (.perform (tap (withTotal (.stat .power) .atLeast (.lit 3)
+    Cost.check (DRS.ofList []) (.perform (tap (withTotal (.stat .power) .atLeast 3
       (allOf (.and [isUntapped, isCreature, .hasPossessor .controller .you, .other]))))) =
       [] := by decide
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
-    Action.check (DRS.ofList []) (manifest (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
+    Action.check (DRS.ofList []) (manifest (.slice .top 1 (libraryOf .you))) = [] := by decide
 
 /-- "Cloak the top card of your library" [CR#701.58a]. -/
 theorem okCloak :
-    Action.check (DRS.ofList []) (cloak (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
+    Action.check (DRS.ofList []) (cloak (.slice .top 1 (libraryOf .you))) = [] := by decide
 
 /-- "Manifest dread" [CR#701.62a]: the manifested card is a part of the look, and the rest the
 other card. -/
 theorem okManifestDread : Action.check (DRS.ofList []) manifestDread = [] := by decide
 
 /-- "Support 2" [CR#701.41a]. -/
-theorem okSupport : Action.check (DRS.ofList []) (support (.lit 2)) = [] := by decide
+theorem okSupport : Action.check (DRS.ofList []) (support 2) = [] := by decide
 
 /-- "Cast target instant or sorcery card" [CR#701.5a], "play target land card without paying"
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as
@@ -123,14 +123,14 @@ theorem okDoubleLifeTotal : Action.check (DRS.ofList []) doubleLifeTotal = [] :=
 set [CR#701.10d]: each publishes both life outcomes for a later "the life gained" or "the life
 lost" to read. -/
 theorem lifeSetsPublishGainAndLoss :
-    [Action.changeLife (.set (.lit 10)), doubleLifeTotal].map (fun action =>
+    [Action.changeLife (.set 10), doubleLifeTotal].map (fun action =>
       let after := (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
       (countOutcomes .lifeGained after, countOutcomes .lifeLost after)) = [(1, 1), (1, 1)] := by
   decide
 
 /-- A named emblem still has abilities [CR#114.1]. -/
 theorem badNamedEmblemWithoutAbilities :
-    Action.check (DRS.ofList []) (.createObject (.lit 1) (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by
+    Action.check (DRS.ofList []) (.createObject 1 (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by
   decide
 
 end Semantics.Proofs.KeywordActionResidues

@@ -1148,7 +1148,7 @@ mutual
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     /-- Remove `quantity` counters from `from_`, all of them if none is written. As an event
     pattern, `quantity` is what the text watches: "a counter is removed" is `exactly 1`, matched
-    by each counter removed [CR#603.2c]; "one or more" is `atLeast 1`, matched by the event; "the
+    by each counter removed [CR#603.2c]; "one or more" is `orMore 1`, matched by the event; "the
     last" is `theLast` [CR#702.62a,310.12b]. -/
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase) (byEffect : Bool)
@@ -1307,6 +1307,10 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.MoveRider.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit
+
+/-- A numeral is a literal Amount: `3` for `.lit 3`. The numeral stays an `OfNat.ofNat` term
+that `Authoring.inspect` reads through to this literal leaf. -/
+instance (n : Nat) : OfNat Semantics.Amount n := ⟨.lit (Int.ofNat n)⟩
 
 namespace Semantics
 
