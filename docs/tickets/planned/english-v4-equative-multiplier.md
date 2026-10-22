@@ -48,10 +48,22 @@ Phrases in general.
 
 - Nyxbloom Ancient, Virtue of Strength and Mana Reflection each have a Reading
   in which the multiplier over *as much of that mana* is the Object of
-  *produce*, and that Reading is in the cheapest tier. `+` Judgments cover
-  each face.
+  *produce*. `+` Judgments cover each face. Where that Reading ranks is
+  reported, not required (round 9: `docs/decisions/english-v4.md` §4.4,
+  item 6).
 - *Activate only as a sorcery.* gains no Reading.
+
+## Acceptance (round 9: `docs/decisions/english-v4.md` §4.4, item 9)
+
 - No face is lost.
+- Every judgment's positive assertions hold.
+- Nothing ungrammatical is admitted.
+- `cargo xtask english-v4 strata --check` passes.
+- No pathological forest explosion on real cards.
+
+The landing reports the cheapest-tier figures and the judgment-set S/A/P/F,
+but they are not gates (item 7). No Attachment Class, Production Cost tweak or
+residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 

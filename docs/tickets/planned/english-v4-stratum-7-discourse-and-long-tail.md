@@ -135,7 +135,13 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   as **read** (0 `known-wrong-only`) and satisfy both round-trip laws
   (`v is an admitted Reading of s => render(v) = s` and
   `v is independently constructed and grammatical => v is a Reading of parse(render(v))`).
-- Full linguistic judgment suite passes.
+- Full linguistic judgment suite passes: every judgment's positive
+  assertions hold, and nothing ungrammatical is admitted. No judgment asserts
+  rank (round 9: `docs/decisions/english-v4.md` §4.4, item 6).
+- The round-9 hard landing acceptance holds for every landing under this
+  Stratum (§4.4, item 9): no face is lost, `cargo xtask english-v4 strata
+  --check` passes, and no real card's forest explodes. The cheapest-tier
+  figures and the judgment-set S/A/P/F are reported, not gated.
 - Zero CR-cataloged words appear directly in the grammar data file, and zero
   policing flags exist.
 

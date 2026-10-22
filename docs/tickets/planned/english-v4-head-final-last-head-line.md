@@ -42,6 +42,21 @@ No field is added. The audit's probe of exactly this change (P1) left the
 census, every Reading count, Surplus and the cheapest tier identical, and
 `ranking_keys` and the judgment set held.
 
+The forest key must equal the tree key (`ranking_keys`). That is engine
+consistency, not a ranking gate.
+
+## Acceptance (round 9: `docs/decisions/english-v4.md` §4.4, item 9)
+
+- No face is lost.
+- Every judgment's positive assertions hold.
+- Nothing ungrammatical is admitted.
+- `cargo xtask english-v4 strata --check` passes.
+- No pathological forest explosion on real cards.
+
+The landing reports the cheapest-tier figures and the judgment-set S/A/P/F,
+but they are not gates (item 7). No Attachment Class, Production Cost tweak or
+residual ticket is added to win a rank (item 8).
+
 Standard constraints apply.
 
 Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".

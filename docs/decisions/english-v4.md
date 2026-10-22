@@ -1,6 +1,6 @@
 # ADR: English v4 — Data-Driven Syntax Engine, Domain Catalogs, and Stratified Buildout
 
-- **Status:** Accepted (2026-10-14); §4.4 added 2026-10-22 (owner ruling, round 8)
+- **Status:** Accepted (2026-10-14); §4.4 added 2026-10-22 (owner ruling, round 8) and extended the same day (round 9: ranking is a heuristic, not a gate)
 - **Companion Contract:** [`docs/decisions/english-lexical-analysis.md`](./english-lexical-analysis.md)
 - **Supersedes (archived in `docs/archive/decisions/`):**
   - `docs/archive/decisions/builtin-v2-macro-spelling-and-grammar.md`
@@ -100,7 +100,7 @@ An **Adjunct** (on a clause/VP) or **Modifier** (on a nominal/NP) is not subcate
 
 ### 4.3 The Ranking Key
 
-Readings retained in the packed forest are ordered by a **Ranking Key**, a lexicographic tuple compared component by component, lower first. It replaces the former scalar sum of `Production Cost`, which left most attachment alternatives tied (Mockingbird's 36,709 Readings had 6,354 tied at the minimum) and ranked every Predicate-hosted PP Adjunct behind every Nominal-hosted one. The Ranking Key is purely structural. The components, in order:
+The **Ranking Key** is the presentation and traversal order of the Readings retained in the packed forest: it decides which Readings a report or a consumer sees first, and which ones the bounded best-*k* extraction visits. It is a heuristic, not a correctness gate (§4.4, item 6): where it ranks the endorsed Reading is reported, never required. It is a lexicographic tuple compared component by component, lower first. It replaces the former scalar sum of `Production Cost`, which left most attachment alternatives tied (Mockingbird's 36,709 Readings had 6,354 tied at the minimum) and ranked every Predicate-hosted PP Adjunct behind every Nominal-hosted one. The Ranking Key is purely structural. The components, in order:
 
 1. **AttachmentClass**: the number of attachments that violate a structural attachment class, keyed on host kind, dependent function and existing grammatical features, never on words:
    - a comma-set Supplement (`host_kind: Supplement`, e.g. *, where X is …*) anchors to the outermost eligible clause (CGEL, Ch. 15 §5.1, p. 1351), and so does a distributive adjunct, whose complement has a `Distributive` determinative (*for each …*);
@@ -112,17 +112,32 @@ Readings retained in the packed forest are ordered by a **Ranking Key**, a lexic
 
 **Lexical and domain plausibility are not part of ranking.** No component is declared on lexemes, frames or catalog entries, and no component prefers a host because of what a word means: not that *cast* takes an origin, not that *spend* takes a purpose, and not that a zone noun dislikes postmodifiers. Such preferences are semantic plausibility judgments made one word at a time. They are policing by another name: they re-enter the grammar through the lexicon what §4.2 bans as boolean features. They also bought little. In the cost study, the structural key alone made 217 of the 308 single-group judgment entries all-endorsed at the top, against 92 under the scalar sum; adding such catalog preferences gained 6 more. Where a preference seemed needed, the cause was a lexicon declaration that was too broad, such as a preposition frame's host categories, and the fix is to correct that declaration. Disambiguation by meaning belongs to `deckmaste_semantics_v3`.
 
-Every component is a sum over the Reading's attachments or Productions, and lexicographic order is preserved under componentwise addition. So the cheapest *k* Readings are still extracted by dynamic programming over the packed forest, compositionally and without enumerating trees. The Ranking Key is a Preference: it never decides Admission and never removes a Reading. Spurious analyses are removed by grammar fixes that tighten or delete the rule that admits them, never by the Ranking Key, which assumes they are gone. §4.4 says which analyses are spurious.
+Every component is a sum over the Reading's attachments or Productions, and lexicographic order is preserved under componentwise addition. So the cheapest *k* Readings are still extracted by dynamic programming over the packed forest, compositionally and without enumerating trees. The Ranking Key is a Preference: it never decides Admission and never removes a Reading, and no Reading is right or wrong because of where it ranks. Spurious analyses are removed by grammar fixes that tighten or delete the rule that admits them, never by the Ranking Key, which assumes they are gone. §4.4 says which analyses are spurious.
 
 ### 4.4 Admission, Ranking and the Suppression Freeze
 
 Owner ruling, round 8 (2026-10-22), adopting an external audit's treatment plan, with the owner's clarification in the same round:
 
-1. **Admission stops only what no English grammar admits.** A Reading that English grammar admits but the Oracle register disprefers is kept, and the Ranking Key (§4.3) orders it. A Corpus Unit whose cheapest Ranking Key holds one endorsed Reading, with costlier alternatives beside it, is a success, whatever its Surplus. No ticket is minted whose only goal is to lower admission-time Surplus when the cheapest tier already holds the intended Reading.
+1. **Admission stops only what no English grammar admits.** A Reading that English grammar admits but the Oracle register disprefers is kept, and the Ranking Key (§4.3) orders it. A Corpus Unit whose Readings include the endorsed one is a success, whatever its Surplus and wherever the endorsed Reading ranks (amended in round 9, item 6; round 8 required the cheapest tier to hold it). No ticket is minted whose only goal is to lower admission-time Surplus.
 2. **The suppression freeze.** No new mechanism whose purpose is to suppress or remove a Reading. This covers admission-time vetoes, chart closures (passes that remove Derivations from a completed chart), gatekeeper Categories (a `category: Some(..)` subcategory that duplicates an existing phrase's Productions to keep phrases out of a slot), punctuation-sniffing flags, and single-holder feature values that exist to exclude. In `deckmaste_syntax`, no `Summary`, `State` or `ProductionDecl` field is added for such a purpose.
 3. **New coverage is not frozen**, in any Stratum, Stratum 7 included. A construction the grammar cannot yet build may add the features, values, Categories, Productions or engine capabilities it requires. Each addition is justified by the construction it builds, citing CGEL or `docs/oracle-style-guide.md`, and is stated generally.
 4. **Line (a).** `deckmaste_syntax` never names a grammar feature, value or Category, except in the lexicon feature-bundle mapping table, the one declared lexicon-to-syntax interface. New coverage is bound by this too. Purely structural `Summary` bits, computed from the engine's own host check, coordinators, extensions and punctuation, are allowed.
 5. **Single holders.** A class with one member, or a feature value with one holder, is a finding ([`english-lexical-analysis.md`](./english-lexical-analysis.md) §3). This applies to feature values as well as lexical classes, and to new values as well as existing ones.
+
+Owner ruling, round 9 (2026-10-22). It supersedes every acceptance criterion that requires the endorsed Reading to rank first or to be cheapest:
+
+6. **The Ranking Key is a heuristic traversal order, not a correctness gate.** It orders admitted Readings for presentation and for bounded traversal (§4.3). Disambiguation by meaning belongs to `deckmaste_semantics_v3`. A judgment asserts grammaticality: a positive entry, that its endorsed constituent structure is admitted in the forest; a negative assertion or entry, that a genuinely ungrammatical English or Oracle form is not admitted. No judgment fails because a well-formed alternative ties with the endorsed Reading or ranks ahead of it, and the judgment harness has no ranking assertion.
+7. **Reported statistics, never gates.** The cheapest-tier figures (singleton cheapest tiers, the tier sum, the largest tier) and the judgment-set ranking tally (S/A/P/F) are reported, and a landing may cite them. No acceptance criterion depends on them.
+8. **No ranking work to win a rank.** No new Attachment Class, Production Cost tweak or ranking-residual ticket is added to move an endorsed Reading to first place. Landed ones are not reverted by this ruling.
+9. **Hard landing acceptance.** A landing that changes the English grammar, its compiler, its lexicon or its census tool is accepted when all of these hold:
+   - no face is lost;
+   - every judgment's positive assertions hold;
+   - nothing ungrammatical is admitted;
+   - `cargo xtask english-v4 strata --check` passes;
+   - no pathological forest explosion on real cards.
+10. **The gate test.** An admission gate (an `Exclude` or `Require`, a gatekeeper Category, or Productions restated under one) is kept only if it enforces a true grammatical or register formation rule: a form English, or the Oracle register, never builds, not one the register merely disprefers (item 1). The owner's examples, which the review confirms: AttributeChain and NegativeAttribute ban uncoordinated stacked non-negative attributes (`docs/oracle-style-guide.md` §6, "Determiners and modifier order"); RelativeTemporalNominal licenses *when*-less relatives on temporal nouns (`docs/oracle-style-guide.md` §11). A gate that only suppresses a syntactically well-formed English parse that semantics rejects by type is retired. The one exception is safety: a gate whose retirement causes pathological forest explosion on real cards stays, with the measurement that keeps it. Item 2 still holds: a kept gate licenses no new one.
+
+   **Kept gates (closed list).** *Placeholder:* `english-v4-gate-review` fills this list. Each entry names the gate, the formation rule it enforces with its citation, or the forest-size measurement that keeps it. Every gate that review covers and does not list here is retired.
 
 ---
 

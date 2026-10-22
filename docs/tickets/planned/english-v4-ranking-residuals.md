@@ -1,40 +1,44 @@
 ---
 needs: []
 ---
-# Ranking Key residuals: units whose cheapest tier is not the endorsed Reading
+# Retired (owner round 9: ranking is a heuristic, not a gate)
 
-This ticket tracks every known Ranking Key residual: a Corpus Unit or Judgment
-whose cheapest Ranking Key tier holds an unendorsed Reading, either instead of
-the endorsed one or tied with it (`docs/decisions/english-v4.md` §4.3).
-Owner's direction (relayed 2026-10-22): residuals are tracked, never
-"accepted". Admission keeps every Reading English admits (§4.4, item 1), so the
-only fix for a row is a better Ranking Key or a grammar fix that removes a
-Reading no English grammar admits. No row is closed by a suppression mechanism
-(§4.4, item 2).
+**Retired.** Left in `planned/` for the coordinator to close.
 
-## How this list is used
+## Why
 
-- Any structural change to the Ranking Key, or to a Production Cost, is measured
-  against every row below. A change that fixes rows without regressing the
-  judgment set is welcome. A change that breaks a resolved row, or moves a
-  judgment-set entry out of an all-endorsed cheapest tier, is a regression.
-- Each row has one identifying entry in the block at the end, in judgment
-  syntax, with `ranks first`. A row is resolved exactly when its entry holds:
-  run the block through `cargo xtask english-v4 parse --limit 1` (one quoted
-  argument per line). Today rows 16 and 17 hold and every other row fails with
-  "an unendorsed Reading is in the cheapest tier". Without `ranks first`, all
-  23 hold: the endorsed Reading is in every forest.
-- When a row is resolved, its `ranks first` entry goes into the judgment set (a
-  new judgment for a unit that has none), and the row is marked with the landing
-  that resolved it.
-- A newly found residual is added as a row, with its entry.
+This ticket tracked every Corpus Unit or Judgment whose cheapest Ranking Key
+tier held an unendorsed Reading, instead of the endorsed one or tied with it.
+Each row was to be resolved by a better Ranking Key or by a grammar fix, and
+recorded as a `ranks first` judgment.
 
-## The residuals
+The owner's round-9 ruling (`docs/decisions/english-v4.md` §4.4, items 6–8)
+retires that work:
+- The Ranking Key is a heuristic traversal order, not a correctness gate.
+  Where it ranks the endorsed Reading is a reported statistic, never an
+  acceptance criterion.
+- No new Attachment Class, Production Cost tweak or ranking-residual ticket
+  is added to win a #1 rank. Residuals need no tracking.
+- The judgment harness no longer has a `ranks first` form.
+
+When this ticket was written, every row's endorsed Reading was in its forest:
+without `ranks first`, all 23 identifying entries held. So no row records a
+missing analysis. A row whose cheapest tier holds a Reading that no English
+grammar admits would be a grammar defect, owned by its own ticket. Row 23 is
+owned by `english-v4-agency-outfitter-coordination-ranking`, which is now
+recast as a grammatical admission fix: Right Node Raising must take the right
+edge of a conjunct.
+
+The identifying-entry block is removed, because its entries used the retired
+`ranks first` form. The table and its notes below stay as a record of what
+the Ranking Key put first on `tztrqzts`.
+
+## The measured residuals (informational record)
 
 Measured on `tztrqzts` with `cargo xtask english-v4 parse`, with card scope
 wherever the text names a card. A key is AttachmentClass/RightAssociationWords/
 ProductionCost, as `parse` prints it. "Endorsed key" is the key of the cheapest
-Reading that satisfies the row's entry; "ahead" counts the Readings ranked
+Reading that satisfied the row's entry; "ahead" counts the Readings ranked
 before it.
 
 | # | Unit | Recorded in | Cheapest key (tier) | Endorsed key | Status |
@@ -112,49 +116,3 @@ before it.
   Association prefers it, and the measured cost of reordering the components.
 - **Row 23.** See `english-v4-agency-outfitter-coordination-ranking`.
 
-## Done when
-
-- Every row's entry holds, or the row is resolved by a grammar fix that
-  removes only Readings no English grammar admits, with a CGEL or
-  `docs/oracle-style-guide.md` citation (§4.3, last paragraph).
-- Every fix is structural (§4.3): no component keyed on a word, a lexeme or a
-  catalog entry, and no suppression mechanism (§4.4, item 2).
-- No judgment-set entry leaves an all-endorsed cheapest tier, and no face is
-  lost.
-- Each resolved row has its `ranks first` judgment in the judgment set.
-
-Standard constraints apply.
-
-## Identifying entries
-
-One per row, in row order.
-
-```text
-+ <card=Teferi, Master of Time> You may activate loyalty abilities of Teferi on any player's turn any time you could cast an instant. => NounPhrase "loyalty abilities of Teferi" as Object of activate; PrepositionPhrase "on any player's turn" as Adjunct of activate; Name "Teferi"; ranks first
-+ <card=Ember Island Production> Create a token that's a copy of target creature you control, except it's not legendary and it's a 4/4 Hero in addition to its other types. => Clause "it's not legendary and it's a 4/4 Hero in addition to its other types" as Complement of except; ranks first
-+ <card=Ember Island Production> Create a token that's a copy of target creature an opponent controls, except it's not legendary and it's a 2/2 Coward in addition to its other types. => Clause "it's not legendary and it's a 2/2 Coward in addition to its other types" as Complement of except; ranks first
-+ <card=Mishra, Eminent One> At the beginning of combat on your turn, create a token that's a copy of target noncreature artifact you control, except its name is Mishra's Warform and it's a 4/4 Construct artifact creature in addition to its other types. It gains haste until end of turn. Sacrifice it at the beginning of the next end step. => Clause "its name is Mishra's Warform and it's a 4/4 Construct artifact creature in addition to its other types" as Complement of except; ranks first
-+ <card=Nightmare Shepherd> Whenever another nontoken creature you control dies, you may exile it. If you do, create a token that's a copy of that creature, except it's 1/1 and it's a Nightmare in addition to its other types. => Clause "it's 1/1 and it's a Nightmare in addition to its other types" as Complement of except; ranks first
-+ <card=Ratadrabik of Urborg> Whenever another legendary creature you control dies, create a token that's a copy of that creature, except it's not legendary and it's a 2/2 black Zombie in addition to its other colors and types. => Clause "it's not legendary and it's a 2/2 black Zombie in addition to its other colors and types" as Complement of except; ranks first
-+ <card=Spark Double> You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary. => PrepositionPhrase "except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary" as Adjunct of may; !PrepositionPhrase "except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary" as Adjunct of control; !PrepositionPhrase "except it enters with an additional +1/+1 counter on it if it's a creature" as Adjunct of control; Clause "it enters with an additional +1/+1 counter on it if it's a creature"; PrepositionPhrase "if it's a creature" as Adjunct of enter; ranks first
-+ <card=Ray of Ruin> Exile target creature, Vehicle, or nonbasic land. Scry 1. => Nominal "creature, Vehicle, or nonbasic land"; Nominal "nonbasic land"; ranks first
-+ <card=Rob the Hoard> Return target artifact, enchantment, or legendary card from your graveyard to your hand. => Attributes "artifact, enchantment, or legendary" as Modifier of card; ranks first
-+ <card=Abuelo's Awakening> Return target artifact or non-Aura enchantment card from your graveyard to the battlefield with X additional +1/+1 counters on it. It's a 1/1 Spirit creature with flying in addition to its other types. => Nominal "artifact or non-Aura enchantment" as Modifier of card; Nominal "non-Aura" as Modifier of enchantment; ranks first
-+ <card=Excava, the Risen Past> Whenever Excava attacks, return up to one target artifact, creature, or non-Aura enchantment card with mana value 3 or less from your graveyard to the battlefield with a finality counter on it. It's a 1/1 Spirit creature with flying in addition to its other types. => Nominal "artifact, creature, or non-Aura enchantment" as Modifier of card; Nominal "non-Aura" as Modifier of enchantment; ranks first
-+ <card=Nameless Race> As this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards. => NounPhrase "more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards" as PredicativeComplement of be; NounPhrase "the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards" as Complement of than; NounPhrase "the total number of white nontoken permanents your opponents control"; NounPhrase "the total number of white cards in their graveyards"; !DeterminerPhrase "more than the total"; !DeterminerPhrase "more than the total number of white nontoken permanents your opponents control plus the total number of white"; ranks first
-+ Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types. => PrepositionPhrase "with a number of additional +1/+1 counters on it equal to this creature's power"; AdjectivePhrase "equal to this creature's power" as Modifier of number; ranks first
-+ Whenever this creature becomes blocked, you may untap it and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove; VerbPhrase "untap it and remove it from combat" as Complement of may; ranks first
-+ Put one of them on top of your library in any order and the rest on the bottom of your library. => NounPhrase "one of them" as Object of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "on top of your library"; PrepositionPhrase "in any order"; PrepositionPhrase "on the bottom of your library"; PrepositionPhrase "in any order" as Adjunct of put; ranks first
-+ Whenever you attack, double the number of each kind of counter on each Spider and legendary creature you control. => PrepositionPhrase "of counter" as Complement of kind; ranks first
-+ <card=Seal of the Guildpact> Each spell you cast costs {1} less to cast for each of the chosen colors it is. => RelativeClause "it is" gap "chosen colors"; PrepositionPhrase "for each of the chosen colors it is" as Adjunct of cost; ranks first
-+ <card=Xyris, the Writhing Storm> Whenever an opponent draws a card except the first one they draw in each of their draw steps, create a 1/1 green Snake creature token. => RelativeClause "they draw in each of their draw steps" gap "first one"; ranks first
-+ <card=Birgi, God of Storytelling> Creatures you control can boast twice during each of your turns rather than once. => VerbPhrase "boast twice during each of your turns rather than once" as Complement of can; AdverbPhrase "twice" as Adjunct of boast; PrepositionPhrase "during each of your turns" as Adjunct of boast; ranks first
-+ <card=Temple of Cyclical Time> {2}{U}, {T}: Transform this land. Activate only if it has no time counters on it and only as a sorcery. => PrepositionPhrase "only if it has no time counters on it"; PrepositionPhrase "only as a sorcery"; ranks first
-+ <card=Hedron Alignment> At the beginning of your upkeep, you may reveal your hand. If you do, you win the game if you own a card named Hedron Alignment in exile, in your hand, in your graveyard, and on the battlefield. => PrepositionPhrase "in exile, in your hand, in your graveyard, and on the battlefield" as Modifier of card || PrepositionPhrase "in exile, in your hand, in your graveyard, and on the battlefield" as Adjunct of own; ranks first
-+ Activate no more than three times each turn. => NounPhrase "three times" as Complement of than; ranks first
-+ <card=Agency Outfitter> When this creature enters, you may search your graveyard, hand, and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle. => NounPhrase "your graveyard, hand, and/or library" as Object of search; NounPhrase "a card named Magnifying Glass and/or a card named Thinking Cap" as Complement of for; VerbPhrase "put them onto the battlefield"; VerbPhrase "search your graveyard, hand, and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield" as Complement of may; ranks first
-
-```
-
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
