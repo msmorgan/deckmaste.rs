@@ -439,6 +439,8 @@ holders rather than exempting anything.
 
 ### Owner rulings needed
 
+These rulings are carried open in `english-v4-audit-rulings-pending`.
+
 - **R1. Policy.** §4.4 item 1 says a Reading English admits is kept and
   ranked. For a gate whose retired Readings the structural Ranking Key cannot
   order (they tie, or the anomalous one wins), choose one:
