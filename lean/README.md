@@ -94,13 +94,14 @@ write.
 
 ## Registry facts
 
-`cargo xtask facts generate` writes `Semantics/Check/Facts.lean` from the
-builtin_v2 registry declarations and xtask's checker-column overlays.
-`cargo xtask facts check` rejects stale Lean or reference Idris output.
-`FactTypes.lean` owns the shared data columns; `Check/Words` and
-`Check/Keywords` interpret them. A designation declaration generates one table
-row per label it names, so an enum-valued one generates all its members.
-The table-integrity pins remain part of `lean/scripts/build`.
+`Semantics/Check/Facts.lean` is hand-maintained Lean, the source of truth for
+the keyword-action label list and the keyword, counter, designation, relation
+and frame-subtype tables the checker reads; a declaration added under
+`Semantics/Definitions/` gets its row there by hand. `FactTypes.lean` owns the
+row types; `Check/Words` and `Check/Keywords` interpret them. A designation
+declaration that lists members (day and night) has one row per member. The
+table-integrity pins (`Semantics/Proofs/Tables.lean`) remain part of
+`lean/scripts/build`.
 
 ## Numbers
 

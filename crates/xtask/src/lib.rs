@@ -20,7 +20,6 @@ pub mod english_v3;
 pub mod english_v4;
 pub mod expansions;
 pub mod extract;
-pub mod facts;
 pub mod fidelity;
 pub mod generate;
 pub mod graduate;

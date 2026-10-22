@@ -8,7 +8,7 @@ The vocabulary: every leaf type a phrase, trigger, effect, or card is written fr
 
 A type is here iff a constructor field mentions it. The checker's own vocabulary (the
 antecedent stack, obligation witnesses, the facts tables, event names, static kinds) lives in
-`Check/`. Designations, keywords, acts, counters, and deeds are labels with generated facts
+`Check/`. Designations, keywords, acts, counters, and deeds are labels with hand-maintained facts
 tables, not enums: the grammar carries the mechanism, the tables carry the set.
 -/
 
@@ -221,8 +221,8 @@ inductive Ordinal where
 it, verbatim (`goaded`, `monarch`, `ringBearer`), or, where a declaration lists several members,
 the member's own name (`dayNight` lists `day` and `night`). The name is not English: the phrase
 a card prints ("the monarch", "Ring-bearer") is the declaration's spelling. Which designations
-exist, and what each holds and does, is the designation facts table generated from the
-declarations' definitions (`Definition.designation`); the grammar carries only the mechanism.
+exist, and who holds each, is the designation facts table (`designationTable`), beside each
+declaration's record (`Definition.designation`); the grammar carries only the mechanism.
 Plotted [CR#702.170a,702.170c] and foretold [CR#702.143c,702.143d], states of a card in exile, are
 designations like the rest. -/
 inductive DesignationLabel where
@@ -230,8 +230,8 @@ inductive DesignationLabel where
   deriving DecidableEq, Repr
 
 /-- A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation declaration that defines
-it, verbatim (`haunting`, `paired`, `encodedOn`). Which relations exist, and the kinds of their
-two sides, is the relation facts table generated from the declarations' definitions
+it, verbatim (`haunting`, `paired`, `encodedOn`). Which relations exist is the relation facts
+table (`relationTable`), and the kinds of their two sides the declarations' definitions
 (`Definition.relation`); the grammar carries only the mechanism. -/
 inductive RelationLabel where
   | named (name : String)
@@ -566,7 +566,7 @@ inductive DefinedSlots where
 (`p1p1Counter`, `flyingCounter`, `chargeCounter`). "Counters with the same name or description
 are interchangeable" [CR#122.1], so the name is all a kind is. What a counter of the kind does
 is its Registry Definition (`Definition.counter`: holder and conferrals), and which kinds exist
-is the counter facts table generated from those definitions, so a +1/+1 counter [CR#122.1a] and
+is the counter facts table (`counterFacts`), one row per definition, so a +1/+1 counter [CR#122.1a] and
 a keyword counter [CR#122.1b] are looked up exactly as a charge counter is. -/
 inductive CounterKind where
   | named (name : String)

@@ -108,13 +108,6 @@ pub enum Conferral {
 /// stands for, and the body every `plugins_v2/builtin/macros/{counter_kinds,
 /// subtypes,designations,types}` declaration carries.
 ///
-/// `cargo xtask facts generate` writes `lean/Semantics/Check/Facts.lean` from
-/// these: every counter definition is a [`crate::facts::CounterFacts`] row
-/// labelled with its kind's name, a subtype definition a
-/// [`crate::facts::SubtypeFacts`] row, a designation definition a
-/// [`crate::facts::DesignationFacts`] row. A card type definition is no facts
-/// row.
-///
 /// A counter definition's `Ability` and `Property` conferrals state what ONE
 /// counter of its kind confers, and the model applies them once per counter
 /// held (Lean `Semantics.Definition.counter`): a +1/+1 counter confers

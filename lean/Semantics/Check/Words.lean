@@ -1708,7 +1708,6 @@ def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSo
 
 def DesignationLabel.scope (label : DesignationLabel) : Option DesignationScope :=
   label.facts.map (·.scope)
-def DesignationLabel.seedZone (label : DesignationLabel) : Option Zone := label.facts.bind (·.zone)
 def DesignationLabel.holder (label : DesignationLabel) : Option Kind :=
   match label.scope with
   | some (.heldBy k) => some k
@@ -1742,10 +1741,6 @@ def RelationLabel.facts (label : RelationLabel) : Option RelationFacts :=
   relationTable.find? (·.label == label.name)
 
 def RelationLabel.known (label : RelationLabel) : Bool := label.facts.isSome
-
-def RelationLabel.left (label : RelationLabel) : Kind := (label.facts.map (·.left)).getD .object
-
-def RelationLabel.right (label : RelationLabel) : Kind := (label.facts.map (·.right)).getD .object
 
 /-! ## Attachment, status, counters -/
 

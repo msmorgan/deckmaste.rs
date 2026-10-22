@@ -2,8 +2,7 @@
 //! from the Lean workbench.
 //!
 //! `lean/Semantics/{Words,Events,Phrase,Triggers,Abilities,Card,Rules}.lean`
-//! is the specification, together with `lean/Semantics/Check/FactTypes.lean`
-//! for the registry fact columns a declaration carries. Each of those files
+//! is the specification. Each of those files
 //! has a module here that mirrors it constructor-for-constructor and
 //! field-for-field; a Lean change is a Rust change, never the reverse, and
 //! `tests/lean_drift.rs` fails on any name the two sides disagree on
@@ -27,7 +26,6 @@ pub mod abilities;
 pub mod card;
 pub mod designations;
 pub mod events;
-pub mod facts;
 pub mod keywords;
 pub mod lean_emit;
 pub mod mentions;

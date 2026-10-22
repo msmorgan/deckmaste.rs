@@ -15,7 +15,6 @@ use xtask::english_v3::EnglishV3Args;
 use xtask::english_v4::EnglishV4Args;
 use xtask::expansions::ExpansionsArgs;
 use xtask::extract::ExtractArgs;
-use xtask::facts::FactsArgs;
 use xtask::fidelity::FidelityArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
@@ -91,9 +90,6 @@ enum Cmd {
     Lean(LeanArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
-    /// Generate and check the Idris workbench's keyword facts table against
-    /// the RON macro stubs that own the label vocabulary.
-    Facts(FactsArgs),
     /// Write one identity-macro scaffold per reachable variant that needs
     /// one and has no def yet (spec §5); never overwrites an existing def.
     ScaffoldIdentity(ScaffoldIdentityArgs),
@@ -131,7 +127,6 @@ fn main() -> anyhow::Result<()> {
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Lean(args) => xtask::lean::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
-        Cmd::Facts(args) => xtask::facts::run(&args),
         Cmd::ScaffoldIdentity(args) => xtask::authoring::run(&args),
     }
 }

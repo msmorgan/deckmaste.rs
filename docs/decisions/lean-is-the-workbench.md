@@ -34,9 +34,8 @@ re-spelling a migrated pin. A changed representation requires a corresponding
 proof, not deletion or weakening of the existing assertion.
 
 `lean/scripts/build` is the workbench gate, including the card bench and pin
-suites, with warnings treated as failures. `cargo xtask facts check` separately
-checks generated-table currency. These checks establish the behavior of the
-workbench terms supplied to them.
+suites, with warnings treated as failures. These checks establish the behavior
+of the workbench terms supplied to them.
 
 ## Card-gate succession
 

@@ -298,9 +298,9 @@ Rust engine.
 Run `lean/scripts/build` to build the syntax, checker, macros, printed-card
 bench and proof-pin suites with warnings treated as failures. Positive and
 negative pins use `decide` to fix the exact result of a checker call.
-`Semantics/Check/Facts.lean` supplies the registry-derived keyword-action,
-keyword-ability, counter, designation and frame-subtype facts;
-`cargo xtask facts check` detects generated-table drift.
+`Semantics/Check/Facts.lean` supplies the hand-maintained keyword-action,
+keyword-ability, counter, designation, relation and frame-subtype facts, and
+`Semantics/Proofs/Tables.lean` pins their integrity.
 
 [Lean is the workbench](docs/decisions/lean-is-the-workbench.md) records the
 succession. Idris is retained as a frozen reference and legacy emitter target.

@@ -80,10 +80,11 @@ structure ConferralRule where
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
 definition, where a `RulesTables` row is scoped by a predicate and names nothing.
 
-`Semantics.Check.Facts` is generated from these: every counter definition is a `CounterFacts`
-row labelled with its kind's name, a subtype definition is a `SubtypeFacts` row, a designation
-definition is a `DesignationFacts` row. A card type definition is no facts row: the checker's
-card-type tables (`CardType.permanent`) do not read it yet. -/
+`Semantics.Check.Facts` holds, by hand, the columns of these that the checker reads: every
+counter definition has a `CounterFacts` row labelled with its kind's name, a subtype that sets a
+card frame a `SubtypeFacts` row, a designation definition a `DesignationFacts` row per label, and
+a relation definition a `RelationFacts` row. A card type definition is no facts row: the
+checker's card-type tables (`CardType.permanent`) do not read it yet. -/
 inductive Definition where
   /-- A counter [CR#122.1]: its kind, what holds it, and what it does to its bearer.
 
@@ -130,8 +131,7 @@ inductive Definition where
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a
 counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its
 `Subtype`, a designation's or relation's its label. The `Definition` above is a separate record
-the registry holds under the name, which `cargo xtask facts` and `cargo xtask lean definitions`
-read; the name never expands to it (ruling 2026-10-10, retiring the `Definition.*Term`
+the registry holds under the name; the name never expands to it (ruling 2026-10-10, retiring the `Definition.*Term`
 projections that read the term back out of the record). -/
 
 /-- The two tables a plugin's `rules/` directory defines, concatenated across its files. The
