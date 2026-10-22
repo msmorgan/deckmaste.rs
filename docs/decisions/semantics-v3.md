@@ -118,7 +118,7 @@ structure DRS where
 
 ### 1.3 Nested DRS Boxes and Quantifier Polarity
 
-In DRT (Kamp & Reyle 1993), the logical force and forward accessibility of an indefinite (`a(creature)`) depend on the **DRS box** in which it is introduced, not on separate determiner constructors. A universal bare plural ("creatures you control get +1/+1") is written with the `bare` Template, which expands to `all`; `DetPhrase.bare` is the measured-domain determiner that `countOf`, `aggregate` and `exists_` write ("the number of creatures", "if there are cards in your graveyard"), and whether that domain is an antecedent awaits the owner's ruling (`lean-v3-measured-domain-antecedent`):
+In DRT (Kamp & Reyle 1993), the logical force and forward accessibility of an indefinite (`a(creature)`) depend on the **DRS box** in which it is introduced, not on separate determiner constructors. A universal bare plural ("creatures you control get +1/+1") is written with the `bare` Template, which expands to `all`; `DetPhrase.bare` is the measured-domain determiner that `countOf`, `aggregate` and `exists_` write ("the number of creatures", "if there are cards in your graveyard"), and the owner has ruled on whether that domain is an antecedent (2026-10-22): `countOf` and `aggregate` close their domain like a relative-clause box, `exists_` publishes its domain (box 2 below) and admits counted subjects, and `DetPhrase.bare` is retired. The implementation is pending in `lean-v3-measured-domain-antecedent`:
 
 | DRS Box | Introducing Constructions | Indefinite (`a(...)`) Semantics | Accessibility Out of Box |
 |---|---|---|---|

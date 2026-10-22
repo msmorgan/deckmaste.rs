@@ -4,25 +4,24 @@ needs: [lean-v3-ast-merges-by-rules-meaning]
 # Is a measured domain an antecedent? (`DetPhrase.bare` after the universal merge)
 
 Standard constraints apply. This is the domain half of
-[lean-v3-ast-merges-by-rules-meaning](../wip/lean-v3-ast-merges-by-rules-meaning.md) §2, split out
-so that ticket can land. **It waits on an owner ruling. Nothing below is ruled except where marked.**
+[lean-v3-ast-merges-by-rules-meaning](../done/lean-v3-ast-merges-by-rules-meaning.md) §2, split out
+so that ticket could land. **Ruled by the owner on 2026-10-22 (option A, below). The
+implementation is this ticket.**
 
 ## Where it stands
 
 - **Ruled and landed (owner, 2026-10-21).** A universal bare plural and "all …" have one rules
   meaning and one plural referent, so the `bare` Template now expands to `.all`.
-- **Still to decide.** `DetPhrase.bare` remains as the determiner `countOf`, `aggregate`,
-  `exists_` and `thereIsNo` write for the domain they measure: "the number of creatures you
-  control", "the greatest power among creatures you control", "if there are cards in your
-  graveyard".
-- **Today all three publish that domain.** The `countOf` (`Check/Phrase.lean:2653`), `aggregate`
-  (`:2646`) and `exists_` (`:2729`) arms return the DRS after stepping it, so the domain stays
-  visible to later clauses.
-- **The owner's question** (ruling of 2026-10-21 on the first STOP): should a measured domain be
-  an antecedent at all?
-  - If not, close it like a relative-clause box, and remove the `bare` skips and the domain
-    determiner.
-  - If so, keep a domain determiner and name the rule that draws the distinction.
+- **Ruled (owner, 2026-10-22), not yet implemented.** `DetPhrase.bare` is the determiner
+  `countOf`, `aggregate`, `exists_` and `thereIsNo` write for the domain they measure: "the number
+  of creatures you control", "the greatest power among creatures you control", "if there are cards
+  in your graveyard". The ruling retires it; see "Ruling" at the end.
+- **Until it lands, all three publish that domain.** The `countOf` (`Check/Phrase.lean:2653`),
+  `aggregate` (`:2646`) and `exists_` (`:2729`) arms return the DRS after stepping it, so the
+  domain stays visible to later clauses.
+- **The question that was put** (owner, 2026-10-21, on the first STOP): should a measured domain
+  be an antecedent at all? The audit below answered "it splits by construct", and the owner took
+  that answer on 2026-10-22.
 
 ## Audit result (2026-10-21): it splits by construct
 
@@ -83,6 +82,8 @@ so that ticket can land. **It waits on an owner ruling. Nothing below is ruled e
 
 ## The seven checks that tell `.bare` from `.all`
 
+The ruling retires the split in all seven (the two `Check/Words.lean` rows lose their `.bare` skip).
+
 | Check | Where | What it does |
 |---|---|---|
 | `NounPhrase.countableGroup` | `Check/Phrase.lean:384` | Admits `.bare`, not `.all`, as what "the number of …" counts. |
@@ -123,14 +124,65 @@ Both cases bound the existential's publication, because the pronoun must not rea
   them".
   - "Them" reads Titania and Argoth, not the land cards counted.
 
-## Proposed, pending owner ruling
+## Ruling (owner, 2026-10-22, option A)
 
-1. Close `countOf` and `aggregate` like a relative-clause box (`leaveRelative`).
-2. Drop the `bare` skips in `countGroups` and `countedGroupSize`.
-3. Let `exists_` publish its domain and admit a counted subject ("two or more creatures", "four
-   or more cards"). Re-spell *Purging Scythe* (and *Loxodon Peacekeeper* and *River Song's Diary*
-   when authored) as counted existentials. Pin *Flow State* and *Titania, Voice of Gaea* so the
-   existential's domain loses to the nearer or more salient antecedent.
-4. Retire `DetPhrase.bare` and the `bare`/`all` split in `countableGroup`, `existentialMention`,
-   `perMemberOk`, `partitiveBase` and `playerGroupMention`. Rewrite the pins above to the new
-   claims, naming each one rewritten or retired and why.
+The audit's split stands. The measured domain is an antecedent only where the consequent reads it.
+
+1. **"The number of …" (`countOf`) and "the greatest … among …" (`aggregate`) are closed like a
+   relative-clause box (`leaveRelative`) and are not antecedents.** No later pronoun or
+   demonstrative reads the counted domain (Tears of Rage, Mishra, Claimed by Gix, Highcliff
+   Felidar above).
+2. **"There are …" (`exists_`) publishes its domain, which the consequent can read back, and
+   admits counted subjects** ("two or more creatures", "four or more cards"). This is the way an
+   indefinite in a conditional's antecedent is read in its consequent (`semantics-v3.md` §1.3,
+   box 2). *Purging Scythe* and *Loxodon Peacekeeper* are the witnesses; *River Song's Diary* and
+   *Treasure Map* take the same form when authored.
+3. **The `bare` skips go.** Drop them in `countGroups` and `countedGroupSize`
+   (`Check/Words.lean`). They were needed only while `countOf` published, and it no longer does.
+4. **`DetPhrase.bare` is retired**, with the bare/all split in the checks of the table above that
+   draw it: `countableGroup`, `existentialMention`, `perMemberOk`, `partitiveBase` and
+   `playerGroupMention`. `countableGroup` admits the plural universal (`.all`) as what "the number
+   of …" counts; `existentialMention` admits a counted or plain indefinite subject as well as
+   `.agree`. The English definiteness restriction on the existential's determiner was never one
+   the CR draws.
+5. **Pin *Flow State* and *Titania, Voice of Gaea* to the readings in "Corpus cases" above.**
+   They bound the existential's publication: "them" and "the rest" in *Flow State* read the three
+   cards looked at, and "them" in *Titania* reads Titania and Argoth.
+
+### Work this ticket carries
+
+- Implement 1 to 4 in `Check/Phrase.lean`, `Check/Words.lean`, `Abilities.lean` (where `DetPhrase` is
+  declared) and `Templates.lean`. `thereIsNo` also writes `.bare` today; its
+  domain sits in a negated box (`semantics-v3.md` §1.3, box 3), so it is closed, and the
+  implementer picks the surviving determiner for it. That choice is an implementation detail, not
+  part of the ruling.
+- **STOP condition for *Flow State*.** If the rules of `D′` and `AC>R1` as they stand cannot keep
+  "them" and "the rest" on the three cards once the existential publishes its domain, do not
+  weaken the pin and do not carve a skip back in. Report the rule that is missing and ask. The
+  owner has ruled the reading, not the mechanism.
+- Update `semantics-v3.md` §1.3 (the sentence on `DetPhrase.bare`) to the landed state, and drop
+  `lean-v3-measured-domain-antecedent` from its "awaits" wording.
+
+### Pins: rewritten, retired, added
+
+Name each in the landing report, with the reason.
+
+| Pin | Action |
+|---|---|
+| `countRequiresACountableGroup` | Rewritten. Same claim on the surviving determiner: `countOf` over a plural universal checks; over a non-group it is refused `countableGroup`. |
+| `existentialRequiresAnExistentialMention` | Rewritten. `exists_` over a plain or counted indefinite checks; over "you" it is refused `existentialMention`. |
+| `bareCountDomainDoesNotCompeteWithTheRemainderGroup` | Rewritten. Its claim now holds by closure: a `countOf` leaves no referent, so "the rest" takes the slice's group. Pin that no referent survives. |
+| `measuredDomainIsNotAPerMemberRecipient` | Retired. It pins a raw `.bare` recipient, which no longer exists. The claim it guarded (a measured domain is not a recipient) is carried by the closure pin above. |
+| `okBarePluralPlayerDamageRecipient` | Stays. |
+| `theRestStandsWhereTheOtherRefuses`, `okBoreasChargerSpell` | Stay as written. They must pass with the skips dropped and `countOf` closed; that is the evidence the skips are no longer needed. |
+| `okPurgingScythe` | Rewritten as a counted existential ("two or more creatures are tied for least toughness"), no longer `countOf`. |
+
+New pins:
+
+- *Loxodon Peacekeeper*, with its consequent reading "one of them" from the existential's domain.
+- *Flow State* and *Titania, Voice of Gaea* as in "Corpus cases", plus a refusal-reachability pin
+  that a pronoun after a closed `countOf` does not resolve to its domain (*Tears of Rage*,
+  *Mishra, Claimed by Gix*, *Highcliff Felidar*).
+- One card from each of *Evercoat Ursine*, *Brothers Yamazaki*, *Treasure Map*, *Cursed
+  Recording* and *River Song's Diary* that reads its existential's domain back, when its card is
+  authored.
