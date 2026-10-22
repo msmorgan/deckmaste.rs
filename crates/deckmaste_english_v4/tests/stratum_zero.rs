@@ -43,12 +43,7 @@ fn keyword(lemma: &str, capitalization: SurfaceCase) -> Reading {
         "KeywordParameters",
         vec![leaf],
     );
-    let mut phrase = node("CompleteKeywordPhrase", "KeywordPhrase", vec![parameters]);
-    if let Reading::Node(n) = &mut phrase {
-        n.features
-            .insert("Parameterization".into(), "Supplied".into());
-    }
-    node("CompleteKeywordItem", "KeywordLineItem", vec![phrase])
+    node("CompleteKeywordItem", "KeywordLineItem", vec![parameters])
 }
 
 #[test]

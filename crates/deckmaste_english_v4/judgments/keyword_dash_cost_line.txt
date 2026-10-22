@@ -10,5 +10,5 @@
 + {2}, Pay 2 life: Draw a card.
 + Landfall — Whenever a land you control enters, you gain 1 life.
 # Only a keyword whose em-dash cost ends in its own period is followed by a sentence on its line
-+ <card=Light Up the Night> Flashback—{3}{R}, Remove X loyalty counters from among planeswalkers you control. If you cast this spell this way, X can't be 0. => KeywordPhrase "Flashback—{3}{R}, Remove X loyalty counters from among planeswalkers you control."; Sentence "If you cast this spell this way, X can't be 0."
++ <card=Light Up the Night> Flashback—{3}{R}, Remove X loyalty counters from among planeswalkers you control. If you cast this spell this way, X can't be 0. => KeywordParameters "Flashback—{3}{R}, Remove X loyalty counters from among planeswalkers you control."; Sentence "If you cast this spell this way, X can't be 0."
 + <card=Storm Seeker> Storm Seeker deals damage to target player equal to the number of cards in that player's hand. => NounPhrase "Storm Seeker" as Subject of deal; !Sentence "Seeker deals damage to target player equal to the number of cards in that player's hand."

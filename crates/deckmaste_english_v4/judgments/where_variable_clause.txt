@@ -4,7 +4,7 @@
 + <card=Hemosymbic Mite> Whenever this creature becomes tapped, another target creature you control gets +X/+X until end of turn, where X is this creature's power. => Clause "another target creature you control gets +X/+X until end of turn"; PrepositionPhrase "where X is this creature's power"; Clause "X is this creature's power"; NounPhrase "X"#3 as Subject of be
 + <card=Elenda, the Dusk Rose> When Elenda dies, create X 1/1 white Vampire creature tokens with lifelink, where X is Elenda's power. => Clause "create X 1/1 white Vampire creature tokens with lifelink"; PrepositionPhrase "where X is Elenda's power"; Clause "X is Elenda's power"; NounPhrase "X"#2 as Subject of be
 + <card=Tip the Scales> When you do, all creatures get -X/-X until end of turn, where X is the sacrificed creature's toughness. => Clause "all creatures get -X/-X until end of turn"; PrepositionPhrase "where X is the sacrificed creature's toughness"; Clause "X is the sacrificed creature's toughness"; NounPhrase "X"#3 as Subject of be
-+ Firebending X, where X is this creature's power. => KeywordPhrase "Firebending X"; PrepositionPhrase "where X is this creature's power"; Clause "X is this creature's power"; readings 1
++ Firebending X, where X is this creature's power. => KeywordParameters "Firebending X"; PrepositionPhrase "where X is this creature's power"; Clause "X is this creature's power"; readings 1
 +Clause X is 2 => NounPhrase "X" as Subject of be; readings 1
 +PrepositionPhrase where X is its power => readings 1
 +PrepositionPhrase where X is the number of cards in your hand
