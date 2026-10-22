@@ -110,6 +110,8 @@ semantic_template thatJoin : NounPhrase := that .join
 semantic_template those (w : NounWord) : NounPhrase := .pro (.word w) .many
 /-- "that token" -/
 semantic_template thatToken : NounPhrase := that .token
+/-- "that source": the source a choice or an event named, in any zone [CR#109.2c,609.7a]. -/
+semantic_template thatSource : NounPhrase := that .object
 /-- "those tokens" -/
 semantic_template thoseTokens : NounPhrase := those .token
 /-- "they": the player most recently named. -/
