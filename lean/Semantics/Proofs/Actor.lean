@@ -218,7 +218,7 @@ theorem actorLoseLifeIsYouLoseLife :
 /-- "You may pay 1 life. If you do, draw a card." (`Choice.okMatchedPayer` with the actor) -/
 theorem okActorMatchedPayer :
     Action.check (DRS.ofList [])
-      (may (.pay (payLife 1) .once .paid none none) none
+      (may (payLife 1) none
         (some (draw 1))) = [] := by
   decide
 

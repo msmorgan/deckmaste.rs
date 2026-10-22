@@ -111,7 +111,8 @@ theorem okTriggerLimitOffChapter :
 theorem okPlayerAttackDefender :
     GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .anyPlayer)))) = [] := by decide
 
-def afterLifePayment : DRS := GameEvent.extend (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.changeLife (.down .anyAmount)))
+/-- "Whenever a player pays life": a payment of life, `payLife` [CR#119.4]. -/
+def afterLifePayment : DRS := GameEvent.extend (DRS.ofList []) (does (a .anyPlayer) (payLife anyAmount))
 
 /-- "Whenever a player pays life, that player draws a card." -/
 theorem okLifePaymentPayerReadback :

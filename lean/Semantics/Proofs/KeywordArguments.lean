@@ -58,7 +58,7 @@ theorem amountCannotReadOuterChoice :
 
 theorem costCannotReadOuterChoice :
     Ability.check [(ChoiceSort.quality .number).binding]
-      (keywordCosting ward (.perform (loseLife (.chosenNumber .theChoice)))) =
+      (keywordCosting ward (payLife (.chosenNumber .theChoice))) =
       [.choiceRef .theChoice (.quality .number) 0] := by decide
 
 theorem emptyAndMissingSchemaAreDistinct :
