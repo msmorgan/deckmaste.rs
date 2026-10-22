@@ -44,4 +44,4 @@
 + {1}{G}, {T}: Choose one — => NounPhrase "one" as Object of choose
 + Escape—Sacrifice a creature.
 # A keyword line item has its parameters: the bare mention *Dash* is no keyword line before a sentence.
-+ <card=Warbringer> Dash costs you pay cost {2} less. => Nominal "Dash costs"; !KeywordList "Dash"
++ <card=Warbringer> Dash costs you pay cost {2} less. => Nominal "Dash costs"; !KeywordList "Dash"; !KeywordPhrase "Dash costs you pay cost {2} less"

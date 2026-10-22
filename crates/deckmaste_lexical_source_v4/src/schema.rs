@@ -555,9 +555,9 @@ pub struct KeywordAction {
 pub enum KeywordParameter {
     /// A number or `X`: *bushido 2*.
     Amount,
-    /// A cost after a space: *equip {2}*.
+    /// A mana cost after a space: *equip {2}*.
     Cost,
-    /// A cost after an em dash: *ward—Pay 3 life*.
+    /// A mana cost after an em dash: *suspend 4—{1}{U}*.
     DashCost,
     /// A verbal or composite cost after an em dash, excluding mana-only costs.
     DashNonManaCost,

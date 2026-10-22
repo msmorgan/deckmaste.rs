@@ -55,5 +55,8 @@ its all-endorsed top tier when Right Association landed:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (measured on `lsolvqym`): faces read 28,799 → 28,799;
+   total Readings 214,300 → 214,182 (Surplus 88,560 → 88,449, over 19 units,
+   none rising); lost faces: none.
+2. **Judgment set**: 3,028 enforced at `COMPLETED_STRATUM` 6, all hold; 207
+   pending.
