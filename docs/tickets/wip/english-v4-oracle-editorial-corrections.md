@@ -74,3 +74,23 @@ deliberate (owner ruling). Its rules text differs from "any target".
 - Its `deferred.txt` entry is removed.
 
 Standard constraints apply.
+
+Landed: `crates/deckmaste_english_v4/corrections.txt` is read by
+`Corpus::read`, and a stale correction fails `strata --check`.
+
+- **Printed-card evidence:** Agency Outfitter is recorded, and its deferral is
+  removed. Mathise is recorded as two rows: the SLX card prints the same range
+  dash as Earth-Cult Elemental (AFR), which Oracle spells "—". `HyphenRowHeader`
+  is deleted; the only other hyphen rows are on "Name Sticker" Goblin, which is
+  outside the corpus.
+- **Missed template updates:** Rootwater Thief, Quiet Speculation and Tunnel
+  Vision are recorded. Each printed card keeps "the player shuffles his or her
+  library". Supported Oracle texts say "that player shuffles" in 54 places.
+  Tunnel Vision shares the template.
+- **Not recorded: Spellshift.** Its PLC card prints "Then he or she shuffles
+  his or her library", not "the player". It does not keep the old template, so
+  it lacks missed-template evidence. All four "the player shuffles" units stay
+  unread with either wording.
+
+Census delta (measured on `sloumwnm` → `tvsxoyro`): faces read 28,799 → 28,800; Readings 214,080 → 214,097; Surplus 88,371 → 88,387; lost faces: none. Agency Outfitter's line reads (Stratum 6, 17 Readings).
+Judgment set: all hold, with one added for Agency Outfitter in `coordination.txt` (`cargo test -p deckmaste_english_v4`; `strata --check` passes).

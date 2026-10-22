@@ -90,6 +90,14 @@ it by card and text: a deferred unit is left unread on purpose, owned by a
 ticket, and counted apart. A law failure is never deferred, and a deferred unit
 that reads is stale.
 
+Where a face's Oracle text breaks a convention its printed card keeps, the
+census reads the Editorial Correction recorded in
+[`corrections.txt`](corrections.txt) instead, and the grammar is not relaxed
+for the slip. Each correction names the card, the Oracle text, the corrected
+text and its evidence: the printed card, or a template update the printed card
+predates and current Oracle texts already carry. A correction whose Oracle text
+no longer occurs exactly once in its face's text is stale and fails `--check`.
+
 ```
 cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<census>.json] [--check]
 ```

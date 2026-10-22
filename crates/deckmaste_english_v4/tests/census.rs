@@ -175,6 +175,19 @@ fn a_face_counts_the_sum_of_its_units() {
 }
 
 #[test]
+fn each_editorial_correction_is_well_formed_and_changes_its_text() {
+    let corrections = deckmaste_english_v4::corpus::editorial_corrections();
+    let records = deckmaste_english_v4::EDITORIAL_CORRECTIONS
+        .lines()
+        .filter(|line| line.starts_with("card: "))
+        .count();
+    assert_eq!(corrections.len(), records);
+    for correction in &corrections {
+        assert_ne!(correction.oracle, correction.corrected, "{correction:?}");
+    }
+}
+
+#[test]
 fn the_deferral_list_names_each_unit_once() {
     let lines = deckmaste_english_v4::DEFERRED
         .lines()

@@ -7,6 +7,11 @@
 //! after balanced reminder text is removed (a line break inside a quotation
 //! does not end a line); a face's count is a sum over its units. The split
 //! is deterministic, so a text has one segmentation into units.
+//!
+//! A face's text is read with its recorded Editorial Corrections applied
+//! ([`crate::EDITORIAL_CORRECTIONS`]): where the Oracle text breaks a
+//! convention its printed card keeps, the census reads the corrected text and
+//! the grammar is not relaxed for the slip.
 
 use std::collections::BTreeSet;
 use std::io::BufRead;
@@ -28,8 +33,96 @@ pub struct Face {
     /// card's [CR#201.5c].
     pub scope: BTreeSet<LexemeId>,
     pub type_line: Option<String>,
-    /// Rules text as printed, reminder text included.
+    /// Oracle rules text, reminder text included, with the face's Editorial
+    /// Corrections applied.
     pub oracle_text: Option<String>,
+}
+
+/// One Editorial Correction: `corrected` read in place of `oracle`, which
+/// occurs exactly once in the Oracle text of the face named `card`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorialCorrection {
+    pub card: &'static str,
+    pub oracle: &'static str,
+    pub corrected: &'static str,
+    /// The printed card, or the template update, that the correction cites.
+    pub evidence: &'static str,
+}
+
+impl EditorialCorrection {
+    /// The record as one line, for reports.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        format!("{}: {:?} -> {:?}", self.card, self.oracle, self.corrected)
+    }
+}
+
+/// The tracked Editorial Corrections: blank-line-separated records of
+/// `card:`, `oracle:`, `corrected:` and `evidence:` lines, with `#` comments.
+///
+/// # Panics
+/// On a malformed record, which `tests/census.rs` rejects first.
+#[must_use]
+pub fn editorial_corrections() -> Vec<EditorialCorrection> {
+    let mut records = Vec::new();
+    let mut fields: Vec<(&'static str, &'static str)> = Vec::new();
+    let mut flush = |fields: &mut Vec<(&'static str, &'static str)>| {
+        if fields.is_empty() {
+            return;
+        }
+        let field = |key: &str| {
+            let values: Vec<_> = fields.iter().filter(|(k, _)| *k == key).collect();
+            match values.as_slice() {
+                [(_, value)] if !value.is_empty() => *value,
+                _ => panic!("editorial correction {fields:?} needs one non-empty `{key}:`"),
+            }
+        };
+        assert_eq!(
+            fields.len(),
+            4,
+            "editorial correction {fields:?} has unknown fields"
+        );
+        records.push(EditorialCorrection {
+            card: field("card"),
+            oracle: field("oracle"),
+            corrected: field("corrected"),
+            evidence: field("evidence"),
+        });
+        fields.clear();
+    };
+    for line in crate::EDITORIAL_CORRECTIONS.lines() {
+        if line.starts_with('#') {
+            continue;
+        }
+        if line.trim().is_empty() {
+            flush(&mut fields);
+            continue;
+        }
+        let (key, value) = line
+            .split_once(": ")
+            .unwrap_or_else(|| panic!("editorial correction line `{line}` is not `KEY: VALUE`"));
+        fields.push((key, value.trim_end()));
+    }
+    flush(&mut fields);
+    records
+}
+
+/// `text` with every correction for `name` applied, marking each applied one
+/// in `applied`. A correction applies only where its Oracle text occurs once.
+fn correct(
+    name: &str,
+    text: &str,
+    corrections: &[EditorialCorrection],
+    applied: &mut [bool],
+) -> String {
+    let mut text = text.to_owned();
+    for (correction, applied) in corrections.iter().zip(applied) {
+        if correction.card == name && text.matches(correction.oracle).count() == 1 {
+            text = text.replacen(correction.oracle, correction.corrected, 1);
+            *applied = true;
+        }
+    }
+    text
 }
 
 /// What a Corpus Unit is.
@@ -57,6 +150,9 @@ pub struct Unit {
 pub struct Corpus {
     pub faces: Vec<Face>,
     pub units: Vec<Unit>,
+    /// Editorial Corrections that matched no face of the stream read: the
+    /// Oracle text they correct has changed or gone.
+    pub stale_corrections: Vec<EditorialCorrection>,
 }
 
 /// Why the corpus could not be read.
@@ -109,6 +205,8 @@ impl Corpus {
     /// # Errors
     /// An unreadable or invalid record.
     pub fn read(reader: impl BufRead, keep: impl Fn(&Face) -> bool) -> Result<Self, CorpusError> {
+        let corrections = editorial_corrections();
+        let mut applied = vec![false; corrections.len()];
         let mut corpus = Self::default();
         for card in OracleCardReader::new(reader) {
             let card = card.map_err(|e| CorpusError::Read(e.to_string()))?;
@@ -130,13 +228,20 @@ impl Corpus {
                     card: unit.group_name().to_owned(),
                     scope,
                     type_line: unit.type_line().map(str::to_owned),
-                    oracle_text: unit.oracle_text().map(str::to_owned),
+                    oracle_text: unit
+                        .oracle_text()
+                        .map(|text| correct(unit.display_name(), text, &corrections, &mut applied)),
                 };
                 if keep(&face) {
                     corpus.push(face);
                 }
             }
         }
+        corpus.stale_corrections = corrections
+            .into_iter()
+            .zip(applied)
+            .filter_map(|(correction, applied)| (!applied).then_some(correction))
+            .collect();
         Ok(corpus)
     }
 
@@ -217,6 +322,40 @@ mod tests {
         assert_eq!(
             split_lines("\"A\" and \"B\nC\"\nD"),
             ["\"A\" and \"B\nC\"", "D"]
+        );
+    }
+
+    #[test]
+    fn a_recorded_editorial_correction_is_read_in_place_of_the_oracle_text() {
+        // Agency Outfitter's Oracle text drops the serial comma its printed
+        // card has; the correction is recorded in `corrections.txt`.
+        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Agency Outfitter","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Sphinx Detective","oracle_text":"Search your graveyard, hand and/or library for a card."}"#;
+        let corpus = Corpus::read(std::io::Cursor::new(input), |_| true).unwrap();
+        assert_eq!(
+            corpus.faces[0].oracle_text.as_deref(),
+            Some("Search your graveyard, hand, and/or library for a card.")
+        );
+        assert!(
+            corpus
+                .stale_corrections
+                .iter()
+                .all(|c| c.card != "Agency Outfitter")
+        );
+    }
+
+    #[test]
+    fn a_correction_whose_oracle_text_is_gone_is_stale() {
+        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Agency Outfitter","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Sphinx Detective","oracle_text":"Search your graveyard, hand, and/or library for a card."}"#;
+        let corpus = Corpus::read(std::io::Cursor::new(input), |_| true).unwrap();
+        assert_eq!(
+            corpus.faces[0].oracle_text.as_deref(),
+            Some("Search your graveyard, hand, and/or library for a card.")
+        );
+        assert!(
+            corpus
+                .stale_corrections
+                .iter()
+                .any(|c| c.card == "Agency Outfitter")
         );
     }
 

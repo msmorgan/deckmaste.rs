@@ -1,0 +1,40 @@
+# Oracle editorial corrections: the census reads `corrected` in place of
+# `oracle` in the named face's Oracle text, where that text breaks a
+# convention its printed card keeps. Records are separated by a blank line;
+# each has the four fields below, one line each. `oracle` occurs exactly once
+# in the face's text, and a correction that matches no face is stale and fails
+# `strata --check`. Evidence is the printed card disagreeing with its Oracle
+# text, or a missed template update: the printed card keeps an older template
+# that Oracle has since replaced, with the count of current Oracle texts that
+# carry the new wording (owner ruling, 2026-10-20). A sibling card alone is
+# supporting evidence only.
+
+card: Agency Outfitter
+oracle: your graveyard, hand and/or library
+corrected: your graveyard, hand, and/or library
+evidence: The printed card (MKM 0038, Scryfall image 8112f133-535e-4264-8357-9cbf97957710) reads "graveyard, hand, and/or library", with the serial comma (`docs/decisions/english-v4.md` §3, item 3). Template siblings with that text in Oracle: Boonweaver Giant, Dark Supplicant, Mishra, Artificer Prodigy and Say Its Name. MTGJSON's `originalText` for MKM lacks the comma, against the image; it is not evidence.
+
+card: Mathise, Surge Channeler
+oracle: 1-9 |
+corrected: 1—9 |
+evidence: The printed card (SLX 0025, Scryfall image 3c560e53-73d9-4b0e-9b93-c729e00e7bbe) prints the range "1–9" with the dash that Earth-Cult Elemental (AFR 141) prints, not a hyphen. Oracle spells that dash "—" in all 75 other d20 row ranges among supported cards.
+
+card: Mathise, Surge Channeler
+oracle: 10-19 |
+corrected: 10—19 |
+evidence: As for its "1-9" row: the printed card prints "10–19" with the range dash Oracle spells "—".
+
+card: Rootwater Thief
+oracle: then the player shuffles.
+corrected: then that player shuffles.
+evidence: Missed template update. The printed card (NEM 40, Scryfall image 38addef3-1dd7-41a1-9706-3be5c86a58c9) keeps the older "then the player shuffles his or her library". Oracle's current wording is "that player shuffles", in 54 places among supported cards.
+
+card: Quiet Speculation
+oracle: Then the player shuffles.
+corrected: Then that player shuffles.
+evidence: Missed template update. The printed card (EMA 068, Scryfall image cd12fd06-26c5-42d8-936c-fe10b778a561) keeps the older "Then the player shuffles his or her library". Oracle's current wording is "that player shuffles", in 54 places among supported cards.
+
+card: Tunnel Vision
+oracle: Otherwise, the player shuffles.
+corrected: Otherwise, that player shuffles.
+evidence: Missed template update. The printed card (RAV 72, Scryfall image ae3eba31-02eb-449a-8a36-899ada5664bc) keeps the older "Otherwise, the player shuffles his or her library". Oracle's current wording is "that player shuffles", in 54 places among supported cards.

@@ -77,6 +77,10 @@ pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(6);
 /// unread on purpose, each owned by a ticket (`census::deferrals`).
 pub const DEFERRED: &str = include_str!("../deferred.txt");
 
+/// The tracked Editorial Corrections the census reads in place of Oracle text
+/// (`corpus::editorial_corrections`).
+pub const EDITORIAL_CORRECTIONS: &str = include_str!("../corrections.txt");
+
 /// The directory of the judgment set.
 #[must_use]
 pub fn judgments_dir() -> std::path::PathBuf {

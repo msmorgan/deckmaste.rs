@@ -166,6 +166,13 @@ Family it contains.
 The highest Complexity Stratum whose gate has been met: every non-deferred Corpus
 Unit at or below it is read.
 
+**Editorial Correction** (project term):
+A recorded replacement for part of one face's Oracle text that breaks a
+convention its printed card keeps, which the census reads instead. It cites the
+printed card, or a template update the printed card predates and current Oracle
+texts already carry. It never relaxes the grammar.
+_Avoid_: erratum (an official Oracle change), override
+
 **Syntactic Family** (project term):
 A named syntactic pattern owned by one Complexity Stratum, such as a keyword
 line, a bare relative or a trigger clause, recognized in a Corpus Unit from

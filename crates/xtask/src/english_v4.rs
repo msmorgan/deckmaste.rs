@@ -113,6 +113,15 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
     }
     serde_json::to_writer(File::create(&args.output)?, &report)?;
     write!(output, "{}", report.summary(args.top))?;
+    if !corpus.stale_corrections.is_empty() {
+        writeln!(
+            output,
+            "\nstale editorial corrections (no face's Oracle text matches):"
+        )?;
+        for correction in &corpus.stale_corrections {
+            writeln!(output, "  {}", correction.describe())?;
+        }
+    }
     writeln!(output, "report: {}", args.output.display())?;
     if args.check && !report.regressions.is_empty() {
         anyhow::bail!(
@@ -124,6 +133,12 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
         anyhow::bail!(
             "{} units have no single product segmentation",
             report.not_segmentable.len()
+        );
+    }
+    if args.check && !corpus.stale_corrections.is_empty() {
+        anyhow::bail!(
+            "{} editorial corrections match no face; update or remove them in corrections.txt",
+            corpus.stale_corrections.len()
         );
     }
     if args.check && !report.stale_deferrals.is_empty() {

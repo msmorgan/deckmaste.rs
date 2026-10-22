@@ -1010,7 +1010,6 @@
         (name: "FusedAdjectiveHead", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Class("head", "FusedHeadAdjective")], equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt"), Require("$.Countability", "Count"), Agree("determiner.Countability", "$.Countability"), Require("$.NounKind", "Ordinary")]),
         (name: "SingleRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount")], equations: []),
         (name: "OpenRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount"), Punct('+')], equations: []),
-        (name: "HyphenRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")], equations: []),
         (name: "UnicodeRangeRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('—', Bound), Cat("upper", "Amount")], equations: []),
         (name: "TableRow", lhs: "Ability", rhs: [Cat("header", "RowHeader"), Mark('|', Free), Cat("head", "Ability")]),
         (name: "SequentialVerbalCosts", lhs: "NonManaCost", rhs: [Cat("first", "VerbPhrase"), Punct(','), Cat("rest", "Cost")], equations: [Require("first.VerbForm", "Plain")]),
