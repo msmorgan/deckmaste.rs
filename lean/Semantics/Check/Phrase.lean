@@ -457,7 +457,8 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
     b.seedsAbility n
-  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _ => true
+  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _
+  | _ + 1, .triggeredNotLeftStack => true
   | n + 1, .and ps => ps.any (fun p => p.seedsAbility n)
   | n + 1, .or ps | n + 1, .coord .andOr ps => !ps.isEmpty && ps.all (fun p => p.seedsAbility n)
   | _, _ => false

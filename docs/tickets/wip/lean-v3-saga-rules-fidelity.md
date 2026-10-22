@@ -63,6 +63,15 @@ distinct from the passive `any`, and use it for *Doubling Season* and the other 
 would" sites. Pins: a Saga under Doubling Season enters with 2 lore and gains 1 per precombat main
 phase.
 
+Premise corrected (coordinator decision, 2026-10-22): `Action.putCounters` and
+`Action.createObject` already carry `byEffect`, and Doubling Season's patterns already set it,
+while Hardened Scales, Corpsejack Menace and Primal Vigor do not. So "if an effect would" was
+already distinct from the passive `any`. The defect was the turn-based row, which wrote
+`byEffect = true`. A second encoding of the same distinction is not added. Instead, the row says
+`byEffect = false` [CR#703.1,609.1], `byEffect` is documented as "an effect does it"
+[CR#609.1,614.16], and `sagaLoreIncrementIsNoEffect` pins the row's spelling. The checker has no
+matcher, so the Doubling Season pins are the engine's.
+
 ## Verification
 
 `./lean/scripts/build`; `cargo xtask lean check`; `cargo test -p xtask -p deckmaste_semantics_v2

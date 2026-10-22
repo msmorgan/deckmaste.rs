@@ -273,6 +273,10 @@ mutual
     | manaCostHas (symbol : ManaSymbol)
     | abilityHead (class_ : AbilityClass)
     | abilityOf (source : NounPhrase)
+    /-- The member is an ability that has triggered but not yet left the stack: one waiting to be
+    put on the stack, or one on it [CR#113.7,603.3]. A Saga, a dungeon or a Siege that is the
+    source of one stays [CR#704.5s,704.5t,704.5v]. -/
+    | triggeredNotLeftStack
     | activatedBy (activator : NounPhrase)
     | targets (subject : NounPhrase) (extent : TargetExtent)
 
@@ -1134,11 +1138,17 @@ mutual
     | storeResults (on : NounPhrase)
     | rerollStored (quantity : Quantity) (whose : NounPhrase)
     | establish (spec : StaticSpec) (duration : Option Duration)
+    /-- Create `count` objects as `spec` says. `byEffect` is whether an effect does it: one of a
+    resolving spell or ability, or a replacement or prevention effect [CR#609.1,614.16]. "If an
+    effect would create" watches only a creation with `byEffect`. -/
     | createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool)
         (under : Option NounPhrase)
     /-- Put `amount` counters on `on`. As an event pattern, `amount` is what the text watches:
     "a counter is put" is `.lit 1`, matched by each counter put [CR#603.2c]; "one or more
-    counters are put" is `.anyAmount`, matched by the event [CR#714.2b]. -/
+    counters are put" is `.anyAmount`, matched by the event [CR#714.2b]. `byEffect` is whether an
+    effect does it: one of a resolving spell or ability, or a replacement or prevention effect
+    [CR#609.1,614.16]. "If an effect would put" watches only a put with `byEffect`; a
+    turn-based action is no effect [CR#703.1]. -/
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
         (byEffect : Bool)
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)

@@ -604,6 +604,9 @@ semantic_template comparesOwnStat (stat : Stat) (domain : Predicate) (comparator
 semantic_template thatColor : ColorTerm := .chosen .theChoice
 semantic_template abilityHead (class_ : AbilityClass) : Predicate := .abilityHead class_
 semantic_template abilityOf (source : NounPhrase) : Predicate := .abilityOf source
+/-- "that has triggered but not yet left the stack": waiting to be put on the stack, or on it
+[CR#113.7,603.3]. -/
+semantic_template triggeredNotLeftStack : Predicate := .triggeredNotLeftStack
 semantic_template Predicate.activatedBy (activator : NounPhrase) : Predicate :=
   .activatedBy activator
 /-- "another spell" -/

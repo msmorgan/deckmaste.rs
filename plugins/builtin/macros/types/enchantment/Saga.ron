@@ -8,7 +8,8 @@
 //     ([CR#714.3b]) choose their starting chapter instead — a future row.
 //   - The TURN-BASED lore increment ([CR#714.3c] — as a player's precombat
 //     main phase begins, that player puts a lore counter on each Saga they
-//     control; no stack): `TurnBased` fires on the BEARER'S CONTROLLER'S
+//     control with one or more chapter abilities; no stack): `TurnBased`
+//     fires on the BEARER'S CONTROLLER'S
 //     own precombat main. Engine execution of registry `TurnBased` rows is
 //     stage 3; the chapter triggers themselves execute today.
 //

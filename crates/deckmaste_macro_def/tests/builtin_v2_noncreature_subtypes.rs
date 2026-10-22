@@ -372,7 +372,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             "saga",
             "subtypes/enchantment/saga.ron",
             "body: Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,loreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,loreCounter,1)),StateBased(condition:And([Compare(GreatestWatchedThreshold(This),AtLeast,1),Compare(CounterCount(This,loreCounter),AtLeast,GreatestWatchedThreshold(This))]),effect:sacrifice(You,This))]),",
-            "[Ability(static(onlyUnless(asEvent(enters(thisSaga),establish(entersWithCounters(thisSaga,1,loreCounter))),matches(thisSaga,hasKeyword(The(readAhead)))))),TurnBased(precombatMainPhase,putCounters(1,loreCounter,thisSaga)),StateBased(and([compareAmt(finalChapterNumber(thisSaga),AtLeast,1),compareAmt(countersOn(loreCounter,thisSaga),AtLeast,finalChapterNumber(thisSaga))]),sacrifice(thisSaga))]",
+            "[Ability(static(onlyUnless(asEvent(enters(thisSaga),establish(entersWithCounters(thisSaga,1,loreCounter))),matches(thisSaga,hasKeyword(The(readAhead)))))),TurnBased(precombatMainPhase,doIf(compareAmt(finalChapterNumber(thisSaga),AtLeast,1),putCounters(1,loreCounter,thisSaga))),StateBased(and([compareAmt(finalChapterNumber(thisSaga),AtLeast,1),compareAmt(countersOn(loreCounter,thisSaga),AtLeast,finalChapterNumber(thisSaga)),not(exists(and([chapterAbilityOf(thisSaga),triggeredNotLeftStack])))]),sacrifice(thisSaga))]",
         ),
     ];
 

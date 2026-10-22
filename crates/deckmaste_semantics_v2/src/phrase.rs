@@ -510,6 +510,11 @@ pub enum Predicate {
     AbilityOf {
         source: Box<NounPhrase>,
     },
+    /// The member is an ability that has triggered but not yet left the
+    /// stack: one waiting to be put on the stack, or one on it
+    /// [CR#113.7,603.3]. A Saga, a dungeon or a Siege that is the source of
+    /// one stays [CR#704.5s,704.5t,704.5v].
+    TriggeredNotLeftStack,
     ActivatedBy {
         activator: Box<NounPhrase>,
     },

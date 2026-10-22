@@ -234,21 +234,63 @@ def auraDefinition : Definition :=
         (.move thisAura (.zone .battlefield none) (some graveyard) .arrival none []) ]
 theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
 
+/-- "This Saga has one or more chapter abilities": its final chapter number is at least I
+[CR#714.2d]. -/
+def sagaHasChapterAbilities : Condition :=
+  .compareAmt (finalChapterNumber thisSaga) .atLeast 1
+
+/-- "This Saga is the source of a chapter ability that has triggered but not yet left the stack"
+[CR#714.4,113.7]. -/
+def sagaHasTriggeredChapter : Condition :=
+  exists_ (.and [chapterAbilityOf thisSaga, triggeredNotLeftStack])
+
+/-- "Put a lore counter on this Saga", done by the game as a turn-based action [CR#714.3c]. -/
+def sagaLoreIncrement : Action :=
+  .putCounters 1 (.printed (.named "loreCounter")) thisSaga false
+
 /-- [CR#714.3a,714.3c,714.4] A Saga enters with a lore counter unless it has read ahead, gets one
-as its controller's precombat main phase begins, and is sacrificed once its lore counters reach
-its final chapter number. -/
+as its controller's precombat main phase begins if it has one or more chapter abilities (a
+turn-based action, no effect [CR#703.1,609.1]), and is sacrificed once its lore counters reach its
+final chapter number, unless it is the source of a chapter ability that has triggered but not yet
+left the stack. -/
 def sagaDefinition : Definition :=
   .subtype Semantics.Definitions.saga
     [ .ability (.static (onlyUnless (entersWithCounters thisSaga 1 (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
-        (.putCounters 1 (.printed (.named "loreCounter")) thisSaga true),
+        (doIf sagaHasChapterAbilities sagaLoreIncrement),
       .stateBased
-        (.and [ .compareAmt (finalChapterNumber thisSaga) .atLeast 1,
+        (.and [ sagaHasChapterAbilities,
                 .compareAmt (countersOn (.named "loreCounter") thisSaga) .atLeast
-                  (finalChapterNumber thisSaga) ])
+                  (finalChapterNumber thisSaga),
+                .not sagaHasTriggeredChapter ])
         (sacrifice thisSaga) ]
 theorem okSagaDefinition : Definition.check sagaDefinition = [] := by decide
+
+/-- The lore increment is a turn-based action [CR#714.3c], a game action and no effect
+[CR#703.1,609.1], so its put is not `byEffect`. Doubling Season's "if an effect would put"
+watches only `byEffect` puts [CR#614.16], so it doubles a Saga's entry counter, put by a
+replacement effect [CR#714.3a], and not the increment. The checker has no matcher, so this pins
+the row's spelling; the matching is the engine's. -/
+theorem sagaLoreIncrementIsNoEffect :
+    sagaLoreIncrement = .putCounters 1 (.printed (.named "loreCounter")) thisSaga false := rfl
+
+/-- The triggered-chapter guard reads the Saga's chapter abilities that have triggered and not yet
+left the stack, waiting ones included [CR#714.4,704.5s,113.7]. -/
+theorem okSagaHasTriggeredChapter :
+    Condition.check (DRS.ofList []) sagaHasTriggeredChapter = [] := by
+  decide
+
+/-- "An ability that has triggered but not yet left the stack" is an ability, so it binds an
+ability referent alone, as the Siege's guard writes it [CR#704.5v,310.7]. -/
+theorem triggeredNotLeftStackSeedsAnAbility : triggeredNotLeftStack.seedsAbility = true := rfl
+
+/-- The Siege's guard, "it isn't the source of an ability that has triggered but not yet left the
+stack", over the row's own subject [CR#704.5v,310.7]. -/
+theorem okSiegeGuard :
+    Condition.check (DRS.ofList [])
+      (.not (exists_ (.and [.abilityOf .this, triggeredNotLeftStack]))) = [] := by
+  decide
 
 /-- The type conferral helpers are the raw conferrals. -/
 theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
