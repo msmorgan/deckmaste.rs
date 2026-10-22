@@ -64,7 +64,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none
-        (.enact (.action "destroy") (.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival none []) none none)] } }
+        (.enact (.action "destroy") (.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []) none none)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
@@ -72,7 +72,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (Primitives.Action.sequentially
-        [.enact (.action "destroy") (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival none []]) none none])] } }
+        [.enact (.action "destroy") (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []]) none none])] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Replacement.instead] -/
 #guard_msgs in

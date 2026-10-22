@@ -107,7 +107,7 @@ private def literalAmass : Action :=
         (create 1 (.written (creatureToken 0 0 [.black] [orc, Subtype.army])))
         none,
       choose (a army),
-      .putCounters 2 (.printed p1p1Counter) (that (.type .creature)) true,
+      .putCounters 2 (.printed p1p1Counter) (that (.type .creature)),
       .doIf (.not (.matches it (.hasSubtype (orc))))
         (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [orc] } } none)) none)
@@ -162,7 +162,7 @@ private def scopedAmassOf (amount : Amount) : Action :=
         (create 1 (.written (creatureToken 0 0 [.black] [goblin, Subtype.army])))
         none,
       choose (a army),
-      .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) true,
+      .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)),
       .doIf (.not (.matches it (.hasSubtype (goblin))))
         (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [goblin] } } none)) none)
@@ -525,7 +525,7 @@ deed performed by the actor in context [CR#701.9a]. -/
 theorem okDiscardWrapperCarriesActor :
     Action.check onePlayer
       (instruct they
-        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some theActor))) (some graveyard) .arrival none []) none none))
+        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some theActor))) (some graveyard) .arrival []) none none))
       = [] := by
   decide
 
@@ -533,7 +533,7 @@ theorem okDiscardWrapperCarriesActor :
 that player. -/
 theorem okDiscardWrapperWithAgent :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival none []) none none))
+      (instruct (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival []) none none))
       = [] := by
   decide
 
@@ -669,11 +669,11 @@ permanent. -/
 private def exploreBody (perm : NounPhrase) : Action :=
   instruct (controllerOf theActor) (.sequentially
     [ .expose .reveal (.cards (.slice .top 1 (libraryOf theActor))),
-      .doIf (.matches (that .card) isLand) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival none [])
+      .doIf (.matches (that .card) isLand) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival [])
         (some (.sequentially
-          [ .putCounters 1 (.printed p1p1Counter) perm true,
+          [ .putCounters 1 (.printed p1p1Counter) perm,
             .withContinuation .optional
-              (.move (that .card) .anyLocation (some (.zone .graveyard none)) .arrival none []) none none ])) ])
+              (.move (that .card) .anyLocation (some (.zone .graveyard none)) .arrival []) none none ])) ])
 
 /-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
 private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
@@ -685,7 +685,7 @@ private def literalEndure (n : Nat) : Action :=
   .enact (.action "endure")
     (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
-        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) true),
+        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
           (none, none, create 1 (.written (creatureToken n n [.white] [spirit]))) ])) none none
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/

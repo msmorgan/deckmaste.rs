@@ -56,7 +56,7 @@ def wouldResolutionCaused : WouldClause → Bool
 
 /-- The observation point of a move. -/
 def moveAt? : Action → Option ObservationPoint
-  | .move _ _ _ at_ _ _ => some at_
+  | .move _ _ _ at_ _ => some at_
   | _ => none
 
 /-- The observation point of the move an event names, bare or under a cause. -/

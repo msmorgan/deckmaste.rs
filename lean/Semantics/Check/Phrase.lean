@@ -184,7 +184,7 @@ def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   | _ + 1, .ownScope (some d) _ => some d
   | n + 1, .ownScope none body => body.inferredDeed n
   | _ + 1, .enact verb _ _ _ => some verb
-  | _ + 1, .move _ _ (some (.zone .exile _)) _ _ _ => some (.action "exile")
+  | _ + 1, .move _ _ (some (.zone .exile _)) _ _ => some (.action "exile")
   | _ + 1, .setStatus .tapped _ => some (.action "tap")
   | _ + 1, .setStatus .untapped _ => some (.action "untap")
   | _ + 1, .draw _ => some (.core .draw)
@@ -222,7 +222,7 @@ is written, and the destination [CR#400.7]. -/
 def Action.writtenZoneChange? (inst : Action) (fuel : Nat := 8) : Option (Option Zone × Zone) :=
   match fuel, inst with
   | n + 1, .inCaller body | n + 1, .bracketed body => body.writtenZoneChange? n
-  | _ + 1, .move _ from_ (some to) _ _ _ => to.sort.map (from_.sort, ·)
+  | _ + 1, .move _ from_ (some to) _ _ => to.sort.map (from_.sort, ·)
   | _, _ => none
 termination_by structural fuel
 
@@ -1017,17 +1017,16 @@ def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Action) : List Re
   let agent := match subject with | .any => none | .actor noun | .by noun => some noun
   let agentRead := agent.all NounPhrase.eventAgentOk
   match action.scopeBody with
-  | .putCounters _ _ _ byEffect | .removeCounters _ _ _ byEffect =>
-    refuse agentRead .eventAgent ++
-      refuse (!(byEffect && agent.isSome)) .causedByOk
-  | .createObject _ spec byEffect under =>
+  | .putCounters _ _ _ | .removeCounters _ _ _ =>
+    refuse agentRead .eventAgent
+  | .createObject _ spec under =>
     let tokenErrors := match spec with
       | .token token _ => refuse token.eventSourceOk .tokenPhrase
       | .emblem .. => []
     let underKind := under.map (fun noun => noun.kindIn drs .player)
     kindCheck .player underKind ++ tokenErrors ++
-      refuse (agentRead && under.all (fun noun => noun.plur == .one && noun.eventAgentOk) &&
-        !(byEffect && agent.isSome)) .verbedVoiceOk
+      refuse (agentRead && under.all (fun noun => noun.plur == .one && noun.eventAgentOk))
+        .verbedVoiceOk
   | _ => []
 
 private def actionActorRefusals (drs : DRS) (expected : Kind) : List Refusal :=
@@ -1929,8 +1928,8 @@ Riders. -/
 def Action.isEntering (action : Action) (fuel : Nat := 8) : Bool :=
   match fuel, action with
   | 0, _ => false
-  | _ + 1, .move _ _ to _ _ _ => to.bind (·.sort) == some .battlefield
-  | _ + 1, .createObject _ (.token _ _) _ _ => true
+  | _ + 1, .move _ _ to _ _ => to.bind (·.sort) == some .battlefield
+  | _ + 1, .createObject _ (.token _ _) _ => true
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .instruct _ body
   | n + 1, .enact _ body _ _ => body.isEntering n
   | _ + 1, _ => false
@@ -3378,7 +3377,7 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := stepBallotWith ops drs1 ballot
           let drs3 := drs2.push (outcomeB .voteHeld) .other false
           (drs3, e1 ++ e2 ++ refuse (first.isNone || actorPlurality drs == .many) .choiceOrder)
-        | .move subj from_ to at_ optCause riders =>
+        | .move subj from_ to at_ riders =>
           -- The move's own Observation Point (`Location.observedOnDeparture` for the put and
           -- return Templates) decides whether its battlefield patient is the permanent it was.
           let historicalOrigin := at_ == .departure && match from_.positiveZones? with
@@ -3394,8 +3393,7 @@ def stepOps : Nat → StepOps
             refuse (Kind.lte kind moveKind) (.kindLte kind moveKind))
           let (drs2, e2) := stepLocationWith ops drs1 from_
           let (drs3, e3) := match to with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
-          let (drs4, e4) := match optCause with | some c => stepCausingWith ops drs3 c | none => (drs3, [])
-          let (drs5, e5) := stepMoveRiderListWith ops drs4 riders
+          let (drs5, e5) := stepMoveRiderListWith ops drs3 riders
           let destZone := to.bind (·.sort)
           let drs6 := if phase == .postEvent then
             let moved := applyZoneMove drs5 refIds inst.inferredDeed destZone
@@ -3405,7 +3403,7 @@ def stepOps : Nat → StepOps
               else moved
             | none => moved
           else drs5
-          (drs6, e1 ++ e2 ++ e3 ++ e4 ++ e5)
+          (drs6, e1 ++ e2 ++ e3 ++ e5)
         | .copy sort subj times exs =>
           let (drs1, sourceIds, e1) := ops.np drs patientRole true subj
           let (drs2, e2) := ops.amt drs1 times
@@ -3515,7 +3513,7 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.spec drs spec
           let (drs2, e2) := match dur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           (drs2, e1 ++ e2 ++ refuse (!spec.writesDefining) .cdaGranted)
-        | .createObject cnt spec _ optUnder =>
+        | .createObject cnt spec optUnder =>
           let (drs1, e1) := ops.amt drs cnt
           let (drs2, sourceTypes, e2) := stepCreationSpecMetadataWith ops drs1 spec
           let (drs3, e3) := match optUnder with
@@ -3529,7 +3527,7 @@ def stepOps : Nat → StepOps
             | .token .. => { drs3 with prospectiveTokenTypes := drs3.prospectiveTokenTypes ++ [sourceTypes] }
             | .emblem .. => drs3
           (drs4, e1 ++ e2 ++ e3)
-        | .putCounters amt ks on _ =>
+        | .putCounters amt ks on =>
           let (drs1, e1) := ops.amt drs amt
           let (drs2, e2) := stepCounterKindSourceWith ops drs1 ks
           let (drs3, ids, e3) := ops.np drs2 patientRole true on
@@ -3539,7 +3537,7 @@ def stepOps : Nat → StepOps
             else drs3.push (outcomeB .countersPut) .other false
           (drs4, e1 ++ e2 ++ e3 ++ refuse on.perMemberOk .perMember ++
             refuse (counterHolderKind kind) .counterHolderKind)
-        | .removeCounters optQ optKs from_ _ =>
+        | .removeCounters optQ optKs from_ =>
           let (drs1, ids, e1) := ops.np drs patientRole true from_
           let (drs2, e2) := match optQ with | some q => stepQuantityWith ops drs1 q | none => (drs1, [])
           let (drs3, e3) := match optKs with | some ks => stepCounterKindSourceWith ops drs2 ks | none => (drs2, [])

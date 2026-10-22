@@ -161,7 +161,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .gainDesignation _ _ _ | _n + 1, .gameGains _ | _n + 1, .unlock _ | _n + 1, .conclude _ _ => []
   | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
   | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ _ => []
-  | _n + 1, .move _ _ _ _ _ riders => MoveRider.ridersSlots riders
+  | _n + 1, .move _ _ _ _ riders => MoveRider.ridersSlots riders
   | _n + 1, .turnFaceDown _ _ => []
   -- How many copies to make: a count [CR#107.1b].
   | _n + 1, .copy _ _ times _ => [(times, .clamped)]
@@ -187,13 +187,13 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
     | .letterDefinition _ amount => [(amount, .signed)]
     | _ => []
   | _n + 1, .establish _ _ => []
-  | _n + 1, .createObject count spec _ _ => (count, .clamped) ::
+  | _n + 1, .createObject count spec _ => (count, .clamped) ::
       (match spec with
        | .token _ riders => MoveRider.ridersSlots riders
        | .emblem _ _ => [])
-  | _n + 1, .putCounters amount _ _ _ => [(amount, .clamped)]
+  | _n + 1, .putCounters amount _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]
-  | _n + 1, .removeCounters _ _ _ _ => []
+  | _n + 1, .removeCounters _ _ _ => []
   | _n + 1, .enact _ _ _ _ | _n + 1, .pay _ _ _ _ _ => []
   | _n + 1, .withContinuation _ _ _ _ | _n + 1, .doIf _ _ _ | _n + 1, .limited _ _ => []
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []

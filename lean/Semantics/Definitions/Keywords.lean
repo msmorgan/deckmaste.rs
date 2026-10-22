@@ -45,7 +45,7 @@ semantic_definition cascade : Ability :=
             may (castWithoutPaying (that .card) cheaper),
             .move
               (allOf (and [isCard, was (exile which) thisWay, not (was (cast which) thisWay)]))
-              .anyLocation onBottom .arrival none [(.inOrder .randomOrder)] ]) ]
+              .anyLocation onBottom .arrival [(.inOrder .randomOrder)] ]) ]
 /-- "Ripple N" with its definition [CR#702.60a]: "When you cast this spell, you may reveal the top
 N cards of your library. If you do, you may cast any of those cards with the same name as this
 spell without paying their mana costs, then put all revealed cards not cast this way on the bottom
@@ -63,7 +63,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
                 .move
                   (allOf
                     (and [isCard, was (reveal which) thisWay, not (was (cast which) thisWay)]))
-                  .anyLocation onBottom .arrival none [.inOrder .anyOrder] ]))) ]
+                  .anyLocation onBottom .arrival [.inOrder .anyOrder] ]))) ]
 /-- "Renown N" with its reminder text: "When this creature deals combat damage to a player, if it
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_definition renown (count : Amount) : Ability :=
@@ -328,7 +328,7 @@ semantic_definition blitz (cost : Cost) : Ability :=
   .keyword (.named "blitz") [.cost (.inCaller cost)]
     [ static (altCost this_ (some (.inCaller cost))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
           (doIf (keywordCostPaid (.named "blitz") thisPermanent)
             (atNext .endStep (sacrifice thisPermanent)))),
       static
@@ -358,7 +358,7 @@ semantic_definition buyback (cost : Cost) : Ability :=
           (.causedBy (.event (does .any (resolve thisSpell)))
             (.would .any (putInto thisSpell graveyard (from_ := stack))))
           (doIf (keywordCostPaid (.named "buyback") thisSpell)
-            (instead (.move thisSpell .anyLocation hand .arrival none [])))) ]
+            (instead (.move thisSpell .anyLocation hand .arrival [])))) ]
 semantic_definition casualty (amount : Amount) : Ability :=
   .keyword (.named "casualty") [.number (.inCaller amount)]
     [ static
@@ -450,7 +450,7 @@ semantic_definition dash (cost : Cost) : Ability :=
   .keyword (.named "dash") [.cost (.inCaller cost)]
     [ static (altCost this_ (some (.inCaller cost))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
           (doIf (keywordCostPaid (.named "dash") thisPermanent)
             (atNext .endStep (returnToHand thisPermanent)))),
       static
@@ -609,7 +609,7 @@ semantic_definition enchant (quality : Predicate) : Ability :=
       static
         (replace
           (would .any
-            (.move thisAura (not stack) battlefield .arrival none [.not (.attachedTo .any)]))
+            (.move thisAura (not stack) battlefield .arrival [.not (.attachedTo .any)]))
           (doIf (exists_ (legalHostOf thisAura))
             (also (attachTo thisAura (a (legalHostOf thisAura)))))),
       static
@@ -887,7 +887,7 @@ semantic_definition hideaway (amount : Amount) : Ability :=
         (sequentially
           [ lookAt (topSlice (.inCaller amount)),
             exileFaceDown (someOf (oneThrough 1) them),
-            .move (theRest .object) .anyLocation onBottom .arrival none
+            .move (theRest .object) .anyLocation onBottom .arrival
               [.inOrder .randomOrder],
             establishThroughout
               (.conjunction none
@@ -1005,10 +1005,10 @@ semantic_definition madness (cost : Cost) : Ability :=
     [ static
         (replace (would (a isPlayer) (discard thisCard))
           (instead
-            (enact (.action "discard") (.move thisCard hand exileZone .arrival none [])))),
+            (enact (.action "discard") (.move thisCard hand exileZone .arrival [])))),
       when
         (.causes (.event (does any (discard thisCard)))
-          (does any (.move thisCard hand exileZone .arrival none [])))
+          (does any (.move thisCard hand exileZone .arrival [])))
         (instruct (ownerOf thisCard)
           (mayOrElse
             (establish
@@ -1313,7 +1313,7 @@ semantic_definition reconfigure (cost : Cost) : Ability :=
 semantic_definition recover (cost : Cost) : Ability :=
   .keyword (.named "recover") [.cost (.inCaller cost)]
     [ when
-        (does .any (.move (a isCreature) battlefield yourGraveyard .departure none []))
+        (does .any (.move (a isCreature) battlefield yourGraveyard .departure []))
         (may (pay (.inCaller cost) .once) (returnToHand this_ yourGraveyard)
           (exile this_)) ]
 semantic_definition reinforce (amount : Amount) (cost : Cost) : Ability :=
@@ -1660,7 +1660,7 @@ semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
     [ static (onlyWhile (altCost this_ (some (.inCaller cost))) (is this_ (castFrom yourHand))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival none []))
+        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
           (doIf (keywordCostPaid (.named "warp") thisPermanent)
             (atNext .endStep
               (sequentially

@@ -41,7 +41,7 @@ theorem okIncubate : Action.check (DRS.ofList []) (incubate 3) = [] := by decide
 theorem badDoubleFacedRepeatedType :
     Action.check (DRS.ofList []) (.createObject 1 (.token (.doubleFaced
       { characteristics := { types := [.artifact, .artifact] } }
-      { characteristics := { types := [.creature] } }) []) true none) = [.distinct] := by decide
+      { characteristics := { types := [.creature] } }) []) none) = [.distinct] := by decide
 
 /-- "Waterbend {4}" [CR#701.67a]. -/
 theorem okWaterbend : Action.check (DRS.ofList []) (waterbend (.mana [generic 4])) = [] := by decide
@@ -130,7 +130,7 @@ theorem lifeSetsPublishGainAndLoss :
 
 /-- A named emblem still has abilities [CR#114.1]. -/
 theorem badNamedEmblemWithoutAbilities :
-    Action.check (DRS.ofList []) (.createObject 1 (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by
+    Action.check (DRS.ofList []) (.createObject 1 (.emblem (some "The Ring") []) none) = [.nonEmpty] := by
   decide
 
 end Semantics.Proofs.KeywordActionResidues

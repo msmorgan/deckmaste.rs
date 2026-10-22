@@ -477,7 +477,7 @@ theorem okIronMastiffIgnore : Action.check (DRS.ofList []) ironMastiffIgnore = [
 /-- Xenosquirrels -/
 def xenosquirrelsShift : Ability :=
   after (does you (rollDice 1 .anyDie)) (may
-      (removeCounters (exactly 1) p1p1Counter thisCreature true)
+      (removeCounters (exactly 1) p1p1Counter thisCreature)
       (shiftResult 1))
 theorem okXenosquirrelsShift : Ability.check (DRS.ofList []) xenosquirrelsShift = [] := by decide
 

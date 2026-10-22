@@ -157,6 +157,36 @@ def rainOfGore : Spelled := spelled <| singleFacedCard
         (gainLife anyAmount)))
     (instead (instruct (that player) (loseLife thatMuch)))) ] }
 
+/-- Wilt-Leaf Liege's last line: "If a spell or ability an opponent controls causes you to discard
+this card, put it onto the battlefield instead of putting it into your graveyard." -/
+def wiltLeafLiegeDiscardReplacement : Ability :=
+  static (replace
+    (causedBy
+      (bySource (a (and [or [isSpell, abilityHead .anyOnStack], anOpponentControls])))
+      (would you (discard thisCard)))
+    (instead (putOntoBattlefield it)))
+
+/-- The discard has a performer (you) and, orthogonally, a cause (a spell or ability an opponent
+controls) [CR#609.1,701.9a], and the replacement checks clean with both. -/
+theorem okWiltLeafLiegeEffectCausedDiscard :
+    Ability.check (DRS.ofList []) wiltLeafLiegeDiscardReplacement = [] ∧
+    (match wiltLeafLiegeDiscardReplacement with
+      | .static (.replace (.causedBy (.source _) (.would (.actor .you) _)) ..) => true
+      | _ => false) = true := by decide
+
+/-- Wilt-Leaf Liege -/
+def wiltLeafLiege : Spelled := spelled <| singleFacedCard
+  { name := "Wilt-Leaf Liege",
+    cost := [generic 1, hybridPip .green .white, hybridPip .green .white, hybridPip .green .white],
+    types := [.creature], subtypes := [elf, knight],
+    text :=
+      [ static (getsPt (allOf (and [isCreature, hasColor .green, youControl, isOther]))
+          (up 1) (up 1)),
+        static (getsPt (allOf (and [isCreature, hasColor .white, youControl, isOther]))
+          (up 1) (up 1)),
+        wiltLeafLiegeDiscardReplacement ],
+    power := stat 4, toughness := stat 4 }
+
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
   static (entersWithAdditionalCounters thisCreature 1 p1p1Counter)
@@ -165,7 +195,7 @@ theorem okMasterChefGrantedAbility : Ability.check (DRS.ofList []) masterChefGra
 def anointedProcession : Spelled := spelled <| singleFacedCard
   { name := "Anointed Procession", cost := [generic 3, pip .white], types := [.enchantment],
     text :=
-      [ static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) true you)) (instead (create (times 2 groupSize) asThose []))) ] }
+      [ static (replace (causedBy byAnEffect (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) you))) (instead (create (times 2 groupSize) asThose []))) ] }
 
 def naturalAffinity : Spelled := spelled <| singleFacedCard
   { name := "Natural Affinity", cost := [generic 2, pip .green], types := [.instant],

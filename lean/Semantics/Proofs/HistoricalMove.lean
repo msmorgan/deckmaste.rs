@@ -12,7 +12,7 @@ private def creatureRead : NounPhrase := .pro (.word (.type .creature)) .one
 
 private def deathLookback : DidClause :=
   ⟨.any, .move creatureRead (.zone .battlefield none)
-    (some (.zone .graveyard none)) .departure none [], some .thisWay⟩
+    (some (.zone .graveyard none)) .departure [], some .thisWay⟩
 
 /-- After "Destroy that creature": the destroyed creature, and the destruction and the move from
 the battlefield to a graveyard it records, which a "this way" reads back. -/
@@ -39,7 +39,7 @@ theorem historicalDeathDoesNotMakeTheDeadCreatureCurrent :
       Action.check out (.setStatus .untapped creatureRead) =
         [.anaphor (.word (.type .creature)) .one 0] ∧
       Action.check out
-        (.putCounters 1 (.printed (.named "p1p1Counter")) creatureRead true) =
+        (.putCounters 1 (.printed (.named "p1p1Counter")) creatureRead) =
         [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 /-- An ordinary move and a lookback from another origin cannot borrow battlefield type reach. -/
@@ -48,7 +48,7 @@ theorem historicalEligibilityRequiresItsWrittenOrigin :
       [.anaphor (.word (.type .creature)) .one 0] ∧
     Condition.check context (.did ⟨.any,
       .move creatureRead (.zone .hand none)
-        (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) =
+        (some (.zone .graveyard none)) .departure [], some .thisWay⟩) =
       [.anaphor (.word (.type .creature)) .one 0, .thisWayUngrounded] := by decide
 
 private def mixedOrigin : Location := .coord .or [.zone .battlefield none, .zone .hand none]
@@ -59,9 +59,9 @@ from the battlefield or a hand reads the permanent the creature was [CR#603.6c,6
 theorem mixedOriginReadsThePermanentOnlyOnDeparture :
     Location.observedOnDeparture mixedOrigin (.zone .graveyard none) = true ∧
     Condition.check context (.did ⟨.any, .move creatureRead mixedOrigin
-      (some (.zone .graveyard none)) .departure none [], some .thisWay⟩) = [] ∧
+      (some (.zone .graveyard none)) .departure [], some .thisWay⟩) = [] ∧
     Condition.check context (.did ⟨.any, .move creatureRead mixedOrigin
-      (some (.zone .graveyard none)) .arrival none [], some .thisWay⟩) =
+      (some (.zone .graveyard none)) .arrival [], some .thisWay⟩) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 end Semantics.Proofs.HistoricalMove

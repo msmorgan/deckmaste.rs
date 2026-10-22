@@ -9,7 +9,7 @@ theorem exileOmittedAgent :
       Action.ownScope (some (.action "exile"))
         (.enact (.action "exile")
           (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
-            .anyLocation (some exileZone) .arrival none []) none none) := by rfl
+            .anyLocation (some exileZone) .arrival []) none none) := by rfl
 
 theorem exileNamedAgent :
     instruct .you (exile thisPermanent) =
@@ -17,7 +17,7 @@ theorem exileNamedAgent :
         (Action.ownScope (some (.action "exile"))
         (.enact (.action "exile")
           (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
-            .anyLocation (some exileZone) .arrival none []) none none)) := by rfl
+            .anyLocation (some exileZone) .arrival []) none none)) := by rfl
 
 theorem chooseOmittedAgent :
     choose (a isCreature) = Action.choose none (a isCreature) .openly none := by rfl
@@ -38,6 +38,6 @@ theorem millNamedAgent :
         (Action.ownScope (some (.action "mill"))
           (.enact (.action "mill")
             (.move (.slice .top (.inCaller 3) (libraryOf .actor))
-              (.zone .library none) (some graveyard) .arrival none []) none none)) := by rfl
+              (.zone .library none) (some graveyard) .arrival []) none none)) := by rfl
 
 end Semantics.Proofs.ActionForms

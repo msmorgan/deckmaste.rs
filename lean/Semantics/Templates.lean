@@ -81,7 +81,7 @@ semantic_template stopBlocking (subject blocked : NounPhrase) : Action :=
 semantic_template unattach (subject : NounPhrase) : Action := .attachment .unattached subject none
 /-- "you get an emblem with <abilities>" -/
 semantic_template getEmblem (abilities : List Ability) : Action :=
-  .createObject 1 (.emblem none abilities) true none
+  .createObject 1 (.emblem none abilities) none
 
 /-! ## Pronouns -/
 
@@ -1092,14 +1092,14 @@ performing agent. -/
 
 /-- "<subject> dies": put into a graveyard from the battlefield [CR#700.4]. -/
 semantic_template die : Action :=
-  .move .actor (.zone .battlefield none) (some (.zone .graveyard none)) .departure none []
+  .move .actor (.zone .battlefield none) (some (.zone .graveyard none)) .departure []
 /-- "<subject> enters [from <from_>]" -/
 semantic_template enter (from_ : Option Location := none) (riders : List MoveRider := []) :
     Action :=
-  .move .actor (from_.getD .anyLocation) (some (.zone .battlefield none)) .arrival none riders
+  .move .actor (from_.getD .anyLocation) (some (.zone .battlefield none)) .arrival riders
 /-- "<subject> leaves <from_>", the battlefield unless said. -/
 semantic_template leave (from_ : Location := battlefield) : Action :=
-  .move .actor from_ none .departure none []
+  .move .actor from_ none .departure []
 /-- "<subject> phases out" [CR#702.26b] -/
 semantic_template phaseOut : Action := .setStatus .phasedOut .actor
 /-- "<subject> phases in" [CR#702.26c] -/
@@ -1117,7 +1117,7 @@ on its departure, and "from anywhere" is not a leaves-the-battlefield trigger
 private semantic_template zoneChange (subject : NounPhrase) (destination : Location)
     (from_ : Location) (riders : List MoveRider) : Action :=
   .move subject from_ destination
-    (if from_.observedOnDeparture destination then .departure else .arrival) none riders
+    (if from_.observedOnDeparture destination then .departure else .arrival) riders
 /-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
 its owner's control". -/
 semantic_template putInto (subject : NounPhrase) (destination : Location)
@@ -1224,7 +1224,7 @@ semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
     (agent : NounPhrase := you) : Action :=
-  .removeCounters (amount.map Quantity.exactlyOf) kind agent true
+  .removeCounters (amount.map Quantity.exactlyOf) kind agent
 semantic_template loseLife (amount : Amount) : Action :=
   .changeLife (.down amount)
 semantic_template gainLife (amount : Amount) : Action :=
@@ -1393,16 +1393,16 @@ semantic_template distributeCounters (amount : Amount) (kind : CounterKind) (amo
   .distribute (.counters kind) amount among
 /-- "remove <q> <kind> counters from <from>" -/
 semantic_template removeCounters (quantity : Quantity) (kind : Option CounterKindSource)
-    (from_ : NounPhrase) (byEffect : Bool := true) : Action :=
-  .removeCounters quantity kind from_ byEffect
+    (from_ : NounPhrase) : Action :=
+  .removeCounters quantity kind from_
 /-- "<who> loses all [<kind>] counters" -/
 semantic_template loseAllCounters (kind : Option CounterKindSource)
     (agent : NounPhrase := you) : Action :=
   loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
-semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase)
-    (byEffect : Bool := true) : Action :=
-  .removeCounters none kind from_ byEffect
+semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) :
+    Action :=
+  .removeCounters none kind from_
 /-- `cost` as what paying it pays. Paying a cost carries out its instructions [CR#118.1], so where
 the cost is itself one plain payment ("Ward—Pay 5 life", "unless you pay 1 life"), paying it is that
 payment, made once: `pay (payLife 5)` is `payLife 5`, never a payment of a payment. Its Reference
@@ -1432,8 +1432,8 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
-        spill .arrival none spillRiders,
-      .move (theRest .object) .anyLocation onTop .arrival none
+        spill .arrival spillRiders,
+      .move (theRest .object) .anyLocation onTop .arrival
         [(.inOrder .anyOrder)] ]
 /-- "<subject> gets +P/+T [until …]" as an action. -/
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
@@ -1536,10 +1536,10 @@ semantic_template copyOnStack (subject : NounPhrase) (times : Amount := 1)
 semantic_template copyTargets (copy original : NounPhrase) : Action := .copyTargets copy original
 semantic_template createDoubleFacedToken (front back : CharacteristicBundle)
     (riders : List MoveRider := []) : Action :=
-  .createObject 1 (.token (.doubleFaced front back) riders) true none
-semantic_template createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool := true)
+  .createObject 1 (.token (.doubleFaced front back) riders) none
+semantic_template createObject (count : Amount) (spec : CreationSpec)
     (under : Option NounPhrase := none) : Action :=
-  .createObject count spec byEffect under
+  .createObject count spec under
 semantic_template distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase) : Action :=
   .distribute verb amount among
 /-- "<action>. <forbidden> can't happen this turn": the action, then a prohibition of
@@ -1599,9 +1599,8 @@ counters of the kind removed this way (`those`). -/
 semantic_template moveCounters (amount : Amount) (source destination : NounPhrase)
     (kind : Option CounterKindSource := none) : Action :=
   .sequentially
-    [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source)
-        true,
-      .putCounters amount (kind.getD .those) destination true ]
+    [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source),
+      .putCounters amount (kind.getD .those) destination ]
 /-- "pay <cost>": paying a cost carries out its instructions [CR#118.1]. A cost that is itself one
 plain payment ("Pay 5 life", `payLife`) is paid by making that payment once, not by paying a
 payment (`Cost.asPaid`). -/
@@ -1612,9 +1611,9 @@ semantic_template procedure (kind : Procedure) (subject : NounPhrase) (payment :
     (resulting : Option Predicate := none) (from_ : Option Location := none)
     (of_ : Option NounPhrase := none) : Action :=
   .procedure kind subject payment resulting from_ of_
-semantic_template putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
-    (byEffect : Bool := true) : Action :=
-  .putCounters amount kind on byEffect
+semantic_template putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase) :
+    Action :=
+  .putCounters amount kind on
 semantic_template relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase) :
     Action :=
   .relate subject label counterpart
@@ -1734,42 +1733,42 @@ semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginni
 (`theNth (.nth 12)`). -/
 semantic_template countersPut (kind : CounterKind) (amount : Amount) (subject : NounPhrase) :
     GameEvent :=
-  .does .any (.putCounters amount (.printed kind) subject false)
+  .does .any (.putCounters amount (.printed kind) subject)
 /-- "<quantity> <kind> counters are removed from <subject>": "a … counter is removed"
 (`exactly 1`) or "one or more … are removed" (`orMore 1`). -/
 semantic_template countersRemoved (kind : CounterKind) (quantity : Quantity)
     (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters quantity (some (.printed kind)) subject false)
+  .does .any (.removeCounters quantity (some (.printed kind)) subject)
 /-- "<amount> counters are put on <subject>", the kind unsaid. -/
 semantic_template bareCountersPut (amount : Amount) (subject : NounPhrase) : GameEvent :=
-  .does .any (.putCounters amount .anyKind subject false)
+  .does .any (.putCounters amount .anyKind subject)
 /-- "<quantity> counters are removed from <subject>", the kind unsaid. -/
 semantic_template bareCountersRemoved (quantity : Quantity) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters quantity none subject false)
+  .does .any (.removeCounters quantity none subject)
 /-- "the last <kind> counter is removed from <subject> by <who>" -/
 semantic_template lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) :
     GameEvent :=
-  .does (.by who) (.removeCounters (some .theLast) (some (.printed kind)) subject false)
+  .does (.by who) (.removeCounters (some .theLast) (some (.printed kind)) subject)
 /-- "one or more counters are put on <subject> by an effect" -/
 semantic_template manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
-  .does .any (.putCounters .anyAmount .anyKind subject true)
+  .causes .anEffect (.does .any (.putCounters .anyAmount .anyKind subject))
 /-- "<who> puts one or more counters on <subject>" -/
 semantic_template manyBareCountersPutBy (who subject : NounPhrase) : GameEvent :=
-  .does (.actor who) (.putCounters .anyAmount .anyKind subject false)
-/-- A token-creation event, retaining its creator, controller, and effect restriction. -/
-semantic_template tokenCreationEvent (tokens : NounPhrase) (byEffect : Bool)
+  .does (.actor who) (.putCounters .anyAmount .anyKind subject)
+/-- A token-creation event, retaining its creator and controller. -/
+semantic_template tokenCreationEvent (tokens : NounPhrase)
     (by_ under : Option NounPhrase) : GameEvent :=
   .does (match by_ with | some creator => .by creator | none => .any)
-    (.createObject .anyAmount (.token (.copyOf tokens []) []) byEffect under)
+    (.createObject .anyAmount (.token (.copyOf tokens []) []) under)
 /-- "one or more tokens would be created" -/
 semantic_template tokensCreated (tokens : NounPhrase) : GameEvent :=
-  tokenCreationEvent tokens false none none
+  tokenCreationEvent tokens none none
 /-- "one or more tokens would be created under <under>'s control by an effect" -/
 semantic_template tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameEvent :=
-  tokenCreationEvent tokens true none under
+  .causes .anEffect (tokenCreationEvent tokens none under)
 /-- "the last <kind> counter is removed from <subject>" -/
 semantic_template lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters (some .theLast) (some (.printed kind)) subject false)
+  .does .any (.removeCounters (some .theLast) (some (.printed kind)) subject)
 /-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
 semantic_template copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=
   let typeOp := if typesAdded then QualityOp.adds else .sets
@@ -2165,9 +2164,9 @@ semantic_template ofColor (color : ColorTerm) : PipPaid := .ofColor color
 /-- "<subject> moves from <from_> [to <to>]", observed on its `at_` side: the general zone change
 the worded moves (`die`, `enter`, `leave`, `putInto`, …) specialize [CR#400.7]. -/
 semantic_template move (subject : NounPhrase) (from_ : Location) (to : Option Location)
-    (at_ : ObservationPoint) (cause : Option Causing := none) (riders : List MoveRider := []) :
+    (at_ : ObservationPoint) (riders : List MoveRider := []) :
     Action :=
-  .move subject from_ to at_ cause riders
+  .move subject from_ to at_ riders
 /-- "<pile>": one of the piles a separation made, as a place cards go. -/
 semantic_template thePile (pile : NounPhrase) : Location := .pile pile
 /-- "each" occurrence [of <player>'s]: each turn, each upkeep. -/
@@ -2212,6 +2211,10 @@ semantic_template causedBy (cause : Causing) (clause : WouldClause) : WouldClaus
 semantic_template bySource (source : NounPhrase) : Causing := .source source
 /-- "<event> causes …" -/
 semantic_template byEvent (event : GameEvent) : Causing := .event event
+/-- "an effect causes …", "if an effect would …": a resolving spell's or ability's effect, or a
+replacement or prevention effect [CR#609.1,614.16]. Whether an Action is an effect follows from the
+node that encloses it: a turn-based action is none [CR#703.1]. -/
+semantic_template byAnEffect : Causing := .anEffect
 
 /-! ## Counter kinds -/
 

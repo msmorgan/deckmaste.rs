@@ -153,7 +153,7 @@ theorem onlyACoordinatedTestSubjectHoldsAnIndefinite :
 private def thePutCreatures : NounPhrase :=
   .described (.the .many)
     (.and [ .did ⟨.any, .move .which (.zone .battlefield none) (some (.zone .graveyard none))
-              .departure none [], none⟩,
+              .departure [], none⟩,
             .hasType .creature ])
 
 /-- Two creatures moved from the battlefield to a graveyard. -/

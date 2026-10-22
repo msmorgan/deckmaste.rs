@@ -58,7 +58,7 @@ def workhorse : Spelled := spelled <| singleFacedCard
     text :=
       [ static (entersWithCounters thisCreature 4 p1p1Counter),
         activated
-          (removeCounters (exactly 1) p1p1Counter thisCreature true)
+          (removeCounters (exactly 1) p1p1Counter thisCreature)
           (addMana 1 (manaOf [[.colorless]])) ],
     power := stat 0, toughness := stat 0 }
 
@@ -289,7 +289,7 @@ def mercadianBazaar : Spelled := spelled <| singleFacedCard
         activated tapSymbol (putCounters 1 storageCounter thisLand),
         activated
           (compound [tapSymbol,
-            (removeCounters anyNumber storageCounter thisLand true)])
+            (removeCounters anyNumber storageCounter thisLand)])
           (addMana removedThisWay (manaOf [[.of .red]])) ] }
 
 /-- Rootcoil Creeper -/
@@ -308,7 +308,7 @@ def blackManaBattery : Spelled := spelled <| singleFacedCard
           (putCounters 1 chargeCounter thisArtifact),
         activated
           (compound [tapSymbol,
-            (removeCounters anyNumber chargeCounter thisArtifact true)])
+            (removeCounters anyNumber chargeCounter thisArtifact)])
           (sequentially
             [ addMana 1 (manaOf [[.of .black]]),
               addMana removedThisWay (manaOf [[.of .black]]) ]) ] }
@@ -421,7 +421,7 @@ def sageOfFables : Spelled := spelled <| singleFacedCard
         activated
           (compound [[generic 2],
             (removeCounters (exactly 1) p1p1Counter
-                       (a (and [isCreature, youControl])) true)])
+                       (a (and [isCreature, youControl])))])
           (draw 1) ],
     power := stat 2, toughness := stat 2 }
 
@@ -663,7 +663,7 @@ def investigatorsJournal : Spelled := spelled <| singleFacedCard
       [ static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls suspectCounter),
         activated
           (compound [[generic 2], tapSymbol,
-            (removeCounters (exactly 1) suspectCounter thisArtifact true)])
+            (removeCounters (exactly 1) suspectCounter thisArtifact)])
           (draw 1),
         activated (compound [[generic 2], sacrifice thisArtifact])
           (draw 1) ] }
@@ -1014,7 +1014,7 @@ def fellwarStone : Spelled := spelled <| singleFacedCard
 def iceCauldronNotedMana : Ability :=
   activated
     (compound [tapSymbol,
-      (removeCounters (exactly 1) chargeCounter thisArtifact true)])
+      (removeCounters (exactly 1) chargeCounter thisArtifact)])
     (addMana 1 (ofTheLastNotedType thisArtifact)
       [spendOnly [toCast exiledWithThisArtifact]])
 theorem okIceCauldronNotedMana : Ability.check (DRS.ofList []) iceCauldronNotedMana = [] := by decide

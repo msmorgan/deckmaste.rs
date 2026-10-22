@@ -8,7 +8,7 @@ namespace Semantics.Proofs.DrtWitnesses
 private def kalitasBody : Action := .sequentially [
   destroy (target isCreature),
   .doIf (was (.move (that (.type .creature)) (battlefield)
-        (some (graveyardOf .any)) .departure none []) thisWay)
+        (some (graveyardOf .any)) .departure []) thisWay)
     (.sequentially [
       create 1
         (.written { characteristics :=
@@ -45,7 +45,7 @@ theorem historicalReadDoesNotChangeCurrentZone :
 theorem historicalReadDoesNotLeakIntoFollowingAction :
     Action.check destroyedCreature
       (.sequentially [gainLife (powerOf (that (.type .creature))),
-        .putCounters 1 (.printed p1p1Counter) (that (.type .creature)) true]) =
+        .putCounters 1 (.printed p1p1Counter) (that (.type .creature))]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 private def brokenVisageBody : Action := .sequentially [

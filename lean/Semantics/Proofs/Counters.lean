@@ -122,12 +122,12 @@ theorem badJoinedHeaderReadback :
     Ability.check (DRS.ofList [])
       (when (does thisCreature enter)
         (joins := [⟨does (a (and [isCreature, youControl])) die, [], none, none⟩])
-        (.putCounters 1 p11 it true)) = [.anaphor .bare .one 0] := by
+        (.putCounters 1 p11 it)) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Remove a +1/+1 counter from target creature." -/
 theorem okRemoveCounterFromTarget :
-    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some p11) (target isCreature) true)
+    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some p11) (target isCreature))
       = [] := by
   decide
 
@@ -141,15 +141,15 @@ theorem destructionPreservesMovedCardIdentityWithoutCounterMemory :
 theorem newCountersOnMovedCardCanBeRemoved :
     Action.check (DRS.ofList [])
       (.sequentially [destroy (target isCreature),
-        .putCounters 1 p11 (that .card) true,
-        .removeCounters (some (exactly 1)) (some p11) (that .card) true]) = [] := by decide
+        .putCounters 1 p11 (that .card),
+        .removeCounters (some (exactly 1)) (some p11) (that .card)]) = [] := by decide
 
 theorem countersPlacedDuringMoveCanBeRemoved :
     Action.check (DRS.ofList [])
       (.sequentially [
-        .move (target isCreature) .anyLocation (some exileZone) .arrival none
+        .move (target isCreature) .anyLocation (some exileZone) .arrival
           [(.withCounters 1 p11 .fresh)],
-        .removeCounters (some (exactly 1)) (some p11) (that .card) true]) = [] := by decide
+        .removeCounters (some (exactly 1)) (some p11) (that .card)]) = [] := by decide
 
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :
@@ -218,7 +218,7 @@ theorem badSimultaneousReadsMayDeed :
     Action.check (DRS.ofList [])
       (.simultaneously
         [ may (create 1 (.written (creatureToken 1 1 [.green] [plant]))),
-          (.putCounters 1 p11 it true) ]) = [.anaphor .bare .one 0] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "You may have this deal 2 damage and you gain that much life." -/
@@ -236,7 +236,7 @@ theorem badBatchTwoCreatesThenIt :
         [ .simultaneously
             [ create 1 (.written (creatureToken 1 1 [.green] [plant])),
               create 1 (.written (creatureToken 1 1 [.white] [soldier])) ],
-          (.putCounters 1 p11 it true) ]) = [.anaphor .bare .one 2] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 2] := by
   decide
 
 theorem badBatchTwoOutcomesThenThatMuch :
@@ -252,7 +252,7 @@ theorem okCreatedThenCountered :
     Action.check (DRS.ofList [])
       (.sequentially
         [ create 1 (.written (creatureToken 1 1 [.green] [plant])) [],
-          (.putCounters 1 p11 it true) ]) = [] := by
+          (.putCounters 1 p11 it) ]) = [] := by
   decide
 
 theorem badDistributedCreationIt :
@@ -260,18 +260,18 @@ theorem badDistributedCreationIt :
       (.sequentially
         [ instruct (each .anyPlayer) (create 1
             (.written (creatureToken 1 1 [.green] [plant])) []),
-          (.putCounters 1 p11 it true) ]) = [.anaphor .bare .one 0] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Put a +1/+1 counter on each of up to two target creatures." -/
 theorem okDistributedCounterRecipient :
     Action.check (DRS.ofList [])
-      (.putCounters 1 p11 (.eachOf (.described (.target (upTo 2)) isCreature)) true) = [] := by
+      (.putCounters 1 p11 (.eachOf (.described (.target (upTo 2)) isCreature))) = [] := by
   decide
 
 /-- "Put a +1/+1 counter on up to two target creatures." -/
 theorem badBarePluralCounterRecipient :
-    Action.check (DRS.ofList []) (.putCounters 1 p11 (.described (.target (upTo 2)) isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 p11 (.described (.target (upTo 2)) isCreature))
       = [.perMember] := by
   decide
 
@@ -291,20 +291,20 @@ theorem badBarePluralDamageRecipient :
 theorem badThemCounterRecipient :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target anyNumber) isCreature), (.putCounters 1 p11 them true)])
+        [choose (.described (.target anyNumber) isCreature), (.putCounters 1 p11 them)])
       = [.perMember] := by
   decide
 
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
     Action.check (DRS.ofList [])
-      (.enact (.action "exile") (.move (target isCreature) .anyLocation (some exileZone) .arrival none [(.withCounters 1 p11 .fresh)]) none none) =
+      (.enact (.action "exile") (.move (target isCreature) .anyLocation (some exileZone) .arrival [(.withCounters 1 p11 .fresh)]) none none) =
             [] := by
   decide
 
 /-- "Put a +1/+1 counter on target creature." -/
 theorem okPutBoostCounterOnCreature :
-    Action.check (DRS.ofList []) (.putCounters 1 p11 (target isCreature) true) = [] := by decide
+    Action.check (DRS.ofList []) (.putCounters 1 p11 (target isCreature)) = [] := by decide
 
 /-- "a +1/+1 counter": a +X/+Y counter is a declared kind like any other [CR#122.1a]. -/
 theorem okBoostCounterKind : CounterKind.check p1p1Counter = [] := by decide
@@ -339,7 +339,7 @@ theorem okLastBoostCounterRemoved :
 
 /-- "Put a charge counter on this artifact." -/
 theorem okChargeCounterOnArtifact :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "chargeCounter")) thisArtifact true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "chargeCounter")) thisArtifact)
       = [] := by
   decide
 
@@ -347,8 +347,8 @@ theorem okChargeCounterOnArtifact :
 +1/+1 counters are put on it instead": a pattern of `anyAmount` counters publishes how many. -/
 theorem okOneOrMoreCountersPublishTheirCount :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) false))
-        (instead (.putCounters (plus .thatMuch 1) p11 it true))
+      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl]))))
+        (instead (.putCounters (plus .thatMuch 1) p11 it))
         none .repeatedly none) = [] := by
   decide
 
@@ -356,8 +356,8 @@ theorem okOneOrMoreCountersPublishTheirCount :
 "that many" to read. -/
 theorem badOneCounterPublishesNoCount :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters 1 (.printed p1p1Counter) (a (and [isCreature, youControl])) false))
-        (instead (.putCounters (plus .thatMuch 1) p11 it true))
+      (.replace (.would .any (.putCounters 1 (.printed p1p1Counter) (a (and [isCreature, youControl]))))
+        (instead (.putCounters (plus .thatMuch 1) p11 it))
         none .repeatedly none)
       = [.quantOutcomeInScope 0] := by
   decide
@@ -365,14 +365,18 @@ theorem badOneCounterPublishesNoCount :
 /-- "Whenever one or more +1/+1 counters are put on a creature you control, …" -/
 theorem okUncausedCounterWithAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor .you) (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) false))
+      (.does (.actor .you) (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl]))))
       = [] := by
   decide
 
-theorem badCausedCounterWithAgent :
+/-- "Whenever an effect causes you to put one or more +1/+1 counters on a creature you control":
+a performer and an effect cause together. The two are orthogonal [CR#614.16,609.1], so the event
+checks clean. -/
+theorem okEffectCausedCounterWithAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor .you) (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) true))
-      = [.causedByOk] := by
+      (.causes .anEffect (.does (.actor .you)
+        (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])))))
+      = [] := by
   decide
 
 /-- "each creature with a +1/+1 counter on it" -/
@@ -405,54 +409,54 @@ theorem badEmptyCounterMenu :
 /-- "Put your choice of a +1/+1 counter or a first strike counter on target creature." -/
 theorem okSameScopeCounterMenu :
     Action.check (DRS.ofList [])
-      (.putCounters 1 (.chosen [p1p1Counter, .named "firstStrikeCounter"]) (target isCreature) true)
+      (.putCounters 1 (.chosen [p1p1Counter, .named "firstStrikeCounter"]) (target isCreature))
       = [] := by
   decide
 
 /-- "Put a poison counter on target opponent." -/
 theorem okPoisonCounterLabel :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "poison")) (target (.isOpponentOf .you)) true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "poison")) (target (.isOpponentOf .you)))
       = [] := by
   decide
 
 /-- "Put a zorp counter on target creature." -/
 theorem badUnknownCounterLabel :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Zorp")) (target isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Zorp")) (target isCreature))
       = [.knownCounter] := by
   decide
 
 /-- "Put a flying counter on target creature." [CR#122.1b], written with the keyword's label:
 the kind is the declaration's name, `flyingCounter`, and "Flying" names no counter. -/
 theorem badKeywordCounterNamedPlainly :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Flying")) (target isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Flying")) (target isCreature))
       = [.knownCounter] := by
   decide
 
 /-- "Put a flying counter on target creature." [CR#122.1b], written with the declared name. -/
 theorem okKeywordCounterByName :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed flyingCounter) (target isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed flyingCounter) (target isCreature))
       = [] := by
   decide
 
 def afterCountersPut : DRS :=
   GameEvent.extend (DRS.ofList [])
-    (.does (.actor .you) (.putCounters .anyAmount .anyKind (a (.and [isCreature, .other])) false))
+    (.does (.actor .you) (.putCounters .anyAmount .anyKind (a (.and [isCreature, .other]))))
 
 /-- "Put that many counters of each of those kinds on this creature." -/
 theorem okThoseKindsAfterCountersPut :
-    Action.check afterCountersPut (.putCounters .thatMuch .those .this true) = [] := by decide
+    Action.check afterCountersPut (.putCounters .thatMuch .those .this) = [] := by decide
 
 /-- "Put a counter of each of those kinds on target creature." -/
 theorem badThoseKindsUnannounced :
-    Action.check (DRS.ofList []) (.putCounters 1 .those (target isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 .those (target isCreature))
       = [.outcomeInScope .countersPut 0] := by
   decide
 
 /-- "If ... +1/+1 counters ... that many plus one are put instead." -/
 theorem okInterceptsCounterEvent :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) false))
-        (instead (.putCounters (plus .thatMuch 1) p11 it true))
+      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl]))))
+        (instead (.putCounters (plus .thatMuch 1) p11 it))
         none .repeatedly none) = [] := by
   decide
 
@@ -501,12 +505,12 @@ theorem badAnaphoricTokenAfterTwoDistinctSpecs :
 bench. -/
 theorem counterOnGraveyardCard :
     Action.check (DRS.ofList [])
-      (.putCounters 1 p11 (target (.and [isCreature, .in_ (graveyardOf .you)])) true) = [] := by
+      (.putCounters 1 p11 (target (.and [isCreature, .in_ (graveyardOf .you)]))) = [] := by
   decide
 
 /-- "put a counter of each kind that's on this creature on target creature" -/
 theorem okSameKindsOnCreature :
-    Action.check (DRS.ofList []) (.putCounters 1 (.sameAs thisCreature) (target isCreature) true)
+    Action.check (DRS.ofList []) (.putCounters 1 (.sameAs thisCreature) (target isCreature))
       = [] := by
   decide
 
@@ -519,21 +523,22 @@ one of each of those kinds are put on that permanent instead." The replaced even
 agent. -/
 theorem okAgentlessCounterReplacement :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount .anyKind teamPermanent false))
-        (instead (.putCounters (plus .thatMuch 1) .those (that .permanent) true))
+      (.replace (.would .any (.putCounters .anyAmount .anyKind teamPermanent))
+        (instead (.putCounters (plus .thatMuch 1) .those (that .permanent)))
         none .repeatedly none)
       = [] := by
   decide
 
 /-- "one or more counters would be put on a permanent your team controls" -/
 theorem okAgentlessCounterPutEvent :
-    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount .anyKind teamPermanent false)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount .anyKind teamPermanent)) = [] := by decide
 
-/-- The same event claiming both a player who puts the counters and an effect that causes
-them: a counter-put event has one cause, not two. -/
-theorem badCounterEventAgentAndEffect :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.putCounters .anyAmount .anyKind teamPermanent true))
-      = [.causedByOk] := by
+/-- The same event with both a player who puts the counters and an effect that causes them: the
+performer and the cause are orthogonal [CR#614.16,609.1], so it checks clean. -/
+theorem okCounterEventAgentAndEffect :
+    GameEvent.check (DRS.ofList [])
+      (.causes .anEffect (.does (.actor .you) (.putCounters .anyAmount .anyKind teamPermanent)))
+      = [] := by
   decide
 
 private def exileCost : Cost :=
@@ -542,9 +547,9 @@ private def exileCost : Cost :=
 private def countersOnTheExiledCard : Action :=
   .sequentially
     [ (.putCounters 4 (.printed (.named "timeCounter"))
-        (the (and [was (exile which), isCard])) true),
+        (the (and [was (exile which), isCard]))),
       (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and
-          [ .other, .hasPossessor .owner .you, .in_ exileZone ])) true) ]
+          [ .other, .hasPossessor .owner .you, .in_ exileZone ]))) ]
 
 /-- "{T}: Exile a card from your hand and put four time counters on it. Then remove a time
 counter from each other card you own in exile." The bare "other" is anchored on the card this
@@ -564,7 +569,7 @@ theorem okOtherAnchorsOnTheCardThisAbilityExiled :
 the Source (`semantics-v3.md` §0.1). -/
 theorem okBareOtherAnchorsOnTheSource :
     let effect := Action.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter")))
-      (each (.and [.other, .hasPossessor .owner .you, .in_ exileZone])) true
+      (each (.and [.other, .hasPossessor .owner .you, .in_ exileZone]))
     Ability.check (DRS.ofList []) (activated .tapSymbol effect) = [] ∧
       (stepAction 64 .postEvent .obj (DRS.ofList []) effect).1.contrastAnchors = [.source] := by
   decide
@@ -582,8 +587,8 @@ reads the count of its own kind, which a state-based conferral may (ruling 2026-
 def annihilation : Conferral :=
   .stateBased (.matches .this (.and [.hasCounters (some p1p1Counter), .hasCounters (some m1m1Counter)]))
     (.simultaneously
-      [ (.removeCounters (some (.exactlyOf annihilationCount)) (some (.printed p1p1Counter)) .this true),
-        (.removeCounters (some (.exactlyOf annihilationCount)) (some (.printed m1m1Counter)) .this true) ])
+      [ (.removeCounters (some (.exactlyOf annihilationCount)) (some (.printed p1p1Counter)) .this),
+        (.removeCounters (some (.exactlyOf annihilationCount)) (some (.printed m1m1Counter)) .this) ])
 
 /-- "the smaller of" two counts is an amount, and so is each of them. -/
 theorem okAnnihilationCount : Amount.check (DRS.ofList []) annihilationCount = [] := by decide
@@ -697,7 +702,7 @@ of `theLast`: a pattern distinct from "a time counter is removed" (`exactly 1`),
 counter and publishing no count. -/
 theorem theLastEncodesSuspendsLastCounterTrigger :
     lastCounterRemoved timeCounter this_ =
-        .does .any (.removeCounters (some .theLast) (some (.printed timeCounter)) this_ false) ∧
+        .does .any (.removeCounters (some .theLast) (some (.printed timeCounter)) this_) ∧
       GameEvent.check (DRS.ofList []) (lastCounterRemoved timeCounter this_) = [] ∧
       countOutcomes .countersRemoved
         (GameEvent.extend (DRS.ofList []) (lastCounterRemoved timeCounter this_)) = 0 ∧
@@ -711,7 +716,7 @@ twelfth occurrence of a one-counter put (`nthOccurrence` over `1`). It is singul
 publishes no count of counters put. -/
 theorem theNthEncodesTheCounterThreshold :
     countersPut hourCounter (theNth (.nth 12)) thisArtifact =
-        .does .any (.putCounters (.theNth (.nth 12)) (.printed hourCounter) thisArtifact false) ∧
+        .does .any (.putCounters (.theNth (.nth 12)) (.printed hourCounter) thisArtifact) ∧
       GameEvent.check (DRS.ofList []) (countersPut hourCounter (theNth (.nth 12)) thisArtifact)
         = [] ∧
       countOutcomes .countersPut

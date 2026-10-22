@@ -307,7 +307,7 @@ theorem castPermissionsKeepPayingInstead :
         some
           (when
             (.causes (.event (does any (discard thisCard)))
-              (does any (.move thisCard hand exileZone .arrival none [])))
+              (does any (.move thisCard hand exileZone .arrival [])))
             (instruct (ownerOf thisCard)
               (mayOrElse
                 (establish

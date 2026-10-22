@@ -50,9 +50,9 @@ def exploreDef (subject : NounPhrase) : Action :=
         .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
         .doIf
           (.matches (.pro .bare .one) (.hasType .land))
-          (.move (.pro .bare .one) .anyLocation (some handZone) .departure (some .anEffect) [])
+          (.move (.pro .bare .one) .anyLocation (some handZone) .departure [])
           (some (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.laterMention "subject" (.inCaller subject)) true))
+            (.laterMention "subject" (.inCaller subject))))
       ]
 
 theorem explore_def_sound :
@@ -67,14 +67,14 @@ def conniveDef (subject : NounPhrase) : Action :=
       .sequentially [
         .draw (.exactlyOf (.lit 1)),
         .move (.described (.a .unmarked) (.and [.isCard, .in_ handZone]))
-          (handZone) (some graveyardZone) .departure (some .anEffect) [],
+          (handZone) (some graveyardZone) .departure [],
         .doIf
           (.did ⟨.actor .you,
             .move (.described (.a .unmarked) (.not (.hasType .land)))
-              (handZone) (some graveyardZone) .departure (some .anEffect) [],
+              (handZone) (some graveyardZone) .departure [],
             some .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.laterMention "subject" (.inCaller subject)) true)
+            (.laterMention "subject" (.inCaller subject)))
           none
       ]
 
@@ -88,12 +88,12 @@ def airbendDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.firstMention "subject" (.inCaller subject))
-        .anyLocation (some exileZone) .departure (some .anEffect) [],
+        .anyLocation (some exileZone) .departure [],
       .establish
         (.can (.actor .you)
           (.procedure .cast
             (.described (.the .one)
-              (.and [.did ⟨.any, .move .which .anyLocation (some exileZone) .departure none [], none⟩,
+              (.and [.did ⟨.any, .move .which .anyLocation (some exileZone) .departure [], none⟩,
                 .isCard]))
             (.payingInstead (.mana [.simple (.generic 2)])) none none none)
           {})
@@ -109,7 +109,7 @@ def postMoveLaterMentionRefused : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.firstMention "subject" (.inCaller targetCreature))
-        .anyLocation (some exileZone) .departure (some .anEffect) [],
+        .anyLocation (some exileZone) .departure [],
       .setStatus .tapped (.laterMention "subject" (.inCaller targetCreature))
     ]
 
@@ -162,12 +162,11 @@ def kalitasReplacement : Ability :=
       (.would .any
         (.move (.described (.a .unmarked)
             (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you))]))
-          (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) []))
+          (.zone .battlefield none) (some graveyardZone) .departure []))
       (.instead (.sequentially [
-        .move (.pro (.word (.type .creature)) .one) .anyLocation (some exileZone) .departure (some .anEffect) [],
+        .move (.pro (.word (.type .creature)) .one) .anyLocation (some exileZone) .departure [],
         .createObject (.lit 1)
-          (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) [])
-          true none
+          (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) []) none
       ]))
       none .repeatedly none
 
@@ -179,7 +178,7 @@ theorem kalitas_replacement_sound :
 def sacrificeDrawActivated : Ability :=
   .activated
     (.perform (.enact (.action "sacrifice")
-      (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) [])
+      (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure [])
       none none))
     (.draw (.exactlyOf (.statOf (.stat .power) (.pro .bare .one))))
     none none none none
@@ -222,7 +221,7 @@ def sliceBCountersAndCharPin : Ability :=
         (.doForEachKind .counterKind (some (.firstMention "double.on" targetCreature))
           .counterKind
           (.putCounters (.statOf .boundCounter (.laterMention "double.on" targetCreature))
-            .bound (.laterMention "double.on" targetCreature) true)),
+            .bound (.laterMention "double.on" targetCreature))),
       .establish
         (.characteristicChange (.pro .bare .one)
           [.typeLine .adds { subtypes := some [Definitions.dragon] }])
@@ -241,8 +240,8 @@ def sliceCFactOrFictionPin : Ability :=
       .instruct (.described (.a .unmarked) (.isOpponentOf .you))
         (.separateIntoPiles (.pro .bare .many) 2 []),
       .move (.described .all (.and [.isCard, .in_ (.pile (.pileOf (.counted (.range (some 1) (some 1))) none))]))
-        .anyLocation (some handZone) .departure (some .anEffect) [],
-      .move (.theRest .pile .one) .anyLocation (some graveyardZone) .departure (some .anEffect) []
+        .anyLocation (some handZone) .departure [],
+      .move (.theRest .pile .one) .anyLocation (some graveyardZone) .departure []
     ]
 
 theorem slice_c_fact_or_fiction_pin_sound :
@@ -258,7 +257,7 @@ def sliceDVoteAndChoicePin : Ability :=
         (.vote (some .you) .openly (.byLabel ["grace", "condemnation"]) none),
       .draw (.exactlyOf (.votesFor "grace")),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
-        (.zone .battlefield none) (some handZone) .departure (some .anEffect) []
+        (.zone .battlefield none) (some handZone) .departure []
     ]
 
 theorem slice_d_vote_and_choice_pin_sound :

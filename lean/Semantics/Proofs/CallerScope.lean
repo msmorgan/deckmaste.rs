@@ -36,7 +36,7 @@ private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : 
 private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.exactlyOf 1)
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
 private semantic_template moveSubject (subject : NounPhrase) : Action :=
-  .move subject .anyLocation (some graveyard) .arrival none []
+  .move subject .anyLocation (some graveyard) .arrival []
 private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhrase → Action)) : Action :=
   body chosen
 private abbrev SubjectBody := NounPhrase → Action
@@ -61,7 +61,7 @@ private semantic_definition selectThenTap (subject : NounPhrase) : Action :=
       .setStatus .untapped (.laterMention "select.subject" .any)])
 private semantic_definition selectThenMove (subject : NounPhrase) : Action :=
   .ownScope none (.move (.firstMention "select.subject" (.inCaller subject))
-    .anyLocation (some graveyard) .arrival none [])
+    .anyLocation (some graveyard) .arrival [])
 private semantic_definition announceThen (chosen : NounPhrase) (body : Action) : Action :=
   .ownScope none (.sequentially [.setStatus .tapped (.firstMention "announce.subject" (.inCaller chosen)),
     .inCaller body])
@@ -186,11 +186,11 @@ theorem eventParametersPublishTheirOutcome :
 theorem templateUseRemainsInsideCondition :
     Action.doIf (.compareAmt 1 .eq 1) (moveSubject (target isCreature)) none =
       .doIf (.compareAmt 1 .eq 1)
-        (.move (target isCreature) .anyLocation (some graveyard) .arrival none []) none := by rfl
+        (.move (target isCreature) .anyLocation (some graveyard) .arrival []) none := by rfl
 theorem templateUseRemainsInsideRepetition :
     Action.repeat_ (.fixed 2 (moveSubject (target isCreature))) =
       .repeat_ (.fixed 2
-        (.move (target isCreature) .anyLocation (some graveyard) .arrival none [])) := by rfl
+        (.move (target isCreature) .anyLocation (some graveyard) .arrival [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
     (Amount.countOf (forwardedSubject (counted (exactly 2) isCreature))).check (DRS.ofList []) = [] := by decide
 theorem forwardedYouRemainsThePayer : (forwardedSubject Primitives.NounPhrase.you).isYou = true := by decide

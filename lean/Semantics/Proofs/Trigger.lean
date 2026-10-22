@@ -59,12 +59,12 @@ theorem selfAttackPublishesItsCreature :
 /-- "the last Intervention counter is removed from this enchantment by you" -/
 theorem okAnnouncingRemovalAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.by .you) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment false)) = [] := by
+      (.does (.by .you) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment)) = [] := by
   decide
 
 theorem badAnnouncingRemovalAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.by (target .anyPlayer)) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment false)) = [.eventAgent] := by
+      (.does (.by (target .anyPlayer)) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment)) = [.eventAgent] := by
   decide
 
 /-- "Whenever a creature attacks a player, …" -/
@@ -90,13 +90,13 @@ theorem okHeaderOwnTurnWindow :
 
 /-- "If one or more tokens would be created under your control, …" -/
 theorem okTokenCreationSubject :
-    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false (some .you)))
+    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) (some .you)))
       = [] := by
   decide
 
 /-- "If one or more creatures would be created under your control, …" -/
 theorem badNonTokenCreationSubject :
-    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) isCreature) []) []) false (some .you)))
+    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) isCreature) []) []) (some .you)))
       = [.tokenPhrase] := by
   decide
 
@@ -138,31 +138,34 @@ theorem badKeywordCostPaymentThatMuch :
 
 /-- "whenever one or more time counters are put on this enchantment" -/
 theorem okManyCountersOnPlacement :
-    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount (.printed (.named "timeCounter")) thisEnchantment false))
+    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount (.printed (.named "timeCounter")) thisEnchantment))
       = [] := by
   decide
 
 /-- "Whenever you create one or more tokens, …" -/
 theorem okTokensCreatedByYou :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false none))
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) none))
       = [] := by
   decide
 
-/-- "Whenever an effect and you would create one or more tokens, …" -/
-theorem badTokensCreatedByCauserAndPlayer :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) true none))
-      = [.verbedVoiceOk] := by
+/-- "Whenever an effect causes you to create one or more tokens, …": a performer under an effect
+cause, the two orthogonal [CR#614.16,609.1]. -/
+theorem okTokensCreatedByYouUnderAnEffect :
+    GameEvent.check (DRS.ofList [])
+      (.causes .anEffect (.does (.actor .you)
+        (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) none)))
+      = [] := by
   decide
 
 /-- "Whenever one or more tokens are created under your opponents' control, …" -/
 theorem badTokensCreatedUnderPlural :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false (some (.described .all (.isOpponentOf .you))))) = [.verbedVoiceOk] := by
+      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) (some (.described .all (.isOpponentOf .you))))) = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever an opponent creates one or more tokens, …" -/
 theorem badTokensCreatedByMintingNoun :
-    GameEvent.check (DRS.ofList []) (.does (.actor anOpponent) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) false none))
+    GameEvent.check (DRS.ofList []) (.does (.actor anOpponent) (.createObject .anyAmount (.token (.copyOf (counted (orMore 1) .isToken) []) []) none))
       = [.verbedVoiceOk] := by
   decide
 
@@ -249,7 +252,7 @@ theorem badCrimeByAllPlayers :
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
 def rollShiftBody : Action :=
-  may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature true)
+  may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature)
     (some (shiftResult 1))
 
 /-- "you roll a die" -/

@@ -124,7 +124,7 @@ theorem deathPublishesArrival :
 
 theorem deathInterceptionKeepsDeparture :
     nounZone (WouldClause.extend (DRS.ofList [])
-      (.would .any (.move (a isCreature) (battlefield) (some graveyard) .departure none []))) it =
+      (.would .any (.move (a isCreature) (battlefield) (some graveyard) .departure []))) it =
       some .battlefield := by decide
 
 theorem unknownDepartureCanBeConstrained :
@@ -132,36 +132,36 @@ theorem unknownDepartureCanBeConstrained :
 
 theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.move (a (.and [.isCard, .in_ (graveyardOf (a (.isOpponentOf .you)))])) (.not (graveyardOf .you)) (some exileZone) .departure none [])) = [] := by decide
+      (.does .any (.move (a (.and [.isCard, .in_ (graveyardOf (a (.isOpponentOf .you)))])) (.not (graveyardOf .you)) (some exileZone) .departure [])) = [] := by decide
 
 theorem arrivalCanBeDescribedAsCard :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.move (a (.and [.isCard, isCreature])) (.zone .library none) (some graveyard) .arrival none [])) = [] := by decide
+      (.does .any (.move (a (.and [.isCard, isCreature])) (.zone .library none) (some graveyard) .arrival [])) = [] := by decide
 
 theorem anywhereAndBattlefieldHaveDifferentObservation :
     (match does any (putInto .this graveyard (from_ := some .anyLocation)) with
-      | .does _ (.move _ _ _ point _ _) => point | _ => .departure) = .arrival ∧
+      | .does _ (.move _ _ _ point _) => point | _ => .departure) = .arrival ∧
     (match does any (putInto .this graveyard (from_ := some (battlefield))) with
-      | .does _ (.move _ _ _ point _ _) => point | _ => .arrival) = .departure := by decide
+      | .does _ (.move _ _ _ point _) => point | _ => .arrival) = .departure := by decide
 
 /-- A pattern whose origin list names the battlefield beside another zone is a leaves-the-battlefield
 ability [CR#603.6c], so it looks back in time [CR#603.10a]: "put into a graveyard from the
 battlefield or your hand" is observed on its departure, like the battlefield alone. -/
 theorem mixedOriginWithTheBattlefieldIsObservedOnDeparture :
     (match does any (putInto .this graveyard (from_ := some (or [battlefield, yourHand]))) with
-      | .does _ (.move _ _ _ point _ _) => point | _ => .arrival) = .departure := by decide
+      | .does _ (.move _ _ _ point _) => point | _ => .arrival) = .departure := by decide
 
 theorem historyDoesNotMoveTheCurrentReference :
     let before := nounResult (DRS.ofList []) (a isCreature)
     let after := (stepPredicate 64 before (.did ⟨.any,
-      .move .which (battlefield) (some graveyard) .departure none [], some .thisWay⟩)).1
+      .move .which (battlefield) (some graveyard) .departure [], some .thisWay⟩)).1
     nounZone after it = some .battlefield := by decide
 
 theorem anyZoneChangeIsMeaningful :
-    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) .anyLocation none .arrival none [])) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) .anyLocation none .arrival [])) = [] := by decide
 
 theorem playerIsNotAChangingObject :
-    GameEvent.check (DRS.ofList []) (.does .any (.move .you .anyLocation none .arrival none [])) =
+    GameEvent.check (DRS.ofList []) (.does .any (.move .you .anyLocation none .arrival [])) =
       [.kindLte .player (.join .object .pile)] := by decide
 
 theorem explicitCardLocationIsRetained :
@@ -197,7 +197,7 @@ theorem controlledCreatureSpellsRemainIncluded :
 
 theorem beforeObservationRetainsKnownUnspecifiedOrigin :
     nounZone (WouldClause.extend (DRS.ofList [])
-      (.would .any (.move (a isCreature) .anyLocation none .departure none []))) it =
+      (.would .any (.move (a isCreature) .anyLocation none .departure []))) it =
       some .battlefield := by decide
 
 theorem placelessCardsDoNotAcquireBattlefieldEvidence :
@@ -205,12 +205,12 @@ theorem placelessCardsDoNotAcquireBattlefieldEvidence :
       (a (.and [.isCard, isCreature, .not (.in_ battlefield)]))) it = none := by decide
 
 theorem destinationReadsTheSourcePossessor :
-    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure none [])) =
+    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure [])) =
       [] := by decide
 
 theorem bodyReadsTheSourcePossessor :
     NounPhrase.checkAt (some .player)
-      (GameEvent.extend (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure none [])))
+      (GameEvent.extend (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure [])))
       (that .player) = [] := by decide
 
 theorem excludingYourGraveyardAllowsAnOpponentsGraveyard :
@@ -308,7 +308,7 @@ by you, wherever the effect was then, not the first one it applies to. The ordin
 private def firstCreationEachTurn : WouldClause :=
   nthOccurrence (.nth 1)
     (would (by_ you)
-      (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) false))
+      (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])))
     (some .turn)
 
 private def moonlitReplacement : StaticSpec :=
@@ -319,7 +319,7 @@ theorem firstTimeEachTurnIsTheWatchedEventsOrdinal :
     firstCreationEachTurn =
         .nthOccurrence (.nth 1) (some .turn)
           (would (by_ you)
-            (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) false)) ∧
+            (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []))) ∧
       moonlitReplacement =
         .replace firstCreationEachTurn
           (instead (may (create groupSize (copyOf (enchanted permanent)) []))) none .repeatedly

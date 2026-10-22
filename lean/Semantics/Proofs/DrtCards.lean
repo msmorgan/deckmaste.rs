@@ -7,7 +7,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.DrtCards
 
 private def feralContest : Action := .sequentially [
-  .putCounters 1 (.printed p1p1Counter) (target (and [isCreature, youControl])) true,
+  .putCounters 1 (.printed p1p1Counter) (target (and [isCreature, youControl])),
   .establish
     (.must (.actor (target (.and [isCreature, .other]))) (.block it) {})
     (some thisTurn)]
@@ -187,7 +187,7 @@ theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
       triggerEvents := (does thisCreature enter).triggerEvents }
     let original := initial.referents.head?.map (·.id)
     let out := stepCondition 16 initial
-      (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival none [],
+      (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival [],
         some .triggering⟩)
     out.2 = [] ∧ (original.bind out.1.findById?).map (·.zone) = some (some .battlefield) ∧
       out.1.historicalReferentIds = [] := by decide +kernel
@@ -200,7 +200,7 @@ theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
 
 private def createdCreature : Action :=
   .createObject 1
-    (.token (.written { characteristics := { types := [.creature] } }) []) true none
+    (.token (.written { characteristics := { types := [.creature] } }) []) none
 
 private def creatureCreationLoop : Action :=
   .doForEach (.described .all (.hasType .creature)) createdCreature
@@ -215,7 +215,7 @@ theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
 
 theorem aTokenMentionIsNotACreationResult :
     let mention := Action.putCounters 1 (.printed p1p1Counter)
-      (.described (.a .unmarked) (.isToken)) true
+      (.described (.a .unmarked) (.isToken))
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) mention)
     out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧
@@ -236,7 +236,7 @@ theorem nestedCreationLoopsRetainOnlyTheirFreshAggregate :
 
 theorem creationResultsKeepTheirActualDestinationAfterAMove :
     let moved := Action.sequentially [createdCreature,
-      .move (.pro .bare .one) (battlefield) (some exileZone) .departure none []]
+      .move (.pro .bare .one) (battlefield) (some exileZone) .departure []]
     let out := stepAction 16 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) moved)
     let groups := out.1.visibleReferents.filter (·.createdResult)
@@ -250,7 +250,7 @@ theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
     let out := stepAction 12 .postEvent .obj initial
       (.doForEach (.described .all (.hasType .creature))
         (.move (.pro (.word .token) .one) (battlefield)
-          (some exileZone) .departure none []))
+          (some exileZone) .departure []))
     let created := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ created.map (·.id) = [3] ∧ created.map (·.plur) = [.one] ∧
       created.all (fun ref => ref.zone == some .exile) = true ∧

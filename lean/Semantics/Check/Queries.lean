@@ -162,10 +162,10 @@ private theorem countDomainDoesNotCompeteWithTheRemainderGroup :
 
 private def prospectiveCreatureCreation : Action :=
   .createObject (.lit 1)
-    (.token (.written { characteristics := { types := [.creature] } }) []) true none
+    (.token (.written { characteristics := { types := [.creature] } }) []) none
 
 private def repeatProspectiveTokens : Action :=
-  .createObject (.lit 3) (.token .asThose []) true none
+  .createObject (.lit 3) (.token .asThose []) none
 
 private theorem prospectiveTokenDescriptionDoesNotIntroduceAnActualToken :
     let out := (stepAction 8 .preEvent .obj (DRS.ofList []) prospectiveCreatureCreation).1
@@ -175,7 +175,7 @@ private theorem prospectiveTokenDescriptionDoesNotIntroduceAnActualToken :
 
 private theorem prospectiveEmblemIsNotATokenDescription :
     let out := (stepAction 8 .preEvent .obj (DRS.ofList [])
-      (.createObject (.lit 1) (.emblem none []) true none)).1
+      (.createObject (.lit 1) (.emblem none []) none)).1
     out.prospectiveTokenTypes = [] ∧
       (stepTokenSpecMetadataWith (stepOps 8) out .asThose).2.2 = [.tokenSpecInScope 0] := by decide
 
@@ -192,7 +192,7 @@ private theorem replacementTokenDescriptionStaysInItsOwnScope :
 private theorem nestedReplacementUsesItsOwnTokenDescription :
     let initial := { (DRS.ofList []) with prospectiveTokenTypes := [[.land]] }
     let nested := Action.replace prospectiveCreatureCreation
-      (.instead (.replace (.createObject (.lit 1) (.token .asThose []) true none)
+      (.instead (.replace (.createObject (.lit 1) (.token .asThose []) none)
         (.instead repeatProspectiveTokens)))
     let result := stepAction 8 .postEvent .obj initial nested
     result.2 = [] ∧ result.1.prospectiveTokenTypes = [[.land]] ∧

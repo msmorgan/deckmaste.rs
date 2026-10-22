@@ -137,7 +137,6 @@ inductive Refusal where
   | verbedVoiceOk
   /-- A handoff names neither a player nor an object. -/
   | handoffPerformer
-  | causedByOk
   | tokenPhrase
   | numberChoiceInScope
   | notCoord

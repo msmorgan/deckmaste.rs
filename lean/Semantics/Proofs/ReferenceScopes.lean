@@ -115,7 +115,7 @@ private def sharedAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .subj true creatureX).1
 private def previousAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
-    (.putCounters 1 (.printed p1p1Counter) creatureX false)).1
+    (.putCounters 1 (.printed p1p1Counter) creatureX)).1
 private def conditionAfter (drs : DRS) : DRS :=
   (stepCondition 64 drs (.matches creatureX isCreature)).1
 

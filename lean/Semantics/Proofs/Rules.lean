@@ -269,7 +269,7 @@ theorem okFortificationDefinition : Definition.check fortificationDefinition = [
 def auraDefinition : Definition :=
   .subtype Semantics.Definitions.aura
     [ .stateBased (.not (isAttached thisAura))
-        (.move thisAura (.zone .battlefield none) (some graveyard) .arrival none []) ]
+        (.move thisAura (.zone .battlefield none) (some graveyard) .arrival []) ]
 theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
 
 /-- "This Saga has one or more chapter abilities": its final chapter number is at least I
@@ -284,7 +284,7 @@ def sagaHasTriggeredChapter : Condition :=
 
 /-- "Put a lore counter on this Saga", done by the game as a turn-based action [CR#714.3c]. -/
 def sagaLoreIncrement : Action :=
-  .putCounters 1 (.printed (.named "loreCounter")) thisSaga false
+  .putCounters 1 (.printed (.named "loreCounter")) thisSaga
 
 /-- [CR#714.3a,714.3c,714.4] A Saga enters with a lore counter unless it has read ahead, gets one
 as its controller's precombat main phase begins if it has one or more chapter abilities (a
@@ -306,12 +306,15 @@ def sagaDefinition : Definition :=
 theorem okSagaDefinition : Definition.check sagaDefinition = [] := by decide
 
 /-- The lore increment is a turn-based action [CR#714.3c], a game action and no effect
-[CR#703.1,609.1], so its put is not `byEffect`. Doubling Season's "if an effect would put"
-watches only `byEffect` puts [CR#614.16], so it doubles a Saga's entry counter, put by a
-replacement effect [CR#714.3a], and not the increment. The checker has no matcher, so this pins
-the row's spelling; the matching is the engine's. -/
-theorem sagaLoreIncrementIsNoEffect :
-    sagaLoreIncrement = .putCounters 1 (.printed (.named "loreCounter")) thisSaga false := rfl
+[CR#703.1,609.1]: the `turnBased` conferral that encloses it says so, and the put itself carries
+no cause. Doubling Season's "if an effect would put" is `causedBy .anEffect` [CR#614.16], so it
+doubles a Saga's entry counter, put by a replacement effect [CR#714.3a], and not the increment.
+The checker has no matcher, so this pins the row's spelling; the matching is the engine's. -/
+theorem sagaLoreIncrementIsTurnBased :
+    (∃ parts, sagaDefinition = .subtype Semantics.Definitions.saga parts ∧
+      parts[1]? = some (.turnBased .firstMain (doIf sagaHasChapterAbilities sagaLoreIncrement))) ∧
+    sagaLoreIncrement = .putCounters 1 (.printed (.named "loreCounter")) thisSaga :=
+  ⟨⟨_, rfl, rfl⟩, rfl⟩
 
 /-- The triggered-chapter guard reads the Saga's chapter abilities that have triggered and not yet
 left the stack, waiting ones included [CR#714.4,704.5s,113.7]. -/

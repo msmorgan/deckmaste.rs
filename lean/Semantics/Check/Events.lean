@@ -59,7 +59,7 @@ def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | _ + 1, .vote .. | _ + 1, .pay .. => true
   | _ + 1, .setStatus .tapped _ | _ + 1, .setStatus .untapped _
   | _ + 1, .setStatus .phasedIn _ | _ + 1, .setStatus .phasedOut _ => true
-  | _ + 1, .move _ _ (some (.zone .battlefield _)) _ _ _ => true
+  | _ + 1, .move _ _ (some (.zone .battlefield _)) _ _ => true
   | _, _ => false
 termination_by structural fuel
 
