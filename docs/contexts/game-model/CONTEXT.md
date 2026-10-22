@@ -729,15 +729,19 @@ A truth criterion evaluated against a candidate from a known domain.
 **Sharing** (project term):
 A Predicate true of an Object that has at least one value in common with
 another on one characteristic: a color, a creature type, a name
-([CR#201.2a,105.2,205.3m]); its negation is having none in common
-([CR#201.2c]). On names it is not equality: an Object with two names shares
-a name with an Object that has either.
+([CR#201.2a,105.2,205.3m]); its contrary, a different value, is having
+none in common, and on names also having a name ([CR#201.2c]). On names it
+is not equality: an Object with two names shares a name with an Object that
+has either, and an Object with no name neither shares a name with nor has a
+different name than any other ([CR#201.2a,201.2c]).
 _Avoid_: same as, equal
 
 **Agreement** (project term):
 A constraint that the members of a group share, or do not share, a value
 on one characteristic ("two creatures that share a creature type"): it
-holds of the group, not of any one member.
+holds of the group, not of any one member. A group has different names only
+if each member has at least one name and no two have a name in common
+([CR#201.2b]).
 _Avoid_: Sharing, for the group form
 
 **Contrast Anchor** (project term):

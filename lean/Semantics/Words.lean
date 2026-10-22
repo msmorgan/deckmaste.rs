@@ -37,7 +37,13 @@ inductive Procedure where
 
 /-- An object's numeric characteristic or calculated value [CR#109.3,202.3,208.1,306.5,310.4,310.4a]. -/
 inductive Stat where
-  | power | toughness | manaValue | loyalty | defense
+  | power | toughness | manaValue
+  /-- Loyalty is read by zone: on the battlefield it is the number of loyalty counters on the
+  planeswalker [CR#306.5c], and elsewhere the number printed on the card [CR#306.5a]. -/
+  | loyalty
+  /-- Defense is read by zone: on the battlefield it is the number of defense counters on the
+  battle [CR#310.4c], and elsewhere the number printed on the card [CR#310.4a]. -/
+  | defense
   deriving DecidableEq, Repr
 
 inductive PlayerStat where
@@ -125,17 +131,38 @@ inductive Plurality where
   deriving DecidableEq, Repr
 
 /-- Sharing on an axis: at least one value in common (`share`), or none (`differ`)
-[CR#201.2a,201.2c,105.2,205.3m]. -/
+[CR#201.2a,201.2c,105.2,205.3m]. On names `differ` also needs a name: a nameless object
+does not have a different name [CR#201.2c]. -/
 inductive Agreement where
   | share | differ
   deriving DecidableEq, Repr
 
 /-- Sharing over one axis's values: `share` holds when the two value lists meet, `differ` when
 they do not. On names this is not equality: an object with two names shares a name with an
-object that has either [CR#201.2a]. -/
-def Agreement.holdsOn {α : Type} [BEq α] : Agreement → List α → List α → Bool
+object that has either [CR#201.2a]. On names `differ` also requires the first object to have a
+name: one with none does not have a different name than any object [CR#201.2c]. -/
+def Agreement.holdsOn {α : Type} [BEq α] (axis : QualitySort) :
+    Agreement → List α → List α → Bool
   | .share, mine, theirs => mine.any theirs.contains
-  | .differ, mine, theirs => !mine.any theirs.contains
+  | .differ, mine, theirs =>
+    (axis != .cardName || !mine.isEmpty) && !mine.any theirs.contains
+
+/-- Agreement over a group's value lists, one list per member. `share` holds when one value is
+common to every member: on names [CR#201.2a], and on any axis by the Littjara Kinseekers ruling
+(2021-02-05, "at least one creature type all three have") and the Common Cause ruling
+(2004-10-04, "they all have to share one color"); `differ` when no two members have a value in
+common, and on names only if each member has at least one name [CR#201.2b]. An empty group shares
+no value. -/
+def Agreement.holdsAmong {α : Type} [BEq α] (axis : QualitySort) :
+    Agreement → List (List α) → Bool
+  | .share, [] => false
+  | .share, first :: rest => first.any fun value => rest.all (·.contains value)
+  | .differ, group =>
+    (axis != .cardName || group.all (!·.isEmpty)) && pairwiseDisjoint group
+where
+  pairwiseDisjoint : List (List α) → Bool
+    | [] => true
+    | first :: rest => rest.all (fun other => !first.any other.contains) && pairwiseDisjoint rest
 
 inductive PossessorAxis where
   | owner | controller
@@ -542,6 +569,10 @@ inductive CounterKind where
 
 inductive ProjAxis where
   | stat (stat : Stat)
+  /-- The number printed on the card for a stat, in any zone and whatever counters the object
+  has: "its printed loyalty number" [CR#306.5b] and "its printed defense number" [CR#310.4b],
+  which the zone-aware `stat` read gives only off the battlefield [CR#306.5a,310.4a]. -/
+  | printed (stat : Stat)
   | playerStat (stat : PlayerStat)
   | counter (kind : CounterKind)
   | anyCounter (kind : Kind)

@@ -32,6 +32,14 @@ decided shape in either ticket without that ruling. The Rust half (`resolve/coun
 after a loyalty ability's cost was paid reads the reduced count; the conferral reads the printed
 number.
 
+Ruled (2026-10-22, owner): option B, an explicit printed-value projection. `statOf loyalty` and
+`statOf defense` keep their zone-aware reading [CR#306.5a,306.5c,310.4a,310.4c]; the intrinsic
+entry rules read the printed number directly [CR#306.5b,310.4b], through `ProjAxis.printed`.
+Every decomposable rule is modelled as data in the DSL, `Proofs/Rules.lean` prototypes those
+rows, and their citations (not the checker) carry their correctness, so a row states the rule's
+own words with no zone-timing reliance. This supersedes the 2026-10-13 conferral shape
+(`semantics-v3.md` §3.7).
+
 ## 2. A letter's definition is signed; clamping belongs to the consuming slot
 
 `Check/NumberSlots.lean:132-134` (`-- … never negative [CR#107.1b,107.3]`, `| .letterDefinition _

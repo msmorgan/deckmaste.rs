@@ -543,6 +543,14 @@ theorem okTimingThatTurnAfterExtraTurn :
 theorem okSorceryAndInstantSpeed :
     Timing.check (DRS.ofList []) asSorcery ++ Timing.check (DRS.ofList []) asInstant = [] := by decide
 
+/-- "only as a sorcery" requires priority, as "only as an instant" does, besides your main phase
+and an empty stack [CR#307.5]; so its negation also holds without priority [CR#307.5a]. No
+printed card observes the difference (Mystic Veil ruling, 2022-12-08), so the pin is on the
+tree. -/
+theorem sorcerySpeedRequiresPriority :
+    asSorcery = .and [.onlyIf (.hasPriority .you), .inPart .mainPhase (some .you) .current,
+      .onlyIf (.not (exists_ (.in_ stack)))] := rfl
+
 /-- "Until your next turn": the end is the beginning of your next turn. -/
 theorem okUntilYourNextTurn : Duration.check (DRS.ofList []) untilYourNextTurn = [] := by decide
 

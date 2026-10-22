@@ -1660,7 +1660,7 @@ def CounterKind.scope (c : CounterKind) : Kind := (counterFactsFor c.name).elim 
 
 /-- What kind of entity a projection axis reads [CR#120.3e,120.6,704.5g]. -/
 def ProjAxis.scope : ProjAxis → Kind
-  | .stat _ => .object
+  | .stat _ | .printed _ => .object
   | .playerStat _ => .player
   | .counter c => c.scope
   | .anyCounter k => k
@@ -1669,7 +1669,7 @@ def ProjAxis.scope : ProjAxis → Kind
   | .markedDamage => .object
 
 def ProjAxis.type : ProjAxis → Option CardType
-  | .stat c => c.comparedType
+  | .stat c | .printed c => c.comparedType
   | _ => none
 
 def allAxisType (t : CardType) : List ProjAxis → Bool

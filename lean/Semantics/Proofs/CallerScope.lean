@@ -207,7 +207,7 @@ theorem firstMentionMakesLaterMentionAvailable :
 
 theorem scopedNumberRegimeIsPreserved :
     (Action.ownScope none (.establish (.letterDefinition .x 2) none)).numberSlots =
-      [(.lit 2, .clamped)] := rfl
+      [(.lit 2, .signed)] := rfl
 
 theorem possessorQueryPreservesSubjectUpdate :
     ((nounResult callerCreatureSpell (.possessorOf .controller (.becomes it))).findById? 0).bind

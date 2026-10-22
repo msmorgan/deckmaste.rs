@@ -1160,10 +1160,11 @@ registry holds under the name (ruling 2026-10-10).
 
 The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
 grammar projects no marked damage and has no "since state-based actions were
-last checked" lookback. `Stat` likewise has no `defense` axis, so a battle's
-printed defense [CR#310.4b] cannot be read; the battle rows here read defense
-counters instead [CR#310.4c], which is what the rules define the battlefield
-value as.
+last checked" lookback. `Stat.loyalty` and `Stat.defense` read by zone:
+counters on the battlefield [CR#306.5c,310.4c], the printed number elsewhere
+[CR#306.5a,310.4a]. The state-based and damage rows read the counters
+directly; the entry conferrals read the printed number through
+`ProjAxis.printed` [CR#306.5b,310.4b] (owner ruling 2026-10-22).
 
 ## Shared event patterns and static applicability
 

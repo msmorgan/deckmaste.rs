@@ -24,6 +24,10 @@ Decided (2026-10-13, owner; `semantics-v3.md` §3.7; archived `semantics-v2.md`
   home and shape as the planeswalker loyalty entry. It is the witness the
   `defense` axis exists for.
 
+Superseded in part (2026-10-22, owner; `lean-v3-stat-reads-and-number-regimes`): the
+[CR#310.4b] conferral reads `statOf(printed(defense), this)` through `ProjAxis.printed`, and that
+ticket landed the battle row beside `planeswalkerLoyalty`.
+
 Do: add `defense` to `Stat` with its citation, thread it through
 `Stat.comparedType` and every exhaustive read in `Check/`, mirror it in
 `crates/deckmaste_semantics_v3` (when created in `semantics-v3-dsl-and-plugins`),

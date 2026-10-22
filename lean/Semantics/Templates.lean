@@ -888,9 +888,12 @@ semantic_template lastTurn : Duration :=
 semantic_template thisGame : Duration := .between none (some .now)
 /-! ## Timings -/
 
-/-- "only as a sorcery": during your main phase, while the stack is empty [CR#307.5]. -/
+/-- "only as a sorcery": while you have priority, during your main phase, while the stack is
+empty [CR#307.5]. Its negation, "any time a sorcery couldn't have been cast", therefore also
+holds without priority [CR#307.5a]. -/
 semantic_template asSorcery : Timing :=
-  .and [.inPart .mainPhase (some .you) .current, .onlyIf (.not (exists_ (.in_ stack)))]
+  .and [.onlyIf (.hasPriority .you), .inPart .mainPhase (some .you) .current,
+    .onlyIf (.not (exists_ (.in_ stack)))]
 /-- "only as an instant": any time you have priority [CR#117.1a]. -/
 semantic_template asInstant : Timing := .onlyIf (.hasPriority .you)
 /-- "during <whose> <part>" -/

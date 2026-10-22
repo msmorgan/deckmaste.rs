@@ -70,17 +70,6 @@ theorem okDealDamageClamped :
     (Action.instruct .this (.dealDamage (.letter .x) (target isCreature))).numberSlots
       = [(.letter .x, .clamped)] := by rfl
 
-/-- "X is the number of creatures you control": the letter X, defined by the text, is a count
-[CR#107.1b,107.3c]. -/
-theorem okDefineClamped :
-    (define .x (.countOf (.described .all isCreature))).numberSlots
-      = [(.countOf (.described .all isCreature), .clamped)] := by rfl
-
-/-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/
-theorem okDefinesLetterClamped :
-    (StaticSpec.letterDefinition .x (.countOf (.described .all isCreature))).numberSlots
-      = [(.countOf (.described .all isCreature), .clamped)] := by rfl
-
 /-- "This creature gets +2/+0": the sign is the constructor, and the magnitude beneath it is a
 number the game does not take below zero [CR#107.1b]. -/
 theorem okModifyUpClamped :
@@ -88,6 +77,27 @@ theorem okModifyUpClamped :
       = [(.lit 2, .clamped)] := by rfl
 
 /-! ## Signed slots: the negative stands -/
+
+/-- "X is the number of creatures you control": the letter X, defined by the text [CR#107.3c],
+is a calculation and not an effect's result, so the definition itself stands below zero
+[CR#107.1b]; the slot that consumes X decides whether to clamp it. -/
+theorem okDefineSigned :
+    (define .x (.countOf (.described .all isCreature))).numberSlots
+      = [(.countOf (.described .all isCreature), .signed)] := by rfl
+
+/-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/
+theorem okDefinesLetterSigned :
+    (StaticSpec.letterDefinition .x (.countOf (.described .all isCreature))).numberSlots
+      = [(.countOf (.described .all isCreature), .signed)] := by rfl
+
+/-- Guardian Scalelord: "return target nonland permanent card with mana value X or less from
+your graveyard to the battlefield, where X is this creature's power." With power -1, X is -1 and
+the comparison uses it [CR#107.1b], so no card qualifies, mana value 0 included. The pin is on
+the definition: it stands below zero, a negative X included. -/
+theorem okNegativeLetterInComparison :
+    (define .x (powerOf thisCreature)).numberSlots = [(powerOf thisCreature, .signed)] ∧
+      (define .x (.lit (-1))).numberSlots = [(.lit (-1), .signed)] :=
+  ⟨rfl, rfl⟩
 
 /-- "Target creature's base power and toughness become 0/2": an effect that sets a power and
 toughness is the exception [CR#107.1b] names. -/

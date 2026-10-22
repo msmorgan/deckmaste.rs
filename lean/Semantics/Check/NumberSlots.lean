@@ -129,9 +129,9 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .costShift _ shift => shift.numberSlots
   | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ | _n + 1, .modeChoice _
   | _n + 1, .addsTarget _ _ | _n + 1, .asEvent _ _ | _n + 1, .whileHolds _ _ => []
-  -- The letter X, defined by the text: a chosen or defined value is never negative
-  -- [CR#107.1b,107.3].
-  | _n + 1, .letterDefinition _ amount => [(amount, .clamped)]
+  -- The letter X, defined by the text [CR#107.3c]: a definition is a calculation, not a result,
+  -- so a negative stands and the slot that consumes X clamps it or not [CR#107.1b].
+  | _n + 1, .letterDefinition _ amount => [(amount, .signed)]
   | _n + 1, .cant _ _ mods | _n + 1, .must _ _ mods | _n + 1, .can _ _ mods | _n + 1, .gatedBy _ _ _ mods =>
     mods.asThough.toList.flatMap AsThough.numberSlots
   | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ => []
@@ -181,8 +181,9 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
   | _n + 1, .shiftResult changes => changes.map ((·.amount, .clamped))
   | _n + 1, .storeResults _ | _n + 1, .rerollStored _ _ => []
+  -- "where X is …" in an action: signed, as the static definition is [CR#107.1b,107.3c].
   | _n + 1, .establish spec none => match spec with
-    | .letterDefinition _ amount => [(amount, .clamped)]
+    | .letterDefinition _ amount => [(amount, .signed)]
     | _ => []
   | _n + 1, .establish _ _ => []
   | _n + 1, .createObject count spec _ _ => (count, .clamped) ::

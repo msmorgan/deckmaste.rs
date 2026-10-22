@@ -338,7 +338,8 @@ mutual
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
     /-- Agreement: the members of `group` share, or do not share, a value on `axis` ("two
     creatures that share a creature type"), a constraint on the selection, not a predicate on
-    one member. -/
+    one member, read by `Agreement.holdsAmong`: a group has different names only if each member
+    has a name [CR#201.2b]. -/
     | agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase)
     | theRest (kind : Kind) (plurality : Plurality)
     | pileOf (count : SliceCount) (by_ : Option NounPhrase)

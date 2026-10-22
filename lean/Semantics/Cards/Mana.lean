@@ -604,6 +604,9 @@ def adNauseam : Spelled := spelled <| singleFacedCard
             loseLife (statOf (.stat .manaValue) it),
             may (repeat_ anyNumberOfTimes) ]) ] }
 
+/-- Nahiri, the Unforgiving's 0: "… card with mana value less than Nahiri's loyalty from your
+graveyard". On the battlefield her loyalty is her loyalty-counter count [CR#306.5c], not her
+printed number, and the bound reads it as the ability resolves. -/
 def nahiriLoyaltyRead : Predicate :=
   and [ isCreature, in_ yourGraveyard,
          hasManaValue .less (statOf (.stat .loyalty) this_) ]

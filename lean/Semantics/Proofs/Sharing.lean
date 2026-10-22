@@ -16,22 +16,49 @@ namespace Semantics.Proofs.Sharing
 /-- An object named both "Fire" and "Ice" shares a name with an object named "Fire" and with one
 named "Ice", though it equals neither name list [CR#201.2a]. -/
 theorem twoNamesShareEither :
-    Agreement.holdsOn .share ["Fire", "Ice"] ["Fire"] = true ∧
-      Agreement.holdsOn .share ["Fire", "Ice"] ["Ice"] = true ∧
+    Agreement.holdsOn .cardName .share ["Fire", "Ice"] ["Fire"] = true ∧
+      Agreement.holdsOn .cardName .share ["Fire", "Ice"] ["Ice"] = true ∧
       (["Fire", "Ice"] == ["Fire"]) = false := by
   decide
 
 /-- An object with no name has the same name as no other object, a nameless one included
 [CR#201.2a]. -/
 theorem namelessSharesNoName :
-    Agreement.holdsOn (α := String) .share [] [] = false ∧
-      Agreement.holdsOn .share [] ["Fire"] = false := by
+    Agreement.holdsOn (α := String) .cardName .share [] [] = false ∧
+      Agreement.holdsOn .cardName .share [] ["Fire"] = false := by
   decide
 
 /-- "a different name": no name in common [CR#201.2c]. -/
 theorem differIsNoValueInCommon :
-    Agreement.holdsOn .differ ["Fire", "Ice"] ["Ice"] = false ∧
-      Agreement.holdsOn .differ ["Fire", "Ice"] ["Bolt"] = true := by
+    Agreement.holdsOn .cardName .differ ["Fire", "Ice"] ["Ice"] = false ∧
+      Agreement.holdsOn .cardName .differ ["Fire", "Ice"] ["Bolt"] = true := by
+  decide
+
+/-- An object with no name does not have a different name than any other object, even one
+that has a name [CR#201.2c]. -/
+theorem namelessHasNoDifferentName :
+    Agreement.holdsOn .cardName .differ [] ["Fire"] = false ∧
+      Agreement.holdsOn (α := String) .cardName .differ [] [] = false := by
+  decide
+
+/-- The nameless rule is on the name axis only: a colorless object has no color in common
+with a red one, having no color [CR#105.2c]. -/
+theorem colorlessDiffersInColor :
+    Agreement.holdsOn .color .differ [] [Color.red] = true := by
+  decide
+
+/-- Liliana's Contract: "if you control four or more Demons with different names". A group has
+different names only if each member has at least one name and no two have a name in common
+[CR#201.2b], so a nameless member, as a face-down permanent is [CR#708.2a], breaks the group. -/
+theorem withDifferentNamesNeedsEveryName :
+    Agreement.holdsAmong .cardName .differ
+        [["Archfiend of Ifnir"], ["Lord of the Pit"], ["Demonlord Belzenlok"],
+          ["Rune-Scarred Demon"]] = true ∧
+      Agreement.holdsAmong .cardName .differ
+        [["Archfiend of Ifnir"], ["Lord of the Pit"], ["Demonlord Belzenlok"], []] = false ∧
+      Agreement.holdsAmong .cardName .differ
+        [["Archfiend of Ifnir"], ["Lord of the Pit"], ["Lord of the Pit"],
+          ["Rune-Scarred Demon"]] = false := by
   decide
 
 /-- "creatures that share a color with it": both relata are objects. -/
