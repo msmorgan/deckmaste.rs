@@ -112,7 +112,7 @@ damage", `:3751`), `.outcomeInScope .damagePrevented`, `.quantOutcomeInScope`, `
 
 The four open items and the noted question are ruled. Nothing in this ticket waits on the owner.
 
-**4a. Partial redirection: an amount shield on the replacement's use.** Give `ReplUse` an amount
+**4a. (Revised by the third batch: the shield is `redirectDamage`'s `cut`; no `ReplUse` change.) Partial redirection: an amount shield on the replacement's use.** Give `ReplUse` an amount
 shield, matching `PreventCut.shield`, so "the next N damage … is dealt to X instead" composes over
 `StaticSpec.replace` (*Ward of Piety*, *Carom*, *Daughter of Autumn*, *Harm's Way*, *Shining
 Shoal*) [CR#614.9,615.7]. VERIFY: the name is true, `ReplUse = repeatedly | nextTimeOnly`, but it
@@ -123,7 +123,7 @@ sit there. Move `ReplUse` into `Abilities.lean`'s inductive block beside `Static
 (`stepPreventCutWith`). `PreventCut.shield` itself stays for `preventDamage`: prevention shields
 size through the cut, redirection shields through the use.
 
-**4b. No `Action.redirectDamage`.**
+**4b. (Revised by the third batch: `Action.redirectDamage` exists; *Whippoorwill* is `cant any (redirectDamage …)`.) No `Action.redirectDamage`.**
 
 - A redirection is `replace (would … dealDamage …) (instead (dealDamage thatMuch newRecipient))`.
 - *Whippoorwill*'s "can't be … dealt instead to another permanent or player" is a `cant` over the
@@ -141,7 +141,7 @@ toxic ability's N [CR#702.164b..702.164c]. Not one row per `toxic N` instance. I
 reads a total toxic value, add one (name per the glossary). The implementer places the single row
 (a rule conferred as a property, as in step 2, or in the keyword's definition) and states why.
 
-**4d. Redirect checks: which is true.** The ruling expected `dealDamage`'s own checks to give the
+**4d. (Revised by the third batch: both checks are enforced on `redirectDamage`'s `to`.) Redirect checks: which is true.** The ruling expected `dealDamage`'s own checks to give the
 redirect target's singular and object-or-player checks for free. VERIFY: half true.
 `dealDamage`'s arm (`Check/Phrase.lean:3033-3043`) refuses `.perMember` and `.kindLte`
 (`:3042-3043`), so the object-or-player kind check IS inherited. But the `.singular` check is not:
@@ -160,6 +160,39 @@ thisWay`** once B2 (this ticket) and B4 (`lean-v3-this-way-and-stop-trigger-fold
 final step 6 below and why this ticket `needs` that one. VERIFY: `preventedFromSource` is
 `Abilities.lean:477` (Template `Templates.lean:2123-2124`, checker `Check/Phrase.lean:2857`,
 *Shadowbane* `Cards/Damage.lean:502-505`); the other ticket's `:474` is stale.
+
+## Rulings (owner, 2026-10-22, third batch): `Action.redirectDamage`
+
+This batch revises 4a, 4b and 4d below and supersedes their text wherever they disagree. Nothing
+else in the second batch moves.
+
+- Add `Action.redirectDamage (cut : PreventCut) (to : NounPhrase)`, mirroring `Action.preventDamage`.
+  The ticket's `preventDamage` is `(cut) (damage : Option WouldClause := none) (also : Option Action
+  := none)` and is not yet in the code (`grep` finds no `preventDamage` in `Abilities.lean`; it is
+  added by step 1). Mirroring its damage-identifying slot too, `damage : Option WouldClause :=
+  none`, is the implementer's call: it lets a ban or a "that damage" reading name the redirected
+  damage the same way `cant any (preventDamage .all (damage := some clause))` does, and it keeps the
+  two Actions checkable by one shape (same stepping of `cut`, same `damageDealtInScope` refusal).
+  The implementer states the decision and, if `damage` is dropped, why.
+- One Action covers three items:
+  - **4a, partial redirection** ("the next 2 damage", *Harm's Way*, *Ward of Piety*, *Carom*,
+    *Daughter of Autumn*, *Shining Shoal*) goes through the `cut` shield [CR#614.9,615.7]. The
+    planned `ReplUse` shield amount is dropped: `ReplUse` stays in `Events.lean` and does not move.
+    `PreventCut.shield` is stepped by `stepPreventCutWith`, as for prevention.
+  - **4b, *Whippoorwill*'s** "can't be ... dealt instead to another permanent or player" becomes
+    `cant any (redirectDamage …)`. It no longer uses `cant any (Action.replace …)`, and
+    `Action.deonticHeadOk` admits `redirectDamage` (with `preventDamage`), not `Action.replace`.
+  - **4d, redirect checks**: the redirect target's singular check (`.singular`) and its
+    object-or-player kind check (`.kindLte`) are enforced on `redirectDamage`'s `to`.
+- Redirection is no longer written `instead (dealDamage thatMuch …)`: a redirection is `replace
+  (would <src> (dealDamage …)) (instead (redirectDamage cut to))`. The "explicit singular law on the
+  instead-action" of 4d is replaced by the checks on `to`.
+- Owner's reasons:
+  - Passive redirection ("All damage that would be dealt to you is dealt to X instead", *Pariah*)
+    has no source noun phrase to hand to `dealDamage`.
+  - `Action.replace` is for [CR#614.15] self-replacement and is not a deontic head.
+  - Partial redirection redirects up to the shield, not `thatMuch`.
+- Citations: redirection effects [CR#614.9]; amount shields [CR#615.7].
 
 ## Reading of the ruling (confirm in step 1 before the bulk rewrite)
 
@@ -180,8 +213,9 @@ final step 6 below and why this ticket `needs` that one. VERIFY: `preventedFromS
    `Action.deonticHeadOk` (`Check/Events.lean:46-61`) and, if patterns read it, `eventHeadOk`
    (`:25-41`); number slots and `namesThisDoor`. Re-body `preventAll`/`preventNext`/`preventAllBy`,
    absorb and protection. Rewrite the prevention and ban cards, `sliceECopyAndPreventPin`, and
-   their pins. *Whippoorwill* uses ruling 4b's `cant … Action.replace` form and redirection uses 4a's shield and
-   4d's singular law; both are ruled.
+   their pins. *Whippoorwill* uses `cant any (redirectDamage …)` and redirection uses `redirectDamage`'s `cut`
+   and `to` checks (third batch); both are ruled. Add `Action.redirectDamage` and its Template here
+   too, admitted in `Action.deonticHeadOk`.
 2. **Results via `asEvent`.** Write the base [CR#120.3a] and [CR#120.3e] rows and move the
    planeswalker and battle rows [CR#120.3c,120.3h] off `damageResult`. These are rules, not
    abilities: confer them as a property (`Conferral.property`, `Rules.lean:69`), not as an
@@ -194,10 +228,11 @@ final step 6 below and why this ticket `needs` that one. VERIFY: `preventedFromS
    counters [CR#702.90b]. Write infect's player row with `causedBy (.event (does … (dealDamage
    …)))`, not `.source`, so other life loss from the same source is not caught. A source with
    both wither and infect puts counters once [CR#120.3d,614.6]: pin it. Depends on step 2.
-4. **Redirection and scaling via `replace`.** `replace (would <src> (dealDamage …)) (instead
+4. **Redirection and scaling via `replace`.** Redirection: `replace (would <src> (dealDamage …))
+   (instead (redirectDamage cut to))`. Scaling: `replace (would <src> (dealDamage …)) (instead
    (instruct <that source> (dealDamage …)))`. Writing "that source" waits on
    [lean-v3-that-source-noun-word](../wip/lean-v3-that-source-noun-word.md) (`it` falls back to the
-   Source: the *Deflecting Palm* defect). Uses 4a (shield use) and 4d (the explicit singular law).
+   Source: the *Deflecting Palm* defect). Redirection uses `redirectDamage`'s `cut` shield (4a) and the `to` checks (4d).
 5. **Delete** the retired types, Templates, checker functions and arms, `RulesTables.damageResult`
    and `ScaleFactor`, and amend the docs: `lean/CONTRACTS.md:695-699,714,761,1174-1176`;
    `lean/README.md:83-90`; ADR `docs/decisions/semantics-v3.md:19` (the Contrast Anchor's
@@ -224,7 +259,7 @@ Every `spelled` card is a check at elaboration. Rewrite each to the new tree wit
 
 - `Cards/Damage.lean`: `okFog :136`, `okIndestructibleAura :140`, `okShieldmatesBlessing :143`,
   `okGlacialChasmShield :154`, `okInkshieldRider :440`, `okGlarecasterShield :573`;
-  `Cards/Deontic.lean`: `okWhippoorwillImmunity :287` (ruling 4b).
+  `Cards/Deontic.lean`: `okWhippoorwillImmunity :287` (`cant any (redirectDamage …)`, third batch).
 - `Proofs/Damage.lean`: `okPreventDealtToPermanent :402`, `okRedirectToSingleCreature :409`,
   `badRedirectToPlural :415`, `okPreventedFromSourceAnnounced :428`,
   `okPreventedFromSourceInAClause :433`, `badPreventedFromSourceUnannounced :438`,
@@ -246,11 +281,14 @@ Every `spelled` card is a check at elaboration. Rewrite each to the new tree wit
   pins (`:119-130`), `badDamageResultUndeclaredCounter :133` (the `.knownCounter` check is still
   wanted), `builtinTables :476-479`, `okBuiltinTables :481`.
 - `Check.lean`: `slice_e_copy_and_prevent_pin_sound :283`.
-- `badRedirectToPlural` and `badRedirectToGroup` keep asserting `.singular` on the new spelling
-  (ruling 4d); they are not weakened to `.perMember`. Add `okShieldedRedirectionSizesItsUse`
-  (*Harm's Way*'s "the next 2 damage" is a `ReplUse` shield of 2, [CR#614.9,615.7]) and
-  `whippoorwillCantIsADeonticOverActionReplace` (the `cant any (Action.replace …)` tree checks
-  clean; a plural redirect target inside it is refused `.singular`).
+- `badRedirectToPlural` and `badRedirectToGroup` are kept and assert `.singular` on `redirectDamage`'s
+  `to` (third batch, 4d); they are not weakened to `.perMember`. Add `okShieldedRedirectionSizesItsCut`
+  (*Harm's Way*'s "the next 2 damage" is `redirectDamage (.shield 2) …`, [CR#614.9,615.7]; replaces
+  the planned `okShieldedRedirectionSizesItsUse`), `okPassiveRedirectionNeedsNoSource` (*Pariah*'s
+  "All damage that would be dealt to you is dealt to X instead" checks clean), a redirect target of
+  the wrong kind is refused `.kindLte`, and `whippoorwillCantIsADeonticOverRedirectDamage` (the
+  `cant any (redirectDamage …)` tree checks clean; a plural target inside it is refused
+  `.singular`; `Action.replace` is not a deontic head).
 - Add `toxicIsOneResultReadingTheTotal` (ruling 4c: two toxic instances give one result row, not
   two) and, with step 6, `shadowbaneRiderIsDidPreventDamageThisWay`.
 - Add: `witherAndInfectPutCountersOnce` (one `markDamage` replaced once [CR#614.6,120.3d]);

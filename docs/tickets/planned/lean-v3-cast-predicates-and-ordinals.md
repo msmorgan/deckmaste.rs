@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Cast and activation provenance through `did`, and one event-ordinal shape over `Period`
+# Cast-predicate stepping fix, and one event-ordinal shape over `Period`
 
 Standard constraints apply. Provenance: row B6 of
 [lean-v3-cr-structure-principle-audit](../done/lean-v3-cr-structure-principle-audit.md). Supersedes
@@ -9,7 +9,23 @@ the provenance half of `lean-core-action-provenance` (`maybe/`, deleted with thi
 "this way" half went to `lean-v3-this-way-and-stop-trigger-folds`). Its three temporal regimes are
 carried below.
 
-## Ruling (owner, 2026-10-22)
+## Ruling (owner, 2026-10-22, third batch): B6 scoped back
+
+B6 now does two things, and the third-batch text supersedes the deletion wording below:
+
+1. **Fixes the checker bug**: `.castBy` and `.castFrom` step and check their player and zone
+   arguments. VERIFIED (2026-10-22): `pred` in `Check/Phrase.lean` has no `castBy` or `castFrom` case
+   (`activatedBy` is stepped at `:2313`), so both reach `| _ => (drs, [])` (`:2364`).
+2. **Lands the ordinal unification**: `DidClause.ordinal : Option (Ordinal × Option Period)`, and
+   `nthOccurrence` taking `Option Period` (Change step 1).
+
+Deleting `castBy`, `castFrom` and `activatedBy` moves to the new planned ticket
+[lean-v3-own-casting-lookback-span](lean-v3-own-casting-lookback-span.md), which `needs` this one. The
+`LookbackSpan.thisObject` analysis, the witnesses and `badBareDidCastIsParticipial` moved there as a
+candidate design, not yet ruled. The provenance deletion and its tests are not part of this ticket. In this ticket `castBy`'s `rank` stays `Option (Ordinal × Period)` unless the
+ordinal unification needs it widened to `Option Period`; the implementer says which.
+
+## Ruling (owner, 2026-10-22; deletion superseded by the third batch)
 
 - Delete `Predicate.castBy`, `castFrom` and `activatedBy` in favour of `Predicate.did`:
   `did player (cast which)`, `did any (cast which (from_ := some zone))`, `did player (activate
@@ -124,25 +140,9 @@ Only spanned lookbacks passed (`Proofs/Anaphora.lean:243,250`). The bare forms w
    all ignore `per` (`Check/Phrase.lean:1152,1763,2938`, `Check/Events.lean:90`,
    `Check/CardFacts.lean:79,140`, `Check/NumberSlots.lean:218`, `Check/Card.lean:62`) and keep
    doing so.
-2. **Provenance**: first add `LookbackSpan.thisObject`, its Template (name at the implementer's
-   discretion; check the glossary first), the checker arm and the `uniquifies` arm above. Then
-   rewrite every use to `did` (proposed-action and current-incarnation uses take `(within := some
-   .thisObject)`; historical windows keep their duration span), delete the three
-   predicates, their Templates and the name-table entry, `uniquifies`' `castBy` arm and
-   `activatedBy` in `seedZone`/`seedsAbility` (`Check/Phrase.lean:158,461`; each use also has
-   `abilityHead`, which seeds the same).
-   - `castBy`: `Cards/Cost.lean:146,161,168,178,179,180,186,196,202,234,469,486,545,632,748,868,876,954`,
-     `Cards/Keyword.lean:152,157,182,1085,1100`, `Cards/Static.lean:118,641,649` (`:118`, *Cycle of
-     Life*'s "creature you cast this turn", is a historical window), `Cards/Mana.lean:204`,
-     `Cards/Deontic.lean:306`, `Cards/Trigger.lean:700`, `Cards/Faces.lean:616`,
-     `Proofs/GetsBothDeltas.lean:181`; `nthCastBy`: `Cards/Trigger.lean:166`,
-     `Cards/Cost.lean:154`.
-   - `castFrom`: `Definitions/Keywords.lean:221,1292` (rebound),
-     `Cards/Trigger.lean:596,722`, `Cards/Keyword.lean:1085`, `Cards/Damage.lean:812,1287`,
-     `Cards/Mana.lean:299,575,582,594`, `Cards/Description.lean:250`, `Cards/Cost.lean:632,748`,
-     `Proofs/TextChanges.lean:34`, `Proofs/Anaphora.lean:231`.
-   - `activatedBy` (Predicate): `Cards/Cost.lean:444,474,487,523,546`.
-3. Docs: `lean/CONTRACTS.md:1273,1280`; ADR `docs/decisions/semantics-v3.md:419`, `:444`
+2. **Provenance deletion**: moved to [lean-v3-own-casting-lookback-span](lean-v3-own-casting-lookback-span.md) (the `LookbackSpan.thisObject` span, the rewrite of every `castBy` / `castFrom` / `activatedBy` use, and the deletions with their site lists).
+3. **Stepping fix**: give `pred` cases for `castBy` (caster as a player, rank) and `castFrom` (zone) in `Check/Phrase.lean` (`:2185-2364`), and a player kind check on `activatedBy`'s activator.
+4. Docs: `lean/CONTRACTS.md:1273,1280` (ordinal only); ADR `docs/decisions/semantics-v3.md`, `:444`
    (`nthOccurrence … Option TurnPart`), `:578` (`Period`). Glossary **Usage Limit** already says an
    event's ordinal is not a Usage Limit; keep that, and say in the `Period` doc that one type now
    serves both.
@@ -156,18 +156,7 @@ Only spanned lookbacks passed (`Proofs/Anaphora.lean:243,250`). The bare forms w
 - Rewrite `firstTimeEachTurnIsTheWatchedEventsOrdinal` (`Proofs/EventPatterns.lean:319-320`, `rfl`
   with `some .turn`) and `eventModifiersPreserveFacts` (`Proofs/Lookback.lean:141`, a `part :
   Option TurnPart` binder).
-- Add pins for the new span: `okArtifactSpellsYouCastReadsItsOwnCasting`,
-  `okCastItFromYourHandReadsItsOwnCasting`, `okSpendOnlyToCastFromYourGraveyard` (each `did …
-  (within := some .thisObject)` checks clean, [CR#400.7]); `badBareDidCastIsParticipial` (no span
-  keeps refusing as a Participial Description: `within = none` stays reserved); and
-  `okThisObjectPassesTheLookbackChecks` (anchor, `unanchoredLookback` and `uniquifying` all pass, as
-  above).
-- `okCastFromGraveyard` (`Proofs/Anaphora.lean:230`), `okBracketedDescription`
-  (`Proofs/TextChanges.lean:32`), `cycleOfLifeKeepsItsCastCreatureTarget`
-  (`Proofs/GetsBothDeltas.lean:178`, `rfl`), `okOnceUponATimeFirstCast` (`Cards/Trigger.lean:167`),
-  and every card pin at the sites above (e.g. `okTroubleInPairsArms` `Cards/Trigger.lean:673`,
-  `okResoluteVeggiesaurThirdDie` `Cards/Counters.lean:820`, `okWavebreakHippocamp`
-  `Cards/Trigger.lean:483`).
+- The span pins (`okArtifactSpellsYouCastReadsItsOwnCasting`, `okCastItFromYourHandReadsItsOwnCasting`, `okSpendOnlyToCastFromYourGraveyard`, `badBareDidCastIsParticipial`, `okThisObjectPassesTheLookbackChecks`) and the `did` rewrites of `okCastFromGraveyard`, `okBracketedDescription`, `cycleOfLifeKeepsItsCastCreatureTarget` moved to [lean-v3-own-casting-lookback-span](lean-v3-own-casting-lookback-span.md). Here, those and the card pins keep passing unchanged on the existing predicates.
 - Add `onceUponATimeAndTroubleInPairsShareTheOrdinalShape`: "the first spell you've cast this
   game" and "your second spell each turn" both carry `(Ordinal × Option Period)`.
 
