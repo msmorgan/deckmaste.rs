@@ -59,11 +59,12 @@ theorem okFlyingGuardedToPermanentCard :
       = [] := by
   decide
 
-/-! ## Card-class gates the CR doesn't impose
+/-! ## No card-class gate on a keyword
 
-A keyword's card-class columns admit each class the printed corpus puts it on. An ability that
-functions while its spell is on the stack names no card class [CR#702.56a,702.61a,702.188a], and
-wither works from any zone [CR#702.80c]. -/
+A keyword ability is admitted on a card of either class (`classAbilityOk`). Which class the
+printed corpus puts a keyword on is observation, not a rule: an ability that functions while its
+spell is on the stack names no card class [CR#702.56a,702.61a,702.188a], and wither works from
+any zone [CR#702.80c]. -/
 
 /-- Sulfur Elemental, a creature card with split second; a creature card with replicate. -/
 theorem okSpellKeywordsOnPermanentCards :
@@ -75,6 +76,14 @@ theorem okSpellKeywordsOnPermanentCards :
 theorem okPermanentKeywordsOnSpellCards :
     cardTextOk [.instant] [webSlinging (mana [generic 1, pip .red])] = true ∧
       cardTextOk [.instant] [wither] = true := by
+  decide
+
+/-- Keywords the retired card-class columns kept to one class, on a card of the other: a creature
+card with flashback or fuse, an instant card with flying. -/
+theorem okKeywordsOnTheOtherCardClass :
+    cardTextOk [.creature] [flashback (mana [generic 1, pip .red])] = true ∧
+      cardTextOk [.creature] [fuse] = true ∧
+      cardTextOk [.instant] [flying] = true := by
   decide
 
 end Semantics.Proofs.KeywordByCardClass

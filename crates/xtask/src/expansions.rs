@@ -668,8 +668,7 @@ pub enum Uninstantiated {
 /// Invokes the declaration `name` with its deterministic sample arguments —
 /// the first assignment, in [`SAMPLES`] order with no two parameters given
 /// the same text, that `read` accepts. This is the instantiation every
-/// `.expanded` file is printed from; `cargo xtask facts` reads keyword
-/// definitions through it too.
+/// `.expanded` file is printed from.
 ///
 /// # Errors
 /// [`Uninstantiated`] when no assignment reads.

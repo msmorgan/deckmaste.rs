@@ -173,20 +173,6 @@ pub fn carried_label(name: &str, body: &str) -> Result<String, String> {
     Ok(record.get("label").unwrap_or(name).to_owned())
 }
 
-/// Whether a keyword ability's declaration, given the body its meta-macro
-/// produced, carries another keyword's label, as a variant (`giftACard`) or a
-/// general form (`devourQuality`): it defines no keyword of its own, so it
-/// has no registry row; a general form's signature is one more argument
-/// schema on the row of the keyword it names.
-///
-/// # Errors
-/// If the produced body is not the record the meta-macro writes.
-pub fn is_variant(body: &str) -> Result<bool, String> {
-    Ok(Record::read(body, KEYWORD_ABILITY_FIELDS)?
-        .get("label")
-        .is_some())
-}
-
 /// A labelled declaration's term. A variant's is the one invocation of the
 /// keyword it names, labelled as that keyword: "gift a card" is
 /// `gift(draw(1))` under gift's label [CR#702.174e]; nesting it inside a
@@ -480,7 +466,6 @@ mod tests {
     use macro_ron::Params;
 
     use super::carried_label;
-    use super::is_variant;
     use super::keyword_ability_body;
     use super::keyword_action_body;
 
@@ -578,8 +563,6 @@ mod tests {
             carried_label("flying", "(abilities: [])").unwrap(),
             "flying"
         );
-        assert!(is_variant(variant).unwrap());
-        assert!(!is_variant("(abilities: [])").unwrap());
         for refused in [
             "(label: gift, abilities: [])",
             // Re-spelled for `semantics-v2-devour-quality-keyword`: a body
@@ -610,7 +593,6 @@ mod tests {
              Number(Param(1))], body: [static(x)])"
         );
         assert_eq!(carried_label("devourQuality", general).unwrap(), "devour");
-        assert!(is_variant(general).unwrap());
     }
 
     #[test]

@@ -12,7 +12,7 @@
 //! designation per member, each labelled by the member's name with the
 //! declaration's columns, and each member is a name of its own that reads
 //! bare where a designation is written ([`member_macros`]). The reader
-//! (`reader.rs`) and `cargo xtask facts` both read declarations through here.
+//! (`reader.rs`) reads declarations through here.
 
 use macro_ron::Ident;
 use macro_ron::MacroDef;

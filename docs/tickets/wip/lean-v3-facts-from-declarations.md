@@ -66,7 +66,13 @@ Findings that matter to the work:
   columns, and `idris/mtg.ipkg:10`, `mtg-dev.ipkg:25` list it, so the CI `idris` job
   (`ci.yml:168-227`) builds against it.
 
-## Step 1: now, and small
+## Step 1: now, and small (done)
+
+Step 1 is done. Item 6 deleted the unread columns: a designation's zone, type and Room half and a
+relation's sides stay on the declaration's record (`Definition.designation`, `Definition.relation`
+in `Rules.lean`), which is where `lean-v3-keyword-bodies-and-catalog-sync` §2 and
+`semantics-v3-designation-storage-columns` find them; a facts row carries only what the checker
+reads.
 
 1. **`Check/Facts.lean` is the source of truth.** Replace the header comment (`Facts.lean:1`),
    the `FactTypes.lean` header (`:4-7`, which still names the generator and the semantics-v2
@@ -127,7 +133,9 @@ Findings that matter to the work:
   deckmaste_semantics_v2`, `cargo clippy -p xtask -p deckmaste_semantics_v2 --tests -- -D
   warnings`; the cite gates.
 
-## Step 2: later; declarations register their facts
+## Step 2: later; declarations register their facts (pending)
+
+Pending: the owner picks (A) or (B) below before this stage starts.
 
 Decided: facts are written in Lean, not RON, as an overlay on the declarations. A declaration
 registers its facts through an attribute or a custom command into an environment extension

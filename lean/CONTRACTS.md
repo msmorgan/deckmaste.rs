@@ -925,18 +925,15 @@ retained type. `copyCharacteristics` expands the old
 packed input into one edit block and separate ability exceptions. The former
 minimum-two-fields packing rule has no semantic counterpart in an edit list.
 
-`Ability.keyword` takes an ordered `List KeywordParam`. Generated
-`KeywordFacts.argumentSchemas` enumerate admissible orders and each quality
-argument's domain. The generator reads declaration columns and existing
-variant metadata; the checker does not branch on keyword names. In particular,
-qualified cost forms retain their object-quality constraint and declared
-cost-only alternative. Quality arguments can read the incoming context;
-subject arguments, numbers, costs, and deck conditions retain their closed
-contexts. Argument lists do not publish referents between elements. The registry
-codec still limits declaration combinations; changing that codec is outside
-this fold.
+`Ability.keyword` takes an ordered `List KeywordParam`. The hand-maintained
+`KeywordFacts.argumentSchemas` (`Check/Facts.lean`) enumerate admissible orders
+and each quality argument's domain; the checker does not branch on keyword
+names. In particular, qualified cost forms retain their object-quality
+constraint and cost-only alternative. Quality arguments can read the incoming
+context; subject arguments, numbers, costs, and deck conditions retain their
+closed contexts. Argument lists do not publish referents between elements.
 
-### A keyword definition split by card class
+### A keyword definition's halves guarded by card class
 
 A keyword that means one ability on a permanent and another on an instant or
 sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes one definition
@@ -964,20 +961,19 @@ the look-back zone changes [CR#603.10a].
 
 - Each half is checked as a term on every card, with no class context
   (`Ability.checkAll [] body`).
-- Against the card's class, `classAbilityOk` checks the keyword itself
-  (`keywordCardOk`: the row's `onPermanentCard` / `onInstantOrSorceryCard`). Those columns
-  admit each class the printed corpus puts the keyword on; a CR entry that says its ability
-  functions while the spell is on the stack names no card class, so split second and
-  replicate are admitted on permanent cards, web-slinging and wither on instant and sorcery
-  cards [CR#702.56a,702.61a,702.188a,702.80c]. A static ability of an instant or sorcery card
+- A keyword ability is admitted on a card of either class: `classAbilityOk` has
+  no keyword gate. Which class the printed corpus puts a keyword on is
+  observation, not a rule; a CR entry that says its ability functions while the
+  spell is on the stack names no card class, and wither works from any zone
+  [CR#702.56a,702.61a,702.188a,702.80c]. A static ability of an instant or sorcery card
   that permits casting that very spell as though it had flash, gated by an added cost or not,
   is admitted (`selfCastAsThoughFlash`, *Ghitu Fire*) [CR#113.6e,601.3c].
-  The parts of its definition are not checked against the row or the class:
+  The parts of its definition are not checked against the class:
   the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
   `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are
   retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`),
-  and the facts table no longer carries a definition, a regime, `functionsOnStack`
-  or `counterEligible`.
+  and the facts table no longer carries a definition, a regime, `functionsOnStack`,
+  `counterEligible` or a card-class column.
 - Pins: `Semantics/Proofs/KeywordByCardClass.lean` (gift's and haunt's unguarded
   halves and ascend's guarded ones, on both card classes),
   `Semantics/Proofs/GiftVariants.lean` (gift's spelled variants on both card classes)
@@ -1032,13 +1028,16 @@ left a graveyard) and one two abilities could supply [CR#607.2a]. Where the obje
 when the linked ability resolves (a card that left exile) is the engine's, not the
 checker's.
 
-A Relation (`RelationLabel`) is declared as a designation is, under
-`plugins_v2/builtin/macros/relations/`, as `Definition.relation label left
-right`; `cargo xtask facts` writes `relationTable`. `Action.relate`,
-`Predicate.related` and `NounPhrase.counterpart` check each side at the kind
-the declaration gives it, so a side of the wrong kind is refused
-`kindMismatch`, and an undeclared label `knownRelation`. These are kind and
-reference checks; when a relation ends [CR#702.95e,702.99c] is the engine's.
+A Relation (`RelationLabel`) is declared in
+`Semantics/Definitions/Relations.lean`, as a designation is in
+`Designations.lean`; `Definition.relation label left right` (`Rules.lean`) is
+the record that gives each side a kind, and `relationTable` (`Check/Facts.lean`,
+hand-maintained) has one row per label. `Action.relate` requires the label to have a row, refusing
+an undeclared one `knownRelation`, and checks both operands as objects, so a
+player operand is refused `kindMismatch`; it does not read the record's sides.
+`Predicate.related` steps its counterpart and `NounPhrase.counterpart` its
+subject, and neither looks the label up. These are kind and reference checks;
+when a relation ends [CR#702.95e,702.99c] is the engine's.
 Pins: `Semantics/Proofs/LinkedReadback.lean`.
 
 ### The ability printed with a keyword, and its qualifiers
@@ -1263,10 +1262,10 @@ A counter's kind is a name: `CounterKind.named` carries the counter
 declaration's name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`),
 and "counters with the same name or description are interchangeable"
 [CR#122.1]. `CounterKind.check` is one registry lookup (`knownCounter`: does
-the generated `counterFacts` table have a row of that name), and
+the hand-maintained `counterFacts` table have a row of that name), and
 `CounterKind.scope` reads the holder from the same row for every kind, a +X/+Y
-counter [CR#122.1a] and a keyword counter [CR#122.1b] included; the generator
-writes one row per counter declaration. A counter definition
+counter [CR#122.1a] and a keyword counter [CR#122.1b] included; every counter
+declaration has one row. A counter definition
 (`Definition.counter`, `Rules.lean`) states what ONE counter confers, and the
 model applies it once per counter held: the +1/+1 counter's conferral is
 "+1/+1" (`boost`, one `characteristicChange`), a keyword counter's is its keyword
@@ -1294,10 +1293,11 @@ declaration's name verbatim (`goaded`, `monarch`, `leftHalfUnlocked`), or, for
 a declaration that lists members, a member's (`day`, `night` [CR#731.1]); the
 phrase a card prints ("the monarch") is the declaration's spelling and never
 reaches the checker. `DesignationLabel.facts` is one registry lookup by name
-(`findDesignation`), and every column (`checked`, `scope`, `holder`, the
-zone, type and Room half) is read from that row; the generator writes one row
-per designation, labelled with its name. `RoomHalf.designation` returns the
-designation the table marks with that half, by name. A designation
+(`findDesignation`) in the hand-maintained `designationTable`, which has one row
+per designation, labelled with its name; the row's one column, `scope`, gives
+`holder`, `possessorOk`, `heldByItsCard` and `gameWide`. A designation's zone,
+card type and Room half are its record's (`Definition.designation`), not facts
+columns. A designation
 declaration's bare name means its label, so it reads at a designation
 position; its definition (`Definition.designation`) is a separate record the
 registry holds under the name (ruling 2026-10-10).

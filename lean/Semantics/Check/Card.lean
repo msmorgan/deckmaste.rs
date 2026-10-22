@@ -26,10 +26,6 @@ def hasNonKindredType (tys : List CardType) : Bool := tys.any (· != .kindred)
 def typesCombinable (tys : List CardType) : Bool :=
   !(anyPermanentType tys && anyInstantOrSorceryType tys) && (!tys.elem .kindred || hasNonKindredType tys)
 
-def keywordCardOk : CardClass → KeywordLabel → Bool
-  | .permanentCard, k => (keywordFactsFor k).elim false (·.onPermanentCard)
-  | .instantOrSorceryCard, k => (keywordFactsFor k).elim false (·.onInstantOrSorceryCard)
-
 /-- A permission to cast this very spell as though it had flash, gated by an added cost or not:
 an ability that modifies how its own object is cast functions in any zone it could be cast from
 and on the stack [CR#113.6e], and a player may begin to cast a spell as though it had flash when
@@ -64,10 +60,13 @@ def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bo
   | _, _ => false
 termination_by structural fuel
 
+/-- Whether an ability may stand in the text of a card of class `c`. A keyword ability is admitted
+on either class: which class the printed corpus puts a keyword on is observation, not a rule, and
+wither, for one, functions whatever zone its object deals damage from [CR#702.80c]. -/
 def classAbilityOk (c : CardClass) (a : Ability) (fuel : Nat := 64) : Bool :=
   match fuel, a with
   | 0, _ => false
-  | _ + 1, .keyword k _ _ => keywordCardOk c k
+  | _ + 1, .keyword .. => true
   | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
     classAbilityOk c a n
   | _ + 1, .spell _ _ => c == .instantOrSorceryCard
