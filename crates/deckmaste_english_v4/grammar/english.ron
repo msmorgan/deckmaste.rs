@@ -126,7 +126,7 @@
         // §6.1, p. 1391).
         "DummyPronoun": (category: Some("NounPhrase"), features: ["Number", "Person"]),
         "ExistentialPredicate": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Inflection", "ComplementKind"]),
-        "FusedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        "FusedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
         // A compound locative determinative, which a Preposition Phrase may
         // postmodify (*anywhere else*).
         // A symbol sequence as a Noun Phrase, which a Preposition Phrase may
@@ -134,7 +134,10 @@
         "SymbolHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A determinative with its partitive oblique, which a relative clause
         // may postmodify (*each of those cards that has suspend*).
-        "PartitiveNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        // A fused partitive carries its determinative's distribution: *each
+        // of X* has the same distributive head as *each X* (CGEL, Ch. 5 §9.1,
+        // p. 411).
+        "PartitiveNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
         // A quantity with its partitive oblique, which a Preposition Phrase may
         // postmodify (*one of them of their choice*).
         "PartitiveHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
