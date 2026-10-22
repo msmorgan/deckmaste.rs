@@ -1,11 +1,14 @@
 ---
 needs: []
 ---
-# "That source" has no Noun Word, so Deflecting Palm reads its own spell
+# "That source" has no way to be written, so Deflecting Palm reads its own spell
 
-Standard constraints apply. **[design]**: the glossary entry **Source** says "Source is not an
-Object class", so the fix needs an owner ruling on its shape before any code. Everything under
-"Proposed" is a proposal, not a ruling.
+Standard constraints apply. Owner notes (2026-10-21):
+- A Noun Word is not an Object class. `player` and `join` are Noun Words too, and players are not
+  Objects, so nothing here conflicts with the glossary's **Source** entry ("Source is not an
+  Object class").
+- Owner's suggested direction, not yet a ruling: "source" may just be a Template over a generic
+  Noun Word (`any`, `object` or similar).
 
 ## Defect (verified 2026-10-21)
 
@@ -39,20 +42,22 @@ source deals damage to this creature, that source's controller …" family (*Phy
 Obliterator*, *Reaper of Sheoldred*, *Belltower Sphinx*, *Archfiend of Spite*, *Crag Saurian*,
 *Rona, Herald of Invasion*, *Elesh Norn // The Argent Etchings*, *Flameblade Angel*).
 
-## Proposed fix
+## Proposed fix (direction from the owner; shape to confirm)
 
-- Governing principle (owner, 2026-10-21): a Core AST distinction exists only where the CR or
-  anaphora resolution needs it. Anaphora resolution filters by noun, so "that source" needs a
-  noun to filter by. This qualifies.
-- Add a `source` Noun Word (or an equivalent the owner prefers) so "that source" resolves as a
-  demonstrative to the mention a "source of your choice" / "a source" introduces
-  (`dealtBy (aYourChoice isSource)`, a `deals`-event agent), and nothing else.
-- Because the glossary says a Source is a contextual relationship and not an Object class, the
-  Noun Word must be a reading of that relationship (the damage-dealing Object in scope), not a
-  new class. Ruling needed on whether to amend the **Source** entry in
-  `docs/contexts/game-model/CONTEXT.md` (with the CR citation) or to name the word differently.
-  Rename the identifier before rewording the entry.
-- Rewrite *Deflecting Palm* to `controllerOf (that source)` and delete the `it` fallback reading.
+- Governing principle (owner, 2026-10-21): printed wording lives on Templates, and a Core AST
+  distinction exists only where the CR or anaphora resolution needs it.
+- "Source" is wording. Add a `thatSource` Template (spelling "that source") that expands to a
+  demonstrative over a generic Noun Word. That word filters only by kind (object), not by card
+  type or zone, because a source can be a permanent, a spell, an object an effect refers to, or
+  a face-up command-zone object [CR#609.7a].
+- The one Core addition is that generic Noun Word, e.g. `NounWord.object`. `lean/CONTRACTS.md`
+  (the `copy` row) says "There is no generic object word", so the landing amends that line.
+  Check first whether an existing head (`join`, or a kind-only demonstrative) already does
+  this job.
+- Check the resolution: "that source" in *Deflecting Palm* must reach the chosen source
+  (`dealtBy (aYourChoice isSource)`), not the spell's handed-off `this_` or "you". If plain
+  demonstrative recency doesn't give that, STOP rather than adding a source-specific rule.
+- Rewrite *Deflecting Palm* to `controllerOf thatSource` and drop the `it` fallback reading.
 
 ## Tests to add
 
