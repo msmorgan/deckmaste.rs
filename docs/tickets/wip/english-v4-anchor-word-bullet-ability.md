@@ -37,5 +37,7 @@ stack ([CR#700.2a,700.2b]), none of which happens here. The style guide's
 - Judgments: the Khans/Dragons and Mirran/Phyrexian bullets read as anchored
   Abilities, with exactly one Reading each, and no Mode Reading.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (mxtmsmpm): faces read 28,800 → 28,800; Readings 237,320 →
+   237,320 (report byte-identical); lost faces: none.
+2. **Judgment set** (mxtmsmpm): all enforced entries hold; `anchored_abilities.txt`
+   adds four, three enforced and holding, the Phyrexian line pending (Stratum 7).

@@ -482,8 +482,14 @@
         (name: "NonManaCost", lhs: "Cost", rhs: [Cat("head", "NonManaCost")]),
         (name: "ActivatedAbility", lhs: "Ability", rhs: [Cat("cost", "ActivationCost"), Punct(':'), Cat("effect", "Effect")]),
         (name: "LabelledAbility", lhs: "Ability", rhs: [Class("label", "AbilityWord"), Mark('—', Free), Cat("head", "Ability")]),
-        // A mode labelled by an Anchor Word [CR#614.12c]: *• Khans — ...*.
-        (name: "AnchoredAbility", lhs: "Ability", rhs: [Class("label", "AnchorWord"), Mark('—', Free), Cat("head", "Ability")]),
+        // An ability headed by an Anchor Word, on its own paragraph after the
+        // ability that offers the choice [CR#607.2m]: *• Khans — ...*. The
+        // bullet belongs to this construction: each such ability is "marked
+        // with an anchor word and preceded by a bullet point" [CR#614.12c].
+        // It is an ability, never a mode: no instruction to choose a number
+        // of options precedes it [CR#700.2] (style guide "Anchor words": "The
+        // bulleted abilities are not modes").
+        (name: "AnchoredAbility", lhs: "Ability", rhs: [Mark('•', Free), Class("label", "AnchorWord"), Mark('—', Free), Cat("head", "Ability")]),
         (name: "FlavorLabelledAbility", lhs: "Ability", rhs: [Lex("label", FlavorWord), Cat("head", "Ability")]),
         (name: "NominalMode", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "Nominal"), Punct('.')], equations: []),
         (name: "NounPhraseMode", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "NounPhrase"), Punct('.')]),
