@@ -47,7 +47,7 @@ def DetPhrase.det : DetPhrase → Determiner
 def Amount.plur (a : Amount) (fuel : Nat := 16) : Plurality :=
   match fuel, a with
   | n + 1, .inCaller body => body.plur n
-  | _ + 1, .lit 1 => .one
+  | _ + 1, .lit 1 | _ + 1, .theNth _ => .one
   | _, _ => .many
 termination_by structural fuel
 
@@ -1146,6 +1146,7 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
     let (drs1, errors) := stepCausingWith ops drs cause
     let (drs2, clauseErrors) := stepWouldClauseWith ops drs1 clause n
     (drs2, errors ++ clauseErrors)
+  | n + 1, .nthOccurrence _ _ clause => stepWouldClauseWith ops drs clause n
 termination_by structural fuel
 
 def stepCombatParticipationWith (ops : StepOps) (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
@@ -1748,7 +1749,7 @@ def WouldClause.isEntering (clause : WouldClause) (fuel : Nat := 8) : Bool :=
   | 0, _ => false
   | _ + 1, .would _ action => action.isEntering
   | n + 1, .wouldAny clauses => !clauses.isEmpty && clauses.all (fun c => c.isEntering n)
-  | n + 1, .causedBy _ clause => clause.isEntering n
+  | n + 1, .causedBy _ clause | n + 1, .nthOccurrence _ _ clause => clause.isEntering n
 termination_by structural fuel
 
 /-- Whether `rider` is a Pile Placement, which only a card put into a zone other than the
@@ -2659,7 +2660,7 @@ def stepOps : Nat → StepOps
         | .inCaller body =>
           let (callerDrs, errs) := ops.amt (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
-        | .lit _ | .anyAmount => (drs, [])
+        | .lit _ | .anyAmount | .theNth _ => (drs, [])
         | .statOf axis subj =>
           let (out, ids, errs) := ops.np { drs with characteristicRead := true } .other false subj
           let refs := ids.filterMap out.findById?

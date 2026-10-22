@@ -135,6 +135,8 @@ semantic_template actor (np : NounPhrase) : Subject := .actor np
 semantic_template by_ (np : NounPhrase) : Subject := .by np
 /-- "any amount" -/
 semantic_template anyAmount : Amount := .anyAmount
+/-- "the <ordinal>", of a counter put: the put that crosses the ordinal's threshold [CR#122.7]. -/
+semantic_template theNth (ordinal : Ordinal) : Amount := .theNth ordinal
 /-- "any cost" -/
 semantic_template anyCost : Cost := .anyCost
 /-- Any of the listed choices, as a vote leaves them open [CR#701.38a]. -/
@@ -302,8 +304,9 @@ open Lean Elab Term in
 /-- Words several sorts share, each sort's template (or definition) by the result type it builds:
 the combinators `and`, `or`, `andOr` and `not`; the verb and the determiner `target`; and the
 other words whose sorts' templates are namespaced (`did`, `was`, `allBut`, `half`, `token`,
-`written`, `copy`, `doIf`, `replace`, …). A word one of whose sorts is a Definition (`crew`,
-`saddle`) is dispatched where that Definition is declared, above this layer. -/
+`written`, `copy`, `doIf`, `replace`, `nthOccurrence`, …). A word one of whose sorts is a
+Definition (`crew`, `saddle`) is dispatched where that Definition is declared, above this
+layer. -/
 private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
   [ (`and, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.and),
              (``Semantics.Condition, `Semantics.Templates.Condition.and),
@@ -350,7 +353,10 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
     (`doIf, [ (``Semantics.Action, `Semantics.Templates.doIf),
               (``Semantics.Replacement, `Semantics.Templates.Replacement.doIf) ]),
     (`replace, [ (``Semantics.Action, `Semantics.Templates.Action.replace),
-                 (``Semantics.StaticSpec, `Semantics.Templates.StaticSpec.replace) ]) ]
+                 (``Semantics.StaticSpec, `Semantics.Templates.StaticSpec.replace) ]),
+    (`nthOccurrence,
+      [ (``Semantics.GameEvent, `Semantics.Templates.nthOccurrence),
+        (``Semantics.WouldClause, `Semantics.Templates.WouldClause.nthOccurrence) ]) ]
 
 open Lean Elab Term Meta in
 /-- Top-down dispatch of a shared word on the expected type: `and [p, q]` elaborates as the one
@@ -1648,6 +1654,11 @@ semantic_template does (subj : Subject) (action : Action) : GameEvent := .does s
 semantic_template would (subj : Subject) (action : Action) : WouldClause := .would subj action
 /-- "if <clause> or <clause> would happen": any of several events [CR#614.1]. -/
 semantic_template wouldAny (clauses : List WouldClause) : WouldClause := .wouldAny clauses
+/-- "the <ordinal> time <clause> [each <per>]": the replaced event's ordinal, as "The first time
+you would create one or more tokens each turn" [CR#614.1]. -/
+semantic_template WouldClause.nthOccurrence (ordinal : Ordinal) (clause : WouldClause)
+    (per : Option TurnPart := none) : WouldClause :=
+  .nthOccurrence ordinal per clause
 /-- "at the beginning of <possessor>'s <part>", each time it comes -/
 semantic_template beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
   .beginningOf part possessor (.each none)
@@ -1662,8 +1673,9 @@ semantic_template beginningOfNext (part : TurnPart) : GameEvent :=
   .beginningOf part none (.next none)
 /-- "at the beginning of that turn's <part>" -/
 semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
-/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`1`) or
-"one or more +1/+1 counters are put" (`anyAmount`). -/
+/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`1`),
+"one or more +1/+1 counters are put" (`anyAmount`) or "the twelfth hour counter is put"
+(`theNth (.nth 12)`). -/
 semantic_template countersPut (kind : CounterKind) (amount : Amount) (subject : NounPhrase) :
     GameEvent :=
   .does .any (.putCounters amount (.printed kind) subject false)

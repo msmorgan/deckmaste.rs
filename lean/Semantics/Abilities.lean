@@ -398,6 +398,12 @@ mutual
     | aggregateOf (op : AggregateOp) (amounts : List Amount)
     | distinctCount (axis : KindAxis) (domain : NounPhrase)
     | anyAmount
+    /-- "The Nth <kind> counter", as a put pattern's amount: a put that leaves its holder with N
+    or more counters of the kind after having had fewer than N before, whether it puts one
+    counter or several [CR#122.7]. It is a threshold, not a count of puts: counters removed in
+    between, annihilated ones included [CR#122.3], leave the holder short of N again. The
+    put-side counterpart of `Quantity.theLast`. -/
+    | theNth (ordinal : Ordinal)
 
   inductive Quantity where
     | inCaller (body : Quantity)
@@ -483,7 +489,8 @@ mutual
     | stateHolds (condition : Condition)
     /-- Saga chapter trigger mark [CR#714.2]. -/
     | chapterMark (chapters : List ChapterNumber)
-    /-- "Whenever you cast your second spell each turn". -/
+    /-- "Whenever you cast your second spell each turn". "When the Nth counter is put" is no
+    occurrence count but a threshold, `Amount.theNth` [CR#122.7]. -/
     | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
     /-- "Whenever an ability you control causes you to…". -/
     | causes (cause : Causing) (event : GameEvent)
@@ -806,6 +813,12 @@ mutual
     | wouldAny (clauses : List WouldClause)
     /-- The named cause of a prospective event [CR#700.1,614.1a]. -/
     | causedBy (cause : Causing) (clause : WouldClause)
+    /-- "The first time <clause> each turn": the `ordinal`th event `clause` matches in each
+    `per`. The ordinal is the replaced event's, part of the particular event the effect watches
+    for [CR#614.1], not a Usage Limit: matching events are counted over the span's whole
+    history, so one that happened before the effect existed, or that the effect applied to and
+    its controller declined to replace, still uses up "the first". -/
+    | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (clause : WouldClause)
 
   /-- What a replacement effect makes of the event it replaces [CR#614.1]: an action in its
   place, an action done as part of it, or Entry Riders on the entering it is, each of which may
@@ -1167,7 +1180,8 @@ mutual
         (under : Option NounPhrase)
     /-- Put `amount` counters on `on`. As an event pattern, `amount` is what the text watches:
     "a counter is put" is `.lit 1`, matched by each counter put [CR#603.2c]; "one or more
-    counters are put" is `.anyAmount`, matched by the event [CR#714.2b]. `byEffect` is whether an
+    counters are put" is `.anyAmount`, matched by the event [CR#714.2b]; "the Nth counter is put"
+    is `.theNth`, matched by the put that crosses N [CR#122.7]. `byEffect` is whether an
     effect does it: one of a resolving spell or ability, or a replacement or prevention effect
     [CR#609.1,614.16]. "If an effect would put" watches only a put with `byEffect`; a
     turn-based action is no effect [CR#703.1]. -/

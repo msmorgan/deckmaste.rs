@@ -1028,11 +1028,11 @@ def moonlitMeditation : Spelled := spelled <| singleFacedCard
     text :=
       [ enchant (and [or [isArtifact, isCreature], youControl]),
         static (replace
-                  (would (by_ you)
-                     (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])
-                        false)) (instead (may
-                                   (create groupSize (copyOf (enchanted permanent))
-                                      []))) none .repeatedly oncePerTurn) ] }
+                  (nthOccurrence (.nth 1)
+                     (would (by_ you)
+                        (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])
+                           false)) (some .turn))
+                  (instead (may (create groupSize (copyOf (enchanted permanent)) [])))) ] }
 
 def discardUpToTwoThenDrawThatMany : Action :=
   sequentially [discard (counted (upTo 2) (cardIn yourHand)), draw groupSize]

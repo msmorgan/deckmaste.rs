@@ -137,6 +137,7 @@ mutual
     | n + 1, .wouldAny clauses => clauses.any (fun c => c.namesThisDoor n)
     | n + 1, .causedBy cause c => c.namesThisDoor n || (match cause with
       | .event e => e.namesThisDoor n | _ => false)
+    | n + 1, .nthOccurrence _ _ c => c.namesThisDoor n
     | _, _ => false
   termination_by structural fuel
 

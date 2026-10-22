@@ -483,11 +483,11 @@ def wavebreakHippocamp : Ability :=
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
-  nthOccurrence (.nth 12) (countersPut hourCounter 1 thisArtifact)
+  countersPut hourCounter (theNth (.nth 12)) thisArtifact
 theorem okMidnightClockHeader : GameEvent.check (DRS.ofList []) midnightClockHeader = [] := by decide
 /-- Political Triumph -/
 def politicalTriumphHeader : GameEvent :=
-  nthOccurrence (.nth 4) (countersPut planCounter 1 thisEnchantment)
+  countersPut planCounter (theNth (.nth 4)) thisEnchantment
 theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=

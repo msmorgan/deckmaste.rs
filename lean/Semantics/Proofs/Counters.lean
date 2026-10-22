@@ -705,4 +705,18 @@ theorem theLastEncodesSuspendsLastCounterTrigger :
         (GameEvent.extend (DRS.ofList []) (countersRemoved timeCounter (orMore 1) this_)) = 1 :=
   ⟨rfl, by decide⟩
 
+/-- Midnight Clock's "When the twelfth hour counter is put on Midnight Clock" [CR#122.7] is a put
+of `theNth`: the put that takes it from fewer than twelve hour counters to twelve or more, not the
+twelfth occurrence of a one-counter put (`nthOccurrence` over `1`). It is singular, so it
+publishes no count of counters put. -/
+theorem theNthEncodesTheCounterThreshold :
+    countersPut hourCounter (theNth (.nth 12)) thisArtifact =
+        .does .any (.putCounters (.theNth (.nth 12)) (.printed hourCounter) thisArtifact false) ∧
+      GameEvent.check (DRS.ofList []) (countersPut hourCounter (theNth (.nth 12)) thisArtifact)
+        = [] ∧
+      countOutcomes .countersPut
+        (GameEvent.extend (DRS.ofList [])
+          (countersPut hourCounter (theNth (.nth 12)) thisArtifact)) = 0 :=
+  ⟨rfl, by decide⟩
+
 end Semantics.Proofs.Counters

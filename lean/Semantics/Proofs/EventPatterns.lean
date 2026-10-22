@@ -298,4 +298,34 @@ theorem controlChangeStampsItsPatientAsTheGrantDoes :
     (participialCandidates (.deed (.core .gainControl)) (some .one) none false
       (nextClause after)).length = 1 := by decide
 
+/-! ## The replaced event's ordinal
+
+Moonlit Meditation's "The first time you would create one or more tokens each turn" names the
+particular event its replacement effect watches for [CR#614.1]: the turn's first token creation
+by you, wherever the effect was then, not the first one it applies to. The ordinal is the
+`WouldClause`'s, and the effect carries no Usage Limit. -/
+
+private def firstCreationEachTurn : WouldClause :=
+  nthOccurrence (.nth 1)
+    (would (by_ you)
+      (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) false))
+    (some .turn)
+
+private def moonlitReplacement : StaticSpec :=
+  replace firstCreationEachTurn
+    (instead (may (create groupSize (copyOf (enchanted permanent)) [])))
+
+theorem firstTimeEachTurnIsTheWatchedEventsOrdinal :
+    firstCreationEachTurn =
+        .nthOccurrence (.nth 1) (some .turn)
+          (would (by_ you)
+            (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) false)) ∧
+      moonlitReplacement =
+        .replace firstCreationEachTurn
+          (instead (may (create groupSize (copyOf (enchanted permanent)) []))) none .repeatedly
+          none ∧
+      WouldClause.check (DRS.ofList []) firstCreationEachTurn = [] ∧
+      StaticSpec.check (DRS.ofList []) moonlitReplacement = [] :=
+  ⟨rfl, rfl, by decide⟩
+
 end Semantics.Proofs.EventPatterns

@@ -1218,10 +1218,16 @@ field is carried (owner ruling 2026-10-21). "A counter is put" is `.lit 1`, "a c
 `exactly 1` and "you roll a die" `.lit 1`, each matched by every counter or die, since one event
 can contain several occurrences [CR#603.2c]; "one or more" is `anyAmount` or `orMore 1`, matched
 by the event [CR#714.2b]; "the last counter is removed" is `Quantity.theLast`
-[CR#702.62a,310.12b]. Only a plural amount or quantity publishes the count (`countersPut`,
+[CR#702.62a,310.12b], and "the Nth counter is put" is `Amount.theNth`, the put that takes its
+holder from fewer than N counters of the kind to N or more [CR#122.7], not an `nthOccurrence`
+count of puts. Only a plural amount or quantity publishes the count (`countersPut`,
 `countersRemoved`, `diceRolled`) that "that many" or "the result" reads, and nothing reads a
 pattern's amount as an exact count. No Oracle text prints "two or more counters are put"; writing
 it would need a `Quantity` on `putCounters`, which takes an `Amount`.
+
+A replacement effect's "the first time … each turn" is the ordinal of the event it watches for
+[CR#614.1], `WouldClause.nthOccurrence`, as a trigger's is `GameEvent.nthOccurrence`; it is not a
+Usage Limit. Which event is the first is a fact of the turn's history, the engine's to count.
 
 A control change named as an event, a lookback or a forbidden act is `Action.changeControl
 subject from_` (`gainControlOf`), with the player control is taken from when the text says "from"
