@@ -104,6 +104,8 @@ semantic_template thatToken : NounPhrase := that .token
 semantic_template thoseTokens : NounPhrase := those .token
 /-- "they": the player most recently named. -/
 semantic_template they : NounPhrase := .pro (.word .player) .one
+/-- "them" reading players, as `they` reads one: "you choose one of them". -/
+semantic_template themPlayers : NounPhrase := .pro (.word .player) .many
 /-- "that player or that permanent's controller": the player half of a "target player or
 planeswalker" split, or the controller of the permanent half. -/
 semantic_template splitOverPlaneswalker : NounPhrase :=
@@ -196,15 +198,17 @@ semantic_template counted (q : Quantity) (p : Predicate) : NounPhrase :=
 /-- "N <p> at random" -/
 semantic_template countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
   .described (.count q (some .atRandom)) p
-/-- "if there is a …" -/
-semantic_template exists_ (p : Predicate) : Condition := .exists_ (.described .bare p)
-/-- "if there are <np>", as "three or more lands with the same name" -/
+/-- "if there is a …", "if you control a …": the indefinite is published for the consequent
+(`semantics-v3.md` §1.3, box 2). -/
+semantic_template exists_ (p : Predicate) : Condition := .exists_ (.described (.a .unmarked) p)
+/-- "if there are <np>", as "three or more lands with the same name", "if two or more creatures
+are tied for least toughness": a counted indefinite, published for the consequent. -/
 semantic_template thereAre (np : NounPhrase) : Condition := .exists_ np
-/-- "the number of …s" -/
-semantic_template countOf (p : Predicate) : Amount := .countOf (.described .bare p)
-/-- "the greatest power among …s" -/
+/-- "the number of …s": the domain counted is all of them, closed after the count. -/
+semantic_template countOf (p : Predicate) : Amount := .countOf (.described .all p)
+/-- "the greatest power among …s": the domain ranged over is all of them, closed after it. -/
 semantic_template aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate) : Amount :=
-  .aggregate op axis (.described .bare p)
+  .aggregate op axis (.described .all p)
 semantic_template random (q : Quantity) (p : Predicate) : NounPhrase := countedAtRandom q p
 /-! ## Locations -/
 
@@ -649,6 +653,11 @@ semantic_template shares (axis : QualitySort) (agreement : Agreement) (with_ : N
   .shares axis agreement with_
 semantic_template superlative (op : AggregateOp) (axis : ProjAxis) (domain : Predicate) :
     Predicate :=
+  .superlative op axis domain
+/-- "tied for least toughness", "tied for lowest life total": with the extreme `axis` among
+`domain`, as `superlative` is. The subject's count ("two or more creatures are tied …") makes it
+a tie. -/
+semantic_template tiedFor (op : AggregateOp) (axis : ProjAxis) (domain : Predicate) : Predicate :=
   .superlative op axis domain
 semantic_template targeting (subject : NounPhrase) (extent : TargetExtent) : Predicate :=
   .targets subject extent
@@ -1256,7 +1265,7 @@ semantic_template eventSum (action : Action) (subj : Subject) (within : Duration
   .tally ⟨subj, action, some (.duration within timing)⟩ .quantity
 /-- "if there is no <designation>" ("if there is no monarch"): nothing holds it. -/
 semantic_template thereIsNo (designation : DesignationLabel) : Condition :=
-  .not (.exists_ (.described .bare (.hasDesignation designation none)))
+  .not (.exists_ (.described (.a .unmarked) (.hasDesignation designation none)))
 /-- "<subject>'s <keyword> cost was paid", read back. -/
 semantic_template paidCostRead (which : LinkSource) (window : Option Duration)
     (subject : NounPhrase) : Amount :=

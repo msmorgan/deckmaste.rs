@@ -38,7 +38,7 @@ theorem okWhileHoldsCitysBlessing :
     StaticSpec.check (DRS.ofList [])
       (.whileHolds
         (.and
-          [ .compareAmt (.countOf (.described .bare (.and [isPermanent, .hasPossessor .controller .you])))
+          [ .compareAmt (.countOf (.described .all (.and [isPermanent, .hasPossessor .controller .you])))
               .atLeast 10,
             .not (.matches .you (.hasDesignation (.named "citysBlessing") none)) ])
         (.gainDesignation .you (.named "citysBlessing") (some (.between none none)))) = [] := by

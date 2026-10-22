@@ -91,7 +91,8 @@ private theorem candidateWins (rs : List Referent) (clause id : Nat)
   simp only [Bool.false_eq_true, ↓reduceIte,
     show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show (candidate clause id).linked = false from rfl,
-    Bool.not_false, Bool.true_and, List.filter_cons, eligible]
+    Bool.not_false, Bool.true_and, List.filter_cons, eligible,
+    show Plurality.one.isOne = true from rfl]
   simp only [List.foldl_cons, show (candidate clause id).clause = clause from rfl, Nat.zero_max,
     olderClauseMaximum _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
     olderClauseFilter _ _ (filteredOlder _), List.foldl_nil]

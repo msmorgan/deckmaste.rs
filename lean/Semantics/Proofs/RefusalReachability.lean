@@ -1,22 +1,78 @@
 import Semantics.Check.AbilityRules
 import Semantics.Definitions.Subtypes
+import Semantics.Templates
 
 namespace Semantics.Proofs.RefusalReachability
 
 private def emptyContext : DRS := DRS.ofList []
 
-/-- Counting a domain is distinct from counting an already quantified selection. -/
+/-- "The number of …" counts a group: a plural universal ("the number of creatures"), not one
+indefinite object. -/
 theorem countRequiresACountableGroup :
-    Amount.check emptyContext (.countOf (.described .bare (.hasType .creature))) = [] ∧
-    Amount.check emptyContext (.countOf (.described .all (.hasType .creature))) =
-      [.countableGroup] ∧
+    Amount.check emptyContext (.countOf (.described .all (.hasType .creature))) = [] ∧
     Amount.check emptyContext (.countOf (.described (.a .unmarked) (.hasType .creature))) =
       [.plural, .countableGroup] := by decide
 
-/-- An existential clause introduces a domain, rather than asserting a definite participant. -/
+/-- An existential clause introduces a plain or counted indefinite ("if there is a player", "if
+two or more creatures are …"), rather than asserting a definite participant. -/
 theorem existentialRequiresAnExistentialMention :
-    Condition.check emptyContext (.exists_ (.described .bare .anyPlayer)) = [] ∧
+    Condition.check emptyContext (.exists_ (.described (.a .unmarked) .anyPlayer)) = [] ∧
+    Condition.check emptyContext
+      (.exists_ (.described (.count (.range (some 2) none) none) (.hasType .creature))) = [] ∧
     Condition.check emptyContext (.exists_ .you) = [.existentialMention] := by decide
+
+open Semantics.Templates in
+/-- The domain "the number of …" counts and "the greatest … among …" ranges over is closed after
+the measure (`semantics-v3.md` §1.3): no later pronoun reads it back. In *Tears of Rage*, *Mishra,
+Claimed by Gix* and *Highcliff Felidar* the reference after the measure reads something else. -/
+theorem measuredDomainIsNotAnAntecedent :
+    Action.check emptyContext
+        (.sequentially [gainLife (countOf isCreature), .setStatus .tapped them]) =
+      [.anaphor .bare .many 0] ∧
+    Action.check emptyContext
+        (.sequentially [gainLife (aggregate .max (.stat .power) isCreature),
+          .setStatus .tapped them]) =
+      [.anaphor .bare .many 0] := by decide
+
+open Semantics.Templates in
+/-- A target announced inside a measured domain survives its closure, being chosen as the spell or
+ability is put on the stack [CR#601.2c,115.1]: *Tibalt, the Fiend-Blooded*'s "deals damage equal
+to the number of cards in target player's hand to that player", and the same through "the
+greatest power among creatures target opponent controls". -/
+theorem measureKeepsItsAnnouncedTargets :
+    Action.check emptyContext
+        (instruct this_ (dealDamage (countOf (cardIn (handOf (target isPlayer)))) (that player))) =
+      [] ∧
+    Action.check emptyContext
+        (.sequentially
+          [ gainLife (aggregate .max (.stat .power)
+              (and [isCreature, .hasPossessor .controller (target isOpponent)])),
+            instruct (that player) (draw 1) ]) = [] := by decide
+
+open Semantics.Templates in
+/-- An existential's domain is read in a self-replacement's replacement and closed after it, as
+after a `doIf`: "You gain 1 life. If there are two or more creature cards in your graveyard, you
+gain 2 life instead. Choose one of them." refuses "them". -/
+theorem replacementConditionClosesItsExistentialDomain :
+    Action.check emptyContext
+        (.sequentially
+          [ replace (gainLife 1)
+              (doIf (thereAre (counted (orMore 2) (and [isCreature, cardIn yourGraveyard])))
+                (instead (gainLife 2))),
+            choose (someOf (exactly 1) them) ]) = [.anaphor .bare .many 0] := by decide
+
+open Semantics.Templates in
+/-- *Tears of Rage*: "Attacking creatures you control get +X/+0 until end of turn, where X is the
+number of attacking creatures. Sacrifice those creatures …": "those creatures" reads the
+creatures that got +X/+0 (the subject, referent 1), not the attacking creatures counted. -/
+theorem tearsOfRageThoseCreaturesReadTheSubject :
+    let pumped := get (bare (and [isCreature, isAttacking, youControl])) (up (letter .x)) (up 0)
+      untilEndOfTurn
+    let out := (stepAction 512 .postEvent .obj emptyContext
+      (.sequentially [pumped, define .x (countOf (and [isCreature, isAttacking]))])).1
+    (out.findById? 1).map (·.det) = some .all ∧
+      (resolveCandidates (.word (.type .creature)) .many (nextClause out)).map (·.id) = [1] := by
+  decide
 
 /-- A written multi-zone search names at least two different zones. -/
 theorem searchRequiresDistinctMultipleZones :
@@ -80,6 +136,18 @@ theorem callerOwnedTestSubjectsDoNotPermitFreshLocalTestSelections :
       Action.check emptyContext (.ownScope none
         (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.exactlyOf 1)) none)) =
         [.testSubject] := by decide
+
+/-- A property test's subject is definite: "if a creature is tapped" is written as an existential.
+Only a coordinated subject may hold an indefinite conjunct ("Titania and a land named Argoth"),
+read existentially (owner ruling 2026-10-22). -/
+theorem onlyACoordinatedTestSubjectHoldsAnIndefinite :
+    Condition.check emptyContext
+        (.matches (.described (.a .unmarked) (.hasType .creature)) (.hasType .artifact)) =
+      [.testSubject] ∧
+    Condition.check emptyContext
+        (.matches (.and [.headed (.type .creature) .this,
+            .described (.a .unmarked) (.hasType .land)]) (.hasType .artifact)) = [] := by
+  decide
 
 /-- "the creatures put into a graveyard": a definite plural Participial Description. -/
 private def thePutCreatures : NounPhrase :=

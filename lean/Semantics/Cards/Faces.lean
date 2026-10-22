@@ -411,6 +411,33 @@ def meldThemInto : Action :=
       meldInto them "Chittering Host" ]
 theorem okMeldThemInto : Action.check (DRS.ofList []) meldThemInto = [] := by decide
 
+/-- Titania, Voice of Gaea: "At the beginning of your upkeep, if there are four or more land cards
+in your graveyard and you both own and control Titania, Voice of Gaea and a land named Argoth,
+Sanctum of Nature, exile them, then meld them into Titania, Gaea Incarnate." The coordinated
+subject of the property test holds an indefinite conjunct, read existentially, and publishes its
+group (owner ruling 2026-10-22). -/
+def titaniaVoiceOfGaeaMeld : Ability :=
+  at_ (beginningOfYour .upkeep)
+    (if_ := some (and
+      [ thereAre (counted (orMore 4) (and [isLand, cardIn yourGraveyard])),
+        is (both thisCreature (a (and [isLand, named "Argoth, Sanctum of Nature"])))
+          (and [youOwn, youControl]) ]))
+    (sequentially [exile them, meldInto them "Titania, Gaea Incarnate"])
+theorem okTitaniaVoiceOfGaeaMeld :
+    Ability.check (DRS.ofList []) titaniaVoiceOfGaeaMeld = [] := by decide
+
+/-- In *Titania, Voice of Gaea*, "them" reads the group of Titania and the land named Argoth
+(referent 4), not the land cards counted in the graveyard. -/
+theorem titaniaThemReadsTitaniaAndArgoth :
+    let condition : Condition := and
+      [ thereAre (counted (orMore 4) (and [isLand, cardIn yourGraveyard])),
+        is (both thisCreature (a (and [isLand, named "Argoth, Sanctum of Nature"])))
+          (and [youOwn, youControl]) ]
+    let after := nextClause (stepCondition 512 (DRS.ofList []) condition).1
+    (resolveCandidates .bare .many after).map (fun ref => (ref.id, ref.groupKey)) =
+      [(4, some 4)] := by
+  decide
+
 /-- Profit // Loss -/
 def profitLoss : Spelled := spelled <| .split
   { characteristics :=

@@ -339,14 +339,6 @@ theorem okBarePluralPlayerDamageRecipient :
       = [] := by
   decide
 
-/-- `perMemberOk` still refuses the measured-domain determiner (`DetPhrase.bare`, which only
-`countOf`, `aggregate` and `exists_` write) as a damage recipient. Whether that determiner stays
-is the owner's decision in `lean-v3-measured-domain-antecedent`. -/
-theorem measuredDomainIsNotAPerMemberRecipient :
-    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage 2 (.described .bare (.isOpponentOf .you))))
-      = [.perMember] := by
-  decide
-
 /-- "Prevent all damage that would be dealt to any player or permanent." -/
 theorem okPreventDealtToPermanent :
     StaticSpec.check (DRS.ofList [])

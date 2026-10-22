@@ -43,7 +43,6 @@ def DetPhrase.det : DetPhrase → Determiner
   | .all => .all
   | .the _ => .the
   | .count _ _ => .count
-  | .bare => .bare
 
 def Amount.plur (a : Amount) (fuel : Nat := 16) : Plurality :=
   match fuel, a with
@@ -66,7 +65,7 @@ def DetPhrase.plur : DetPhrase → Plurality
   | .target q | .count q _ => q.plur
   | .the plur => plur
   | .a _ | .each => .one
-  | .all | .bare => .many
+  | .all => .many
 
 def SliceCount.plur : SliceCount → Plurality
   | .counted q => q.plur
@@ -301,7 +300,7 @@ def DidClause.participialAgentOk (clause : DidClause) (anchor : ParticipialAncho
 determiners read no Participial Description. -/
 def DetPhrase.participialNumber? : DetPhrase → Option (Option Plurality)
   | .the plur => some (some plur)
-  | .all | .each | .bare => some none
+  | .all | .each => some none
   | _ => none
 
 /-- `p` with each anchoring relative clause that writes no span given the span its description
@@ -381,14 +380,20 @@ def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+/-- What "the number of …" counts: a plural universal ("the number of creatures you control"),
+a counted mention or a group already in scope. -/
 def NounPhrase.countableGroup (phrase : NounPhrase) : Bool :=
-  phrase.det == some .bare || phrase.det == some .count || phrase.groupMention
+  phrase.det == some .all || phrase.det == some .count || phrase.groupMention
 
+/-- The subject of an existential ("if there is a …", "if two or more creatures are tied …"): a
+plain or counted indefinite, a coordination of them ("an instant card and a sorcery card"), or
+an Agreement over a counted or targeted group. -/
 def NounPhrase.existentialMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.existentialMention n
   | _ + 1, .agree _ _ group => group.det == some .count || group.det == some .target
-  | _ + 1, phrase => phrase.det == some .bare
+  | n + 1, .and items => !items.isEmpty && items.all (·.existentialMention n)
+  | _ + 1, phrase => phrase.det == some .a || phrase.det == some .count
   | _, _ => false
 termination_by structural fuel
 
@@ -1775,7 +1780,10 @@ def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesE
   | n + 1, .onlyIf condition body =>
     let (drs1, e1) := ops.cond drs condition
     let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesEntering n
-    (drs2, e1 ++ e2)
+    -- An existential's domain is read in the replacement and closed after it, as `doIf` closes
+    -- it (`semantics-v3.md` §1.3, box 2).
+    ({ drs2 with referents := drs2.referents.filter fun ref =>
+        !ref.existentialDomain || drs.referents.any (·.id == ref.id) }, e1 ++ e2)
 termination_by structural fuel
 
 def stepCharacteristicsWith (ops : StepOps) (drs : DRS) (c : Characteristics) : DRS × List Refusal :=
@@ -2644,15 +2652,21 @@ def stepOps : Nat → StepOps
           let (out, _, errors) := ops.np drs .other false subj
           (out, errors ++ facet.localChecks)
         | .aggregate _ axis subj =>
+          -- The domain a superlative ranges over is closed like a relative clause, but for the
+          -- targets announced in it: no later pronoun reads it back (*Highcliff Felidar*: "those
+          -- creatures" are the ones chosen).
           let (out, ids, errors) := ops.np drs .other false subj
           let kind := ((ids.head?.bind out.findById?).map (·.kind)).getD (subj.kindIn out .object)
           let plural := subj.det == some .each || subj.plur == .many ||
             (ids.filterMap out.findById?).any (fun ref => ref.plur == .many)
-          (out, errors ++ refuse (axis.scope == kind) (.projScope kind) ++
+          (leaveMeasure drs out, errors ++ refuse (axis.scope == kind) (.projScope kind) ++
             refuse (plural || axis == .chapter) .plural)
         | .countOf subj =>
+          -- The counted domain is closed like a relative clause, but for the targets announced
+          -- in it: no later pronoun reads it back (*Tears of Rage*: "those creatures" are the
+          -- ones that got +X/+0).
           let (out, _, errors) := ops.np drs .other false subj
-          (out, errors ++ refuse (subj.plur == .many) .plural ++
+          (leaveMeasure drs out, errors ++ refuse (subj.plur == .many) .plural ++
             refuse subj.countableGroup .countableGroup)
         | .greatestStoredMatch subj =>
           let (out, _, errors) := ops.np drs .other false subj
@@ -2727,8 +2741,13 @@ def stepOps : Nat → StepOps
           (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
         | .duringPart _ none => (drs, [])
         | .exists_ subj =>
-          let (out, _, errors) := ops.np drs .subj true subj
-          (out, errors ++ refuse subj.existentialMention .existentialMention)
+          -- The domain is published for the consequent, which may read it back ("if there are
+          -- cards exiled with it, you may play one of them"), and closed after it.
+          let (out, ids, errors) := ops.np drs .subj true subj
+          ({ out with referents := out.referents.map fun ref =>
+              if ref.id ≥ drs.nextId && ids.contains ref.id then { ref with existentialDomain := true }
+              else ref },
+            errors ++ refuse subj.existentialMention .existentialMention)
         | .did clause =>
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
@@ -2754,9 +2773,15 @@ def stepOps : Nat → StepOps
           let kindErrors := match pred.kind?, ids.head?.bind drs1.findById? with
             | some expected, some r => kindCheck expected (some r.kind)
             | _, _ => []
-          -- A player group ("your opponents") is the definite set of those players.
+          -- A player group ("your opponents") is the definite set of those players. A
+          -- coordination may hold an indefinite conjunct, read existentially ("you both own and
+          -- control Titania and a land named Argoth"); the coordination's group is published.
+          let coordinated := match subj with
+            | .and _ | .coord .andOr _ => true
+            | _ => false
           let subjectOk := subj.playerGroupMention || ids.all fun id =>
-            id < drs.nextId || (drs1.findById? id).any (fun ref => ref.det == .the) ||
+            id < drs.nextId ||
+              (drs1.findById? id).any (fun ref => ref.det == .the || (coordinated && ref.det == .a)) ||
               drs1.scopeStack.head?.any (fun frame => frame.callerReferentIds.contains id)
           (refined, e1 ++ e2 ++ kindErrors ++ refuse subjectOk .testSubject ++
             refuse pred.says .predSays)
@@ -3379,7 +3404,11 @@ def stepOps : Nat → StepOps
             else ops.inst phase .obj (nextClause branchContext) thenInst
           let drs2 := { stepped with nextId := max stepped.nextId drs1.nextId }
           match elseInst with
-          | none => (drs2, e1 ++ e2)
+          | none =>
+            -- An existential's domain ("if you control a creature") is read in the branch and
+            -- closed after it (`semantics-v3.md` §1.3, box 2).
+            ({ drs2 with referents := drs2.referents.filter fun ref =>
+                !ref.existentialDomain || drs.referents.any (·.id == ref.id) }, e1 ++ e2)
           | some el =>
             -- The other branch reads the targets and the amounts the branch names, nothing the
             -- branch would choose as it resolves.

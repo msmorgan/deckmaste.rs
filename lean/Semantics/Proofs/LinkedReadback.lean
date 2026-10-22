@@ -242,7 +242,7 @@ theorem okCounterpart :
 /-- "Paired" and "paired with this creature" are object predicates [CR#702.95b]. -/
 theorem okRelated :
     (Condition.check (DRS.ofList []) (.matches thisCreature (.related paired none)),
-      Condition.check (DRS.ofList []) (.exists_ (.described .bare (.and [isCreature, .related paired (some thisCreature)]))))
+      Condition.check (DRS.ofList []) (.exists_ (.described (.a .unmarked) (.and [isCreature, .related paired (some thisCreature)]))))
       = ([], []) := by
   decide
 

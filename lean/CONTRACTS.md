@@ -291,6 +291,24 @@ Possessors and other nested mentions record no direct-argument role, so "target
 creature's controller sacrifices it" reads the creature. `nextClause` commits the
 pending roles, advances `currentClause` and clears `pronounResolved`.
 
+A measured domain is no antecedent: `Amount.countOf` ("the number of …") and
+`Amount.aggregate` ("the greatest … among …") close the domain they measure as a relative
+clause is closed, keeping only the targets announced inside it (`leaveMeasure`,
+`measureKeepsItsAnnouncedTargets`), so "those creatures" after "where X is the number of
+attacking creatures" reads the creatures that got +X/+0 (`measuredDomainIsNotAnAntecedent`,
+`tearsOfRageThoseCreaturesReadTheSubject`). An existential (`Condition.exists_`: "if there is a
+…", "if two or more creatures are tied …") publishes its subject, a plain, counted or
+coordinated indefinite (`NounPhrase.existentialMention`), for the consequent
+(`Referent.existentialDomain`); a `doIf` with no other branch, and a replacement's condition
+(`Replacement.onlyIf`), close it after the consequent (`semantics-v3.md` §1.3, box 2;
+`replacementConditionClosesItsExistentialDomain`). That domain ranks below ordinary mentions for a plural
+pronoun (`D′` and `AC>R1`) and for the groups "the rest" and "the other" are taken from
+(`preferOrdinary` in `resolveCandidates`, `countGroups`, `countedGroupSize`): it is read only
+where no ordinary candidate is in scope (`flowStateThemAndTheRestReadTheCardsLookedAt`,
+`purgingScytheThemReadsTheTiedCreatures`). The subject of a property test (`Condition.matches`)
+is definite, except that a coordination may hold an indefinite conjunct, read existentially
+(`onlyACoordinatedTestSubjectHoldsAnIndefinite`, `titaniaThemReadsTitaniaAndArgoth`).
+
 A Participial Description is a `NounPhrase.described` with determiner `the` (one, or
 `many`: "the exiled cards"), `all`, `each` or the bare plural, one of whose conjuncts is a
 `Predicate.did` with no span written or `thisWay`, whose `which` is what the deed acted on

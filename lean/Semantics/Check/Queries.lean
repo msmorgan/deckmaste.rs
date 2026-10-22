@@ -149,14 +149,16 @@ private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
         (.possessorOf .controller (.pro (.word .join) .one))).2.2 =
           [.possessorKind .controller (.join .object .player)] := by decide
 
-private theorem bareCountDomainDoesNotCompeteWithTheRemainderGroup :
+/-- "The number of creatures" is closed after the count (`semantics-v3.md` §1.3): it leaves no
+referent, so "the rest" after "one of the top N cards" takes the slice's group. -/
+private theorem countDomainDoesNotCompeteWithTheRemainderGroup :
+    let count : Amount := .countOf (.described .all (.hasType .creature))
     let phrase := NounPhrase.someOf (.counted (.range (some 1) (some 1))) none
-      (.slice .top (.countOf (.described .bare (.hasType .creature)))
-        (.zone .library (some .you)))
+      (.slice .top count (.zone .library (some .you)))
     let context := (stepNounPhrase 64 (DRS.ofList []) .other false phrase).1
-    DetPhrase.det .bare = .bare ∧ countGroups .object context = 1 ∧
-      countParts .object context = 1 ∧ theRestOk .object context = true ∧
-      theOtherOk .object context = false := by decide
+    (stepAmount 64 (DRS.ofList []) count).1.referents = [] ∧
+      countGroups .object context = 1 ∧ countParts .object context = 1 ∧
+      theRestOk .object context = true ∧ theOtherOk .object context = false := by decide
 
 private def prospectiveCreatureCreation : Action :=
   .createObject (.lit 1)

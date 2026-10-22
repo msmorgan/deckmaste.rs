@@ -197,9 +197,8 @@ def celestialConvergence : Spelled := spelled <| singleFacedCard
             [ removeCounters (exactly 1) omenCounter thisEnchantment true,
               doIf (compareAmt (countersOn omenCounter thisEnchantment) .atMost 0)
                 (instruct (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])) winGame),
-              doIf (compareAmt
-                      (countOf (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))
-                      .atLeast 2)
+              doIf (thereAre (counted (orMore 2)
+                      (and [isPlayer, tiedFor .max (.playerStat .lifeTotal) isPlayer])))
                 drawGame ]) ] }
 
 def curseOfVengeance : Spelled := spelled <| singleFacedCard

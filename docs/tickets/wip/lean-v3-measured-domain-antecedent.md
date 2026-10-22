@@ -186,3 +186,19 @@ New pins:
 - One card from each of *Evercoat Ursine*, *Brothers Yamazaki*, *Treasure Map*, *Cursed
   Recording* and *River Song's Diary* that reads its existential's domain back, when its card is
   authored.
+
+## Owner rulings on the implementation STOPs (2026-10-22)
+
+- **Q1, Flow State: option B.** A referent published by an existential condition
+  (`existentialDomain`) ranks below ordinary earlier mentions for plural pronouns (D′) and for the
+  "the rest" / "the other" group count. When an earlier group is in scope (Flow State's three
+  cards looked at), "them" and "the rest" stay on it. When none is (Evercoat Ursine, Purging Scythe,
+  Loxodon Peacekeeper), "them" reads the existential domain. Pin Flow State to the cards looked at.
+- **Q1, follow-up ticket:** the self-replacement `replace … (instead …)` form refuses "the rest"
+  even with no existential (Fblthp; Flow State's "instead" form). The proposed cause, to verify:
+  `Action.replace` steps the replacement from the replaced action's post-state, after the
+  partitive's remainder was already consumed. Mint it as its own ticket.
+- **Q2, Titania: option A.** In a property test (`Condition.matches`), a coordinated subject may
+  contain an indefinite conjunct. It reads existentially and publishes the coordinated group, so
+  "exile them, then meld them" resolves. This covers the meld family: Titania, Mishra, Urza Lord
+  Protector, Graf Rats, Hanweir Battlements, Midnight Scavengers. Pin Titania in this ticket.

@@ -640,7 +640,7 @@ theorem okModeChoiceEntwine :
 theorem okModeChoiceConditionalBoth :
     StaticSpec.check (DRS.ofList [])
       (.modeChoice (.allInstead none
-        (some (.exists_ (.described .bare (.and [isArtifact, .hasPossessor .controller .you]))))))
+        (some (.exists_ (.described (.a .unmarked) (.and [isArtifact, .hasPossessor .controller .you]))))))
       = [] := by
   decide
 

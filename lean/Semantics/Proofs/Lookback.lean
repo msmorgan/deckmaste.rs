@@ -62,7 +62,7 @@ theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
       ⟨.actor .you, .draw (.exactlyOf .anyAmount),
         some (.duration soFarThisTurn
-          (some (.onlyIf (.exists_ (.described .bare
+          (some (.onlyIf (.exists_ (.described (.a .unmarked)
             (.and [.hasType .creature,
               .did ⟨.any, .move .which (.zone .battlefield none)
                 (some (.zone .graveyard none)) .departure none [], some withinThisTurn⟩]))))))⟩ =

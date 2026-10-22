@@ -285,10 +285,6 @@ mutual
     /-- "the <noun>", or with `plur = many` "the <nouns>" ("the exiled cards") [CR#607.2a] -/
     | the (plur : Plurality := .one)
     | count (quantity : Quantity) (mode : Option ChoiceMode)
-    /-- The measured domain of `Amount.countOf`, `Amount.aggregate` and `Condition.exists_`,
-    written with no determiner: "the number of creatures you control", "if there are cards in
-    your graveyard". A universal bare plural ("creatures you control get +1/+1") is `all`. -/
-    | bare
 
   /-- A color, written, "the chosen color", or an object's color ("that creature's color"). -/
   inductive ColorTerm where

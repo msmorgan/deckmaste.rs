@@ -81,6 +81,39 @@ def anticipate : Action :=
       putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
 theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 
+/-- Flow State: "Look at the top three cards of your library. Put one of them into your hand and
+the rest on the bottom of your library in any order. If there is an instant card and a sorcery
+card in your graveyard, instead put two of them into your hand and the rest on the bottom of
+your library in any order." The existential publishes its coordinated domain, which ranks below
+the cards looked at (owner ruling 2026-10-22), so "them" and "the rest" read those cards. -/
+def flowState : Spelled := spelled <| singleFacedCard
+  { name := "Flow State", cost := [generic 1, pip .blue], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ lookAt (topSlice 3),
+            doIf (thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
+                                 (a (and [isSorcery, cardIn yourGraveyard]))))
+              (sequentially
+                [ putInto (someOf (exactly 2) them) hand,
+                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])
+              (sequentially
+                [ putInto (someOf (exactly 1) them) hand,
+                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]) ]) ] }
+theorem okFlowState : flowState.card.check = [] := flowState.ok
+
+/-- In *Flow State*'s consequent, "them" reads the three cards looked at (referent 1, in the
+library), not the instant and sorcery cards the existential published, and they are the one
+group "the rest" is taken from. -/
+theorem flowStateThemAndTheRestReadTheCardsLookedAt :
+    let looked := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice 3))).1
+    let instantAndSorcery := thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
+      (a (and [isSorcery, cardIn yourGraveyard])))
+    let after := nextClause (stepCondition 512 (nextClause looked) instantAndSorcery).1
+    (resolveCandidates .bare .many after).map (fun ref => (ref.id, ref.zone)) =
+        [(1, some .library)] ∧
+      countGroups .object after = 1 ∧ countedGroupSize .object after = some 3 := by
+  decide
+
 def revealFourPartition : Action :=
   sequentially
     [ reveal (topSlice 4), putInto (someOf (exactly 1) (those card)) hand,

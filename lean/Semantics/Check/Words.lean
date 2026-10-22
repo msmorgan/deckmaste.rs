@@ -17,7 +17,7 @@ namespace Semantics
 
 /-- A referent's determiner, as the checker records how its phrase introduced it. -/
 inductive Determiner where
-  | target | a | each | all | the | part | count | self | bare
+  | target | a | each | all | the | part | count | self
   deriving DecidableEq, Repr
 
 /-! ## Card types and stats -/
@@ -422,6 +422,9 @@ structure Referent where
   /-- Introduced inside a Condition (an intervening "if", a `doIf` condition, `exists_`): a
   hypothetical, never a Contrast Anchor. -/
   fromCondition : Bool := false
+  /-- Introduced as the subject of an existential ("if there is a …", "if two or more creatures
+  are tied …"): read back in the consequent and closed after it (`semantics-v3.md` §1.3, box 2). -/
+  existentialDomain : Bool := false
   /-- Whether its description says "you control" (`some true`) or that an opponent, or not you,
   controls it (`some false`); `none` when it says neither. -/
   controlledByYou : Option Bool := none
@@ -757,11 +760,19 @@ def countManys (k : Kind) (drs : DRS) : Nat :=
 
 def objGroup (k : Kind) (b : Referent) : Bool := Kind.lte k b.kind && !b.plur.isOne
 
+/-- `refs` without the domains existential conditions published (`Referent.existentialDomain`)
+when an ordinary mention is among them: such a domain ranks below earlier mentions, and is read
+only where none is in scope (owner ruling 2026-10-22). -/
+def preferOrdinary (refs : List Referent) : List Referent :=
+  if refs.any (!·.existentialDomain) then refs.filter (!·.existentialDomain) else refs
+
 /-- The groups "the rest" and "the other" can be taken from. An object a linked ability
-published is read only by a Participial Description (`Referent.linked`), so none is one. -/
+published is read only by a Participial Description (`Referent.linked`), so none is one. A
+domain an existential published counts only where no ordinary group is in scope
+(`preferOrdinary`). -/
 def countGroups (k : Kind) (drs : DRS) : Nat :=
-  (wholeGroups (drs.visibleReferents.filter fun b =>
-    !b.linked && b.det != .part && b.det != .bare && objGroup k b)).length
+  (preferOrdinary (wholeGroups (drs.visibleReferents.filter fun b =>
+    !b.linked && b.det != .part && objGroup k b))).length
 
 def countParts (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -803,13 +814,8 @@ def partsTaken (k : Kind) (drs : DRS) : Nat :=
     else acc) 0
 
 def countedGroupSize (k : Kind) (drs : DRS) : Option Nat :=
-  let rec loop : List Referent → Option Nat
-    | [] => none
-    | b :: bs =>
-      if b.det == .part || b.det == .bare then loop bs
-      else if objGroup k b then b.size
-      else loop bs
-  loop (wholeGroups drs.visibleReferents)
+  ((preferOrdinary ((wholeGroups drs.visibleReferents).filter fun b =>
+    b.det != .part && objGroup k b)).head?).bind (·.size)
 
 def theOtherOk (k : Kind) (drs : DRS) : Bool :=
   countGroups k drs ≤ 1 && countParts k drs != 0 &&
@@ -1182,6 +1188,8 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
   match r with
   | .bare | .atSlot _ =>
       let cands := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
+      -- A plural pronoun reads an existential's domain only where no earlier mention fits.
+      let cands := if pl.isOne then cands else preferOrdinary cands
       match cands with
       | [] => []
       | _ =>
@@ -1193,6 +1201,7 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
   | .word _ | .unionHalf _ =>
       let afterA := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
       let afterC := afterA.filter (fun b => !b.pronounResolved)
+      let afterC := if pl.isOne then afterC else preferOrdinary afterC
       match afterC with
       | [] => []
       | h :: t =>
@@ -1317,6 +1326,16 @@ def leaveRelative (before after : DRS) : DRS :=
   { before with
     referents := hosts ++ before.referents
     nextId := max before.nextId after.nextId }
+
+/-- Close a measured domain ("the number of …", "the greatest … among …") as a relative clause
+is closed (`leaveRelative`), keeping the targets announced inside it: they are chosen as the spell
+or ability is put on the stack [CR#601.2c,115.1], so "the number of cards in target player's hand
+… to that player" reads the target back. -/
+def leaveMeasure (before after : DRS) : DRS :=
+  let closed := leaveRelative before after
+  let targets := after.referents.filter fun r =>
+    r.det == .target && r.id ≥ before.nextId && !r.attachmentHost
+  { closed with referents := targets ++ closed.referents }
 
 /-- Open a keyword action body's own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4):
 pushes an `OwnScopeFrame` masking all pre-entry referents except the active performer. -/
