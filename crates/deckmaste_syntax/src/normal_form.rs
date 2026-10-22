@@ -208,13 +208,7 @@ impl CompiledGrammar {
             return None;
         };
         let p = &self.productions[*self.by_id.get(&auxiliary.production)?];
-        let (at, value) = p.auxiliary?;
-        let feature = self.category_features[p.lhs][at];
-        if auxiliary.features.get(&self.features[feature])
-            != Some(&self.values[feature][usize::from(value)])
-        {
-            return None;
-        }
+        p.auxiliary?;
         let Some(Reading::Node(complement)) = auxiliary.children.last() else {
             return None;
         };

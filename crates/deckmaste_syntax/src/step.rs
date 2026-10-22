@@ -242,12 +242,12 @@ pub(crate) struct Production {
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
-    /// An auxiliary Verb Phrase: the mother feature slot that holds
-    /// `VerbKind: Auxiliary`, and that value. Its last child is a function
-    /// Category aliasing its own Category, the participial Verb Phrase
-    /// Complement of perfect *have* or of passive or progressive *be*
+    /// An auxiliary Verb Phrase's Complement: the child of an uncoordinated
+    /// Production after its head, last, and of a function Category aliasing
+    /// the Production's own Category, the participial Verb Phrase Complement
+    /// of perfect *have* or of passive or progressive *be*
     /// (`Summary::auxiliary`).
-    pub auxiliary: Option<(usize, u16)>,
+    pub auxiliary: Option<usize>,
     /// A noun's bare phrase, which omits the Complements its head's frames
     /// select (`Summary::omitted_complement`).
     pub omits_complement: bool,
@@ -1304,9 +1304,7 @@ impl Production {
             supplemented: self.host_check.is_some_and(|(host, adjunct, kind)| {
                 kind == HostKind::Supplement && host < adjunct
             }),
-            auxiliary: self
-                .auxiliary
-                .is_some_and(|(at, value)| values[at].get() == Some(value)),
+            auxiliary: self.auxiliary.is_some(),
         })
     }
 }

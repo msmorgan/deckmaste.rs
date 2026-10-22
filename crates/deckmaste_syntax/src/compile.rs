@@ -739,17 +739,14 @@ impl<'a> Binder<'a> {
         Ok(self.out)
     }
 
-    /// Marks the auxiliary Verb Phrases: an uncoordinated Production whose last
-    /// child is a function Category aliasing the Production's own Category
-    /// (the participial Verb Phrase Complement of perfect *have* or of passive
-    /// or progressive *be*, never a modal's bare infinitival) is one when its
-    /// mother is `VerbKind: Auxiliary`. It hosts no post-verbal Adjunct
+    /// Marks the auxiliary Verb Phrases, structurally: an uncoordinated
+    /// Production whose head precedes its last child, a function Category
+    /// aliasing the Production's own Category. That is a head taking a
+    /// Complement of its own Category, the participial Verb Phrase Complement
+    /// of perfect *have* or of passive or progressive *be*, never a modal's
+    /// bare infinitival. It hosts no post-verbal Adjunct
     /// (`english-lexical-analysis.md` §2).
     fn auxiliaries(&mut self) -> Result<(), LoadError> {
-        let Some(feature) = self.out.features.iter().position(|n| n == "VerbKind") else {
-            return Ok(());
-        };
-        let value = self.value(feature, "Auxiliary")?;
         let mut complements = BTreeMap::new();
         for (name, declaration) in &self.grammar.categories {
             if let (true, Some(base)) = (declaration.function, &declaration.category) {
@@ -760,16 +757,12 @@ impl<'a> Binder<'a> {
             let Some(Symbol::Cat { category, .. }) = production.rhs.last() else {
                 continue;
             };
-            let Some(at) = self.out.category_features[production.lhs]
-                .iter()
-                .position(|f| *f == feature)
-            else {
-                continue;
-            };
+            let last = production.rhs.len() - 1;
             if production.coordinator.is_none()
+                && production.head.is_some_and(|head| head < last)
                 && complements.get(category) == Some(&production.lhs)
             {
-                production.auxiliary = Some((at, value));
+                production.auxiliary = Some(last);
             }
         }
         Ok(())
