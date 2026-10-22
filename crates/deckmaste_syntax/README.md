@@ -147,11 +147,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
   or line that a comma-set Supplement is anchored to (as `supplement`, *, where
-  X is its power*). An entry may admit a Predicate only as a conjunct
-  (`NominalAndPredicateConjunct`): such a phrase never attaches to a verb on its
-  own, but a Production may take it as `Hosted(.., PredicateConjunct)`, a
-  predicate adjunct coordinated with an unlike one (*second from the top or on
-  the bottom*). Same-head complement priority is derived from the frames: a PP, or an
+  X is its power*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
   (*choose to attack* has no purpose reading). A noun's bare phrase omits the

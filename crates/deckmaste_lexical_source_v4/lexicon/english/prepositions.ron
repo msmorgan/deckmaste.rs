@@ -164,12 +164,12 @@
         // *your choice of 5/1 or 1/5*
         (complement: MeasureNP, hosts: ComplementOnly),
     ]),
-    // *put it on top of its owner's library*
-    // A locative *on*-phrase may also coordinate with another predicate
-    // adjunct (*second from the top or on the bottom*), never attach alone.
+    // *put it on top of its owner's library*; a locative *on*-phrase is a
+    // Nominal postmodifier or a Predicate Adjunct (*second from the top or on
+    // the bottom*).
     (lemma: "on", frames: [
         (complement: Amount, hosts: Nominal),
-        (complement: NP, hosts: NominalAndPredicateConjunct),
+        (complement: NP, hosts: NominalAndPredicate),
         (complement: Nominal, hosts: ComplementOnly),
     ]),
     (lemma: "onto", frames: [(complement: NP, hosts: ComplementOnly)]),

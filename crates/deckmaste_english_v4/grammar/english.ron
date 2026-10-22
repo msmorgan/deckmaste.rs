@@ -701,10 +701,6 @@
         (name: "CoordinatedPredicative", lhs: "Predicative", rhs: [Cat("head", "DepictiveCoordination")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
-        // A Preposition Phrase whose catalog frame hosts a predicate only as a
-        // conjunct coordinates with another predicate adjunct (*second from
-        // the top or on the bottom*).
-        (name: "LocativeAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", PredicateConjunct)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),

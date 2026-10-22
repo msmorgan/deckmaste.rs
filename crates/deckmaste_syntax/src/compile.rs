@@ -1408,7 +1408,7 @@ impl<'a> Binder<'a> {
                 // a predicate an Adjunct.
                 let function = match host_kind {
                     HostKind::Nominal => "modifier",
-                    HostKind::Predicate | HostKind::PredicateConjunct => "adjunct",
+                    HostKind::Predicate => "adjunct",
                     HostKind::Supplement => "supplement",
                 };
                 let (h, a) = if *side == Side::After {

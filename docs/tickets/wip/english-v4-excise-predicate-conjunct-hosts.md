@@ -77,5 +77,5 @@ host kind, Category or feature for this one phrase.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `oxmnylrw` → this landing, `szvklzzw`): faces read 28,800 → 28,800; total Readings 213,916 → 232,866; Surplus 88,285 → 98,809; cheapest tier singleton in 14,798 of 16,558 ambiguous units (summed 18,913, largest 8) → 15,430 of 17,192 (summed 19,549, largest 8); lost faces: none. Chosen: Ranking (*on* + NP hosts `NominalAndPredicate`); 1,903 units grow, Temple of Cyclical Time and Hedron Alignment go from a cheapest tier of one to two. Measured alternative, the existing Categories alone (*on* + NP hosts `Nominal`): Readings 213,910, and Lost Days, Temporal Cleansing, Wan Shi Tong, All-Knowing, Happy Hogan, Bodyguard and Deem Inferior lose their only Reading.
+Judgment set: every entry holds; `strata --check` passes; all-endorsed cheapest tiers 2,892 → 2,892 of 3,081 grammatical entries, none lost. Felisa, Fang of Silverquill (`perfect_relative_adverbial_gap.txt`) is rewritten to assert *it had __ on it* (`RelativeClause "it had on it" gap "counters"`), the analysis it asserted before Stratum 6 dropped it, which is now its cheapest Reading.
