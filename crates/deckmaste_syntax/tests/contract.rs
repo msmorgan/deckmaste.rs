@@ -770,6 +770,40 @@ fn gap_survives_packing_until_its_governor() {
     assert_eq!(readings(&grammar, &lexicon, "See."), BTreeSet::new());
 }
 
+/// A Gap passes to the mother only through a child its Production marks
+/// `transparent`: the same Production with its head left Closed builds a
+/// gapless mother but none over a gapped head, so nothing can carry the
+/// head's Gap up to the relative clause.
+#[test]
+fn closed_child_with_a_gap_yields_no_mother() {
+    let lexicon = Lexicon::new([
+        Lexeme::verb("v:see", "see", core()),
+        noun("card"),
+        word("d:the", "the", Category::Determinative),
+        pronoun("pr:you", "you", &[(Number::Plural, Person::Second)]),
+    ])
+    .unwrap();
+    let transparent = r#"], transparent: ["head"]),"#;
+    assert_eq!(RELATIVE.matches(transparent).count(), 1);
+    let opaque = RELATIVE.replace(transparent, "]),");
+    for frames in [SEE_BOTH, SEE_TRANSITIVE] {
+        let passing = bind(RELATIVE, &lexicon, frames).unwrap();
+        let closed = bind(&opaque, &lexicon, frames).unwrap();
+        // The transparent head passes the object Gap up to the relative.
+        assert_eq!(
+            readings(&passing, &lexicon, "See the card you see.").len(),
+            1
+        );
+        // The Closed head refuses it, so no mother carries it.
+        assert_eq!(
+            readings(&closed, &lexicon, "See the card you see."),
+            BTreeSet::new()
+        );
+        // The Production still builds its gapless mother.
+        assert_eq!(readings(&closed, &lexicon, "See the card.").len(), 1);
+    }
+}
+
 /// Obligation 9: a unary cycle hides no finite sibling Derivation. `A` and
 /// `B` each derive the word and each other; every tree in which no
 /// Constituent contains itself is a Reading, whichever Constituent the
