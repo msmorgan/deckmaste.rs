@@ -79,6 +79,12 @@
     "single",
     "six-sided",
     (lemma: "small", comparative: "smaller", superlative: "smallest"),
+    // Attributive only, "initial": *your starting life total*, *your
+    // starting deck* [CR#103.2a,103.4]. Like *following*, it is no
+    // participle: a starting life total is not one that starts, and that
+    // semantic divergence from the verb makes it an adjective (CGEL, Ch. 6
+    // §2.4.3, p. 541: *the winning team*).
+    (lemma: "starting", position: Some(Attributive)),
     // Attributive only: *the top card*; *on top of* is the noun.
     (lemma: "top", position: Some(Attributive)),
     // Attributive only: *total mana value*; *the total of* is the noun.

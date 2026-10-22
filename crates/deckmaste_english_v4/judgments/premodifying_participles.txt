@@ -1,0 +1,9 @@
+# Which participles premodify a bare nominal: a gerund-participle only when its verb may stand without a Complement (an attributive VP takes no post-head dependent), a passive past participle of a transitive verb, and a declared adjective in place of its homograph participle
++PrepositionPhrase instead of declaring blockers => VerbPhrase "declaring blockers" as Complement of of; NounPhrase "blockers" as Object of declare; !Nominal "declaring blockers"
++ <card=Camouflage> This turn, instead of declaring blockers, each defending player chooses any number of creatures they control and divides them into a number of piles equal to the number of attacking creatures for whom that player is the defending player. => VerbPhrase "declaring blockers" as Complement of of; !Nominal "declaring blockers"
++ <card=Yawgmoth's Will> Until end of turn, you may play lands and cast spells from your graveyard. => VerbPhrase "play lands"; VerbPhrase "cast spells"; NounPhrase "spells" as Object of cast || NounPhrase "lands and cast spells from your graveyard" as Object of play; VerbPhrase "cast" as Modifier of spell
++ <card=Grolnok, the Omnivore> You may play lands and cast spells from among cards you own in exile with croak counters on them. => VerbPhrase "play lands"; NounPhrase "spells" as Object of cast || VerbPhrase "cast" as Modifier of spell
++NounPhrase a goaded creature => AdjectivePhrase "goaded" as Modifier of creature; readings 1
+# Unlike premodifiers coordinate serially (an adjective and nouns)
++Nominal basic, Sphere, and Locus lands => Attributes "basic, Sphere, and Locus" as Modifier of land; readings 1
++ <card=Monument to Perfection> {3}: This artifact becomes a 9/9 Phyrexian Construct artifact creature, loses all abilities, and gains indestructible and toxic 9. Activate only if there are nine or more lands with different names among the basic, Sphere, and Locus lands you control. => Attributes "basic, Sphere, and Locus" as Modifier of land

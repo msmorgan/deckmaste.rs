@@ -106,7 +106,6 @@ Invasion of Arcavios | When this Siege enters, search your library, graveyard, a
 Teferi's Realm | At the beginning of each player's upkeep, that player chooses artifact, creature, land, or non-Aura enchantment. All nontoken permanents of that type phase out.
 Archon of Valor's Reach | As this creature enters, choose artifact, enchantment, instant, sorcery, or planeswalker.
 Grizzled Wolverine | {R}: This creature gets +2/+0 until end of turn. Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn.
-Monument to Perfection | {3}: This artifact becomes a 9/9 Phyrexian Construct artifact creature, loses all abilities, and gains indestructible and toxic 9. Activate only if there are nine or more lands with different names among the basic, Sphere, and Locus lands you control.
 Messenger Jays | Council's dilemma — When this creature enters, starting with you, each player votes for feather or quill. Put a +1/+1 counter on this creature for each feather vote and draw a card for each quill vote. For each card drawn this way, discard a card.
 Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blue Camarid, black Thrull, red Goblin, or green Saproling.
 

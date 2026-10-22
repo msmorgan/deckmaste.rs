@@ -1503,14 +1503,28 @@ impl<'a> Binder<'a> {
                 modifier_id,
                 0,
             );
-            // An Active-only verb has no passive participle, so none of its
-            // forms premodifies as one (CGEL, Ch. 16 §10.1.2, p. 1432).
-            let test = if *form == deckmaste_lexical::WordForm::PastParticiple {
+            // An attributive VP takes no post-head dependent (CGEL, Ch. 5
+            // §14.2, p. 444). A passive past participle's Object is the
+            // nominal it modifies, but an active gerund-participle realizes no
+            // Complement, so only a verb whose Complement is optional
+            // premodifies with one (*attacking creature*, never *declaring
+            // blockers* as "blockers that declare"). An Active-only verb has
+            // no passive participle, so none of its forms premodifies as one
+            // (CGEL, Ch. 16 §10.1.2, p. 1432).
+            let past = *form == deckmaste_lexical::WordForm::PastParticiple;
+            let test = if past {
                 Test::FreeNotActiveOnly(head)
             } else {
-                Test::FreeLexical(head)
+                Test::FreeOptional(head)
             };
             let child = leaf.child("head", Symbol::Leaf(test), GapRule::Closed);
+            // A past participle spelled like a declared Adjective (*tapped*)
+            // has that Adjective as its Adjectival Passive, which premodifies
+            // in its place.
+            if past && let Some(f) = self.out.features.iter().position(|n| n == "AdjectivalPassive")
+            {
+                leaf.exclusions.push((child, f, self.value(f, "Lexical")?));
+            }
             let inflection = self.feature("Inflection")?;
             leaf.equations.push((
                 Path::Child(child, inflection),

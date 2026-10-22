@@ -1,5 +1,5 @@
 # Plugin-declared terms (modified, poisoned, multikicker, expend, descend, convoke, devour, evolve) in their grammatical roles: predicate adjectives, a keyword with a cost, and verbs
-+ Modified creatures you control have lifelink. => VerbPhrase "Modified" as Modifier of creature
++ Modified creatures you control have lifelink. => AdjectivePhrase "Modified" as Modifier of creature
 + This creature has flying as long as it's modified. => AdjectivePhrase "modified" as PredicativeComplement of be
 + Counter target spell if its controller is poisoned. => AdjectivePhrase "poisoned" as PredicativeComplement of be
 + Multikicker {1}{G} => KeywordPhrase "Multikicker {1}{G}"

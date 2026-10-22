@@ -1,8 +1,8 @@
 # Participles: attributive gerund-participle and participial-adjective premodifiers, depictive predicative adjuncts (enters tapped, onto the battlefield tapped and attacking), participial postmodifiers with objects, and tapped-and-attacking after be
 +NounPhrase target attacking creature => VerbPhrase "attacking" as Modifier of creature; readings 1
 +NounPhrase target blocking creature => VerbPhrase "blocking" as Modifier of creature; readings 1
-+NounPhrase target tapped creature => VerbPhrase "tapped" as Modifier of creature || AdjectivePhrase "tapped" as Modifier of creature
-+NounPhrase target untapped creature => VerbPhrase "untapped" as Modifier of creature || AdjectivePhrase "untapped" as Modifier of creature
++NounPhrase target tapped creature => AdjectivePhrase "tapped" as Modifier of creature; readings 1
++NounPhrase target untapped creature => AdjectivePhrase "untapped" as Modifier of creature; readings 1
 + This land enters tapped. => AdjectivePhrase "tapped" as Adjunct of enter; readings 1
 +NounPhrase target attacking or blocking creature => VerbPhrase "attacking or blocking" as Modifier of creature; readings 1
 +Predicative tapped and attacking => AdjectivePhrase "tapped"; VerbPhrase "attacking"; readings 1

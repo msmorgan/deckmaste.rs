@@ -1,7 +1,7 @@
-# Designation words in ordinary grammatical roles: commander and monarch as nouns, prepared and monstrous as adjectives, goaded as a participial modifier
+# Designation words in ordinary grammatical roles: commander and monarch as nouns, prepared and monstrous as adjectives, goaded as an adjectival modifier
 + <card=Commodore Guff> Commodore Guff can be your commander. => NounPhrase "your commander" as PredicativeComplement of be
 + <card=Flamekin Herald> Commander spells you cast have cascade. => Nominal "Commander" as Modifier of spell
 + <card=Blazing Firesinger> This creature enters prepared. => AdjectivePhrase "prepared"
 + <card=Colossus of Akros> As long as this creature is monstrous, it has trample and can attack as though it didn't have defender. => AdjectivePhrase "monstrous" as PredicativeComplement of be
 + <card=Court of Ire> When this enchantment enters, you become the monarch. => NounPhrase "the monarch" as PredicativeComplement of become; Nominal "monarch"
-+ <card=Baeloth Barrityl, Entertainer> Whenever a goaded attacking or blocking creature dies, you create a Treasure token. => VerbPhrase "goaded" as Modifier of creature
++ <card=Baeloth Barrityl, Entertainer> Whenever a goaded attacking or blocking creature dies, you create a Treasure token. => AdjectivePhrase "goaded" as Modifier of creature

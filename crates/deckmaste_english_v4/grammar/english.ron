@@ -1006,9 +1006,10 @@
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
         (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
-        // A gerund-participle in a coordination of premodifiers; like an
-        // adjective, it is no unlike conjunct of one.
-        (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "AdjP")]),
+        // A gerund-participle in a coordination of premodifiers. As in a
+        // Depictive, it is an unlike conjunct of an adjective (*tapped and
+        // attacking token*, *attacking, blocking, or tapped creature*).
+        (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "Gerund")]),
         (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
         // Oracle sets off with commas only independent negative modifiers of
         // one head (`docs/oracle-style-guide.md` §6, Determiners and modifier
@@ -1474,7 +1475,9 @@
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", unshared: ["DeterminativeDistribution"], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
-        Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        // Unlike premodifiers coordinate serially too (*attacking, blocking,
+        // or tapped creature*; *the basic, Sphere, and Locus lands*).
+        Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),

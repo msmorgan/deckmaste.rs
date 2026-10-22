@@ -1,9 +1,9 @@
-# Coordinated premodifiers (adjective and participle) forming one Modifier of the nominal head
-+Nominal tapped and attacking token => VerbPhrase "tapped and attacking" as Modifier of token
-+Nominal tapped or blocking creature => VerbPhrase "tapped or blocking" as Modifier of creature
-+Nominal attacking, blocking, or tapped creature => VerbPhrase "attacking, blocking, or tapped" as Modifier of creature
-+ <card=Furnace-Blessed Conqueror> Whenever this creature attacks, create a tapped and attacking token that's a copy of it. => VerbPhrase "tapped and attacking" as Modifier of token
-+ <card=Pugnacious Pugilist> Whenever this creature attacks, create a tapped and attacking 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target." => VerbPhrase "tapped and attacking" as Modifier of token
-+ <card=Krothuss, Lord of the Deep> Create a tapped and attacking token that's a copy of another target attacking creature. => VerbPhrase "tapped and attacking" as Modifier of token
-+ <card=Tetsuo Umezawa> {U}{B}{B}{R}, {T}: Destroy target tapped or blocking creature. => VerbPhrase "tapped or blocking" as Modifier of creature
-+ <card=Sonar Strike> Sonar Strike deals 4 damage to target attacking, blocking, or tapped creature. => VerbPhrase "attacking, blocking, or tapped" as Modifier of creature
+# Coordinated premodifiers (the status adjective and a participle) forming one Modifier of the nominal head
++Nominal tapped and attacking token => Attributes "tapped and attacking" as Modifier of token; AdjectivePhrase "tapped"; VerbPhrase "attacking"
++Nominal tapped or blocking creature => Attributes "tapped or blocking" as Modifier of creature; AdjectivePhrase "tapped"; VerbPhrase "blocking"
++Nominal attacking, blocking, or tapped creature => Attributes "attacking, blocking, or tapped" as Modifier of creature; AdjectivePhrase "tapped"; VerbPhrase "blocking"
++ <card=Furnace-Blessed Conqueror> Whenever this creature attacks, create a tapped and attacking token that's a copy of it. => Attributes "tapped and attacking" as Modifier of token; AdjectivePhrase "tapped"; VerbPhrase "attacking"
++ <card=Pugnacious Pugilist> Whenever this creature attacks, create a tapped and attacking 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target." => Attributes "tapped and attacking" as Modifier of token; AdjectivePhrase "tapped"; VerbPhrase "attacking"
++ <card=Krothuss, Lord of the Deep> Create a tapped and attacking token that's a copy of another target attacking creature. => Attributes "tapped and attacking" as Modifier of token; AdjectivePhrase "tapped"; VerbPhrase "attacking"
++ <card=Tetsuo Umezawa> {U}{B}{B}{R}, {T}: Destroy target tapped or blocking creature. => Attributes "tapped or blocking" as Modifier of creature; AdjectivePhrase "tapped"; VerbPhrase "blocking"
++ <card=Sonar Strike> Sonar Strike deals 4 damage to target attacking, blocking, or tapped creature. => Attributes "attacking, blocking, or tapped" as Modifier of creature; AdjectivePhrase "tapped"; VerbPhrase "blocking"
