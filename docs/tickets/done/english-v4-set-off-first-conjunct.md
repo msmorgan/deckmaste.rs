@@ -96,9 +96,10 @@ it back. Confirmed: leave the 5 copy-except units un-tuned, and leave the
 *Search … Then that player shuffles* judgment pending for Stratum 7 (Then)."
 
 These rulings answer the open question above and supersede the Done-when below
-where they differ. Rises from the newly admitted scope trees are allowed. Shape
-(a) is kept as a scope tree. The *Search* entry stays pending until sentence-initial
-*Then* reads (Stratum 7).
+where they differ. Rises from the newly admitted scope trees are allowed.
+The 5 un-tuned copy-*except* units are tracked in
+`english-v4-ranking-residuals`. Shape (a) is kept as a scope tree. The
+*Search* entry stays pending until sentence-initial *Then* reads (Stratum 7).
 
 ## Done when
 

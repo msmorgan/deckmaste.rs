@@ -15,12 +15,12 @@ analyses no English grammar admits (`docs/decisions/english-v4.md` §4.4).
 
 1. The Attachment Class for the second of two dependents before their head is
    confirmed, with its §4.3 text.
-2. `fused_head` is retired as well. Teferi, Master of Time is accepted as a
-   ranking residual: without the closure, a garden-path Reading (*loyalty
-   [abilities of Teferi on any player's] turn any time …*) ranks first. The
-   chart closure machinery, its glossary term, and the full re-parse in
-   `admit_as` are deleted. Lexical atomicity is checked on the Reading itself,
-   node by node, by the chart's own rule.
+2. `fused_head` is retired as well. Teferi, Master of Time is a ranking
+   residual, tracked in `english-v4-ranking-residuals`: without the closure,
+   a garden-path Reading (*loyalty [abilities of Teferi on any player's] turn
+   any time …*) ranks first. The chart closure machinery, its glossary term,
+   and the full re-parse in `admit_as` are deleted. Lexical atomicity is
+   checked on the Reading itself, node by node, by the chart's own rule.
 3. The `ranks first` judgment assertion is confirmed.
 
 ## Evidence

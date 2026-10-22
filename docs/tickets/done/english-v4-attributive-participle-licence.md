@@ -66,8 +66,10 @@ Decisions on the findings:
 
 - (a) Serial coordination of unlike attributes is allowed. It keeps
   *attacking, blocking, or tapped creature* (Sonar Strike) and newly reads
-  *the basic, Sphere, and Locus lands* (Monument to Perfection). The rises it
-  causes are accepted: Acclaimed Contender, Rob the Hoard, Ray of Ruin.
+  *the basic, Sphere, and Locus lands* (Monument to Perfection). It causes
+  three rises: Acclaimed Contender, Rob the Hoard, Ray of Ruin. Where the
+  cheapest Reading is not the endorsed one (Rob the Hoard, Ray of Ruin), that
+  is tracked in `english-v4-ranking-residuals`.
 - (b) *starting* is an attributive adjective, not a participle of *start*
   (CGEL, Ch. 6 §2.4.3, p. 541: semantic divergence from the verb, as in *the
   winning team*; [CR#103.2a,103.4]). The three judgments that asserted
@@ -103,7 +105,7 @@ Decisions on the findings:
   *untapped* (1,350 Readings), 54 with *goaded*, *modified* and other
   declared-adjective homographs (117), and the *cycling ability/cost* units
   (no participle *cycling*: *cycle* takes its Object).
-- No face is lost; only the three accepted units rise.
+- No face is lost; only the three units in (a) rise.
 
 ## Done when
 
@@ -111,7 +113,7 @@ Decisions on the findings:
 - *play lands and cast spells* has both Readings, witnessed by a `+`
   Judgment.
 - *target tapped creature* has exactly one Reading, the adjective.
-- No face is lost, and no unit beyond the three accepted ones gains a Reading.
+- No face is lost, and no unit beyond the three in (a) gains a Reading.
 
 ## Constraint: no new features in `english.ron`
 
