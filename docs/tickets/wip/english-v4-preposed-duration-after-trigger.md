@@ -58,5 +58,40 @@ modifies the effect, not the trigger event:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+## Resolution
+
+**Owner's ruling (round 6, 2026-10-22):** proceed with this ticket; re-measure
+first, since `english-v4-set-off-first-conjunct` and the sixth
+canonicalization had landed since it was written, then supply any missing
+main-Clause analysis structurally.
+
+Re-measured on `suupnrpm`, the analysis is already present and the trapped one
+is gone. `kzzovunt` (`english-v4-set-off-first-conjunct`, under the owner's
+round-6 ruling recorded there) closed a preposition's Clause Complement
+against a comma-set post-adjunct (`Summary::post_adjunct`; the
+`PresentComplementClause` Production is `undelimited`). That removed
+*[this Vehicle becomes crewed for the first time each turn, until end of
+turn]* as the Complement of *whenever*, which was the first candidate cause
+above in another form. Nothing was blocking the main-Clause analysis. The
+comma-fronted Preposition Phrase Adjunct on `Clause` stacks: *[Whenever …],
+[[until end of turn], [this Vehicle becomes …, except …]]*. The sixth
+canonicalization puts *, except …* inside the duration's host Clause.
+
+All 16 Readings of the unit now have exactly that trigger Complement and
+*until end of turn* as a preposed Adjunct of the main Clause. The trapped
+Reading is not a separate defect to remove: none is left. The other
+alternations are retained ambiguity, outside this ticket: adjectival or
+verbal *crewed*, the host of *this turn*, the *except* scope tree, and the
+attachment of *in addition to its other types*. No grammar or engine change
+was needed. The landing adds the `+` judgment in
+`judgments/trigger_clauses.txt`, asserting the trigger Complement by span,
+*until end of turn* as an Adjunct of *become*, the fronted Clause's span, and
+`!Clause "this Vehicle becomes crewed for the first time each turn, until
+end of turn"`.
+
+1. **Census delta** (`suupnrpm`, full corpus): faces read 28,799 → 28,799;
+   total Readings (product) 214,300 → 214,300 and Surplus 88,560 → 88,560;
+   every unit unchanged, Mindlink Mech at 16. Cheapest tier: singleton in
+   14,800 of 16,562 ambiguous units, summed 18,929, largest 8, unchanged.
+   Lost faces: none.
+2. **Judgment set** (`suupnrpm`): 3,029 enforced, 207 pending; all hold.
