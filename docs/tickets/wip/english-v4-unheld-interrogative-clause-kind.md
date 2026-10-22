@@ -19,5 +19,5 @@ and report which frame does.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `mqlxwspx` → `tzlyktoq`): faces read 28,801 → 28,801 (of 32,828), total Readings 237,339 → 237,339, Surplus 101,981 → 101,981 (the `strata.json` report is byte-identical before and after); lost faces: none. Binding succeeded, so no frame projects the value.
+Judgment set: every judgment holds (`cargo test -p deckmaste_english_v4`, `judgments.rs`, all tests pass); `strata --check` passes; cheapest tier unchanged (singleton in 15,825 of 17,635 ambiguous units, summed 20,054, largest 8). The S/A/P/F tally has no tool in this tree.
