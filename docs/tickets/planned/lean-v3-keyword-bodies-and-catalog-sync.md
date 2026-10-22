@@ -22,7 +22,10 @@ needs: [lean-v3-rules-and-card-fidelity]
   `multikicker` `[CR#702.33c]`, `miracle` `[CR#702.94a]`, `prototype`
   `[CR#702.160a]` — removing `set_option linter.unusedVariables false` at
   `Keywords.lean:1128` — plus `learn` `[CR#701.48]` and `ventureIntoTheDungeon`
-  `[CR#701.49]` in `Definitions/Actions.lean`).
+  `[CR#701.49]` in `Definitions/Actions.lean`). `multikicker`'s body and its kicker label (a
+  multikicker cost is a kicker cost `[CR#702.33c]`) are written by
+  [lean-v3-keyword-cast-permissions-and-costs](lean-v3-keyword-cast-permissions-and-costs.md)
+  §3; do not give it a separate label here.
 - Note: `lifelink`, `wither`, `infect`, and `toxic` are owned by
   [`semantics-v3-damage-results`](semantics-v3-damage-results.md) (with `toxic`
   gated on Q89); do not duplicate or bypass that ticket's STOP.

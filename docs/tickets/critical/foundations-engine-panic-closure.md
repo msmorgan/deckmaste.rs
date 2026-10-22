@@ -24,7 +24,7 @@ variants seem covered.”
 | Snapshot object kind/subtype predicates | [[engine-snapshot-object-classification]] | Arahbo, the First Fang; Crossway Troublemakers; Gate Colossus; Gateway Sneak; High-Society Hunter; Infernal Vessel; Kalastria Highborn; Lathliss, Dragon Queen; Midnight Reaper; Spinner of Souls; Valkyrie’s Call; Wildborn Preserver; Youthful Valkyrie |
 | Snapshot combat-state predicates | [[engine-snapshot-combat-state]] | Garna, Bloodfist of Keld |
 | Snapshot candidate/reference bindings | [[core-regions-substrate]] | Predator Ooze |
-| Live/LKI-aware `StatOf` | [[engine-statof-reference-channel]] | Heartfire Immolator; Halana and Alena, Partners; Ovika, Enigma Goliath; Prime Speaker Zegana; plus the gone-reference side of Bite Down, Felling Blow, and Heroes’ Bane |
+| Live/LKI-aware `StatOf` | [[engine-statof-reference-channel]] | Heartfire Immolator; Halana and Alena, Partners; Ovika, Enigma Goliath; Prime Speaker Zegana; plus the gone-reference side of Bite Down and Felling Blow |
 | Root additional-cost hoisting and paid-object binding | [[core-regions-costs-and-captures]] | Ayli, Eternal Pilgrim |
 | Departed action operands after partial target loss/source departure | [[engine-departed-reference-fizzle]] | Bite Down; Drakuseth, Maw of Flames; Felling Blow; Heroes’ Bane |
 | Current-state conditions must not accidentally consume LKI | [[engine-condition-lki-context]] | Affectionate Indrik |

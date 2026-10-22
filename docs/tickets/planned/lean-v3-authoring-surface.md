@@ -235,6 +235,11 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     can you (cast this (from_ := yourGraveyard))
     cant you (cast this (from_ := not yourGraveyard))
     ```
+    That pair is *Haakon*'s. Aftermath's restriction is "any zone other than a graveyard"
+    [CR#702.127a], not "your": its excluded zone is `not graveyard`, so another
+    player's graveyard permission still reaches the half (corrected 2026-10-21, see
+    [lean-v3-keyword-cast-permissions-and-costs](lean-v3-keyword-cast-permissions-and-costs.md)
+    §7).
   - **`stateBased` (owner ruling 2026-10-18):** the cause rides the prohibited action, not the
     rule: *"can't lose the game for having 0 or less life"* (*Phyrexian Unlife*, `[CR#704.5a]`)
     is `cant you (loseGame (cause := nonpositiveLife))`, over `Action.conclude (verb) (cause)`.

@@ -33,6 +33,16 @@ second [CR#702.61b] or Damping Matrix's "unless they're mana abilities."
 Replace the current Linvala-shaped regression with separate Linvala, Damping
 Matrix, and split-second cases proving the first blocks matching mana abilities
 while the latter two permit them.
+(2026-10-21, `docs/evidence/mtg-rules-review-2026-10-21/departures-engine.md` #7:
+the bypass is `blanket_applies` in `legal.rs` `cant_activate` (:757-780), passed
+`false` by `activate.rs` `can_activate_mana` (:247-292), `cast.rs:1075-1077` and
+`payment/mana.rs:127, :226`; `DeonticAction::Activate` needs an ability-kind
+scope (not mana / not mana or loyalty) to express Damping Matrix and Pithing
+Needle. The test to rewrite is
+`cant_activate_battlefield_blanket_grant_blocks_nonmana_allows_mana`
+(`legal.rs:3272`); the split-second one at `:3228` is right. The [CR#702.61b]
+cites on the Linvala and generic-blanket docs are wrong outside split second:
+[CR#605.3] gives mana abilities no exemption from prohibitions.)
 
 Enumerate activated abilities from every zone in which they function instead
 of treating the battlefield as the sole source. Honor `ActivatedAbility::from`

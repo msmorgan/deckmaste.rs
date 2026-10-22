@@ -8,6 +8,23 @@ representations — `DeonticAction::Untap { what }` (continuous, under `Cant`) a
 one-shot `GameObject.skip_next_untap` consumed flag — and the untap step honors both.
 What's missing is the **path from card RON/oracle text to those primitives**.
 
+## Correction (2026-10-21): the untap is the active player's deed
+
+The "agentless deed" premise below is wrong. [CR#502.3]: "the active player
+determines which permanents they control will untap. Then they untap them all
+simultaneously." The untap has an agent (the active player) and a decision point
+(which permanents untap). Player-keyed caps (Winter Orb, Static Orb, Smoke) and
+"You may choose not to untap" (Rubinia Soulsinger) need that agent; the Lean
+workbench already spells one (`lean/Semantics/Proofs/Zone.lean:406-411`,
+`cant (actor …) (untap …)`). So the design gate is not "how to represent an
+agent-less deed": give `DeonticAction::Untap` an agent slot beside its patient
+slot, and model the untap TBA as the active player's deed with [CR#502.3]'s choice
+as the decision point. Also reword the "no agent slot" doc comments at
+`crates/deckmaste_core/src/deontic.rs:288-299` (":295") and
+`crates/deckmaste_semantics/src/deontic.rs:307`, and the "agentless-deed" note at
+`crates/deckmaste_plugin/src/idris_emit.rs:2940`. Provenance:
+`docs/evidence/mtg-rules-review-2026-10-21/departures-engine.md` #26.
+
 ## Two authoring surfaces
 
 1. **Continuous flavor → a static `Cant(Untap(what:…))`.** Cards:

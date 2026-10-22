@@ -21,7 +21,11 @@ Foundations LKI witnesses: Heartfire Immolator after sacrificing itself;
 Halana and Alena, Partners and Prime Speaker Zegana after the trigger source
 leaves; Ovika, Enigma Goliath after the triggering spell leaves the stack.
 Current-only negative witnesses shared with `engine-departed-reference-fizzle`:
-Bite Down, Felling Blow, and Heroes’ Bane.
+Bite Down and Felling Blow (an illegal target [CR#608.2b]). Heroes’ Bane is not a
+StatOf witness: "where X is its power" is untargeted, so a departed source's power
+is read from LKI [CR#608.2h,113.7a]; its no-op comes from the recipient being a new
+object [CR#400.7] (`docs/evidence/mtg-rules-review-2026-10-21/departures-docs.md`
+#42).
 
 Tests must distinguish the LKI-positive and current-only cases and verify the
 card result, not normalize every missing stat to zero indiscriminately.

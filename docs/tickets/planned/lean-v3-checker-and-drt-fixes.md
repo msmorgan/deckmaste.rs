@@ -79,13 +79,27 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
 
 ### 3. `theGrantor`, `permanentActor`, Refusal Hygiene, Positional Hacks, Fuel & Dead Code (Opus §§1.16, 2.9, 2.11–2.13, 5.4, 6.7; Astra §§2, 7)
 
-- **Honor `HeadNoun` in `NounPhrase.theGrantor` (§1.16):** In
-  `Check/Phrase.lean:1944-1950`, set the pushed referent's zone and type from the
-  `HeadNoun` argument (e.g. `.emblem` in the command zone `[CR#114.1]`) instead of
-  hard-coding `.battlefield`.
-- **Align `permanentActor` facts with the CR (§2.11):** Fix `Check/Words.lean:157-178`
-  for `harness` (`[CR#701.64a]` takes an explicit patient) vs `adapt` and
-  `monstrosity` (`[CR#701.46a,701.37a]`).
+- **Honor the head noun in `NounPhrase.theGrantor` (§1.16):** In
+  `Check/Phrase.lean:2569-2575` (`| .theGrantor head => … payload := .object [] (some
+  .battlefield) …`), set the pushed referent's zone and type from its `head : NounWord`
+  (`Abilities.lean:318`; the earlier `HeadNoun` is retired), using the mapping the `this…` heads
+  use: an emblem is put "into the command zone" and its abilities "function in the command zone"
+  [CR#114.2,114.4]. Flip the pin `emblemGrantorReadsABattlefieldObject`
+  (`Proofs/MovementScopes.lean:172-176`) to `some .command`. Re-verified 2026-10-21
+  (mtg-rules review, `departures-lean.md` #54).
+- **Align `permanentActor` facts with the CR (§2.11; mtg-rules review 2026-10-21,
+  `departures-lean.md` #22):** adapt, harness and monstrosity are "this permanent" instructions
+  [CR#701.46a,701.64a,701.37a] that the ability's controller follows [CR#608.2c] (a player is
+  instructed "to 'monstrosity X'" [CR#701.37c]); only fight, explore, connive and endure instruct
+  a permanent [CR#701.14a,701.44a,701.50a,701.63a]. Set `permanentActor := false` for all three
+  (`Check/Words.lean:144,176,185`; consumed at `Check/Phrase.lean:2887`). For adapt and
+  monstrosity also replace the `.actor` patient with the source permanent (`this_`) in their
+  bodies (`Definitions/Actions.lean:591-596,264-271`); harness (`:681-688`) already takes an
+  explicit subject. Correct the [CR#701.46a] claim in `Proofs/Actor.lean:735-737`,
+  `lean/CONTRACTS.md:383-390`, and the "A permanent performs it" comments in
+  `plugins_v2/builtin/macros/keyword_actions/{adapt,monstrosity,harness}.ron`. Pin: under
+  *Doc Samson*'s `would you (putCounters …)` (`Cards/Counters.lean:354-359`), Adapt 2 puts 3
+  counters.
 - **One constructor per refusal obligation (§2.12):** Stop reusing
   `.anaphor (.word .permanent)` for failed reflexive/`which`, `.lookbackSubject`
   for unused `which`, and `kindMismatch (.quality .color)` for non-replaceable

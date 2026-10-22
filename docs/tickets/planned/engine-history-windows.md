@@ -2,49 +2,32 @@
 needs: []
 design: true
 ---
-Phase/step-anchored history-lookback windows. Several intervening-if / history
-conditions need finer windows than turn/game granularity — e.g. Echo [CR#702.30a]
-("if this came under your control since the beginning of your most recent
-upkeep, …"), whose kw-echo macro currently uses `ThisTurn` as a lossy
-approximation (graduation is fine; engine EXECUTION under-counts a permanent that
-arrived during a prior turn's later steps).
+Sub-turn history-lookback windows: the remaining `ThisCombat` and `ThisStep` arms.
+Rewritten 2026-10-21 (`docs/evidence/mtg-rules-review-2026-10-21/departures-docs.md`
+#43): the earlier text quoted echo wrongly and proposed an anchor that would never
+fire.
 
-## Needs a design pass — ticket premise has drifted from the code
+## Landed: `SinceYour(step)` (echo)
 
-The original text below described `deckmaste_core::Window` with a `todo!` scan
-seam. That area was since refactored and the mechanical framing no longer holds:
+Echo [CR#702.30a]: "At the beginning of your upkeep, if this permanent came under
+your control since the beginning of your last upkeep, sacrifice it unless you pay
+[cost]." `plugins/builtin/macros/keyword/Echo.ron` uses
+`within: SinceYour(Beginning(Upkeep))`, and the scan is implemented in
+`crates/deckmaste_engine/src/history.rs` (`in_window_for`,
+`position_in_window_for`), watcher-relative: the anchor is the watcher's most recent
+`StepBegan(step)` onset, except while that step is itself current on the watcher's
+turn, where the anchor is the PREVIOUS onset (the current onset is the one firing the
+trigger, so anchoring on it would never match; Paradox Haze ruling 2006-09-25 on
+"last upkeep"). With no earlier onset the window runs from game start. Entries
+strictly after the anchor are in the window.
 
-- **No `Window` enum.** The type is now `deckmaste_core::Lookback`
-  (`crates/deckmaste_core/src/temporal.rs`).
-- **The upkeep variant already exists**, in a more general parameterized form:
-  `Lookback::SinceYour(PhaseStep)`. "Since your last upkeep" is
-  `Lookback::SinceYour(PhaseStep::Beginning(BeginningStep::Upkeep))`. It already
-  round-trips in RON and has a passing test. So "add the variant" is effectively
-  a no-op; only the ticket's flat `SinceYourLastUpkeep` spelling is obsolete.
-- **The scan side does not `todo!` — it `unreachable!`s** for the whole sub-turn
-  family (`ThisCombat | ThisStep | SinceYour(_)`) in
-  `crates/deckmaste_engine/src/eval.rs` (`window_contains`).
+## Remaining
 
-The scan arm is the real work, and it is a **design decision**, not a fill.
-`History::scan`/`in_window`/`window_contains` have a turn-granularity,
-reader-agnostic signature (`(within, current_turn)`) at ~15 call sites. A faithful
-`SinceYour(Beginning(Upkeep))` needs two things that signature can't express:
-1. **The reader's identity** ("*your* upkeep") — available in the `frame` at the
-   `Happened` call site but deliberately not threaded into the scan predicates.
-2. **A step-onset anchor by log position, not turn** — the log records
-   `GameEvent::StepBegan(PhaseStep)` with the active player, so the anchor is
-   derivable, but only by scanning history for the most recent `StepBegan(upkeep)`
-   on the reader's turn and including entries at `seq >= anchor`. `window_contains`
-   is a per-entry pure predicate with no view of the log or the reader.
-
-Implementing means choosing an architecture: thread the reader (or a pre-resolved
-anchor seq) through `scan`/`in_window` and refactor `window_contains`, then define
-the anchor semantics (seq-based onset lookup, whose-turn matching on the recorded
-`StepBegan` view). Cross-cutting; needs a design pass before it's claimable as
-mechanical work.
-
-## Scope (post-design)
-Implement the `SinceYour(step)` scan arm per the approved architecture, then
-repoint `plugins/builtin/macros/keyword/Echo.ron` from `within: ThisTurn` to
-`SinceYour(PhaseStep::Beginning(BeginningStep::Upkeep))` (see the seam comment in
-that macro). Flagged by the kw-echo worker; drift surfaced by the batch executor.
+`eval.rs` `window_contains` (around `:758-768`) still `unreachable!`s for
+`ThisCombat | ThisStep | SinceYour(_)`: `SinceYour` never reaches it (history.rs
+handles it first), and `ThisCombat`/`ThisStep` have no consumer yet. Implement those
+two arms on the same anchor machinery (the current combat phase's / step's onset by
+log position) when the first card needs them, and make the `SinceYour` arm's
+unreachability a typed impossibility rather than a panic. The design question is only
+how `ThisCombat` and `ThisStep` anchor when read outside that combat or step (for
+example from a delayed trigger), which needs a ruling per consumer.

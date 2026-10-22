@@ -36,9 +36,10 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
   - Now that `Stat.defense`, `ProjAxis.markedDamage`, and
     `GameEvent.stateBasedActionsChecked` exist, encode the `[CR#704.5g]`
     state-based action row and update the docstring and `lean/CONTRACTS.md:1036-1041`.
-  - Complete the triggered-ability-on-stack guards on Saga (`[CR#704.5s,714.4]`,
-    using `chapterAbilityOf` + `in_ stack`) and Siege (`[CR#310.7,704.5v]`,
-    using `abilityOf` + `in_ stack`), and add the `"If the spell has any targets"`
+  - The Saga and Siege "triggered but not yet left the stack" guards
+    (`[CR#704.5s,714.4]`, `[CR#310.7,704.5v]`) moved to
+    [lean-v3-saga-rules-fidelity](lean-v3-saga-rules-fidelity.md) §1: `in_ stack` alone misses
+    abilities that have triggered and are waiting to be put on the stack. Add the `"If the spell has any targets"`
     guard (`targeting any .someTarget`) to `storm` (`[CR#702.40a]`) and
     `replicate` (`[CR#702.56a]`).
 - **Retire vacuous `rfl` restatements (§6.3):** Audit and retire or rewrite the
@@ -46,9 +47,11 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
   `controllerSacrificesExpansionForEverySubject`, `lookAndSortSlice_is_the_hand_expansion`,
   `getsPtIsOneCharacteristicChange`, `combatantIsTheRole`, `drawGameConcludes`,
   `grantsIsTheKeywordConferral`, `boostIsOneStatChange`,
-  `targetsOnlyIsTargetsAtOnly`, `destroyCantRegenerateIsDestroyThenProhibition`,
-  `printedDataNeedsNoExpressionTemplate`) so each kept theorem proves a semantic
-  or checker property rather than restating its own definition.
+  `targetsOnlyIsTargetsAtOnly`, `printedDataNeedsNoExpressionTemplate`) so each kept
+  theorem proves a semantic or checker property rather than restating its own definition.
+  `destroyCantRegenerateIsDestroyThenProhibition` is not retired here: it pins a wrong order, and
+  [lean-v3-resolution-riders-and-guards](lean-v3-resolution-riders-and-guards.md) §1 rewrites it
+  to pin the corrected rider.
 - **Decouple brittle DRS id-arithmetic pins (§6.4):** Rewrite `nextId` / literal
   `ReferentId` arithmetic assertions (especially in `Proofs/ControllerSacrifice.lean`)
   to assert structural referent relationships (distinctness, resolution target,

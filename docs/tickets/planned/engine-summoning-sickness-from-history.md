@@ -1,5 +1,5 @@
 ---
-needs: [engine-combatant-role, engine-history-tallies-cache]
+needs: [engine-combatant-role, engine-history-tallies-cache, engine-derived-controller-reads]
 ---
 Drop the tracked `GameObject.summoning_sick` bool and derive summoning sickness
 purely from history, once the history-tally cache makes that cheap. After
@@ -36,6 +36,14 @@ ControlChanged(of: Ref(This), to: <controller>)]), within: <controller-turn>)`.
    history scans per creature per pass in that hot path is unacceptable without the
    O(1) history-tally cache. Do not claim this before that cache lands (and, per the
    project rule, before the engine is functionally complete — optimizations last).
+
+**Layer-2 control (added 2026-10-21).** The bool this ticket replaces is wrong
+for continuous control changes: only the one-shot `ControlChanged` sets it, so a
+creature stolen by a layer-2 `SetController` effect is never sick for its new
+Controller ([CR#302.6,613.1b]). `engine-derived-controller-reads` fixes the bool
+first; the history query here must then be equivalent to the corrected rule,
+which means the derived-Controller change is its own event or marker, not
+`ControlChanged` alone.
 
 Net effect: one fewer piece of per-object mutable state, sickness expressed as
 data over existing history primitives — the minimal-primitives end state. Purely
