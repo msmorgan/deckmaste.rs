@@ -12,7 +12,6 @@
         // follow it on the line; a set-off ability runs to the end of the
         // line (style guide §3 "Periods", §14 "Keyword abilities").
         "FinalParameter": ["Amount", "Cost", "SetOffCost", "SetOffCondition", "Quality", "Name", "SetOffAbility", "SetOffMeasure", "SetOffKeyword"],
-        "Parameterization": ["Supplied", "Omitted"],
         "Number": ["Singular", "Plural"],
         // The Number of a head's *of* oblique.
         "ObliqueNumber": ["Singular", "Plural"],
@@ -257,7 +256,7 @@
         "RelativeNounPhrase": (category: Some("NounPhrase"), features: ["Number"]),
         // A preposition and its relative pronoun, fronted (*for which*).
         "RelativePrepositionPhrase": (category: Some("PrepositionPhrase")),
-        "KeywordPhrase": (features: ["Parameterization", "KeywordForm", "FinalParameter"]),
+        "KeywordPhrase": (features: ["KeywordForm", "FinalParameter"]),
         "KeywordLineItem": (features: ["KeywordForm", "FinalParameter"]),
         "KeywordParameters": (features: ["KeywordForm", "FinalParameter"]),
         "BoundKeyword": (features: ["KeywordForm", "FinalParameter"]),
@@ -451,9 +450,9 @@
         (name: "LabelledModalHeader", lhs: "Document", rhs: [Class("label", "AbilityWord"), Mark('—', Free), Cat("head", "ModalHeader")]),
         (name: "ChapterModalHeader", lhs: "Document", rhs: [Cat("chapters", "Chapters"), Mark('—', Free), Cat("head", "ModalHeader")]),
 
-        (name: "CompleteKeywordPhrase", lhs: "KeywordPhrase", rhs: [Cat("head", "KeywordParameters")], equations: [Require("$.Parameterization", "Supplied")]),
-        (name: "CompleteKeywordItem", lhs: "KeywordLineItem", rhs: [Cat("head", "KeywordPhrase")], equations: [Require("head.Parameterization", "Supplied")]),
-        (name: "BareKeywordMention", lhs: "KeywordPhrase", rhs: [Class("head", "ParameterizedKeyword")], equations: [Require("$.Parameterization", "Omitted")]),
+        (name: "CompleteKeywordPhrase", lhs: "KeywordPhrase", rhs: [Cat("head", "KeywordParameters")]),
+        (name: "CompleteKeywordItem", lhs: "KeywordLineItem", rhs: [Cat("head", "KeywordParameters")]),
+        (name: "BareKeywordMention", lhs: "KeywordPhrase", rhs: [Class("head", "ParameterizedKeyword")]),
         (name: "TextAbility", lhs: "Document", rhs: [Cat("head", "Ability")]),
         (name: "TextTypeLine", lhs: "Document", rhs: [Cat("head", "TypeLine")]),
         (name: "TextHeader", lhs: "Document", rhs: [Cat("head", "Header")]),

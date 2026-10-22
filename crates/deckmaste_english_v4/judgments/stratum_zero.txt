@@ -1,19 +1,19 @@
 # Card-frame syntax, keyword parameter frames, and outer spines over seed payloads.
 + Legendary Artifact Creature — Golem => TypeLine "Legendary Artifact Creature — Golem"
 + Basic Snow Land — Island => TypeLine "Basic Snow Land — Island"
-+ Flying, vigilance, trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
-+ Vigilance; horsemanship (This creature can't be blocked except by creatures with horsemanship.) => KeywordPhrase "Vigilance"; KeywordPhrase "horsemanship"; readings 1
++ Flying, vigilance, trample => KeywordParameters "Flying"; KeywordParameters "vigilance"; KeywordParameters "trample"
++ Vigilance; horsemanship (This creature can't be blocked except by creatures with horsemanship.) => KeywordParameters "Vigilance"; KeywordParameters "horsemanship"; readings 1
 + Ward {2}
 + Equip—Sacrifice a creature.
 # A standalone keyword line is unpunctuated; an imperative sentence ends in a period (oracle-style-guide §3, "Periods").
-+ Equip {2} => KeywordPhrase "Equip {2}"; !Clause "Equip {2}"; readings 1
-+ Choose a Background => KeywordPhrase "Choose a Background"; !Clause "Choose a Background"; readings 1
-+ Cascade => KeywordPhrase "Cascade"; !Clause "Cascade"; readings 1
++ Equip {2} => KeywordParameters "Equip {2}"; !Clause "Equip {2}"; readings 1
++ Choose a Background => KeywordParameters "Choose a Background"; !Clause "Choose a Background"; readings 1
++ Cascade => KeywordParameters "Cascade"; !Clause "Cascade"; readings 1
 + Equip legendary creature {1} => Quality "legendary creature"
 + Enchant creature without flying => PrepositionPhrase "without flying" as Modifier of creature
-+ Swampwalk => KeywordPhrase "Swampwalk"
-+ Nonbasic landwalk => KeywordPhrase "Nonbasic landwalk"; Quality "Nonbasic land"
-+ Basic landcycling {1}{W} => KeywordPhrase "Basic landcycling {1}{W}"; Quality "Basic land"; !Quality "Basic landcycling {1}{W}"
++ Swampwalk => KeywordParameters "Swampwalk"
++ Nonbasic landwalk => KeywordParameters "Nonbasic landwalk"; Quality "Nonbasic land"
++ Basic landcycling {1}{W} => KeywordParameters "Basic landcycling {1}{W}"; Quality "Basic land"; !Quality "Basic landcycling {1}{W}"
 + Landfall — Destroy a creature. => NounPhrase "a creature" as Object of destroy
 + Uncharted marvel — Destroy a creature. => NounPhrase "a creature" as Object of destroy
 + {2}{U}, {T}: Destroy a creature. => Cost "{2}{U}, {T}"; NounPhrase "a creature" as Object of destroy
@@ -27,9 +27,9 @@
 + + {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
 + • Thunder — {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
 + {P}{P} — Destroy a creature. => NounPhrase "a creature" as Object of destroy
-+ I, II — Flying => KeywordPhrase "Flying"
-+ III — Uncharted marvel — Flying => KeywordPhrase "Flying"
-+ Artifact landcycling {2} => KeywordPhrase "Artifact landcycling {2}"
++ I, II — Flying => KeywordParameters "Flying"
++ III — Uncharted marvel — Flying => KeywordParameters "Flying"
++ Artifact landcycling {2} => KeywordParameters "Artifact landcycling {2}"
 + I, II — Choose one — => NounPhrase "one" as Object of choose
 + LEVEL 1-3
 + LEVEL 4+

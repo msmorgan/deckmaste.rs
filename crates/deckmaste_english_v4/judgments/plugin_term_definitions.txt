@@ -2,7 +2,7 @@
 + Modified creatures you control have lifelink. => AdjectivePhrase "Modified" as Modifier of creature
 + This creature has flying as long as it's modified. => AdjectivePhrase "modified" as PredicativeComplement of be
 + Counter target spell if its controller is poisoned. => AdjectivePhrase "poisoned" as PredicativeComplement of be
-+ Multikicker {1}{G} => KeywordPhrase "Multikicker {1}{G}"
++ Multikicker {1}{G} => KeywordParameters "Multikicker {1}{G}"
 + Whenever you expend 4, this creature gets +2/+1 until end of turn. => VerbPhrase "expend 4"
 + At the beginning of your end step, if you descended this turn, create a Treasure token. => VerbPhrase "descended" || VerbPhrase "descended this turn"
 + When this creature enters, put a flying counter on each creature that convoked it. => VerbPhrase "convoked it"; NounPhrase "it" as Object of convoke
