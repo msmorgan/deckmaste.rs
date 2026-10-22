@@ -13,6 +13,38 @@ A dedicated ticket for a construct that limits what a protection or enchantment-
 does to Attachments already attached, then *Guardian Beast* and the cycle written in full. This
 ticket is that ticket. **The design below is proposed, not ruled.**
 
+## Ruling on "already attached" (owner, 2026-10-22; the audit-ruling batch)
+
+Question 3c, "already attached", is ruled **no change**. [CR#702.16n] ("this effect doesn't
+remove" this Aura or all Auras) and [CR#702.16p] (*Benevolent Blessing*'s "already attached to")
+are already told apart by the absence or presence of `attachedTo` on `retention`'s subject. The
+ruling named *Spectra Ward* against *Benevolent Blessing* and *Guardian Beast*. Questions 3a
+(keep `retention` or replace it) and 3b (scope the exemption to the conjunct it limits) stay open:
+the design bullets for them below are still proposals.
+
+Verified against the bench (2026-10-22), with corrections:
+
+- `StaticSpec.retention (spec) (subject)` is `lean/Semantics/Abilities.lean:921` (Template
+  `Templates.lean:2056-2057`, checker `Check/Phrase.lean:3669-3672`).
+- *Benevolent Blessing* (`Cards/Keyword.lean:1331-1343`) has subject `allOf (and [or [aura,
+  equipment], youControl, attachedTo it])`: `attachedTo` present. The spelled [CR#702.16n] cards
+  (*Black Ward*, *Cho-Manno's Blessing*, *Pentarch Ward*, `Cards/Keyword.lean:1300,1313,1326`;
+  *Tattoo Ward*, *Floating Shield*, `Cards/Cost.lean:813,833`) all have subject `thisAura`, no
+  `attachedTo`. So the distinction holds on the bench.
+- *Spectra Ward* and *Guardian Beast*, the ruling's witnesses, are not spelled (see the table
+  above), so neither side of the contrast is pinned through them yet.
+- *Guardian Beast*'s carve-out is not [CR#702.16p], which is about protection only. Its Auras are
+  removed because "can't be enchanted" makes their host illegal [CR#303.4c,704.5m]; its "already
+  attached" reads like *Benevolent Blessing*'s but rests on those rules.
+
+**STOP (premise to confirm).** [CR#702.16p] fixes the exempt objects "when the protection effect
+starts to apply". `attachedTo it` as a filter reads the current state. They differ when an
+Equipment attached without the quality later gains it: by [CR#702.16p] it falls off, under the
+filter it stays. "No change" settles the encoding; the owner confirms that this onset-time reading
+is the engine's (the `retention` subject evaluated once, when the effect begins), so that the
+bullet "'Already attached' is a point in time" below becomes an engine note and not a term change.
+Until then, the test `alreadyAttachedIsReadWhenTheEffectStarts` below is not written.
+
 ## Problem
 
 Some effects would, by their own terms, make an Attachment that is already attached illegal, and
@@ -80,7 +112,7 @@ that, not spelled around.
   exemption concerns only the "can't be enchanted" conjunct, not "indestructible" or "can't gain
   control". Decide whether the construct wraps the whole conjunction (as `retention` does today),
   or attaches to the conjunct it limits.
-- **"Already attached" is a point in time, not a filter.** [CR#702.16p] reads the Attachments when
+- **(Ruled no change for the term, 2026-10-22; see the STOP above.)** **"Already attached" is a point in time, not a filter.** [CR#702.16p] reads the Attachments when
   the effect starts to apply. `attachedTo it` as written in *Benevolent Blessing* reads the current
   state. The design must say which it models and pin the difference with an Aura attached after the
   effect began.
@@ -94,7 +126,8 @@ that, not spelled around.
 ## Actionable change
 
 1. Settle the design above, with the owner where a ruling is needed (the STOP is on "what the
-   exemption ranges over" and "retire or keep `retention`").
+   exemption ranges over" and "retire or keep `retention`"; "already attached" is ruled, see
+   the 2026-10-22 section).
 2. Implement the construct in `Abilities.lean`, `Templates.lean`, `Check/` and any plugin
    definition it touches (`cargo xtask lean check` if plugin definitions change).
 3. Spell *Guardian Beast* in full and replace `guardianBeastProtection` with the card.
@@ -119,7 +152,7 @@ Each asserts the intended analysis, not a count (CLAUDE.md "Assurance").
   is still removed by a second protection effect of the same quality. If the checker cannot see
   this (it is an engine fact), the pin is on the construct's shape, and the engine consequence is
   noted in the Rust mirror ticket, not deferred silently.
-- `alreadyAttachedIsReadWhenTheEffectStarts` ([CR#702.16p]): the *Benevolent Blessing* shape
+- (Waits on the STOP in the 2026-10-22 ruling section.) `alreadyAttachedIsReadWhenTheEffectStarts` ([CR#702.16p]): the *Benevolent Blessing* shape
   distinguishes an Attachment present at the start from one attached later.
 - `guardianBeastExemptsOnlyTheEnchantProhibition`: the exemption does not reach "have
   indestructible" or "can't gain control of" (rewritten if the design wraps the whole

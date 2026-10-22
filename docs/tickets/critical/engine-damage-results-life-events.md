@@ -4,8 +4,9 @@ needs: [engine-lki-robustness]
 **Engine: process Damage into its Damage Results as events, so damage-caused
 life loss and lifelink life gain are `LifeLost`/`LifeGained` events that
 triggers and replacements see.** This is the live-engine half of what
-`semantics-v3-damage-results` plans for the `semantics-v3` spine; it does not
-wait on that port.
+`lean-v3-damage-composition` plans for the `semantics-v3` spine (it superseded
+`semantics-v3-damage-results`, owner ruling 2026-10-22); it does not wait on
+that port.
 
 Provenance: `docs/evidence/mtg-rules-review-2026-10-21/departures-engine.md`
 #1, #10, #16.
@@ -75,9 +76,9 @@ lifelink or deathtouch.
    player's life loss with poison counters ([CR#120.3b,702.90b]). The
    `DamageDealt` event still occurs and lifelink still applies (the
    [CR#120.4d] example). Delete the `Instead(would: Damage …)` statics. Shape
-   these rows the way `semantics-v3-damage-results` records them (`instead(of)` /
-   `inAddition`, applying only while the replaced result still would happen) so
-   the later port is a re-spelling, not a redesign.
+   these rows the way `lean-v3-damage-composition` records them (wither and
+   infect replace the marking or life-loss result; lifelink and toxic are
+   additional results) so the later port is a re-spelling, not a redesign.
 3. **Departed sources.** Read the source's lifelink, deathtouch, wither and
    infect from the derived view while it is live, and from its LKI snapshot
    when it has left the zone it was expected in 

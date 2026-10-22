@@ -27,8 +27,8 @@ needs: [lean-v3-rules-and-card-fidelity]
   [lean-v3-keyword-cast-permissions-and-costs](lean-v3-keyword-cast-permissions-and-costs.md)
   §3; do not give it a separate label here.
 - Note: `lifelink`, `wither`, `infect`, and `toxic` are owned by
-  [`semantics-v3-damage-results`](semantics-v3-damage-results.md) (with `toxic`
-  gated on Q89); do not duplicate or bypass that ticket's STOP.
+  [`lean-v3-damage-composition`](lean-v3-damage-composition.md) (with `toxic`
+  gated on Q89, its open item 3); do not duplicate or bypass that STOP.
 - Document in `lean/CONTRACTS.md` the exact set of combat/engine-intrinsic
   keywords that remain intentionally bodiless (`firstStrike`, `doubleStrike`,
   `trample`, `vigilance`, `deathtouch`, etc.).
