@@ -1,5 +1,6 @@
-// Phases and steps [CR#500.1,501.1,506.1,512.1], each named as Oracle text names it.
-// `turn` itself is core vocabulary. The rule is the first rule of the phase or step.
+// Phases and steps [CR#500.1,501.1,506.1,512.1], each named as Oracle text names it, and the
+// combat roles [CR#506.2]. `turn` itself is core vocabulary. The rule is the first rule of the
+// phase or step, or the rule that defines the role.
 [
     // Phases.
     (rule: "[CR#501.1]", noun: "beginning phase"),
@@ -7,6 +8,11 @@
     (rule: "[CR#505.1]", noun: "precombat main phase"),
     (rule: "[CR#505.1]", noun: "postcombat main phase"),
     (rule: "[CR#506.1]", noun: "combat phase"),
+    // The attacking player and the defending player. Oracle names each with a determinative
+    // (*defending player loses 1 life*, *defending player's hand*), as it names an Aura's host
+    // *enchanted* [CR#303.4b]. After another determinative the word is the participle of
+    // *attack* or *defend* (*the attacking player*, *each defending player*).
+    (rule: "[CR#506.2]", determinatives: [(lemma: "attacking"), (lemma: "defending")]),
     (rule: "[CR#512.1]", noun: "ending phase"),
 
     // Steps.

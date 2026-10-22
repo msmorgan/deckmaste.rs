@@ -44,12 +44,8 @@
         // `Serial` has one holder, *time*, and that is the whole class: a
         // bounding frequency Noun Phrase has *times* as its head (*three
         // times*; CGEL, Ch. 8 §9, p. 715), and so does a cardinal multiplier
-        // (*three times X*; Ch. 5 §12, p. 434). `BareSingular` is a singular
-        // count noun that heads a bare Noun Phrase, which a singular count noun
-        // otherwise cannot (Ch. 5 §8.5, p. 409): in Oracle English, only the
-        // combat roles *attacking player* and *defending player* [CR#506.2]
-        // (oracle-style-guide §6, "Controller and owner").
-        "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Serial"],
+        // (*three times X*; Ch. 5 §12, p. 434).
+        "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // A braced symbol's fused head (*add {G}*, *reduced by {2}*) is a
         // Symbol: an amount of what it represents.
@@ -522,9 +518,9 @@
         (name: "ModeInstruction", lhs: "ModeEffect", rhs: [Cat("head", "Effect")]),
         (name: "ModeMeasure", lhs: "ModeEffect", rhs: [Cat("head", "Measure"), Punct('.')]),
         // A singular nominal that is not already a bare Noun Phrase (a count
-        // noun's: *legendary creature*); mass and bare-singular nominals are
-        // Qualities through their Noun Phrase.
-        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular"), Exclude("head.NounDistribution", "HeadOnly")]),
+        // noun's: *legendary creature*); mass nominals are Qualities through
+        // their Noun Phrase.
+        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "NominalPhraseQuality", lhs: "Quality", rhs: [Cat("head", "NounPhrase")]),
         // An adjective is a Quality only as a fused head (*protection from
         // multicolored*). A fused head is the marked construction: where a
@@ -1050,7 +1046,6 @@
         (name: "MeasuredMass", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Require("determiner.DeterminativeDistribution", "Numerical"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Case", "Plain"), Require("$.Determination", "Overt"), Require("$.Person", "Third")]),
         // A measure noun counted unit by unit (*for each mana spent*).
         (name: "DistributiveMeasure", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.NounKind", "head.NounKind"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
-        (name: "BareSingularTerm", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")], equations: [Require("head.NounDistribution", "BareSingular"), Require("head.Number", "Singular"), Require("$.Case", "Plain"), Require("$.Determination", "Bare"), Require("$.Person", "Third")]),
         (name: "FusedPhrase", lhs: "NounPhrase", rhs: [Cat("head", "FusedNounPhrase")]),
         (name: "LocativePhrase", lhs: "LocativeNounPhrase", rhs: [Cat("head", "FusedNounPhrase")], equations: [Require("head.NounKind", "Locative")]),
         (name: "LocativeFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "LocativeHead")]),
@@ -1088,7 +1083,7 @@
         (name: "AttributedNominal", lhs: "BareNominal", rhs: [Cat("modifier", "Attributes"), Cat("head", "BareNominal")], equations: []),
         (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
-        (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
+        (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count")]),
         // Noun phrases.
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],
@@ -1207,8 +1202,6 @@
         (name: "PluralPossessor", lhs: "Possessor", rhs: [Cat("head", "BareNominal")],
             equations: [Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third")]),
         (name: "ProperPossessor", lhs: "Possessor", rhs: [Cat("head", "Name")], equations: [Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "BareSingularPossessor", lhs: "Possessor", rhs: [Cat("head", "BareNominal")],
-            equations: [Require("head.NounDistribution", "BareSingular"), Require("head.Number", "Singular"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A postmodifier agrees with each conjunct of an *and*-coordinated
         // nominal: under distributive *each* it is singular (*each creature and
         // planeswalker that is tapped*; CGEL, Ch. 5 §18.4, p. 508).

@@ -172,10 +172,6 @@
     (lemma: "combat damage", distribution: DirectMeasure, countability: [Mass]),
     // A zone name [CR#408.1]; `command` occurs in no other sense.
     "command zone",
-    // [CR#506.2]; no verb `defend` stands behind `defending`.
-    (lemma: "defending player", distribution: BareSingular),
-    // [CR#506.2]
-    (lemma: "attacking player", distribution: BareSingular),
     "life total",
     (lemma: "mana cost", frames: [Complement(PP(["for", "of"]))]),
     (lemma: "mana value", countability: [Count, Mass], frames: [Complement(Amount)]),

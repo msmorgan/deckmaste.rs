@@ -1,4 +1,4 @@
-# Noun premodifiers (combat damage, defending player), plural genitives, at random, and non- colour adjectives
+# Noun premodifiers (combat damage), the combat-role determinative (defending player), plural genitives, at random, and non- colour adjectives
 + Whenever this Vehicle deals combat damage to a player, that player discards a card.
 +Nominal combat damage
 + Whenever this creature attacks, defending player loses 1 life and you gain 1 life.
