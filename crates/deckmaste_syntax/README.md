@@ -287,17 +287,7 @@ imperative Clauses). A child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that its Production, or a
 sibling with the same children up to and including it, selects as a `PP`
 Complement right after it (an existential's Extension is a Complement of
-*be*, never also the Displaced Subject's postmodifier). A `fused_head`
-Production shares its right-hand side with one
-sibling, its twin, whose Constituent is a dependent of a following `head`
-(a genitive as subject-determiner and as fused subject-determiner-head, CGEL
-Ch. 5 §16.3, pp. 467–468); where the twin over the same words is followed by
-its head, that nominal is the head, not an antecedent (CGEL Ch. 17 §6.1,
-pp. 1516–1517), and the fused-head Production forms no Constituent there.
-This is a chart closure: a longer analysis of the words that follow
-decides it, so it is applied once the chart is complete, removing the
-closed Derivations and every Constituent left without one. Admission of a
-Reading that uses the Production parses its realization to decide it. A verb without
+*be*, never also the Displaced Subject's postmodifier). A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 
@@ -340,7 +330,8 @@ The ordinary words of one declared outside the core lexicon also reach the
 chart as separate leaves, but only to straddle a constituent boundary, where
 the smallest Constituent spanning the term has its first word in a child that
 begins before the term and its last word in a child that ends after it.
-Construction boundaries enforce the spacing used by realization.
+Admission checks the same rule on the Reading's own Constituents, without
+parsing. Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and
 postpose an Object. With `postposed`, a phrase whose Object is followed only by

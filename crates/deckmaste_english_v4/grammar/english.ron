@@ -1136,10 +1136,11 @@
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Genitive"), Carry("possessor.Case", "Plain"), Agree("$.Number", "possessor.Number"), Agree("$.Person", "possessor.Person")]),
         // A genitive in a fused subject-determiner-head is a whole Noun
         // Phrase whose head is understood from an antecedent (*power less
-        // than Mirko's*; CGEL, Ch. 5 §16.3, pp. 467–468). A nominal right
-        // after it is its head, not an antecedent (CGEL, Ch. 17 §6.1,
-        // pp. 1516–1517): *during [its controller's next untap step]*.
-        (name: "FusedSubjectDeterminerHead", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")], fused_head: true,
+        // than Mirko's*; CGEL, Ch. 5 §16.3, pp. 467–468). Where a nominal
+        // right after it can be its head, that Reading ranks first (CGEL,
+        // Ch. 17 §6.1, pp. 1516–1517): *during [its controller's next untap
+        // step]*.
+        (name: "FusedSubjectDeterminerHead", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("possessor.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "GenitiveDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("determiner.Case", "Genitive"), Require("$.Person", "Third")]),

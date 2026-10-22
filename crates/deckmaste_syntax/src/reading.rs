@@ -780,7 +780,7 @@ impl CompiledGrammar {
     /// # Errors
     /// The first violation found.
     pub fn admit(&self, reading: &Reading, lexicon: &Lexicon) -> Result<(), AdmissionError> {
-        self.admit_as(reading, lexicon, self.root, None)
+        self.admit_as(reading, lexicon, self.root)
     }
 
     /// Admission without parsing as the named Category instead of the root.
@@ -797,19 +797,15 @@ impl CompiledGrammar {
         let root = self
             .category_id(category)
             .ok_or_else(|| AdmissionError::Root(category.to_owned()))?;
-        self.admit_as(reading, lexicon, root, None)
+        self.admit_as(reading, lexicon, root)
     }
 
-    /// Admission as Category `root`. A Reading with a Production that a chart
-    /// closure can rule out is admitted only where the parse of its
-    /// realization keeps it: `parse` when it was made from that text, or a
-    /// parse made here.
+    /// Admission as Category `root`.
     pub(crate) fn admit_as(
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
         root: usize,
-        parse: Option<&Parse<'_>>,
     ) -> Result<(), AdmissionError> {
         let (category, summary) = self.summarize(reading, lexicon)?;
         if category != root || summary.gap != Gap::None {
@@ -818,50 +814,96 @@ impl CompiledGrammar {
         let mut atoms = Vec::new();
         self.atoms(reading, lexicon, &mut atoms, &mut |_, _| {})?;
         let (text, offsets) = join(&atoms);
-        let analyzed = lexicon.analyze(&text);
-        let atomic = self.atomic_spans(&analyzed);
-        let split = offsets.iter().any(|offset| {
-            let start = text[..offset.start].chars().count();
-            let end = text[..offset.end].chars().count();
-            atomic.iter().any(|(span, _)| {
-                (span.start < start && start < span.end) || (span.start < end && end < span.end)
-            })
-        });
-        let closed = self.chart_closed_production(reading);
-        if !split && closed.is_none() {
+        let atomic = self.atomic_spans(&lexicon.analyze(&text));
+        if atomic.is_empty() {
             return Ok(());
         }
-        // The chart decides both: a multiword noun's words stand apart only
-        // where they straddle a constituent boundary, and a chart closure
-        // needs the words that follow.
-        let kept = match parse {
-            Some(parse) if parse.text() == text => parse.contains(reading),
-            _ => self.run(&analyzed, root).contains(reading),
-        };
-        if kept {
-            return Ok(());
+        let mut chars = vec![0; text.len() + 1];
+        for (count, (at, c)) in text.char_indices().enumerate() {
+            chars[at] = count;
+            chars[at + c.len_utf8()] = count + 1;
         }
-        Err(match closed {
-            Some(production) if !split => AdmissionError::Rejected {
-                production: production.to_string(),
-                reason: "a longer analysis of the words that follow closes it".into(),
-            },
-            _ => AdmissionError::Rejected {
+        let atoms: Vec<Range<usize>> = offsets
+            .iter()
+            .map(|offset| chars[offset.start]..chars[offset.end])
+            .collect();
+        let mut next = 0;
+        if self.atomic_reading(reading, &atoms, &atomic, &mut next)?.is_none() {
+            return Err(AdmissionError::Rejected {
                 production: "lexical atomicity".into(),
                 reason: "a declared multiword noun's words rebuild it".into(),
-            },
-        })
+            });
+        }
+        Ok(())
     }
 
-    /// The first Production of `reading` that a chart closure can rule out.
-    fn chart_closed_production<'r>(&self, reading: &'r Reading) -> Option<&'r Ident> {
-        let Reading::Node(node) = reading else { return None };
-        if self.chart_closed.contains(&node.production) {
-            return Some(&node.production);
+    /// Lexical atomicity, decided on the Reading's own structure as the chart
+    /// decides it (`docs/decisions/english-lexical-analysis.md` §2): a word
+    /// inside a multiword noun of `atomic` stands alone only where the term's
+    /// words may stand apart, and then only where they straddle a constituent
+    /// boundary. In the smallest Constituent spanning the term, the child
+    /// holding its last word must end after it and no child may begin where
+    /// it begins. Returns the subtree's character span, or `None` where it
+    /// rebuilds a term. `atoms` holds each atom's character span, in the
+    /// order [`CompiledGrammar::atoms`] realizes them.
+    fn atomic_reading(
+        &self,
+        reading: &Reading,
+        atoms: &[Range<usize>],
+        atomic: &[(Range<usize>, bool)],
+        next: &mut usize,
+    ) -> Result<Option<Range<usize>>, AdmissionError> {
+        let inside = |at: usize, span: &Range<usize>| span.start < at && at < span.end;
+        let node = match reading {
+            Reading::Leaf(value) => {
+                let at = atoms[*next].clone();
+                *next += 1;
+                let word = matches!(value, LexicalReading::Word(_));
+                let parted = atomic.iter().any(|(span, splits)| {
+                    (inside(at.start, span) || inside(at.end, span)) && !(*splits && word)
+                });
+                return Ok((!parted).then_some(at));
+            }
+            Reading::Node(node) => node,
+        };
+        let &index = self
+            .by_id
+            .get(&node.production)
+            .ok_or_else(|| AdmissionError::UnknownProduction(node.production.to_string()))?;
+        let mut children = node.children.iter();
+        let mut spans = Vec::new();
+        for symbol in &self.productions[index].rhs {
+            let span = if let Symbol::Punct(..) = symbol {
+                *next += 1;
+                atoms[*next - 1].clone()
+            } else {
+                let child = children.next().ok_or_else(|| AdmissionError::Rejected {
+                    production: node.production.to_string(),
+                    reason: "missing child".to_owned(),
+                })?;
+                match self.atomic_reading(child, atoms, atomic, next)? {
+                    Some(span) => span,
+                    None => return Ok(None),
+                }
+            };
+            spans.push(span);
         }
-        node.children
+        let (Some(first), Some(last)) = (spans.first(), spans.last()) else {
+            return Ok(Some(0..0));
+        };
+        let whole = first.start..last.end;
+        let rebuilt = atomic
             .iter()
-            .find_map(|child| self.chart_closed_production(child))
+            .filter(|(term, splits)| *splits && whole.start <= term.start)
+            .any(|(term, _)| {
+                spans.iter().enumerate().any(|(i, child)| {
+                    inside(child.start, term)
+                        && term.end <= child.end
+                        && (child.end == term.end
+                            || spans[..i].iter().any(|before| before.start == term.start))
+                })
+            });
+        Ok((!rebuilt).then_some(whole))
     }
 
     fn summarize(

@@ -292,8 +292,7 @@ impl Parse<'_> {
     /// # Errors
     /// As [`crate::CompiledGrammar::admit`].
     pub fn admit(&self, reading: &Reading, lexicon: &Lexicon) -> Result<(), AdmissionError> {
-        self.grammar
-            .admit_as(reading, lexicon, self.root, Some(self))
+        self.grammar.admit_as(reading, lexicon, self.root)
     }
 
     /// The Category this Parse was made for.

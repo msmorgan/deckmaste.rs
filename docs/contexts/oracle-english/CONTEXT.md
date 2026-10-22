@@ -74,11 +74,6 @@ correlated alternatives correlated.
 The record of every partial and complete Derivation found for each span of an
 expression during parsing.
 
-**Chart Closure** (project term):
-A condition on a Derivation that only a longer analysis of the words after it
-can decide, so it is applied once the Chart is complete: a Derivation it rules
-out is removed, with every Constituent left without one.
-
 **Packed Forest** (project term):
 The shared representation of all Readings of an expression in which each
 Constituent occurs once per Category, span and grammatical summary, with its

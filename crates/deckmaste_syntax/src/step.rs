@@ -186,10 +186,6 @@ pub(crate) struct Production {
     /// The `unextended` child, and the prepositions of a Preposition Phrase
     /// it may not end in (`ProductionDecl::unextended`).
     pub unextended: Option<(usize, std::collections::BTreeSet<LexemeId>)>,
-    /// A fused-head Production's twin, the Production with the same
-    /// right-hand side whose Constituent is a dependent of a following head
-    /// (`ProductionDecl::fused_head`), a closure decided on the whole chart.
-    pub fused_twin: Option<usize>,
     pub id: Ident,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -391,7 +387,6 @@ pub(crate) fn resolve(
         weights: Vec::new(),
         head_line,
         unextended: None,
-        fused_twin: None,
         adjunct_slot: None,
         predicative: None,
         paired_coordinator: None,

@@ -11,6 +11,18 @@ the intended Reading in the cheapest tier, which also lets the full re-parse
 fallback in `admit_as` (`reading.rs`) be deleted. Admission stops only
 analyses no English grammar admits (`docs/decisions/english-v4.md` §4.4).
 
+## Owner's ruling (round 8, follow-up, 2026-10-22)
+
+1. The Attachment Class for the second of two dependents before their head is
+   confirmed, with its §4.3 text.
+2. `fused_head` is retired as well. Teferi, Master of Time is accepted as a
+   ranking residual: without the closure, a garden-path Reading (*loyalty
+   [abilities of Teferi on any player's] turn any time …*) ranks first. The
+   chart closure machinery, its glossary term, and the full re-parse in
+   `admit_as` are deleted. Lexical atomicity is checked on the Reading itself,
+   node by node, by the chart's own rule.
+3. The `ranks first` judgment assertion is confirmed.
+
 ## Evidence
 
 Re-grepped on `qynmxmro`. Line numbers drift.
@@ -105,11 +117,12 @@ Judgments exercising them include `combat_intervals.txt:2–3`,
 
 Standard constraints apply.
 
-1. **Census delta** (measured on `xotkolrx` → `qwynkolz`): faces read
-   28,800 → 28,800; total Readings (product) 213,916 → 214,404; Surplus
-   88,285 → 88,401; lost faces: none. 32 units gain Readings; no unit's
-   verdict or cheapest-tier size changes. Cheapest tier: singleton in 14,798
-   of 16,558 → 14,807 of 16,567 ambiguous units; summed 18,913 → 18,922;
-   largest 8 → 8.
-2. **Judgment set** (`qwynkolz`): 3,037 enforced at `COMPLETED_STRATUM` 6,
+1. **Census delta** (measured on `xotkolrx` → `qwynkolz` → `zyrzzqkr`):
+   faces read 28,800 → 28,800 → 28,800; total Readings (product) 213,916 →
+   214,404 → 215,365; Surplus 88,285 → 88,401 → 88,898; lost faces: none.
+   175 units gain Readings (32, then 143); no unit's verdict or cheapest-tier
+   size changes. Cheapest tier: singleton in 14,798 of 16,558 → 14,807 of
+   16,567 → 14,819 of 16,579 ambiguous units; summed 18,913 → 18,922 →
+   18,934; largest 8 → 8 → 8.
+2. **Judgment set** (`zyrzzqkr`): 3,037 enforced at `COMPLETED_STRATUM` 6,
    all hold; 208 pending. No entry leaves an all-endorsed cheapest tier.

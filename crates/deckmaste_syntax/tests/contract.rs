@@ -394,6 +394,35 @@ fn multiword_lexeme_words_straddle_but_never_rebuild_it() {
         found("First strike."),
         BTreeSet::from([words(&["n:first-strike"])])
     );
+    // Admission decides the same on the Reading's own structure: the words'
+    // Readings, built without the term, straddle a boundary in *big first
+    // strike damage* and rebuild the term in *first strike damage*.
+    let separate = Lexicon::new(others.clone()).unwrap();
+    let apart = bind(source, &separate, NO_FRAMES).unwrap();
+    let rejected = |reading: &Reading, grammar: &CompiledGrammar, lexicon: &Lexicon| {
+        matches!(
+            grammar.admit(reading, lexicon),
+            Err(AdmissionError::Rejected { production, .. }) if production == "lexical atomicity"
+        )
+    };
+    // Only `Split` puts *first* and *strike* in children that reach past the
+    // term; every other analysis rebuilds it.
+    let (straddling, rebuilt): (Vec<Reading>, Vec<Reading>) = apart
+        .parse(&separate, "Big first strike damage.")
+        .readings()
+        .into_iter()
+        .partition(|r| r.node().is_some_and(|n| n.production.as_str() == "Split"));
+    assert_eq!(straddling.len(), 1);
+    assert_ne!(rebuilt, []);
+    assert_eq!(grammar.admit(&straddling[0], &lexicon), Ok(()));
+    for reading in &rebuilt {
+        assert!(rejected(reading, &grammar, &lexicon), "{reading:#?}");
+    }
+    let rebuilding = apart.parse(&separate, "First strike damage.").readings();
+    assert_ne!(rebuilding, []);
+    for reading in &rebuilding {
+        assert!(rejected(reading, &grammar, &lexicon), "{reading:#?}");
+    }
     let core = Lexicon::new([core_first_strike].into_iter().chain(others)).unwrap();
     let grammar = bind(source, &core, NO_FRAMES).unwrap();
     let found: BTreeSet<Vec<String>> = readings(&grammar, &core, "Big first strike damage.")
@@ -404,6 +433,10 @@ fn multiword_lexeme_words_straddle_but_never_rebuild_it() {
         found,
         BTreeSet::from([words(&["a:big", "n:first-strike", "n:damage"])])
     );
+    // A core term's words never stand apart.
+    for reading in &straddling {
+        assert!(rejected(reading, &grammar, &core), "{reading:#?}");
+    }
 }
 
 /// Obligations 3 and 4, discharged by construction: no Category is nullable.

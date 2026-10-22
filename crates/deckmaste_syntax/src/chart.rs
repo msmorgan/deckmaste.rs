@@ -552,7 +552,6 @@ impl CompiledGrammar {
                 }
             }
         }
-        self.close(&mut forest);
         forest.roots = (0..forest.nodes.len())
             .filter(|&i| {
                 let node = &forest.nodes[i];

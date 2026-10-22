@@ -115,14 +115,6 @@ pub struct ProductionDecl {
     /// follows is a load error.
     #[serde(default)]
     pub unextended: Vec<Ident>,
-    /// A fused-head Production: it has the same right-hand side as one
-    /// sibling Production, its twin, whose Constituent is a dependent of a
-    /// following `head` (CGEL Ch. 5 §16.3, pp. 467–468). Where the twin's
-    /// Constituent over the same words is followed by its head, the nominal
-    /// is that head, not an antecedent (CGEL Ch. 17 §6.1, pp. 1516–1517), and
-    /// this Production forms no Constituent there.
-    #[serde(default)]
-    pub fused_head: bool,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,

@@ -101,9 +101,6 @@ pub struct CompiledGrammar {
     /// Prepositions some Production's `unextended` child may not end in, the
     /// only ones a Summary's `final_preposition` records.
     pub(crate) unextended_prepositions: BTreeSet<LexemeId>,
-    /// Productions whose Constituents a closure decided on the whole chart
-    /// can rule out: a fused head.
-    pub(crate) chart_closed: BTreeSet<Ident>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
@@ -624,7 +621,6 @@ impl<'a> Binder<'a> {
                 extension_sets,
                 classes,
                 unextended_prepositions: BTreeSet::new(),
-                chart_closed: BTreeSet::new(),
                 projected,
                 prediction: crate::prediction::Prediction::default(),
                 report,
@@ -732,9 +728,6 @@ impl<'a> Binder<'a> {
             for name in &declaration.unextended {
                 self.unextended(declaration.name, name)?;
             }
-            if declaration.fused_head {
-                self.fused_head(declaration.name)?;
-            }
         }
         self.auxiliaries()?;
         self.report_holders();
@@ -816,43 +809,6 @@ impl<'a> Binder<'a> {
             .unextended_prepositions
             .extend(closed.iter().copied());
         self.out.productions[index].unextended = Some((at, closed));
-        Ok(())
-    }
-
-    /// Pairs fused-head Production `id` with its twin, the one sibling with
-    /// the same right-hand side, which some Production takes as a dependent
-    /// before its `head`.
-    fn fused_head(&mut self, id: Ident) -> Result<(), LoadError> {
-        let context = |e: &str| invalid(format!("production `{id}`: fused head {e}"));
-        let index = *self
-            .out
-            .by_id
-            .get(&id)
-            .ok_or_else(|| context("names no production"))?;
-        let production = &self.out.productions[index];
-        let twins: Vec<usize> = self.out.by_lhs[production.lhs]
-            .iter()
-            .copied()
-            .filter(|&t| t != index && self.out.productions[t].rhs == production.rhs)
-            .collect();
-        let [twin] = twins[..] else {
-            return Err(context(
-                "needs exactly one sibling with the same right-hand side",
-            ));
-        };
-        let lhs = production.lhs;
-        let headed =
-            self.out.productions.iter().any(|p| {
-                p.rhs.windows(2).zip(p.names.iter().skip(1)).any(|(pair, name)| {
-                matches!(pair[0], crate::step::Symbol::Cat { category, .. } if category == lhs)
-                    && name.as_str() == "head"
-            })
-            });
-        if !headed {
-            return Err(context("has a twin no Production takes before a `head`"));
-        }
-        self.out.productions[index].fused_twin = Some(twin);
-        self.out.chart_closed.insert(id);
         Ok(())
     }
 
