@@ -543,6 +543,8 @@
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
             equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
+        // Restated as RelativeSubjectPredicate (a SubjectInitialClause, for
+        // bare relatives); a change to one must be made to the other.
         (name: "SubjectPredicate", lhs: "Clause",
             rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
             equations: [
@@ -557,6 +559,8 @@
             transparent: ["head"]),
         // A bound auxiliary clitic (*'s*, *'re*, *'ve*, *'m*) has a
         // nominative pronoun host (*it's*, *you're*, *they've*).
+        // Restated as RelativeCliticSubjectPredicate; a change to one must be
+        // made to the other.
         (name: "CliticSubjectPredicate", lhs: "Clause",
             rhs: [Cat("subject", "NounPhrase"), Attached("head", "VerbPhrase", Suffix)],
             equations: [
@@ -1024,9 +1028,13 @@
         (name: "DeclarativeCost", lhs: "NonManaCost", rhs: [Cat("head", "Clause")], equations: [Require("head.VerbForm", "Finite"), Exclude("head.Inflection", "Irrealis")]),
         (name: "ClauseCondition", lhs: "Condition", rhs: [Cat("head", "Clause")]),
         (name: "KeywordInstruction", lhs: "Sentence", rhs: [Cat("head", "KeywordLineItem"), Punct('.')], equations: [Require("head.KeywordForm", "Parametric")]),
+        // Restated as RelativeFloatedEach; a change to one must be made to the
+        // other.
         (name: "FloatedEach", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "Each"), Cat("head", "VerbPhrase")], equations: [Require("subject.Number", "Plural"), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")], transparent: ["head"]),
         // Floated *all* after a personal pronoun Subject (*they all share a
         // color*; CGEL, Ch. 5 §10.1.1, p. 428).
+        // Restated as RelativeFloatedAll; a change to one must be made to the
+        // other.
         (name: "FloatedAll", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "All"), Cat("head", "VerbPhrase")], equations: [Require("subject.Number", "Plural"), Require("subject.Case", "Nominative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")], transparent: ["head"]),
         (name: "NumericalDetermination", lhs: "DeterminerPhrase", rhs: [Cat("head", "NumericalDeterminer")], equations: [Require("$.DeterminativeDistribution", "Numerical"), Require("$.ComplementKind", "Intransitive")]),
         (name: "MeasuredMass", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Require("determiner.DeterminativeDistribution", "Numerical"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Case", "Plain"), Require("$.Determination", "Overt"), Require("$.Person", "Third")]),
@@ -1255,6 +1263,14 @@
         // *CliticSubjectPredicate*, *FloatedEach*, *FloatedAll*), never one
         // with a preposed adjunct: "Bare relatives always have the subject in
         // initial position" (CGEL, Ch. 12 §3.5.5, p. 1055).
+        // Each of the four Productions below restates its Clause twin and
+        // differs from it only in having no `$.ClauseMarking` equation, so a
+        // change to a twin must be made to its restatement, and conversely:
+        // RelativeSubjectPredicate / SubjectPredicate, RelativeCliticSubjectPredicate
+        // / CliticSubjectPredicate, RelativeFloatedEach / FloatedEach,
+        // RelativeFloatedAll / FloatedAll. (No coordination of
+        // SubjectInitialClause is declared: no card coordinates two bare
+        // relatives under one head.)
         (name: "RelativeSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Exclude("subject.Case", "Accusative"), Exclude("subject.Case", "Genitive"), Exclude("subject.NounKind", "Manner")],
             transparent: ["head"]),
@@ -1300,8 +1316,12 @@
         // relative.
         (name: "AdverbialRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialClause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "Adjunct"), Require("$.NounKind", "Temporal")]),
+        // Restates AdjunctGap over SubjectInitialClause; a change to one must
+        // be made to the other.
         (name: "RelativeAdjunctGap", lhs: "SubjectInitialClause", rhs: [Cat("head", "SubjectInitialClause")],
             equations: [Require("$.Gap", "Adjunct")]),
+        // Restated as RelativeAdjunctGap; a change to one must be made to the
+        // other.
         (name: "AdjunctGap", lhs: "AdjunctGapClause", rhs: [Cat("head", "Clause")],
             equations: [Require("head.VerbForm", "Finite"), Require("$.Gap", "Adjunct")]),
         // A marked relative clause postposed past a predicate adjunct, at the
