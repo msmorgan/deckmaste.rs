@@ -1,0 +1,8 @@
+// "put <subject> [from <from>] onto the battlefield attached to <host>"
+// [CR#303.4i]
+(
+    name: "putOntoBattlefieldAttachedTo",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "host": NounPhrase, "from": Default(ZoneExpr, Wherever)},
+    body: Move(Param(subject), Param(from), battlefield, [AttachedTo(Param(host))]),
+)

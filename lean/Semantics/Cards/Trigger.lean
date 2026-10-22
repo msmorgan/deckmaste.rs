@@ -921,4 +921,34 @@ def scytheOfTheWretched : Spelled := spelled <| singleFacedCard
               attachTo thisEquipment (that creature) ]),
         equip [generic 4] ] }
 
+/-- Academy Researchers: the Aura enters attached to the creature the effect names, so enchant's
+own choice of host doesn't apply; one that can't legally enchant it stays in its owner's hand
+[CR#303.4f,303.4i]. -/
+def academyResearchers : Spelled := spelled <| singleFacedCard
+  { name := "Academy Researchers", cost := [generic 1, pip .blue, pip .blue],
+    types := [.creature], subtypes := [human, wizard],
+    text :=
+      [ when (does thisCreature enter)
+          (may (putOntoBattlefieldAttachedTo (a (and [hasSubtype aura, cardIn yourHand]))
+            thisCreature)) ],
+    power := stat 2, toughness := stat 2 }
+
+/-- Bruna, Light of Alabaster: Auras already on the battlefield are attached [CR#701.3a]; Aura
+cards are put onto the battlefield attached to it, each one that could enchant it
+[CR#303.4i]. -/
+def brunaLightOfAlabaster : Spelled := spelled <| singleFacedCard
+  { name := "Bruna, Light of Alabaster", cost := [generic 3, pip .white, pip .white, pip .blue],
+    supertypes := [.legendary], types := [.creature], subtypes := [angel],
+    text :=
+      [ flying, vigilance,
+        whenever (does thisCreature attack) (or_ := [does thisCreature block])
+          (sequentially
+            [ may (attachTo (counted anyNumber (and [hasSubtype aura, in_ battlefield])) it),
+              may (putOntoBattlefieldAttachedTo
+                (counted anyNumber
+                  (and [hasSubtype aura, cardIn (andOr [yourGraveyard, yourHand]),
+                    couldEnchant it]))
+                it) ]) ],
+    power := stat 5, toughness := stat 5 }
+
 end Semantics.Cards

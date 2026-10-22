@@ -712,7 +712,7 @@ expected child kinds in the incoming `DRS`.
 | `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
 | `DeonticRider` | No Lean type: the rider is retired (`lean-v3-authoring-surface` §2.3). |
 | `DamageOp` | `stepDamageOpWith` steps it. |
-| `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). Whether its destination takes an Entry Rider or a Pile Placement is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). |
+| `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). Whether its destination takes an Entry Rider or a Pile Placement is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). An `attachedTo` host is an object or a player (`kindLte`); a negated rider is named only in an event pattern (`riderNegationPattern`). |
 | `Cost` | `stepCost` (`Cost.check` in [Abilities.lean](Semantics/Check/Abilities.lean)) steps it; `Cost.localChecks` checks its shape. |
 | `ManaRider` | `stepManaRiderWith` steps it; `ManaRider.localChecks` checks its shape. |
 | `CopyExcept` | `stepCopyExceptWith` steps it (`CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
@@ -1239,6 +1239,17 @@ origin, destination. An endpoint can refer to a player introduced by an earlier
 field. A missing endpoint is unconstrained; empty origin sets, exclusion of every
 origin, and movement from a single shared zone back into itself are refused.
 Player-qualified exclusions are conservative when only a zone sort is known.
+A pattern's riders describe how the object would enter, whether or not an
+effect wrote the rider. A listed rider matches when it describes the entering,
+and a negated rider (`MoveRider.not r`) matches an entering that `r` does not
+describe. Before [CR#303.4f]'s choice, an entering is attached to a host H only
+when its effect names H. That is why enchant's choice watches only an entering
+that names no host (`enchantChoiceExcludesANamedHost`). A pattern's
+`.attachedTo .any` matches any host the effect names, whether it is still
+defined or not, so an undefined host takes the [CR#303.4i] path. A negated
+rider outside a pattern is refused (`riderNegationPattern`): an action's riders
+are what its text writes, so outside a pattern there is nothing for a negation
+to deny.
 
 The verbs `die`, `leave` and `enter`, which move the clause's own subject
 (`NounPhrase.actor`), and `putInto` are templates. Battlefield and graveyard

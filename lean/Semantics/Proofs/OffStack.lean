@@ -221,19 +221,54 @@ def replacements : Ability → List (WouldClause × Replacement)
 
 /-- An Aura with no legal object or player to enchant, under its enchant ability and any other
 applicable effects, doesn't enter: instead it stays where it is, or goes to its owner's graveyard
-from the stack [CR#303.4g]; with one, an Aura entering other than by resolving enters attached to
-a legal host [CR#303.4f]. Legality is denoted (`legalHostOf`), not approximated by the enchant
-quality, which protection [CR#702.16c] can overrule. Neither is an Off-Stack Static. -/
+from the stack [CR#303.4g]; with one, an Aura entering other than by resolving, by an effect that
+doesn't name its host, enters attached to a legal host [CR#303.4f]; an Aura put onto the
+battlefield attached to a host the effect names that isn't a legal host, or is undefined, doesn't
+enter either [CR#303.4i]. Legality is denoted (`legalHostOf`), not approximated by the enchant
+quality, which protection [CR#702.16c] can overrule. None is an Off-Stack Static. -/
 theorem enchantReplacesTheEntering :
     (offStackStatics (enchant isCreature), replacements (enchant isCreature))
       = ([],
         [ (would thisAura enter,
             doIf (not (exists_ (legalHostOf thisAura)))
               (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard)))),
-          (would .any (.move thisAura (not stack) battlefield .arrival none []),
+          (would .any
+              (.move thisAura (not stack) battlefield .arrival none [.not (.attachedTo .any)]),
             doIf (exists_ (legalHostOf thisAura))
-              (also (attachTo thisAura (a (legalHostOf thisAura))))) ]) := by
+              (also (attachTo thisAura (a (legalHostOf thisAura))))),
+          (would thisAura
+              (enter (riders := [.attachedTo .any, .not (.attachedTo (a (legalHostOf thisAura)))])),
+            instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard))) ]) := by
   rfl
+
+/-- The [CR#303.4f] choice applies only where "the effect putting it onto the battlefield doesn't
+specify the object or player the Aura will enchant": its pattern excludes every entering that
+names a host, and only such an entering keys [CR#303.4i]. The [CR#303.4g] entering names no
+riders, so it watches every entering. -/
+theorem enchantChoiceExcludesANamedHost :
+    ((replacements (enchant isCreature)).map (·.1)).filterMap (fun
+      | .would _ (.move _ _ _ _ _ riders) => some riders
+      | _ => none)
+      = [ [],
+          [.not (.attachedTo .any)],
+          [.attachedTo .any, .not (.attachedTo (a (legalHostOf thisAura)))] ] := by
+  rfl
+
+/-- A negated rider is named only in an event pattern: an action carries the riders its text
+writes. The host an effect names is an object or a player [CR#303.4b,701.3a]: a player may
+be one, a color may not. -/
+theorem riderNegationIsOnlyAPattern :
+    Action.check (DRS.ofList [])
+        (putWith (target isCreature) battlefield [.not (.entersAs .tapped)]) =
+      [.riderNegationPattern] ∧
+    Action.check (DRS.ofList [])
+        (putOntoBattlefieldAttachedTo (a (and [hasSubtype aura, cardIn yourHand]))
+          (target isPlayer)) = [] ∧
+    Action.check (DRS.ofList [])
+        (putOntoBattlefieldAttachedTo (a (and [hasSubtype aura, cardIn yourHand]))
+          (a (quality .color))) =
+      [.kindLte (.quality .color) (.join .object .player)] := by
+  decide
 
 theorem okEnchant : Ability.check (DRS.ofList []) (enchant isCreature) = [] := by decide
 

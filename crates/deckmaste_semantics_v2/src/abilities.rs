@@ -932,6 +932,15 @@ pub enum EntryRider {
     FaceDown {
         spec: FaceDown,
     },
+    /// Enters attached to `host`, the object or player the effect names
+    /// [CR#303.4i,301.5e]. An Aura that can't legally enchant `host`, or whose
+    /// `host` is undefined, doesn't enter [CR#303.4i]; an Equipment or
+    /// Fortification that can't be attached to it enters unattached
+    /// [CR#301.5e,301.6], and so does a permanent that is none of the three
+    /// [CR#303.4h].
+    AttachedTo {
+        host: NounPhrase,
+    },
 }
 
 /// How a moved card is placed in a zone other than the battlefield: its order

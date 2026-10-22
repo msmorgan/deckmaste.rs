@@ -594,12 +594,11 @@ semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
 attached to, and its entry. An Aura entering with no legal object or player to enchant, under its
 enchant ability and any other applicable effects, doesn't enter: it stays in its zone, or is put
 into its owner's graveyard from the stack, and a token Aura isn't created [CR#303.4g]. An Aura
-entering other than by resolving as an Aura spell enters attached to a legal host its controller
-chooses as it enters [CR#303.4f]. Which hosts are legal is the engine's to evaluate
-(`legalHostOf`). An effect that puts an Aura onto the battlefield attached to a host it names is
-not yet written (an "enters attached to" Entry Rider, `lean-v3-enters-attached-to-host`), so the
-[CR#303.4f] replacement applies to every entry not from the stack, and an illegal named host
-[CR#303.4i] has nothing to key on. -/
+entering other than by resolving as an Aura spell, by an effect that doesn't specify what it will
+enchant, enters attached to a legal host its controller chooses as it enters [CR#303.4f]. An
+effect that names the host (`MoveRider.attachedTo`) puts it onto that host, and if it can't
+legally enchant that host or the host is undefined, the Aura doesn't enter, as with no legal host
+at all [CR#303.4i]. Which hosts are legal is the engine's to evaluate (`legalHostOf`). -/
 semantic_definition enchant (quality : Predicate) : Ability :=
   .keyword (.named "enchant") [.subject (.inCaller quality)]
     [ static (.addsTarget thisAura (.inCaller quality)),
@@ -609,9 +608,16 @@ semantic_definition enchant (quality : Predicate) : Ability :=
           (doIf (not (exists_ (legalHostOf thisAura)))
             (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard))))),
       static
-        (replace (would .any (.move thisAura (not stack) battlefield .arrival none []))
+        (replace
+          (would .any
+            (.move thisAura (not stack) battlefield .arrival none [.not (.attachedTo .any)]))
           (doIf (exists_ (legalHostOf thisAura))
-            (also (attachTo thisAura (a (legalHostOf thisAura)))))) ]
+            (also (attachTo thisAura (a (legalHostOf thisAura)))))),
+      static
+        (replace
+          (would thisAura
+            (enter (riders := [.attachedTo .any, .not (.attachedTo (a (legalHostOf thisAura)))])))
+          (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard)))) ]
 semantic_definition encore (cost : Cost) : Ability :=
   keywordCosting (.named "encore") (.inCaller cost)
 semantic_definition enlist : Ability := keyword (.named "enlist")

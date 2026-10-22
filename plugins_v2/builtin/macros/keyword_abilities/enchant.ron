@@ -19,10 +19,13 @@ KeywordAbility(
     // A host is legal under the enchant ability "and any other applicable
     // effects" (protection [CR#702.16c]), so both entry clauses ask for
     // `legalHostOf(thisAura)`, which the engine evaluates, not for the quality.
-    // An effect putting an Aura onto the battlefield attached to a named host
-    // is not yet written (`lean-v3-enters-attached-to-host`), so the
-    // [CR#303.4f] clause applies to every entry not from the stack, and
-    // [CR#303.4i] has nothing to key on.
+    // An effect putting an Aura onto the battlefield attached to a host it
+    // names writes the `AttachedTo` Entry Rider. Lean's enchant keys
+    // [CR#303.4i] on that rider and keeps the [CR#303.4f] choice off such an
+    // entering, both in the event pattern's riders; this vocabulary's
+    // `enters` event carries no riders, so neither is written here, and the
+    // [CR#303.4f] clause below applies to every entry not from the stack.
+    // `plugins_v3/` mirrors the Lean definition (`semantics-v3-dsl-and-plugins`).
     // - with no legal object or player to enchant, the Aura doesn't enter: it
     //   stays in its current zone, or is put into its owner's graveyard if
     //   that zone is the stack, and a token Aura isn't created [CR#303.4g].

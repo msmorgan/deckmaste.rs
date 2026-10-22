@@ -477,7 +477,8 @@ _Avoid_: zone expression, event source, search scope, for the one notion
 **Entry Rider**:
 How a Permanent arrives on the battlefield, said with what puts it there:
 tapped, attacking, transformed, under a Player's control, with counters, as a
-copy, or face down ([CR#614.1c,708.3]). It rides a move to the battlefield, a
+copy, face down, or attached to an Attachment Host the effect names
+([CR#614.1c,708.3,303.4i]). It rides a move to the battlefield, a
 Token's creation, or a static ability ("this enters tapped"), and nothing
 else; an arrival in any other zone is a Pile Placement.
 _Avoid_: token rider, since most arrivals are not a Token's

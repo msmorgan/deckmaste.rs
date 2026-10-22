@@ -248,11 +248,14 @@ mutual
     | related (label : RelationLabel) (counterpart : Option NounPhrase)
     | attachment (side : AttachmentSide) (word : Option AttachWord)
         (counterpart : Option NounPhrase)
-    /-- The member is an object or player `attachment` could legally be attached to, under its
-    own abilities and every other applicable effect, as an Aura entering the battlefield asks
-    [CR#303.4f,303.4g]: its enchant ability, and, say, a protection that keeps it off
-    [CR#702.16c]. Whether a host is legal is the engine's to evaluate. -/
-    | legalHostOf (attachment : NounPhrase)
+    /-- The member is the `side` of a legal attachment whose other side is `counterpart`, under
+    the attachment's own abilities and every other applicable effect [CR#701.3a]. With `.host`,
+    the member is an object or player `counterpart` could legally be attached to, as an Aura
+    entering the battlefield asks [CR#303.4f,303.4g,303.4i]: its enchant ability, and, say, a
+    protection that keeps it off [CR#702.16c]. With `.attachment`, the member could legally be
+    attached to `counterpart`: "Aura cards that could enchant it". Whether an attachment is legal
+    is the engine's to evaluate. -/
+    | legalAttachment (side : AttachmentSide) (counterpart : NounPhrase)
     | isCard
     | isToken
     | isEmblem
@@ -1048,6 +1051,20 @@ mutual
     /-- "In any order", "in a random order": how the objects moved to one place are ordered
     there [CR#401.4]. -/
     | inOrder (arrangement : Arrangement)
+    /-- Enters attached to `host`, the object or player the effect names
+    [CR#303.4i,301.5e]. An Aura that can't legally enchant `host`, or whose `host` is
+    undefined, doesn't enter: enchant says so [CR#303.4i]. An Equipment or Fortification that
+    can't legally be attached to it enters unattached [CR#301.5e,301.6], and so does a
+    permanent that is none of the three [CR#303.4h]. In a pattern, `.attachedTo .any` matches
+    any host the effect names, whether it is still defined or not, so an undefined host takes
+    the [CR#303.4i] path. -/
+    | attachedTo (host : NounPhrase)
+    /-- In a pattern only: matches an entering that `rider` does not describe. A pattern's riders
+    describe how the object would enter, whether or not an effect wrote the rider, and a listed
+    rider matches when it describes the entering. Before [CR#303.4f]'s choice an entering is
+    attached to a host only when its effect names it, so enchant's "doesn't specify the object
+    or player the Aura will enchant" is `.not (.attachedTo .any)`. -/
+    | not (rider : MoveRider)
 
   inductive Cost where
     /-- An unspecified cost in a payment pattern. -/

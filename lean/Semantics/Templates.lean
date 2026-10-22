@@ -43,7 +43,10 @@ semantic_template attachedBy (word : Option AttachWord) (by_ : NounPhrase) : Pre
 /-- "attached to <host>" -/
 semantic_template attachedTo (host : NounPhrase) : Predicate := .attachment .attachment none host
 /-- "a legal object or player for <attachment> to enchant" [CR#303.4f,303.4g] -/
-semantic_template legalHostOf (attachment : NounPhrase) : Predicate := .legalHostOf attachment
+semantic_template legalHostOf (attachment : NounPhrase) : Predicate :=
+  .legalAttachment .host attachment
+/-- "that could enchant <host>": an Aura that could legally be attached to `host` [CR#701.3a]. -/
+semantic_template couldEnchant (host : NounPhrase) : Predicate := .legalAttachment .attachment host
 /-- A quality change: `op` applied to `payload` on `subject`'s characteristics. -/
 semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
     StaticSpec := .characteristicChange subject (payload.edits op)
@@ -1195,6 +1198,10 @@ semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (am
 /-- "put <subject> onto the battlefield" -/
 semantic_template putOntoBattlefield (subject : NounPhrase) : Action :=
   zoneChange subject battlefield .anyLocation []
+/-- "put <subject> [from <from_>] onto the battlefield attached to <host>" [CR#303.4i] -/
+semantic_template putOntoBattlefieldAttachedTo (subject host : NounPhrase)
+    (from_ : Option Location := none) : Action :=
+  zoneChange subject battlefield (from_.getD .anyLocation) [.attachedTo host]
 /-- "put <subject> onto the battlefield tapped" -/
 semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
   zoneChange subject battlefield .anyLocation [(.entersAs .tapped)]
@@ -2213,6 +2220,8 @@ semantic_template entersAs (status : Status) : MoveRider := .entersAs status
 /-- "enters attacking [<defender>]" -/
 semantic_template entersAttacking (defender : Option NounPhrase) : MoveRider :=
   .entersAttacking defender
+/-- "attached to <host>", as an Aura put onto the battlefield enters [CR#303.4i] -/
+semantic_template entersAttachedTo (host : NounPhrase) : MoveRider := .attachedTo host
 /-- "with N <kind> counters on it" -/
 semantic_template withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark) :
     MoveRider :=

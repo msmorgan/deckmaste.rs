@@ -92,7 +92,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen
   | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _
   | _ + 1, .attachment .host _ _ | _ + 1, .inCombat .attackedBy _
-  | _ + 1, .legalHostOf _ => none
+  | _ + 1, .legalAttachment .host _ => none
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -1730,6 +1730,15 @@ private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : Move
     let (drs1, _, e1) := stepCopySourceWith ops drs src
     let (drs2, e2) := stepCopyExceptListWith ops drs1 exs
     (drs2, e1 ++ e2)
+  | .attachedTo host =>
+    let (out, ids, errs) := ops.np drs .other true host
+    let hostKind := ((ids.head?.bind out.findById?).map (·.kind)).getD (host.kindIn out .object)
+    (out, errs ++ refuse (Kind.lte hostKind (.join .object .player))
+      (.kindLte hostKind (.join .object .player)))
+  | .not body =>
+    -- Nothing under the negation is an antecedent.
+    let (_, errs) := stepMoveRiderFuel ops fuel drs body
+    (drs, errs ++ refuse drs.actionPattern .riderNegationPattern)
 
 termination_by structural fuel
 
@@ -1769,7 +1778,7 @@ characteristics [CR#406.3]. -/
 def MoveRider.isPilePlacement (rider : MoveRider) (fuel : Nat := 8) : Bool :=
   match fuel, rider with
   | 0, _ => false
-  | n + 1, .inCaller body => body.isPilePlacement n
+  | n + 1, .inCaller body | n + 1, .not body => body.isPilePlacement n
   | _ + 1, .inOrder _ => true
   | _ + 1, .faceDown spec => spec.characteristics.isNone
   | _ + 1, _ => false
@@ -2310,7 +2319,7 @@ def stepOps : Nat → StepOps
         | .hasKeyword term => (drs, refuse term.known .knownKeywordTerm)
         | .abilityHead family => (drs, refuse family.known .knownKeywordTerm)
         | .counterKindOn src | .abilityOf src
-        | .activatedBy src | .legalHostOf src =>
+        | .activatedBy src | .legalAttachment _ src =>
           let (drs', _, errs) := ops.np drs .other false src
           (drs', errs)
         | .other =>

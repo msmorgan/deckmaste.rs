@@ -82,7 +82,7 @@ def MoveRider.numberSlots (value : MoveRider) (fuel : Nat := 64) : List (Amount 
   | _ + 1, .withCounters amount _ _ => [(amount, .clamped)]
   | _ + 1, .entersAs _ | _ + 1, .entersAttacking _ | _ + 1, .entersTransformed
   | _ + 1, .entersMelded _ | _ + 1, .under _ | _ + 1, .asCopyOf _ _ _ | _ + 1, .faceDown _
-  | _ + 1, .inOrder _ => []
+  | _ + 1, .inOrder _ | _ + 1, .attachedTo _ | _ + 1, .not _ => []
 termination_by structural fuel
 
 def MoveRider.ridersSlots : List MoveRider → List (Amount × NumberRegime)
