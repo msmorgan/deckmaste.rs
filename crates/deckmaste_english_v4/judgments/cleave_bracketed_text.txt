@@ -1,0 +1,16 @@
+# Bracketed Constituents: the words a cleave spell removes, set in square brackets [CR#702.148a] (`docs/oracle-style-guide.md` §3, Bullets, vertical bars, and square brackets). Each is an unselected dependent or a whole sentence, with the same analysis as without its brackets
++ <card=Lantern Flare> Lantern Flare deals X damage to target creature or planeswalker and you gain X life. [X is the number of creatures you control.] => Sentence "[X is the number of creatures you control.]"; NounPhrase "X"#3 as Subject of be
++ Draw a card for each creature you control [with flying]. => PrepositionPhrase "with flying" as Modifier of creature
++ Draw a card for each creature you control with flying. => PrepositionPhrase "with flying" as Modifier of creature
++ Destroy all creatures [with mana value 2 or less]. => PrepositionPhrase "with mana value 2 or less" as Modifier of creature
++ Destroy all creatures with mana value 2 or less. => PrepositionPhrase "with mana value 2 or less" as Modifier of creature
++ Destroy target [attacking] creature. => VerbPhrase "attacking" as Modifier of creature; readings 1
++ Destroy target attacking creature. => VerbPhrase "attacking" as Modifier of creature
++ Counter target spell [that wasn't cast from its owner's hand]. => RelativeClause "that wasn't cast from its owner's hand" as Modifier of spell
++ Counter target spell that wasn't cast from its owner's hand. => RelativeClause "that wasn't cast from its owner's hand" as Modifier of spell
++ Return target nonland permanent [you control] to its owner's hand. => Clause "you control" gap "nonland permanent"; PrepositionPhrase "to its owner's hand" as Complement of return
++ Return target [Wolf or Werewolf] creature to its owner's hand. => Nominal "Wolf or Werewolf" as Modifier of creature; readings 1
++ <card=Parasitic Grasp> Parasitic Grasp deals 3 damage to target [Human] creature. You gain 3 life. => Nominal "Human" as Modifier of creature
++ You choose a nonland card from it [with mana value 2 or less]. => PrepositionPhrase "with mana value 2 or less" as Modifier of card
++ Draw three cards. [Your maximum hand size is reduced by three for the rest of the game.] => Sentence "[Your maximum hand size is reduced by three for the rest of the game.]"; PrepositionPhrase "by three" as Complement of reduce
++ Take an extra turn after this one. During that turn, damage can't be prevented. [At the beginning of that turn's end step, you lose the game.] => Sentence "[At the beginning of that turn's end step, you lose the game.]"; PrepositionPhrase "At the beginning of that turn's end step" as Adjunct of lose

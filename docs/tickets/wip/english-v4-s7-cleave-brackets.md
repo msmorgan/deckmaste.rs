@@ -46,3 +46,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+Census delta (measured on `orvwrtxl` → `xplzttyr`): faces read 32,575 → 32,586 (Lantern Flare, Alchemist's Gambit, Winged Portent, Inspired Idea, Fierce Retribution, Alchemist's Retrieval, Wash Away, Lunar Rejection, Path of Peril, Parasitic Grasp, Dread Fugue: 0 → 1–8 Readings each, the only units that changed; Dig Up stays unread); total Readings 315,953 → 315,978 and Surplus 132,429 → 132,439. Lost faces: none.
+Judgment set (`xplzttyr`): 3,108 enforced and 284 pending, all enforced holding; the 15 new pending entries of `cleave_bracketed_text.txt` (Stratum 7) all hold.
