@@ -28,6 +28,7 @@
 + Draw a card, then discard a card, then draw a card. => Clause "Draw a card"; Clause "then discard a card"; Clause "then draw a card"; readings 1
 + <card=Elder Brain> Whenever this creature attacks a player, exile all cards from that player's hand, then they draw that many cards. => Clause "exile all cards from that player's hand"; Clause "then they draw that many cards"; NounPhrase "they" as Subject of draw
 + <card=Visions> Look at the top five cards of target player's library. You may then have that player shuffle that library. => AdverbPhrase "then" as Adjunct of have; readings 1
++ That player puts that land onto the battlefield then sacrifices a land of their choice. => VerbPhrase "puts that land onto the battlefield then sacrifices a land of their choice"; AdverbPhrase "then" as Adjunct of sacrifice; readings 1
 + They exile cards from the top of their library until they exile a nonland card, then you may cast that card. => PrepositionPhrase "until they exile a nonland card"; Clause "then you may cast that card"; !Clause "they exile a nonland card, then you may cast that card"
 + <card=Breaking Wave> Simultaneously untap all tapped creatures and tap all untapped creatures. => AdverbPhrase "Simultaneously"; Clause "untap all tapped creatures and tap all untapped creatures" || AdverbPhrase "Simultaneously"; Clause "Simultaneously untap all tapped creatures"; readings 2
 + When this creature enters, secretly choose an opponent. => AdverbPhrase "secretly" as Adjunct of choose; readings 1

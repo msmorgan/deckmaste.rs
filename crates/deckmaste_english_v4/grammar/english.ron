@@ -451,10 +451,16 @@
         // Perfect *have* and its contracted and negative forms.
         "HaveVerb": ["verb:have", "verb:'ve", "verb:haven't"],
         // Auxiliaries stranded before the ellipsis site of their Complement
-        // (CGEL, Ch. 17 §7.1, pp. 1519–1523). *Do* has its intransitive
-        // pro-form frame; a reduced clitic never stands in this stressed
-        // position (Ch. 18 §6.1, p. 1614).
-        "StrandableAuxiliary": ["verb:be", "verb:aren't", "verb:have", "verb:haven't", "verb:can", "verb:can't", "verb:may", "verb:must", "verb:will"],
+        // (CGEL, Ch. 17 §7.1, pp. 1519–1523), by the form of the verb that
+        // heads the omitted Complement: a modal's is plain (its
+        // `Catenative(BareInf)` frame), perfect *have*'s a past participle
+        // (Perfect) and *be*'s a gerund-participle or a past participle
+        // (Progressive, Passive). *Do* has its intransitive pro-form frame;
+        // a reduced clitic never stands in this stressed position (Ch. 18
+        // §6.1, p. 1614).
+        "StrandableModal": ["verb:can", "verb:can't", "verb:may", "verb:must", "verb:will"],
+        "StrandableHave": ["verb:have", "verb:haven't"],
+        "StrandableBe": ["verb:be", "verb:aren't"],
         // Comparative determinatives: they select a *than* Complement (*more
         // than one*; CGEL, Ch. 13 §2.1, p. 1104), and a measure phrase
         // modifies them (*{1} less*).
@@ -805,8 +811,17 @@
         // coordinator, punctuation or the head it is a dependent of follows
         // the site: a dependent right after it would be the Complement, and
         // Oracle retains no dependent in the reduced Verb Phrase (p. 1520).
-        (name: "StrandedAuxiliary", lhs: "VerbPhrase", rhs: [Class("head", "StrandableAuxiliary")],
-            equations: [Require("head.VerbForm", "Finite"), Require("$.Voice", "Active")], elliptical: true),
+        // Nor does a head or coordinator whose lexical head is spelled like
+        // a verb in the omitted Complement's form: it would be that
+        // Complement (*less than this creature's power can't [block it]*,
+        // *cards that weren't [cast this way]*), while *each opponent who
+        // can't [discards a card]* keeps its ellipsis.
+        (name: "StrandedModal", lhs: "VerbPhrase", rhs: [Class("head", "StrandableModal")],
+            equations: [Require("head.VerbForm", "Finite"), Require("$.Voice", "Active")], elliptical: Some([Plain])),
+        (name: "StrandedPerfect", lhs: "VerbPhrase", rhs: [Class("head", "StrandableHave")],
+            equations: [Require("head.VerbForm", "Finite"), Require("$.Voice", "Active")], elliptical: Some([PastParticiple])),
+        (name: "StrandedBe", lhs: "VerbPhrase", rhs: [Class("head", "StrandableBe")],
+            equations: [Require("head.VerbForm", "Finite"), Require("$.Voice", "Active")], elliptical: Some([GerundParticiple, PastParticiple])),
         (name: "Progressive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "GerundParticiple"), Agree("$.Voice", "complement.Voice")],
             transparent: ["complement"]),
@@ -1787,10 +1802,11 @@
         // (*Each player discards a card, then draws a card*; *may search
         // ..., put ..., then shuffle*), set off by the comma before its
         // connective (`docs/oracle-style-guide.md` §3, Commas and the serial
-        // comma: "before `then` within a sequence"). Its Conjuncts may each
-        // begin with the connective (*loses ..., then discards ..., then
-        // sacrifices ...*).
-        Coordination(category: "VerbPhrase", link: Some("LinkedVerbPhrase"), unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")], delimiter: Some(','), delimited: true),
+        // comma: "before `then` within a sequence"), which older Oracle text
+        // omits in a binary one (*puts that land onto the battlefield then
+        // sacrifices a land*). Its Conjuncts may each begin with the
+        // connective (*loses ..., then discards ..., then sacrifices ...*).
+        Coordination(category: "VerbPhrase", link: Some("LinkedVerbPhrase"), unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")], delimiter: Some(',')),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
         // *"A" and "B"*; *"A," "B," and "C."*
         Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
@@ -1807,9 +1823,12 @@
         // discard a card*; *Tap it, then you may sacrifice an artifact*;
         // *Search ..., put it into your hand, then shuffle*), set off by the
         // comma before the connective (`docs/oracle-style-guide.md` §3,
-        // Commas and the serial comma; §10, Sequence).
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), delimited: true),
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true),
+        // Commas and the serial comma; §10, Sequence), which older Oracle
+        // text omits in a binary one. A stranded auxiliary never precedes a
+        // comma-less link whose verb could be its Complement (*You may then
+        // have ...*; StrandedModal).
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
         Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.

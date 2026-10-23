@@ -33,3 +33,11 @@
 * If it's, draw a card.
 *Clause you may is
 *Clause you have being
+# A head or coordinator right after the site whose lexical head is spelled
+# like a verb in the omitted Complement's form is that Complement, and no
+# ellipsis is there (p. 1519): plain *block* after a modal, past participle
+# *put* or *cast* after *be*.
++ Creatures with power less than this creature's power can't block it. => VerbPhrase "can't block it"; !VerbPhrase "can't"
++ Put onto the battlefield under your control all creature cards in all graveyards that were put there from the battlefield this turn. => VerbPhrase "were put there from the battlefield this turn"; !VerbPhrase "were"
++ <card=Muse Vortex> Then put the exiled instant and sorcery cards that weren't cast this way into your hand and the rest on the bottom of your library in a random order. => VerbPhrase "weren't cast this way"; !VerbPhrase "weren't"
++ Each opponent who can't blocks. => RelativeClause "who can't" as Modifier of opponent

@@ -103,6 +103,10 @@ pub struct CompiledGrammar {
     pub(crate) by_lhs: Vec<Vec<usize>>,
     pub(crate) root: usize,
     pub(crate) lexemes: BTreeMap<LexemeId, LexemeFacts>,
+    /// The word forms of every Word spelled like a lexical value, ignoring
+    /// case, as a mask (`step::form_bit`), where they are more than the
+    /// value's own form (`LeafFacts::forms`).
+    pub(crate) homograph_forms: BTreeMap<deckmaste_lexical::LexicalValue, u16>,
     /// The card-scoped spellings of the lexicon, as (Lexeme, spelling
     /// variant), which analysis admits only within their card's scope.
     pub(crate) card_scoped: BTreeSet<(LexemeId, usize)>,
@@ -163,6 +167,30 @@ impl CompiledGrammar {
     pub fn category_id(&self, name: &str) -> Option<usize> {
         self.category_ids.get(name).copied()
     }
+}
+
+/// The word forms of every Word spelled like each lexical value, ignoring
+/// case, where they are more than the value's own form
+/// (`CompiledGrammar::homograph_forms`).
+fn homograph_forms(lexicon: &Lexicon) -> BTreeMap<deckmaste_lexical::LexicalValue, u16> {
+    let spelled: Vec<(String, &deckmaste_lexical::LexicalValue)> = lexicon
+        .values()
+        .filter_map(|value| {
+            let reading = deckmaste_lexical::LexicalReading::Word(value.clone());
+            Some((lexicon.realize(&reading).ok()?.to_lowercase(), value))
+        })
+        .collect();
+    let mut by_spelling: BTreeMap<&str, u16> = BTreeMap::new();
+    for (spelling, value) in &spelled {
+        *by_spelling.entry(spelling).or_default() |= crate::step::form_bit(value.form);
+    }
+    spelled
+        .iter()
+        .filter_map(|(spelling, value)| {
+            let forms = by_spelling[spelling.as_str()];
+            (forms != crate::step::form_bit(value.form)).then(|| ((*value).clone(), forms))
+        })
+        .collect()
 }
 
 fn invalid(message: impl Into<String>) -> LoadError {
@@ -252,8 +280,9 @@ struct Draft {
     internalised: Option<usize>,
     /// A noun's bare phrase, which omits its head's Complements.
     omits_complement: bool,
-    /// It ends in an ellipsis site (`ProductionDecl::elliptical`).
-    elliptical: bool,
+    /// It ends in an ellipsis site whose omitted Complement takes these word
+    /// forms, as a mask (`ProductionDecl::elliptical`).
+    elliptical: Option<u16>,
     /// A Linked Coordination's identity (`Production::link`).
     link: Option<LexemeId>,
 }
@@ -329,7 +358,7 @@ impl Draft {
             unlike: None,
             internalised: None,
             omits_complement: false,
-            elliptical: false,
+            elliptical: None,
             link: None,
         }
     }
@@ -697,6 +726,7 @@ impl<'a> Binder<'a> {
                 by_lhs,
                 root,
                 lexemes,
+                homograph_forms: homograph_forms(lexicon),
                 card_scoped: lexicon
                     .values()
                     .filter(|value| lexicon.is_card_scoped(value))
@@ -1002,7 +1032,18 @@ impl<'a> Binder<'a> {
                 })?;
             draft.scoped.push(child);
         }
-        draft.elliptical = declaration.elliptical;
+        if let Some(forms) = &declaration.elliptical {
+            if forms.is_empty() {
+                return Err(context(invalid(
+                    "an elliptical Production names its omitted Complement's word forms",
+                )));
+            }
+            draft.elliptical = Some(
+                forms
+                    .iter()
+                    .fold(0, |mask, form| mask | crate::step::form_bit(*form)),
+            );
+        }
         self.equations(&mut draft, &declaration.equations)
             .map_err(context)?;
         Ok(draft)
@@ -1537,8 +1578,8 @@ impl<'a> Binder<'a> {
             .foreign_coordinators
             .clone_from(&draft.foreign_coordinators);
         production.unlike = draft.unlike;
-        production.omission = if draft.elliptical {
-            crate::step::Omission::Ellipsis
+        production.omission = if let Some(forms) = draft.elliptical {
+            crate::step::Omission::Ellipsis(forms)
         } else if draft.omits_complement {
             crate::step::Omission::Selected
         } else {
