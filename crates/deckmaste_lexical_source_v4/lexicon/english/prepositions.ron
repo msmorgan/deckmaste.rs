@@ -101,6 +101,9 @@
         (complement: PP(["as long as"]), hosts: Predicate),
         // Selected only: *tied for most common*.
         (complement: AdjP, hosts: ComplementOnly),
+        // Selected only, a bare superlative nominal: *tied for lowest life
+        // total* (CGEL, Ch. 13 §6.3.4, pp. 1168–1169).
+        (complement: Nominal, hosts: ComplementOnly),
     ]),
     // *cast spells ... from the top of your library*; *a card you own from
     // outside the game*; *from among them*
@@ -150,6 +153,10 @@
     // Temporal intransitive preposition (CGEL p. 615): *Those creatures are now
     // attacking that player.*
     (lemma: "now", frames: [(complement: Intransitive, hosts: Predicate)]),
+    // An exceptional PP with an external Complement, as *one by one* (CGEL,
+    // Ch. 7 §4.3, p. 633): *draft each card in that booster pack, one at a
+    // time*.
+    (lemma: "one at a time", frames: [(complement: Intransitive, hosts: Predicate)]),
     // *a creature of the chosen type*; *end of turn*; *instead of putting*;
     // *your choice of flying, first strike, or trample*
     (lemma: "of", frames: [
@@ -218,6 +225,10 @@
         // *, to a maximum of 10*
         (complement: NP, hosts: Supplement),
         (complement: Gerund, hosts: ComplementOnly),
+        // A bare singular count noun in a fixed frame (CGEL, Ch. 5 §8.5(b),
+        // p. 409): *return an unblocked attacker you control to hand*, as
+        // *in hand*.
+        (complement: Nominal, hosts: ComplementOnly),
     ]),
     // *enters under an opponent's control*; *a noncreature permanent under
     // your control* (Cobra Trap)

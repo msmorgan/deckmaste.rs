@@ -175,6 +175,12 @@ pub struct ProductionDecl {
     /// complement priority).
     #[serde(default)]
     pub elliptical: Option<Vec<deckmaste_lexical::WordForm>>,
+    /// The phrase opens with a single dash that only the end of its
+    /// sentence closes (CGEL Ch. 20 §5, p. 1751: the closing member of the
+    /// pair is absorbed into the higher-level boundary). A Constituent that
+    /// ends in one is followed by nothing but a period.
+    #[serde(default)]
+    pub unclosed: bool,
     /// Lexical children that cost one more where analysis did not admit
     /// their leaf through the scope of the face whose text is parsed (one of
     /// the face's own names, or a card-scoped spelling such as its Shortened

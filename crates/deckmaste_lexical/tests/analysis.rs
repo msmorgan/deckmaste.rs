@@ -958,7 +958,12 @@ fn plain_forms_do_not_assign_finiteness_but_participles_do() {
 
 #[test]
 fn flavor_heads_are_lossless_open_labels_at_line_starts() {
-    let lexicon = Lexicon::new([]).unwrap();
+    // Title casing leaves function words lowercase (*of the*).
+    let lexicon = Lexicon::new([
+        invariant("prep:of", "of", Category::Preposition),
+        invariant("det:the", "the", Category::Determinative),
+    ])
+    .unwrap();
     for (label, body) in [
         // Astrologian's Planisphere and Blue Mage's Cane.
         ("Diana", "Equip {2}"),
@@ -1012,6 +1017,40 @@ fn flavor_heads_are_lossless_open_labels_at_line_starts() {
         };
         assert!(lexicon.realize(&reading).is_err());
         assert!(lexicon.surface_features(&reading).is_err());
+    }
+}
+
+/// A Flavor Word has natural title casing (`docs/oracle-style-guide.md` §14,
+/// Ability words and flavor words): a label with a lowercase word that is
+/// not a function word is a clause before an em dash, never a Flavor Word.
+#[test]
+fn a_label_without_title_casing_is_no_flavor_word() {
+    let lexicon = Lexicon::new([
+        invariant("pro:it", "it", Category::Pronoun),
+        invariant("det:a", "a", Category::Determinative),
+    ])
+    .unwrap();
+    let flavor = |text: &str| {
+        lexicon
+            .analyze(text)
+            .matches
+            .iter()
+            .any(|found| matches!(found.reading, LexicalReading::FlavorWord { .. }))
+    };
+    // Company Commander's flavor word.
+    assert!(flavor("Bring it Down! — Draw a card."));
+    // Ensnared by the Mara: the keyword action's options follow the dash.
+    assert!(!flavor(
+        "Each opponent faces a villainous choice — They discard a card, or you draw a card."
+    ));
+    for label in [
+        "Each opponent faces a villainous choice",
+        "Uncharted marvel",
+    ] {
+        let reading = LexicalReading::FlavorWord {
+            label: label.into(),
+        };
+        assert!(lexicon.realize(&reading).is_err(), "{label}");
     }
 }
 

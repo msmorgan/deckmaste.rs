@@ -54,6 +54,10 @@ pub enum ClauseKind {
     Finite,
     /// A declarative content clause permitting the subordinator *that*.
     Expandable,
+    /// A Clause set off by a dash after its head's Object, giving that
+    /// Object's content (*faces a villainous choice — They discard their
+    /// hand, or you draw three cards*).
+    SetOff,
     Verbless,
     /// A non-finite or verbless clause with its Subject, the Complement of
     /// *with* and *without* (*with your hand revealed*; CGEL, Ch. 14 §8.3,
@@ -126,6 +130,7 @@ pub enum SlotKind {
     MeasureNP,
     FiniteClause,
     ExpandableClause,
+    SetOffClause,
     VerblessClause,
     AbsoluteClause,
     InterrogativeClause,
@@ -156,6 +161,7 @@ impl SlotFill {
             Self::MeasureNP => SlotKind::MeasureNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Expandable) => SlotKind::ExpandableClause,
+            Self::Clause(ClauseKind::SetOff) => SlotKind::SetOffClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::Clause(ClauseKind::Absolute) => SlotKind::AbsoluteClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
@@ -225,7 +231,12 @@ impl Frame {
                 shape[..],
                 [
                     (Object, SlotFill::NP),
-                    (Complement, SlotFill::LocativeNP | SlotFill::HollowToInf)
+                    (
+                        Complement,
+                        SlotFill::LocativeNP
+                            | SlotFill::HollowToInf
+                            | SlotFill::Clause(ClauseKind::SetOff)
+                    )
                 ]
             ),
             FrameFamily::TransitiveWithPP => {

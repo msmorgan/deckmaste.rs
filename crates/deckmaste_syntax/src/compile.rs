@@ -298,6 +298,9 @@ struct Draft {
     /// It ends in an ellipsis site whose omitted Complement takes these word
     /// forms, as a mask (`ProductionDecl::elliptical`).
     elliptical: Option<u16>,
+    /// It opens with a dash only its sentence's end closes
+    /// (`ProductionDecl::unclosed`).
+    unclosed: bool,
     /// A Linked Coordination's identity (`Production::link`).
     link: Option<LexemeId>,
     /// It builds a Complement Cluster of this frame (`Production::cluster`).
@@ -380,6 +383,7 @@ impl Draft {
             internalised: None,
             omits_complement: false,
             elliptical: None,
+            unclosed: false,
             link: None,
             cluster: None,
             clusters: None,
@@ -1093,6 +1097,7 @@ impl<'a> Binder<'a> {
                 })?;
             draft.scoped.push(child);
         }
+        draft.unclosed = declaration.unclosed;
         if let Some(forms) = &declaration.elliptical {
             if forms.is_empty() {
                 return Err(context(invalid(
@@ -1720,6 +1725,7 @@ impl<'a> Binder<'a> {
             crate::step::Omission::None
         };
         production.link = draft.link;
+        production.unclosed = draft.unclosed;
         production.cluster = draft
             .cluster
             .map(|frame| u16::try_from(frame).expect("frame index fits"));
@@ -1883,7 +1889,10 @@ impl<'a> Binder<'a> {
                 if let Some(modifier) = postposed {
                     ordered.extend(self.postposed_modifiers(&drafts, modifier));
                 }
-                ordered.extend(clustered);
+                // An Adjunct interleaves in a Complement Cluster as in the
+                // phrase (*deals [half X damage, rounded down, to any target],
+                // and [half X damage, rounded up, to you]*).
+                ordered.extend(self.valence_order(clustered, interleaved.as_deref(), false, host)?);
                 Ok(ordered)
             }
             SchemaDecl::Adjunct {

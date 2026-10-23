@@ -85,6 +85,8 @@ pub enum FillSpec {
     FiniteClause,
     /// An expandable declarative content clause (CGEL, Ch. 11 §4.8, p. 971).
     ExpandableClause,
+    /// A Clause set off by a dash, the content of the Object before it.
+    SetOffClause,
     VerblessClause,
     /// A non-finite or verbless clause with its Subject (*with your hand
     /// revealed*; CGEL, Ch. 14 §10(a), p. 1267).

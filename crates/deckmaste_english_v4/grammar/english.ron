@@ -55,9 +55,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -78,6 +78,9 @@
         "Determination": ["Bare", "Overt"],
         // The Determination of a determinative's Complement (*than one*).
         "ObliqueDetermination": ["Bare", "Overt"],
+        // The DeterminativeDistribution of a determinative's Complement's
+        // Noun Phrase (*all but [the highest roll]*).
+        "ObliqueDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
         "AdjectivePosition": ["Attributive", "Predicative"],
         "Sign": ["Negative", "Zero", "Positive"],
         // `Existential` has one holder, dummy *there*, the subject of an
@@ -300,7 +303,7 @@
         "FusedQuantity": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative's Complement has a Number of its own (*all but
         // one*; CGEL, Ch. 5 §7.3, p. 375).
-        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination"]),
+        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination", "ObliqueDistribution"]),
         // A determiner ending in the Targeting Marker, without the Number
         // the Marker has on its own, which an outer determiner or an
         // adjective gives it instead (*two target creatures*, *other target
@@ -407,6 +410,9 @@
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
         "ExpandableClause": (category: Some("Clause")),
+        // A content-specifying Supplement set off by a dash as a head's
+        // Complement (SetOffComplementClause).
+        "SetOffClause": (category: Some("Clause")),
         "VerblessClause": (category: Some("Clause")),
         "AbsoluteClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
@@ -574,6 +580,7 @@
         Cost: "SymbolCosts",
         FiniteClause: "FiniteClause",
         ExpandableClause: "ExpandableClause",
+        SetOffClause: "SetOffClause",
         VerblessClause: "VerblessClause",
         AbsoluteClause: "AbsoluteClause",
         InterrogativeClause: "InterrogativeClause",
@@ -640,6 +647,11 @@
         // An Arabic numeral is a singular count noun under a determiner (*a
         // natural 20*; CGEL, Ch. 5 §7.1, p. 386).
         (name: "ArabicNumeralName", lhs: "NumeralName", rhs: [Numeral("head", Arabic(false))]),
+        // A numeral named as a noun or a comparative adjective with that
+        // numeral its understood standard, as ComparativeBoundedAmount is
+        // for an Amount (*whenever you roll a 4 or higher*).
+        (name: "ComparativeBoundedNumeralName", lhs: "NumeralName", rhs: [Numeral("first", Arabic(false)), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
+            equations: [Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive")]),
         (name: "NumeralNominal", lhs: "BareNominal", rhs: [Cat("head", "NumeralName")], equations: [Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
         (name: "GroupedNumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(true))], equations: [Agree("$.QuantityNumber", "head.Number")]),
         // A multiplying or bounding adverb modifies a quantity (*up to
@@ -892,6 +904,12 @@
         // p. 1058), so its head Clause passes up no Gap.
         (name: "ParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
             equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
+        // A gerund-participial Supplement likewise, its missing Subject
+        // controlled by the anchor clause's (*Restart the game, leaving in
+        // exile all non-Aura permanent cards exiled with Karn*; CGEL, Ch. 14
+        // §9, pp. 1265–1266).
+        (name: "GerundParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
+            equations: [Require("supplement.VerbForm", "GerundParticiple")], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
         // A trailing NP Supplement is outside the integrated Clause: its
         // anchor remains an Object or another constituent, rather than
         // becoming a larger NP with the description (CGEL, Ch. 15 §§5.1,
@@ -1119,6 +1137,21 @@
             equations: [Require("head.NounKind", "Temporal"), Exclude("head.NounDistribution", "Serial"), Exclude("determiner.DeterminativeDistribution", "Dependent"), Exclude("determiner.DeterminativeDistribution", "Numerical"), Exclude("determiner.DeterminativeDistribution", "IndefiniteArticle"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "SerialTemporal", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "BareNominal")],
             equations: [Require("head.NounDistribution", "Serial"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A comparative quantity of serial *times* with its *than* Complement
+        // after the head, as in ComparativeCountDetermined, is a frequency
+        // Adjunct (CGEL, Ch. 13 §2.1, p. 1104; Ch. 8 §9, p. 715), with or
+        // without a determinative modifying the comparative (*Activate no
+        // more times each turn than the number of snow Swamps you control*;
+        // Ch. 13 §4.4, p. 1126).
+        (name: "ComparativeFrequency", lhs: "TemporalNounPhrase", rhs: [Class("determiner", "ComparativeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("head.NounDistribution", "Serial"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "ModifiedComparativeFrequency", lhs: "TemporalNounPhrase", rhs: [Lex("modifier", Determinative), Class("determiner", "ComparativeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("head.NounDistribution", "Serial"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A maximum quantity of serial *times* (*pay {G} up to three times*),
+        // the Preposition Phrase in Determiner function, as in
+        // MaximumDetermination (CGEL, Ch. 5 §7.1, p. 357; Ch. 8 §9, p. 715).
+        (name: "MaximumSerialTemporal", lhs: "TemporalNounPhrase", rhs: [Selected("determiner", "PrepositionPhrase", ["Up"]), Cat("head", "BareNominal")],
+            equations: [Require("head.NounDistribution", "Serial"), Require("determiner.Determination", "Bare"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A focused temporal adjunct (*only any time they could cast a sorcery*).
         (name: "AdverbModifiedTemporal", lhs: "TemporalNounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "TemporalNounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         (name: "RelativeTemporalLocation", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "RelativeTemporalNominal")],
@@ -1267,6 +1300,12 @@
         // CGEL, Ch. 13 §4.4, pp. 1125–1126).
         (name: "MeasuredComparative", lhs: "AdjectivePhrase", rhs: [Cat("modifier", "NounPhrase"), Cat("head", "AdjectivePhrase")],
             equations: [Require("head.Grade", "Comparative"), Require("head.ComplementKind", "Intransitive"), Require("modifier.Determination", "Bare"), Carry("modifier.Case", "Plain")]),
+        // The same with the comparative's *than* Complement, its measure a
+        // number (*at least 10 greater than your starting life total*); a
+        // property noun before a comparative is its postpositive adjective's
+        // head (*mana value less than or equal to …*).
+        (name: "MeasuredStandardComparative", lhs: "AdjectivePhrase", rhs: [Cat("modifier", "NounPhrase"), Cat("head", "AdjectivePhrase")],
+            equations: [Require("head.Grade", "Comparative"), Require("head.ComplementKind", "PP"), Carry("modifier.NounKind", "Numeric"), Carry("modifier.Case", "Plain")]),
         // A superlative quantifier under the definite article (*the most
         // creatures*, *the least life*; CGEL, Ch. 5 §6.1, p. 393), with a
         // plural count or a mass head.
@@ -1326,6 +1365,11 @@
         // Ch. 8 §9, pp. 713–716).
         (name: "TemporalArithmetic", lhs: "TemporalNounPhrase", rhs: [Cat("head", "TemporalNounPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Require("modifier.NounKind", "Temporal")]),
+        // The same on a frequency adverb (*copy that spell once plus an
+        // additional time for each opponent*), which counts occasions as a
+        // frequency Noun Phrase does (CGEL, Ch. 8 §9, p. 715).
+        (name: "FrequencyAdverbArithmetic", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
+            equations: [Require("head.AdjunctPosition", "End"), Require("modifier.NounKind", "Temporal")]),
         (name: "DegreeArithmetic", lhs: "DeterminerPhrase", rhs: [Cat("head", "DeterminerPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Require("head.ComplementKind", "Intransitive")], heavy: ["head"]),
         // A fraction or multiplier before a determined Noun Phrase (*half their
@@ -1362,6 +1406,16 @@
         // head (*by more than {5}*, *more than two*), with a bare standard;
         // scalar *less than* is the adjective's. The Noun Phrase has its
         // standard's Number, not the quantifier's (*more* is plural).
+        // *All* with an exception Preposition Phrase as a fused determiner-head
+        // whose standard is a determined Noun Phrase (*ignore all but the
+        // highest roll*; CGEL, Ch. 5 §11(f), p. 433): a definite one, since a
+        // quantity there determines with *all but* (*all but one +1/+1
+        // counter*, *[all but one] of them*). It counts the members of
+        // a set (*All but a few helicopters*), so count *all*: the Noun
+        // Phrase has its plural, not the exception's Number. A bare quantity
+        // in the exception is ComparativeFusedHead's (*all but one*).
+        (name: "ExceptiveFusedHead", lhs: "NounPhrase", rhs: [Cat("quantifier", "DeterminerPhrase")],
+            equations: [Require("quantifier.ComplementKind", "PP"), Require("quantifier.ObliqueKind", "NP"), Require("quantifier.ObliqueDetermination", "Overt"), Carry("quantifier.ObliqueDistribution", "Dependent"), Carry("quantifier.Countability", "Count"), Agree("$.Number", "quantifier.Number"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComparativeFusedHead", lhs: "NounPhrase", rhs: [Cat("quantifier", "DeterminerPhrase")],
             equations: [Require("quantifier.ComplementKind", "PP"), Exclude("quantifier.ObliqueKind", "AdvP"), Exclude("quantifier.ObliqueKind", "FiniteClause"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.Countability", "Mass"), Agree("$.Number", "quantifier.ObliqueNumber"), Agree("$.Countability", "quantifier.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A comparative determinative fused head whose standard a dependent
@@ -1462,6 +1516,11 @@
         // countability, since it names the word, not what the word denotes.
         (name: "WordMention", lhs: "Mention", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular")]),
         (name: "NegativeMention", lhs: "Mention", rhs: [Lex("prefix", Affix), Cat("head", "Mention")], uncoordinated: ["head"]),
+        // A count noun prefixed by *non-* heads a nominal, naming what is not
+        // of its kind (*four or more nonlands*; CGEL, Ch. 19 §5.5.1, p. 1689:
+        // *non-member*, *non-resident*): one noun, never a compound under the
+        // prefix.
+        (name: "PrefixedNoun", lhs: "BareNominal", rhs: [Lex("prefix", Affix), Cat("head", "BareNominal")], equations: [Carry("head.Countability", "Count")], light: ["head"]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")], equations: [Require("$.Polarity", "Negative")]),
         // A participle premodifier prefixed by *non-* (*nonattacking*).
@@ -1489,6 +1548,11 @@
         (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
         (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count")]),
+        // A superlative confers definiteness on its nominal, so the article
+        // may go unexpressed without a change of meaning (CGEL, Ch. 13
+        // §6.3.4, pp. 1168–1169), here in a bare nominal Complement: *tied
+        // for lowest life total*.
+        (name: "SuperlativeBareNominal", lhs: "BareNominalComplement", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], equations: [Require("modifier.Grade", "Superlative"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative"), Require("head.Number", "Singular"), Require("head.Countability", "Count")]),
         // Noun phrases.
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],
@@ -1840,6 +1904,17 @@
         // (CGEL, Ch. 11 §4.8, p. 971; OSG §12, Copies).
         (name: "UnmarkedExpandableClause", lhs: "ExpandableClause", rhs: [Cat("head", "FiniteClause")]),
         (name: "MarkedExpandableClause", lhs: "ExpandableClause", rhs: [Word("marker", "ContentMarker"), Cat("head", "FiniteClause")]),
+        // A Clause, or a coordination of Clauses, set off by a dash, giving
+        // the content of the Object before it, as a content-specifying
+        // Supplement does (*Kate's proposal – to dismiss the manager –*;
+        // CGEL, Ch. 14 §9, p. 1266; Ch. 15 §5.1, pp. 1350–1351), where a
+        // head's frame selects one: the options of a villainous choice
+        // [CR#701.55a], each capitalized after the dash
+        // (`docs/oracle-style-guide.md` §14, Keyword actions in sentences).
+        // The sentence end absorbs its closing dash, so nothing but the
+        // period follows it (CGEL, Ch. 20 §5, p. 1751).
+        (name: "SetOffComplementClause", lhs: "SetOffClause", rhs: [Mark('—', Free), Cat("head", "Clause")],
+            equations: [Require("head.ClauseMarking", "Unmarked"), Exclude("head.Inflection", "Irrealis")], unclosed: true),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
         // The Absolute Clause Complement of *with* and *without*: a Subject
         // and a past-participial predicate (*with your hand revealed*; CGEL,
@@ -1929,7 +2004,7 @@
         // count nominal (*the amount of [excess] damage dealt*).
         Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
         Valence(head: Adjective, phrase: "AdjectivePhrase", complement_kind: Some("ComplementKind")),
-        Valence(head: Determinative, phrase: "DeterminerPhrase", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueDetermination", "Determination")]),
+        Valence(head: Determinative, phrase: "DeterminerPhrase", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueDetermination", "Determination"), ("ObliqueDistribution", "DeterminativeDistribution")]),
         // A carrier noun distributes over a coordination of noun premodifiers
         // (`docs/oracle-style-guide.md` §7, Card types are common nouns and
         // attributive modifiers), and a later conjunct may carry its own
@@ -2115,7 +2190,12 @@
         // Noun Phrase or a quoted ability, where it is no Object.
         Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true),
             equations: [ExcludeTogether([("first.ComplementKind", "NP"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "NP")]), ExcludeTogether([("first.ComplementKind", "QuotedAbility"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "QuotedAbility")])]),
-        Coordination(category: "ClusterCoordination", conjunct: Some("ComplementCluster"), coordinators: "Coordinator"),
+        // A comma may set off a binary coordination's second Cluster, which is
+        // likelier before long and complex coordinates (*deals half X damage,
+        // rounded down, to any target, and half X damage, rounded up, to
+        // you*; CGEL, Ch. 20 §3.2.1, pp. 1739–1740;
+        // `docs/oracle-style-guide.md` §3, Commas and the serial comma).
+        Coordination(category: "ClusterCoordination", conjunct: Some("ComplementCluster"), coordinators: "Coordinator", delimiter: Some(',')),
         Coordination(category: "ContrastCoordination", conjunct: Some("ContrastConjunct"), coordinators: "But", unshared: ["Polarity"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], delimiter: Some(','), serial: Some(false)),
         Coordination(category: "ContrastPrepositionCoordination", conjunct: Some("ContrastPrepositionConjunct"), coordinators: "But", unshared: ["Polarity", "DeterminativeDistribution"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"], delimiter: Some(','), serial: Some(false)),
         // Unlike predicate Adjuncts coordinate serially too, not all alike

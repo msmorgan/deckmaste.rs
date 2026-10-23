@@ -492,6 +492,7 @@ impl Resolver<'_> {
             FillSpec::MeasureNP => SlotFill::MeasureNP,
             FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
             FillSpec::ExpandableClause => SlotFill::Clause(ClauseKind::Expandable),
+            FillSpec::SetOffClause => SlotFill::Clause(ClauseKind::SetOff),
             FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
             FillSpec::AbsoluteClause => SlotFill::Clause(ClauseKind::Absolute),
             FillSpec::ToInf => SlotFill::ToInf,
