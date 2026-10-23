@@ -1611,6 +1611,114 @@ def Ability.writesDefining (ability : Ability) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+/-! ## Retention: an exemption from removing Attachments
+
+`StaticSpec.retention spec subject` exempts `subject` from one state-based consequence of
+`spec`: the Attachments `spec` would make illegal on their host [CR#702.16n,702.16p,303.4c,704.5m].
+Two laws hold of its terms: `spec` is the one clause that removes Attachments (`retentionClause`),
+and `subject` names Attachments of that clause's host (`retentionSubject`). -/
+
+/-- Whether a subtype is an Attachment's: Aura, Equipment or Fortification [CR#701.3a]. -/
+def Subtype.isAttachment : Subtype → Bool
+  | .of .enchantment "Aura" | .of .artifact "Equipment" | .of .artifact "Fortification" => true
+  | _ => false
+
+/-- Whether an action, seen through its scope wrappers, attaches something [CR#701.3a]: "can't be
+enchanted" forbids an Aura's becoming attached. -/
+def Action.attaches (action : Action) (fuel : Nat := 16) : Bool :=
+  match fuel, action with
+  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body
+  | n + 1, .enact _ body _ _ => body.attaches n
+  | _ + 1, .attachment .attached _ _ => true
+  | _, _ => false
+termination_by structural fuel
+
+mutual
+/-- Whether a clause, in force, removes Attachments already on its host as a state-based action:
+a prohibition on attaching makes an Aura, Equipment or Fortification attached already illegal
+there [CR#303.4c,704.5m,704.5n], and a protection grant is one for the Auras, Equipment and
+Fortifications with its quality [CR#702.16c,702.16d]. A grant qualifies when each ability it adds
+does; a conjunction does not, since each of its clauses is its own effect. -/
+def StaticSpec.removesAttachments (spec : StaticSpec) (fuel : Nat := 64) : Bool :=
+  match fuel, spec with
+  | n + 1, .inCaller body => body.removesAttachments n
+  | _ + 1, .cant _ action _ => action.attaches
+  | n + 1, .characteristicChange _ edits =>
+    !edits.isEmpty && edits.all fun
+      | .addedAbilities abilities =>
+        !abilities.isEmpty && abilities.all (fun ability => ability.removesAttachments n)
+      | _ => false
+  | _, _ => false
+termination_by structural fuel
+
+/-- Whether an ability removes Attachments from what has it: a static ability that does, or a
+keyword whose definition writes one (protection [CR#702.16c,702.16d]). -/
+def Ability.removesAttachments (ability : Ability) (fuel : Nat := 64) : Bool :=
+  match fuel, ability with
+  | n + 1, .static spec => spec.removesAttachments n
+  | n + 1, .keyword _ _ body => body.any (fun part => part.removesAttachments n)
+  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
+    a.removesAttachments n
+  | _, _ => false
+termination_by structural fuel
+end
+
+/-- The phrase naming what a clause that removes Attachments removes them from: the grant's
+subject, or the host a prohibition on attaching names. -/
+def StaticSpec.attachmentHost? (spec : StaticSpec) (fuel : Nat := 16) : Option NounPhrase :=
+  match fuel, spec with
+  | n + 1, .inCaller body => body.attachmentHost? n
+  | _ + 1, .characteristicChange subject _ => some subject
+  | _ + 1, .cant _ action _ =>
+    match action.scopeBody with
+    | .enact _ (.attachment _ _ host) _ _ | .attachment _ _ host => host
+    | _ => none
+  | _, _ => none
+termination_by structural fuel
+
+/-- Whether a description names Attachments only: an Aura, Equipment or Fortification, or the
+attachment side of an attachment ("attached to it") [CR#701.3a]. -/
+def Predicate.namesAttachments (p : Predicate) (fuel : Nat := 16) : Bool :=
+  match fuel, p with
+  | _ + 1, .hasSubtype subtype => subtype.isAttachment
+  | _ + 1, .attachment .attachment _ _ => true
+  | n + 1, .inCaller body => body.namesAttachments n
+  | n + 1, .coord .and items => items.any (fun item => item.namesAttachments n)
+  | n + 1, .coord .or items => !items.isEmpty && items.all (fun item => item.namesAttachments n)
+  | _, _ => false
+termination_by structural fuel
+
+/-- The hosts a description's "attached to …" names. -/
+def Predicate.attachmentHosts (p : Predicate) (fuel : Nat := 16) : List NounPhrase :=
+  match fuel, p with
+  | _ + 1, .attachment .attachment _ (some host) => [host]
+  | n + 1, .inCaller body => body.attachmentHosts n
+  | n + 1, .coord _ items => items.flatMap (fun item => item.attachmentHosts n)
+  | _, _ => []
+termination_by structural fuel
+
+/-- Whether `subject` names Attachments of `host`, the phrase a retention's clause removes them
+from. "This Aura" is one when the clause's host is the permanent it enchants ("enchanted
+creature"), and likewise "this Equipment" and "this Fortification" [CR#702.16n]. A description
+names Attachments ("Auras", "Auras and Equipment you control"), and an "attached to …" in it
+reads the host back by an anaphor ("attached to it", "attached to those artifacts"), never a
+fresh mention [CR#702.16p]. -/
+def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 16) : Bool :=
+  match fuel, subject with
+  | n + 1, .inCaller body => body.namesAttachmentsOf host n
+  | _ + 1, .headed (.subtype subtype) .this =>
+    match subtype, host with
+    | .of .enchantment "Aura", .attachHost .enchanted _
+    | .of .artifact "Equipment", .attachHost .equipped _
+    | .of .artifact "Fortification", .attachHost .fortified _ => true
+    | _, _ => false
+  | _ + 1, .described _ p =>
+    p.namesAttachments && p.attachmentHosts.all fun
+      | .pro _ _ => true
+      | _ => false
+  | _, _ => false
+termination_by structural fuel
+
 def KeywordParam.shape : KeywordParam → KeywordParamShape
   | .cost _ => .cost
   | .quality _ => .quality
@@ -4047,7 +4155,13 @@ def stepOps : Nat → StepOps
         | .retention spec subj =>
           let (drs1, e1) := ops.spec drs spec
           let (drs2, _, e2) := ops.np drs1 .other false subj
-          (drs2, e1 ++ e2)
+          -- An exemption from the one clause that removes Attachments, for Attachments of that
+          -- clause's host [CR#702.16n,702.16p,303.4c,704.5m].
+          let ofHost := match spec.attachmentHost? with
+            | some host => subj.namesAttachmentsOf host
+            | none => false
+          (drs2, e1 ++ e2 ++ refuse spec.removesAttachments .retentionClause ++
+            refuse ofHost .retentionSubject)
         | .addsTarget subj desc =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := ops.pred drs1 desc
