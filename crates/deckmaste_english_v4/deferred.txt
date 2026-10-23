@@ -3,12 +3,6 @@
 # deferred unit that reads is stale and fails `strata --check`.
 
 # english-v4-stratum-7-discourse-and-long-tail
-Bladehold War-Whip | Equip abilities you activate of other Equipment cost {1} less to activate.
-Me, the Immortal | At the beginning of combat on your turn, put your choice of a +1/+1, first strike, vigilance, or menace counter on Me.
-Owen Grady, Raptor Trainer | {T}: Put your choice of a reach, menace, trample, or haste counter on target Dinosaur. Activate only as a sorcery.
-Reluctant Role Model | Survival — At the beginning of your second main phase, if this creature is tapped, put a flying, lifelink, or +1/+1 counter on it.
-The Night of the Doctor | II — Return target legendary creature card from your graveyard to the battlefield. Put your choice of a first strike, vigilance, or lifelink counter on it.
-Denry Klin, Editor in Chief | Denry Klin enters with your choice of a +1/+1, first strike, or vigilance counter on it.
 Multiclass Baldric | Equipped creature has lifelink if you control a Cleric, deathtouch if you control a Rogue, haste if you control a Warrior, and flying if you control a Wizard.
 Scion of Draco | Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green.
 Dominaria's Judgment | Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest.
@@ -33,7 +27,6 @@ Trial of a Time Lord | IV — Starting with you, each player votes for innocent 
 Abundant Harvest | Choose land or nonland. Reveal cards from the top of your library until you reveal a card of the chosen kind. Put that card into your hand and the rest on the bottom of your library in a random order.
 Midnight Crusader Shuttle | Midnight Entity — Whenever this Vehicle attacks, defending player faces a villainous choice — That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn. If you gain control of a creature this way, tap it, and it's attacking that player.
 Triumphant Chomp | Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.
-Crystalline Giant | At the beginning of combat on your turn, choose a kind of counter at random that this creature doesn't have on it from among flying, first strike, deathtouch, hexproof, lifelink, menace, reach, trample, vigilance, and +1/+1. Put a counter of that kind on this creature.
 Gorex, the Tombshell | Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand.
 Eye of Duskmantle | You may play lands and cast spells from among cards in your graveyard you've surveilled this turn. If you cast a spell this way, you pay life equal to its mana value rather than paying its mana cost.
 Expand the Sphere | Look at the top six cards of your library. Put up to two land cards from among them onto the battlefield tapped and the rest on the bottom of your library in a random order. If you put fewer than two lands onto the battlefield this way, proliferate a number of times equal to the difference.

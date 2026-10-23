@@ -48,3 +48,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (`tszlxwsn` against claim parent `rymsmopq`): faces read 32,574 → 32,583 (+9: Me, the Immortal; Owen Grady, Raptor Trainer; Reluctant Role Model; The Night of the Doctor; Denry Klin, Editor in Chief; Crystalline Giant; Bladehold War-Whip; Assaultron Dominator; T-45 Power Armor); total Readings 315,929 → 315,959; lost faces: none.
+2. **Judgment set**: `cargo test -p deckmaste_english_v4` passes; the ten new entries in `judgments/counter_kind_specifiers.txt` hold.

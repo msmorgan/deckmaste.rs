@@ -136,6 +136,10 @@
         // and never also a central Adjunct of its Verb Phrase: one tree per
         // analysis (`english-lexical-analysis.md` §2).
         "CentralPosition": ["Occupied"],
+        // A Conjunct of a Word-Part Coordination: a Compound Noun's first
+        // base alone, sharing the head word of the last Conjunct, the
+        // `Whole` Compound Noun (CGEL, Ch. 15 §3.1(g), p. 1325).
+        "CompoundPart": ["Base", "Whole"],
         "Inflection": ["Invariant", "IndependentGenitive", "Singular", "Plural", "Plain", "Present", "Preterite", "Irrealis", "GerundParticiple", "PastParticiple"],
     },
     categories: {
@@ -217,7 +221,9 @@
         // X* (CGEL, Ch. 5 §9.1, p. 411).
         "PartitiveHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
         // A slash measure as a Noun Phrase (*gets +2/+2*), taken only where a
-        // head selects one: never a general Object or bare singular term.
+        // head selects one, or beside keyword phrases naming counter kinds
+        // (MeasureObjectConjunct): never a general Object or bare singular
+        // term.
         "MeasureNounPhrase": (category: Some("NounPhrase")),
         // A compound locative determinative, which a Preposition Phrase may
         // postmodify (*anywhere else*).
@@ -235,7 +241,7 @@
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
-        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], gap: true),
+        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], gap: true),
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         // A temporal nominal bounded by a relative clause (*next time you cast a
@@ -248,8 +254,14 @@
         // bounded durations). RelativeTime and RelativeTimePostmodifier
         // restate NominalPostmodifier and TemporalPostmodifier for that reason.
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
-        "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind"], gap: true),
+        "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "CompoundPart"], gap: true),
         "NounPremodifier": (category: Some("Nominal"), features: ["Polarity"]),
+        // A Word-Part Coordination of Compound Nouns that share their head
+        // word (*a +1/+1, first strike, or vigilance counter*), and each of
+        // its Conjuncts: a first base alone, or, last, the whole Compound
+        // Noun, which never splits (`english-lexical-analysis.md` §2).
+        "CompoundCoordination": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "NounDistribution"]),
+        "CompoundConjunct": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "NounDistribution", "CompoundPart"]),
         // A conjunct of a coordination of noun premodifiers: a noun premodifier,
         // with an adjective or negative noun premodifier of its own
         // (*Knight, Aura, Equipment, or [legendary artifact] card*;
@@ -337,6 +349,12 @@
         "Adverbial": (function: true),
         // The Adjunct function before a selected Complement or shifted Object.
         "Interleaved": (function: true),
+        // A relative clause before the Complement its noun selects, which is
+        // postposed past it: post-head order in a Nominal is labile (CGEL,
+        // Ch. 5 §15, p. 454 [12]–[13]: *the rumour [which was published in
+        // 'The Times'] [that income tax would be cut]*; *Equip abilities
+        // [you activate] [of other Equipment]*).
+        "InterleavedModifier": (function: true, features: ["Number", "NounKind"]),
         // The Modifier function of an Object, postposed after the selected
         // Complements that follow it (CGEL, Ch. 12 §4, p. 1066), with the
         // Case its Object agrees in.
@@ -461,7 +479,7 @@
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -839,8 +857,27 @@
         (name: "SymbolPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Symbols"), Cat("head", "BareNominal")]),
         // A slash measure is a noun only under a determiner (*an additional
         // +2/+2*, *a 3/3*); bare, it is a selected Measure Noun Phrase.
-        (name: "MeasureNominal", lhs: "BareNominal", rhs: [Cat("head", "Measure")], equations: [Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
+        // It is a fused first base (*a 3/3* [creature]), and so never a
+        // non-final Conjunct of a Nominal Coordination: before a coordinated
+        // Compound Noun it is a Word-Part Coordination's base (*a +2/+0,
+        // +1/+1, or +0/+2 counter*), one tree per analysis
+        // (`english-lexical-analysis.md` §2).
+        (name: "MeasureNominal", lhs: "BareNominal", rhs: [Cat("head", "Measure")], equations: [Require("$.CompoundPart", "Base"), Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
         (name: "MeasureNounPhrase", lhs: "MeasureNounPhrase", rhs: [Cat("head", "Measure")]),
+        // A Word-Part Coordination of Compound Nouns: the first bases of the
+        // earlier ones are coordinated with the last whole, which supplies
+        // their shared head word (CGEL, Ch. 15 §3.1(g), p. 1325: *Sydney- or
+        // Melbourne-based companies*). A counter's first base is its name
+        // [CR#122.1]: a keyword for a keyword counter, a slash measure for a
+        // +X/+Y counter [CR#122.1a,122.1b] (`docs/oracle-style-guide.md`
+        // §12, Counters: "A keyword counter takes the lowercased keyword as
+        // its modifier"). `SharedHeadCompound` holds the Compound Nouns whose
+        // first base names their kind: the counters.
+        (name: "WordPartCoordination", lhs: "BareNominal", rhs: [Cat("head", "CompoundCoordination")]),
+        (name: "KeywordBase", lhs: "CompoundConjunct", rhs: [Cat("modifier", "KeywordPhrase")],
+            equations: [Require("$.CompoundPart", "Base"), Exclude("modifier.FinalParameter", "SetOffAbility"), Exclude("modifier.FinalParameter", "Cost")]),
+        (name: "MeasureBase", lhs: "CompoundConjunct", rhs: [Cat("modifier", "Measure")], equations: [Require("$.CompoundPart", "Base")]),
+        (name: "WholeCompound", lhs: "CompoundConjunct", rhs: [Class("head", "SharedHeadCompound")], equations: [Require("$.CompoundPart", "Whole")]),
         // A multiplied measure (*gets twice -X/-X*).
         (name: "AdverbModifiedMeasure", lhs: "MeasureNounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "MeasureNounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         // A creature's size as a predicative Complement (*except it's 4/3*,
@@ -852,6 +889,7 @@
         (name: "OrdinalFromEnd", lhs: "PositionPhrase", rhs: [Numeral("head", Ordinal), Selected("complement", "PrepositionPhrase", ["From"])], equations: []),
         (name: "PositionDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "PositionPhrase")], transparent: ["head"], cost: 2),
         (name: "PositionAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "PositionPhrase")], equations: [Require("$.ComplementKind", "AdjP")]),
+        (name: "InterleavedRelative", lhs: "InterleavedModifier", rhs: [Cat("head", "RelativeClause")], cost: 0),
         (name: "InterleavedPreposition", lhs: "Interleaved", rhs: [Cat("head", "PrepositionPhrase")], cost: 0),
         (name: "InterleavedTemporal", lhs: "Interleaved", rhs: [Cat("head", "TemporalNounPhrase")], cost: 0),
         // An end adverb before a later selected Complement (*divided evenly
@@ -1432,6 +1470,10 @@
         (name: "PrepositionalConjunct", lhs: "PostmodifierConjunct", rhs: [Hosted("filler", "PrepositionPhrase", Nominal)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "NominalObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "KeywordObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "KeywordPhrase")], equations: [Require("$.ComplementKind", "KeywordPhrase")]),
+        // A slash measure names a +X/+Y counter's kind as a keyword names a
+        // keyword counter's [CR#122.1a,122.1b], beside keywords (*a kind of
+        // counter ... from among flying, first strike, ..., and +1/+1*).
+        (name: "MeasureObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "MeasureNounPhrase")], equations: [Require("$.ComplementKind", "MeasureNP")]),
         // A quoted ability beside a keyword (*has reach and "…"*).
         (name: "QuotedObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "QuotedAbility")], equations: [Require("$.ComplementKind", "QuotedAbility")]),
         (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
@@ -1647,7 +1689,7 @@
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
         Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
-        Valence(head: Noun, phrase: "BareNominal", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
+        Valence(head: Noun, phrase: "BareNominal", complement_kind: Some("ComplementKind"), interleaved: Some("InterleavedModifier"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement
         // it selects (*until end of turn*, *on top of*, *in excess of*; CGEL,
         // Ch. 7 §3.1, pp. 618–620): a relational noun without it is no bare
@@ -1795,8 +1837,8 @@
         // coordination (*2 or 3*). An admission gate
         // (`docs/decisions/english-v4.md` §4.5).
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
-        Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
-        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),
+        Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
+        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "GenitiveNominals", conjunct: Some("GenitiveNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         // Relative clauses coordinate, each with its relative word (*tokens
@@ -1808,6 +1850,9 @@
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
         Coordination(category: "NounPremodifier", conjunct: Some("NounPremodifierConjunct"), coordinators: "Coordinator", unshared: ["Polarity"]),
+        // Every Conjunct but the last is a first base alone.
+        Coordination(category: "CompoundCoordination", conjunct: Some("CompoundConjunct"), coordinators: "Coordinator", unshared: ["CompoundPart"],
+            equations: [Require("first.CompoundPart", "Base"), Require("last.CompoundPart", "Whole")], proximate: ["Number", "Countability", "NounKind", "NounDistribution"]),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection", "Polarity"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade", "Polarity"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", unshared: ["DeterminativeDistribution"], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
@@ -1817,7 +1862,11 @@
         // or tapped creature*; *the basic, Sphere, and Locus lands*).
         Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
-        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
+        // A slash measure names a counter kind only beside keyword phrases
+        // naming keyword counters' kinds [CR#122.1a,122.1b]: never beside a
+        // Noun Phrase or a quoted ability, where it is no Object.
+        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true),
+            equations: [ExcludeTogether([("first.ComplementKind", "NP"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "NP")]), ExcludeTogether([("first.ComplementKind", "QuotedAbility"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "QuotedAbility")])]),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "MeasureNounPhrase", coordinators: "Coordinator"),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
