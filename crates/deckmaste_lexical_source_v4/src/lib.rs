@@ -424,17 +424,10 @@ impl Sources {
             }
         }
         for part in &self.turn_parts {
-            let source = catalog(TURN_PARTS, part.rule.number());
-            if let Some(noun) = &part.noun {
-                let mut entry = noun.entry();
-                entry.kind = schema::NounKind::Temporal;
-                let id = format!("turn_part:{}", entry.lemma);
-                builder.noun(&id, &entry, source.clone());
-            }
-            for entry in &part.determinatives {
-                let id = format!("turn_part_det:{}", entry.lemma);
-                builder.determinative(&id, entry, source.clone());
-            }
+            let mut entry = part.noun.entry();
+            entry.kind = schema::NounKind::Temporal;
+            let id = format!("turn_part:{}", entry.lemma);
+            builder.noun(&id, &entry, catalog(TURN_PARTS, part.rule.number()));
         }
     }
 

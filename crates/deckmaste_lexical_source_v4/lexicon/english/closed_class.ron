@@ -16,6 +16,12 @@
         // Its partitive is the grammar's: with a plural oblique the Noun
         // Phrase may be singular or plural (*if any of those cards shares ...*).
         (lemma: "any", distribution: FreeChoice),
+        // Oracle names the combat roles [CR#506.2] with a determinative (*defending player loses
+        // 1 life*, *defending player's hand*), as it names an Aura's host *enchanted* [CR#303.4b].
+        // After another determinative the word is the participle of *attack* or *defend*
+        // (*the attacking player*, *each defending player*).
+        (lemma: "attacking"),
+        (lemma: "defending"),
         // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
         (lemma: "anywhere", distribution: Independent, noun_kind: Some(Locative)),
         (number: Plural, countability: Count, lemma: "both", frames: [Complement(PP(["of"]))]),

@@ -50,7 +50,7 @@
     (lemma: "declare", frames: [Monotransitive, TransitiveWithPP(["as"])]),
     // The attributive participle of *the defending player*, *each defending
     // player* [CR#506.2], beside the determinative *defending* that heads a
-    // bare *defending player* (catalogs/turn_parts.ron), as the verb *enchant*
+    // bare *defending player* (closed_class.ron), as the verb *enchant*
     // stands beside the determinative *enchanted*.
     (lemma: "defend", frames: [Intransitive]),
     (lemma: "descend", frames: [Intransitive]),

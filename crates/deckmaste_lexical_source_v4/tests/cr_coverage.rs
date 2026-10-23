@@ -500,8 +500,7 @@ fn phases_and_steps() {
     let declared: BTreeSet<String> = sources
         .turn_parts
         .iter()
-        .filter_map(|part| part.noun.as_ref())
-        .map(|noun| noun.entry().lemma.to_lowercase())
+        .map(|part| part.noun.entry().lemma.to_lowercase())
         .collect();
     let mut enumerated: Vec<String> = list(&rules, "[CR#500.1]", "in this order: ")
         .into_iter()
