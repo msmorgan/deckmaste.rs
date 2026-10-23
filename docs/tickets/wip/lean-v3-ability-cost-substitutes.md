@@ -69,3 +69,16 @@ refuse a subject that names abilities, or say why it should not.
   ruling removes.
 - `badAltCostOverEchoPayment` (new): `altCost` whose subject names echo's resolution payment is
   refused, with the reason code named.
+
+## Amendment (coordinator, 2026-10-23): no subject refusal on `altCost`
+
+- `altCost` refuses nothing for the ability class its subject names. Spelling a substitute for a
+  keyword's resolution-time payment as an `altCost` is a card-authoring mistake, not a
+  text-meaning error, so the checker does not police it (owner ruling #2, 2026-10-22). Change 1's
+  "is now refused by `altCost`" is withdrawn: the `altCost` documentation states it as guidance
+  instead. `badAltCostOverEchoPayment` is dropped, along with the `altCostSubject` refusal and its
+  helpers.
+- No `paidResolving` column is added to `KeywordFacts` (`Check/FactTypes.lean`,
+  `Check/Facts.lean`): owner ruling #1 (2026-10-22) deletes those tables.
+- Kept: `Action.pay` refuses a `keyword` that has no cost (`.costNameable`), which is how a
+  payment is tied to "the echo cost"; pinned by `badPaymentOfCostlessKeyword`.

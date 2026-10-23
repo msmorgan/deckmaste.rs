@@ -3854,7 +3854,10 @@ def stepOps : Nat → StepOps
           let out := if phase == .postEvent && repeated then
               drs2.push (outcomeB .repeatCount) .other false
             else drs2
-          (out, e1 ++ e2)
+          -- A payment names the keyword whose cost it pays ("the echo cost"), so the keyword
+          -- has one, as "the <keyword> cost" does (`CostNamed.nameable`).
+          let e3 := keyword.elim [] (fun k => refuse (keywordCosts k) .costNameable)
+          (out, e1 ++ e2 ++ e3)
         | .withContinuation policy body ifDid ifNot =>
           let (drs1, e1) := ops.inst phase patientRole (nextClause drs) body
           let (drs2, e2) := match ifDid with
