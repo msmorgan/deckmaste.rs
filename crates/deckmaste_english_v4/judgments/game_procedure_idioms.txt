@@ -1,0 +1,45 @@
+# Game-procedure idioms: dice, coins, ties, life totals and game procedure.
+# OSG §12, Randomness, dice, coins, and voting; §14, Keyword actions in
+# sentences; CGEL as cited at each construction in grammar/english.ron.
+# A die roll's result is a noun; an exception phrase on *all* takes a
+# determined standard (CGEL, Ch. 5 §11(f), p. 433).
++ <card=Berserker's Frenzy> Roll two d20 and ignore the lower roll. => NounPhrase "the lower roll" as Object of ignore
++ <card=Iron Mastiff> Whenever this creature attacks, roll a d20 for each player being attacked and ignore all but the highest roll. => NounPhrase "all but the highest roll" as Object of ignore; PrepositionPhrase "but the highest roll" as Complement of all
+# A numeral named as a noun with a comparative alternative.
++ <card=Mr. House, President and CEO> Whenever you roll a 4 or higher, create a 3/3 colorless Robot artifact creature token. If you rolled 6 or higher, instead create that token and a Treasure token. => NounPhrase "a 4 or higher" as Object of roll
+# Comma-set complement clusters, each with its own participial Supplement.
++ <card=Banshee> {X}, {T}: This creature deals half X damage, rounded down, to any target, and half X damage, rounded up, to you. => PrepositionPhrase "to any target" as Complement of deal; PrepositionPhrase "to you" as Complement of deal; VerbPhrase "rounded down"; VerbPhrase "rounded up"
+# *Flip* with its Object, the coin, unexpressed (CGEL, Ch. 4 §8.1.3).
++ <card=Fiery Gambit> Flip a coin until you lose a flip or choose to stop flipping. If you lose a flip, Fiery Gambit has no effect. If you win one or more flips, Fiery Gambit deals 3 damage to target creature. If you win two or more flips, Fiery Gambit deals 6 damage to each opponent. If you win three or more flips, draw nine cards and untap all lands you control. => Clause "to stop flipping" as Complement of choose; VerbPhrase "flipping" as Complement of stop
++ <card=Game of Chaos> Flip a coin. If you win the flip, you gain 1 life and target opponent loses 1 life, and you decide whether to flip again. If you lose the flip, you lose 1 life and that opponent gains 1 life, and that player decides whether to flip again. Double the life stakes with each flip. => Clause "whether to flip again" as Complement of decide
+# A variable in exponent notation.
++ <card=Mathemagics> Target player draws 2ˣ cards. => NounPhrase "2ˣ cards" as Object of draw
+# A precision modifier of a definite Noun Phrase (CGEL, Ch. 5 §13, p. 437).
++ <card=Scrying Glass> {3}, {T}: Choose a number greater than 0 and a color. Target opponent reveals their hand. If that opponent reveals exactly the chosen number of cards of the chosen color, you draw a card. => NounPhrase "exactly the chosen number of cards of the chosen color" as Object of reveal
+# A bare superlative nominal after *tied for* (CGEL, Ch. 13 §6.3.4).
++ <card=Loxodon Peacekeeper> At the beginning of your upkeep, the player with the lowest life total gains control of this creature. If two or more players are tied for lowest life total, you choose one of them, and that player gains control of this creature. => PrepositionPhrase "for lowest life total" as Complement of tied
++ <card=Celestial Convergence> At the beginning of your upkeep, remove an omen counter from this enchantment. If there are no omen counters on this enchantment, the player with the highest life total wins the game. If two or more players are tied for highest life total, the game is a draw. => PrepositionPhrase "for highest life total" as Complement of tied
+# A gerund-participial Supplement (CGEL, Ch. 14 §9) with a heavy-shifted Object.
++ <card=Karn Liberated> −14: Restart the game, leaving in exile all non-Aura permanent cards exiled with Karn. Then put those cards onto the battlefield under your control. => VerbPhrase "leaving in exile all non-Aura permanent cards exiled with Karn"; NounPhrase "all non-Aura permanent cards exiled with Karn" as Object of leave
++ <card=Time and Tide> Simultaneously, all phased-out creatures phase in and all creatures with phasing phase out. => AdverbPhrase "Simultaneously"; AdjectivePhrase "phased-out" as Modifier of creature
+# *One at a time*, an exceptional Preposition Phrase (CGEL, Ch. 7 §4.3).
++ <card=Agent of Acquisitions> Instead of drafting a card from a booster pack, you may draft each card in that booster pack, one at a time. If you do, turn this card face down and you can't draft cards for the rest of this draft round. => PrepositionPhrase "one at a time"
+# Discourse-deictic fused *the above* (CGEL, Ch. 17 §9.4, p. 1556).
++ <card=Multiple Choice> If X is 4 or more, do all of the above. => NounPhrase "all of the above" as Object of do; NounPhrase "the above" head above
+# A noun prefixed by *non-* as a head (CGEL, Ch. 19 §5.5.1).
++ <card=The Enigma Jewel> Craft with four or more nonlands with activated abilities {8}{U} => NounPhrase "four or more nonlands with activated abilities"
++ <card=Ob Nixilis, the Adversary> Casualty X. The copy isn't legendary and has starting loyalty X. => NounPhrase "starting loyalty X" as Object of have
+# A bare singular noun in a fixed frame (CGEL, Ch. 5 §8.5(b)).
++ <card=Tameshi, Reality Architect> Whenever one or more noncreature permanents are returned to hand, draw a card. This ability triggers only once each turn. => PrepositionPhrase "to hand" as Complement of return
+# Frequency Adjuncts: comparative, maximum, and with arithmetic.
++ <card=Withering Wisps> {B}: This enchantment deals 1 damage to each creature and each player. Activate no more times each turn than the number of snow Swamps you control. => NounPhrase "no more times each turn than the number of snow Swamps you control" as Adjunct of activate
++ <card=Tranquil Frillback> When this creature enters, you may pay {G} up to three times. When you pay this cost one or more times, choose up to that many — => NounPhrase "up to three times" as Adjunct of pay
++ <card=Tempt with Mayhem> Tempting offer — Choose target instant or sorcery spell. Each opponent may copy that spell and may choose new targets for the copy they control. You copy that spell once plus an additional time for each opponent who copied the spell this way. You may choose new targets for the copies you control. => AdverbPhrase "once plus an additional time" as Adjunct of copy
++ <card=Elenda, Saint of Dusk> As long as your life total is greater than your starting life total, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total. => AdjectivePhrase "at least 10 greater than your starting life total" as PredicativeComplement of be
++ <card=Spikeshell Harrier> This effect can't reduce their speed below 1. => PrepositionPhrase "below 1" as Complement of reduce
+# A villainous choice's options, set off by a dash after the choice
+# [CR#701.55a]; the sentence end closes the dash (CGEL, Ch. 20 §5, p. 1751),
+# so the options are one Complement, never a first conjunct. The dash is the
+# Complement's own mark.
++ <card=Midnight Crusader Shuttle> Midnight Entity — Whenever this Vehicle attacks, defending player faces a villainous choice — That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn. If you gain control of a creature this way, tap it, and it's attacking that player. => NounPhrase "a villainous choice" as Object of face; Clause "— That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn" as Complement of face; Clause "That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn"
++ <card=Dr. Eggman> At the beginning of your end step, draw a card. Then each opponent faces a villainous choice — That player discards a card, or you may put a Construct, Robot, or Vehicle card from your hand onto the battlefield. => Clause "— That player discards a card, or you may put a Construct, Robot, or Vehicle card from your hand onto the battlefield" as Complement of face; !Clause "each opponent faces a villainous choice — That player discards a card"

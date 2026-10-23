@@ -170,8 +170,12 @@
         "Ring",
     ]),
     (rule: "[CR#701.55]", name: "Face a Villainous Choice", verbs: [
-        // A head verb with a free object: "face that choice" [CR#701.55c].
-        (lemma: "face", frames: [Monotransitive]),
+        // A head verb with a free object: "face that choice" [CR#701.55c];
+        // the action's options follow the choice, set off by a dash
+        // [CR#701.55a] (`docs/oracle-style-guide.md` §14, Keyword actions in
+        // sentences: *faces a villainous choice — They discard their hand,
+        // or you draw three cards*).
+        (lemma: "face", frames: [Monotransitive, TransitiveWithComplement(SetOffClause)]),
     ]),
     (rule: "[CR#701.56]", name: "Time Travel", verbs: [
         (lemma: "time travel", frames: [Intransitive]),

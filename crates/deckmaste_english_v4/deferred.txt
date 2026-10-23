@@ -4,29 +4,11 @@
 
 # english-v4-stratum-7-discourse-and-long-tail
 Kutzil, Malamet Exemplar | Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
-Midnight Crusader Shuttle | Midnight Entity — Whenever this Vehicle attacks, defending player faces a villainous choice — That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn. If you gain control of a creature this way, tap it, and it's attacking that player.
-Spikeshell Harrier | When this creature enters, return target creature or Vehicle an opponent controls to its owner's hand. If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. This effect can't reduce their speed below 1.
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
-Banshee | {X}, {T}: This creature deals half X damage, rounded down, to any target, and half X damage, rounded up, to you.
-Berserker's Frenzy | Roll two d20 and ignore the lower roll.
 Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.
 Dance with Calamity | Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those cards without paying their mana costs.
-Iron Mastiff | Whenever this creature attacks, roll a d20 for each player being attacked and ignore all but the highest roll.
-Fiery Gambit | Flip a coin until you lose a flip or choose to stop flipping. If you lose a flip, Fiery Gambit has no effect. If you win one or more flips, Fiery Gambit deals 3 damage to target creature. If you win two or more flips, Fiery Gambit deals 6 damage to each opponent. If you win three or more flips, draw nine cards and untap all lands you control.
-Loxodon Peacekeeper | At the beginning of your upkeep, the player with the lowest life total gains control of this creature. If two or more players are tied for lowest life total, you choose one of them, and that player gains control of this creature.
-Celestial Convergence | At the beginning of your upkeep, remove an omen counter from this enchantment. If there are no omen counters on this enchantment, the player with the highest life total wins the game. If two or more players are tied for highest life total, the game is a draw.
 Worms of the Earth | At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
-Ob Nixilis, the Adversary | Casualty X. The copy isn't legendary and has starting loyalty X.
-Tameshi, Reality Architect | Whenever one or more noncreature permanents are returned to hand, draw a card. This ability triggers only once each turn.
-Multiple Choice | If X is 4 or more, do all of the above.
-Game of Chaos | Flip a coin. If you win the flip, you gain 1 life and target opponent loses 1 life, and you decide whether to flip again. If you lose the flip, you lose 1 life and that opponent gains 1 life, and that player decides whether to flip again. Double the life stakes with each flip.
-Time and Tide | Simultaneously, all phased-out creatures phase in and all creatures with phasing phase out.
-Elenda, Saint of Dusk | As long as your life total is greater than your starting life total, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long as your life total is at least 10 greater than your starting life total.
-The Enigma Jewel | Craft with four or more nonlands with activated abilities {8}{U}
-Tempt with Mayhem | Tempting offer — Choose target instant or sorcery spell. Each opponent may copy that spell and may choose new targets for the copy they control. You copy that spell once plus an additional time for each opponent who copied the spell this way. You may choose new targets for the copies you control.
-Withering Wisps | {B}: This enchantment deals 1 damage to each creature and each player. Activate no more times each turn than the number of snow Swamps you control.
-Tranquil Frillback | When this creature enters, you may pay {G} up to three times. When you pay this cost one or more times, choose up to that many —
 All Hallow's Eve | At the beginning of your upkeep, if this card is exiled with a scream counter on it, remove a scream counter from it. If there are no more scream counters on it, put it into your graveyard and each player returns all creature cards from their graveyard to the battlefield.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 

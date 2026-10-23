@@ -68,7 +68,10 @@
     (lemma: "expend", frames: [Amount]),
     (lemma: "find", past: "found", frames: [Monotransitive, TransitiveWithPP(["among"])]),
     (lemma: "finish", frames: [Catenative(Gerund)]),
-    (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Monotransitive]),
+    // Its Object, the coin, may be left unexpressed: *decide whether to flip
+    // again*, *choose to stop flipping* (OSG §12, Randomness, dice, coins,
+    // and voting; CGEL, Ch. 4 §8.1.3, pp. 300–301).
+    (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Intransitive, Monotransitive]),
     (lemma: "follow", frames: [Monotransitive]),
     // *Gain* and *have* grant an ability ([CR#113.1a]), a keyword or a quoted
     // one; *lose* takes away either.
@@ -117,7 +120,8 @@
     (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithComplement(LocativeNP), TransitiveWithPP(["into", "in", "on", "onto", "back", "there"])]),
     (lemma: "receive", frames: [Monotransitive]),
     (lemma: "redistribute", frames: [Monotransitive]),
-    (lemma: "reduce", frames: [Monotransitive, TransitiveWithPP(["by", "to"])]),
+    // *reduce their speed below 1*
+    (lemma: "reduce", frames: [Monotransitive, TransitiveWithPP(["by", "to", "below"])]),
     (lemma: "remain", frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
     (lemma: "remove", frames: [Monotransitive, TransitiveWithPP(["from"])]),
     (lemma: "reorder", frames: [Monotransitive]),

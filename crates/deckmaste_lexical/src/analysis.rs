@@ -423,6 +423,7 @@ impl Lexicon {
                 // analysis nor realization admits one. Realization has no
                 // card scope, so only a label registered everywhere refuses.
                 if !valid_flavor_label(label)
+                    || !self.title_cased(label)
                     || self
                         .registered_label(label, Some(&BTreeSet::new()))
                         .is_some()
@@ -516,6 +517,42 @@ impl Lexicon {
             .collect();
         registered.sort_by_key(|value| self.label_kind(value).is_none());
         registered.first().map(|value| (*value).clone())
+    }
+
+    /// Whether a label has the title casing of a Flavor Word: every word that
+    /// begins in lowercase is a function word, which title casing leaves
+    /// lowercase (`docs/oracle-style-guide.md` §14, Ability words and flavor
+    /// words: "natural title casing"; *Sanctified Rules of Combat*, *Bring
+    /// it Down!*). A clause before an em dash (*Each opponent faces a
+    /// villainous choice — ...*) is no Flavor Word.
+    fn title_cased(&self, label: &str) -> bool {
+        label.split_whitespace().all(|word| {
+            let word = word.trim_end_matches(|ch: char| !ch.is_alphanumeric());
+            !word.starts_with(char::is_lowercase) || self.is_function_word(word)
+        })
+    }
+
+    /// Whether a word spells a closed-class Lexeme that title casing leaves
+    /// lowercase: a determinative, pronoun, preposition, coordinator or
+    /// subordinator.
+    fn is_function_word(&self, word: &str) -> bool {
+        let mut node = 0;
+        for ch in word.chars() {
+            match self.trie[node].child(ch) {
+                Some(next) => node = next,
+                None => return false,
+            }
+        }
+        self.trie[node].values.iter().any(|(value, _, _)| {
+            matches!(
+                self.lexemes[&value.lexeme].category,
+                Category::Determinative
+                    | Category::Pronoun
+                    | Category::Preposition
+                    | Category::Coordinator
+                    | Category::Subordinator
+            )
+        })
     }
 
     /// Whether a value is a card-scoped spelling of its Lexeme, which
@@ -639,7 +676,7 @@ impl Lexicon {
         flavor_word_matches(&tokens, &mut matches);
         matches.retain(|found| match &found.reading {
             LexicalReading::FlavorWord { label } => {
-                self.registered_label(label, Some(scope)).is_none()
+                self.title_cased(label) && self.registered_label(label, Some(scope)).is_none()
             }
             _ => true,
         });

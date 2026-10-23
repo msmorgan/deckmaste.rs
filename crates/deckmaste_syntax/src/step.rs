@@ -263,6 +263,9 @@ pub(crate) struct Production {
     pub auxiliary: Option<usize>,
     /// The Complements its phrase omits at its right edge.
     pub omission: Omission,
+    /// It opens with a dash only its sentence's end closes
+    /// (`Summary::unclosed`).
+    pub unclosed: bool,
     /// The child whose `Summary::head_forms` the mother takes: its head, or
     /// the first conjunct of a coordination.
     pub lexical_head: Option<usize>,
@@ -438,6 +441,7 @@ pub(crate) fn resolve(
         unlike: None,
         auxiliary: None,
         omission: Omission::None,
+        unclosed: false,
         lexical_head,
         link: None,
         cluster: None,
@@ -493,6 +497,7 @@ pub(crate) fn resolve(
             adjunct_extension: None,
             internal_comma: false,
             unwritten_period: false,
+            unclosed: false,
             headed_link: None,
             cluster: None,
             head_lexeme: None,
@@ -602,6 +607,10 @@ pub(crate) struct Summary {
     /// It ends in the final period of a quotation, which is not written
     /// (`chart::quotations`): no other period follows it there.
     pub unwritten_period: bool,
+    /// It ends, through its last child, in a phrase opened by a dash that
+    /// only its sentence's end closes (`ProductionDecl::unclosed`): nothing
+    /// but a period follows it.
+    pub unclosed: bool,
     /// The identity of the Linked Coordination it is, or that its head line
     /// ends in through `head` children (*then [draw a card, then discard a
     /// card]*). No Conjunct of a Linked Coordination carries the
@@ -703,6 +712,9 @@ pub(crate) struct State {
     /// The last child so far ends in a period not written
     /// (`Summary::unwritten_period`).
     pub unwritten_period: bool,
+    /// The last child so far ends in an unclosed dash phrase
+    /// (`Summary::unclosed`).
+    unclosed: bool,
     /// The `head` child's `Summary::link`.
     headed_link: Option<LexemeId>,
     /// The `Summary::cluster` and `Summary::cluster_other` of the head-line
@@ -1313,6 +1325,10 @@ impl Production {
         {
             return None;
         }
+        if state.unclosed && !matches!(self.rhs[position], Symbol::Punct('.', _)) {
+            return None;
+        }
+        next.unclosed = matches!(child, ChildView::Node(summary) if summary.unclosed);
         let (first, last) = self.boundaries(position, child);
         next.first_glues.get_or_insert(first);
         next.last_glues = last;
@@ -1544,6 +1560,7 @@ impl Production {
             internal_comma: state.internal_comma || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
+            unclosed: self.unclosed || state.unclosed,
             link: self.link.or(state.headed_link),
             cluster: self
                 .cluster

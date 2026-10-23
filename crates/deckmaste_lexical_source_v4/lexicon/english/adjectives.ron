@@ -2,6 +2,10 @@
 // exiled) come from the verb; supertypes and designations live in catalogs/.
 // Grades are declared only where English inflects them.
 [
+    // Discourse deixis: *do all of the above*. Attributive (*the above
+    // scholars*) and a fused modifier-head with *the*, like *the latter*
+    // (CGEL, Ch. 17 §9.4, p. 1556).
+    (lemma: "above", position: Some(Attributive), fused_head: Some(DefiniteArticle)),
     // Defined predicate [CR#700.9].
     "modified",
     (lemma: "able", frames: [Complement(ToInf)]),
@@ -25,6 +29,11 @@
     (lemma: "extra", position: Some(Attributive)),
     "face-down",
     "face-up",
+    // The hyphenated attributive spellings of the phasing statuses
+    // [CR#702.26a]: *all phased-out creatures* (OSG §3, Hyphens, minus signs,
+    // plus signs, and slashes); predicative *phased out* is the status.
+    (lemma: "phased-in", position: Some(Attributive)),
+    (lemma: "phased-out", position: Some(Attributive)),
     "final",
     "four-sided",
     "free",

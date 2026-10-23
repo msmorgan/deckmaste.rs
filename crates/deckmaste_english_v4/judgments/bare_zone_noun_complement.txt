@@ -10,7 +10,9 @@
 +PrepositionPhrase in exile
 +PrepositionPhrase into exile
 +VerbPhrase put into exile
-*PrepositionPhrase to hand
+# A bare singular noun in a fixed frame after *to* (CGEL, Ch. 5 §8.5(b), p. 409),
+# as Ninjutsu reminder text and Tameshi, Reality Architect print it.
++PrepositionPhrase to hand
 *PrepositionPhrase from graveyard
 *VerbPhrase put into graveyard
 *VerbPhrase put into top of your library

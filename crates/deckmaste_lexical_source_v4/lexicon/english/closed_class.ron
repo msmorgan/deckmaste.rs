@@ -227,6 +227,9 @@
         (surface: "{P}", classes: ["Pawprint"]),
         // Placeholder letters for numbers [CR#107.3,107.3p].
         (surface: "X", classes: ["Variable"]), (surface: "Y", classes: ["Variable"]),
+        // Two to the power X in mathematical notation, a number written in
+        // terms of X that fills a variable's places (*draws 2ˣ cards*).
+        (surface: "2ˣ", classes: ["Variable"]),
         // The marker of a level symbol, printed `LEVEL 1-3` or `LEVEL 4+`
         // [CR#107.8,711.2a,711.2b]; its range is numeral notation.
         (surface: "LEVEL", classes: ["RangeMarker"]),

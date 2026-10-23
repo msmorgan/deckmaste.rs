@@ -70,14 +70,28 @@ fn an_unregistered_label_is_a_flavor_word() {
         .join("../../data/catalogs/flavor-words.json");
     let catalog: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    // A Flavor Word has natural title casing (`docs/oracle-style-guide.md`
+    // §14, Ability words and flavor words). These labels, each with a
+    // lowercase word that is no function word, are printed only on Un-cards
+    // (Season's Beatings, HONK!, The Cobra King; Scryfall `set_type: funny`),
+    // outside the supported corpus, and are not read as Flavor Words.
+    let untitled = [
+        "Family gathering",
+        "The Goose is Loose",
+        "Strike first",
+        "Strike hard",
+    ];
+    let mut unread = Vec::new();
     for label in catalog["data"].as_array().unwrap() {
         let label = label.as_str().unwrap();
-        assert_eq!(
-            flavor_labels(&environment, &format!("{label} — Draw a card.")),
-            [label],
-            "{label}"
-        );
+        let found = flavor_labels(&environment, &format!("{label} — Draw a card."));
+        if found.is_empty() {
+            unread.push(label);
+        } else {
+            assert_eq!(found, [label], "{label}");
+        }
     }
+    assert_eq!(unread, untitled);
 }
 
 #[test]
@@ -128,7 +142,7 @@ fn chapter_numerals_are_not_labels_and_can_precede_one() {
         Vec::<String>::new()
     );
     assert_eq!(
-        flavor_labels(&environment, "III — Uncharted marvel — Flying"),
-        ["Uncharted marvel"]
+        flavor_labels(&environment, "III — Uncharted Marvel — Flying"),
+        ["Uncharted Marvel"]
     );
 }

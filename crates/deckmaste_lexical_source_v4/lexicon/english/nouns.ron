@@ -89,7 +89,8 @@
     "legend",
     "library",
     (lemma: "life", distribution: DirectMeasure, countability: [Mass]),
-    (lemma: "loyalty", distribution: DirectMeasure, countability: [Mass]),
+    // *has starting loyalty X*, as *power 3*.
+    (lemma: "loyalty", distribution: DirectMeasure, countability: [Mass], frames: [Complement(Amount)]),
     (lemma: "mana", distribution: DirectMeasure, countability: [Mass]),
     // *to a maximum of 10*; the attributive *maximum* is the adjective's.
     (lemma: "maximum", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
@@ -124,6 +125,9 @@
     (lemma: "rest", countability: [Mass], frames: [Complement(PP(["of"]))]),
     (lemma: "result", frames: [Complement(PP(["of"]))]),
     "right",
+    // The result of rolling a die: *ignore the lower roll* (OSG §12,
+    // Randomness, dice, coins, and voting).
+    "roll",
     "round",
     "rule",
     "size",
