@@ -159,6 +159,16 @@ pub struct ProductionDecl {
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,
+    /// The phrase ends in an ellipsis site: its head omits every Complement
+    /// it selects (a stranded auxiliary, CGEL Ch. 17 §7.1, p. 1519). Before
+    /// any punctuation, a Constituent that ends in one is followed only by
+    /// a coordinator or by the head it is a dependent of (a Subject's
+    /// predicate): a dependent right after the site would be the omitted
+    /// Complement, never another host's dependent, as with a bare noun's
+    /// omitted Complement (`english-lexical-analysis.md` §2, same-head
+    /// complement priority).
+    #[serde(default)]
+    pub elliptical: bool,
     /// Lexical children that cost one more where analysis did not admit
     /// their leaf through the scope of the face whose text is parsed (one of
     /// the face's own names, or a card-scoped spelling such as its Shortened

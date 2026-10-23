@@ -1195,6 +1195,11 @@ elsewhere in the structure.
 The omission of material whose grammatical content is recoverable from an
 Antecedent or context.
 
+**Stranded Auxiliary**:
+An auxiliary verb before the ellipsis site of its Complement, heading its
+Verb Phrase alone (*If you can't, draw a card*; CGEL, Ch. 17 §7.1, p. 1519).
+A phrase right after the site would be that Complement.
+
 **Pro-form**:
 An expression whose content is supplied anaphorically; *do so* is a complex
 pro-form headed by *do* (CGEL, Ch. 17 §7.5, p. 1529).
