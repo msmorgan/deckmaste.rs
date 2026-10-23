@@ -1,4 +1,4 @@
-# Floated "each" after a plural subject or auxiliary (They each get, are each equal to), and its agreement restrictions
+# Floated "each" and "both" after a plural or second-person subject or auxiliary (They each get, are each equal to, you each lose, both gain), before a postmodifier (cards each with ...), fused "each", and their agreement restrictions
 + <card=Lord of Extinction> Lord of Extinction's power and toughness are each equal to the number of cards in all graveyards. => NounPhrase "Lord of Extinction's power and toughness" as Subject of be
 + <card=Fated Clash> Target creature you control and target creature an opponent controls each gain indestructible until end of turn. => NounPhrase "Target creature you control and target creature an opponent controls" as Subject of gain
 + <card=Press the Advantage> Up to two target creatures each get +2/+2 and gain trample until end of turn. => NounPhrase "Up to two target creatures"; VerbPhrase "get +2/+2 and gain trample until end of turn"
@@ -10,3 +10,13 @@
 +NounPhrase each of those players
 +RelativeClause that each have mana value X or less
 +RelativeClause that each have mana value X
++ <card=Ballroom Brawlers> Whenever this creature attacks, this creature and up to one other target creature you control both gain your choice of first strike or lifelink until end of turn. => NounPhrase "this creature and up to one other target creature you control" as Subject of gain
++ <card=Keen Duelist> At the beginning of your upkeep, you and target opponent each reveal the top card of your library. You each lose life equal to the mana value of the card revealed by the other player. You each put the card you revealed into your hand. => NounPhrase "you and target opponent" as Subject of reveal; NounPhrase "You" as Subject of lose; NounPhrase "You"#2 as Subject of put
++ <card=Juxtapose> You and target player exchange control of the creature you each control with the greatest mana value. => RelativeClause "you each control" gap "creature"
+*Clause this creature each gains flying
+*Clause this creature both gains flying
+*Clause you each loses 2 life
++ <card=Leonardo's Technique> Return one or two target creature cards each with mana value 3 or less from your graveyard to the battlefield. => Nominal "creature cards each with mana value 3 or less"; PrepositionPhrase "with mana value 3 or less" as Modifier of card
++ <card=Angelic Aberration> When this creature enters, sacrifice any number of creatures each with base power or toughness 1 or less. Create that many 4/4 colorless Eldrazi Angel creature tokens with flying and vigilance. => Nominal "creatures each with base power or toughness 1 or less"; PrepositionPhrase "with base power or toughness 1 or less" as Modifier of creature
+*NounPhrase a creature each with flying
++ <card=Storyweave> • Put two lore counters on target Saga you control. The next time one or more enchantment creatures you control enter this turn, each enters with two additional +1/+1 counters on it. => NounPhrase "each" as Subject of enter

@@ -227,6 +227,8 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
+    /// Children that must be a coordination.
+    pub coordinated: Vec<usize>,
     /// Children that may not be, nor be headed by, a Linked Coordination
     /// (`Summary::link`).
     pub unlinked: Vec<usize>,
@@ -417,6 +419,7 @@ pub(crate) fn resolve(
         paired_coordinator: None,
         uncoordinated: Vec::new(),
         unlinked: Vec::new(),
+        coordinated: Vec::new(),
         scoped: Vec::new(),
         delimits: false,
         tail: false,
@@ -1281,6 +1284,9 @@ impl Production {
                     return None;
                 }
                 self.track_link(&mut next, position, summary)?;
+                if self.coordinated.contains(&position) && summary.coordinator.is_none() {
+                    return None;
+                }
                 // A comma that no bracket closes stays inside every phrase
                 // that contains it, to the end of its sentence.
                 if summary.internal_comma {

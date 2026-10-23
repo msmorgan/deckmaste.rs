@@ -191,6 +191,11 @@ pub struct ProductionDecl {
     /// §2.10, p. 1320).
     #[serde(default)]
     pub unlinked: Vec<Ident>,
+    /// Children that are themselves a coordination: a dependent that scopes
+    /// over a whole coordination where a single conjunct has a site of its
+    /// own (CGEL, Ch. 15 §1.3.4, pp. 1285–1286).
+    #[serde(default)]
+    pub coordinated: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {

@@ -93,6 +93,12 @@ pub enum SlotFill {
     Cost,
     /// No Complement: an intransitive preposition, as *out* in *phase out*.
     Intransitive,
+    /// An unlike coordination of an Amount and a Noun Phrase (*equal to [2]
+    /// or [the greatest power among ...]*). It is never declared: a
+    /// preposition that selects both an Amount and a Noun Phrase selects it,
+    /// since each conjunct fills the position alone (CGEL, Ch. 15 §3.1,
+    /// p. 1323, rule [1]).
+    AmountOrNP,
 }
 
 /// A [`SlotFill`] without its markers: the key a grammar maps to a Category.
@@ -126,6 +132,7 @@ pub enum SlotKind {
     Amount,
     Cost,
     Intransitive,
+    AmountOrNP,
 }
 
 impl SlotFill {
@@ -153,6 +160,7 @@ impl SlotFill {
             Self::Amount => SlotKind::Amount,
             Self::Cost => SlotKind::Cost,
             Self::Intransitive => SlotKind::Intransitive,
+            Self::AmountOrNP => SlotKind::AmountOrNP,
         }
     }
 }
@@ -308,6 +316,20 @@ impl Hosts {
                 )
                 | (Self::Supplement, HostKind::Supplement)
         )
+    }
+}
+
+impl Hosts {
+    /// The Host Categories both admit.
+    #[must_use]
+    pub(crate) fn meet(self, other: Self) -> Self {
+        match self.mask() & other.mask() {
+            0 => Self::ComplementOnly,
+            1 => Self::Nominal,
+            2 => Self::Predicate,
+            3 => Self::NominalAndPredicate,
+            _ => Self::Supplement,
+        }
     }
 }
 

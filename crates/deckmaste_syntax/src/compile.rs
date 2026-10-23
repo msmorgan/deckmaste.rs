@@ -267,6 +267,7 @@ struct Draft {
     /// The coordinator a correlative coordination's serial tail must end with.
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
+    coordinated: Vec<usize>,
     /// Children that are not, nor are headed by, a Linked Coordination.
     unlinked: Vec<usize>,
     scoped: Vec<usize>,
@@ -355,6 +356,7 @@ impl Draft {
             paired_coordinator: None,
             uncoordinated: Vec::new(),
             unlinked: Vec::new(),
+            coordinated: Vec::new(),
             scoped: Vec::new(),
             delimits: false,
             tail: false,
@@ -582,6 +584,29 @@ impl<'a> Binder<'a> {
             for frame in list {
                 let index = intern(&mut preposition_frames, frame);
                 facts.preposition_frames.insert(index);
+            }
+            // A preposition that selects both an Amount and a Noun Phrase
+            // selects their unlike coordination, where the grammar names a
+            // Category for it (CGEL, Ch. 15 §3.1, p. 1323, rule [1]).
+            if grammar.slot_categories.contains_key(&SlotKind::AmountOrNP) {
+                let selected = |fill: SlotFill, relation: SlotRelation| {
+                    list.iter()
+                        .find(|f| f.complement == fill && f.relation == relation)
+                };
+                for relation in [SlotRelation::Complement, SlotRelation::PredicativeComplement] {
+                    if let (Some(np), Some(amount)) = (
+                        selected(SlotFill::NP, relation),
+                        selected(SlotFill::Amount, relation),
+                    ) {
+                        let derived = PrepositionFrame {
+                            relation,
+                            complement: SlotFill::AmountOrNP,
+                            hosts: np.hosts.meet(amount.hosts),
+                        };
+                        let index = intern(&mut preposition_frames, &derived);
+                        facts.preposition_frames.insert(index);
+                    }
+                }
             }
         }
         let mut referenced = Vec::new();
@@ -1028,6 +1053,14 @@ impl<'a> Binder<'a> {
                 .position(|c| c.name == *name)
                 .ok_or_else(|| context(invalid(format!("unknown unlinked child `{name}`"))))?;
             draft.unlinked.push(child);
+        }
+        for name in &declaration.coordinated {
+            let child = draft
+                .children
+                .iter()
+                .position(|c| c.name == *name)
+                .ok_or_else(|| context(invalid(format!("unknown coordinated child `{name}`"))))?;
+            draft.coordinated.push(child);
         }
         for name in &declaration.scoped {
             let child = draft
@@ -1649,6 +1682,7 @@ impl<'a> Binder<'a> {
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
         production.unlinked = draft.unlinked;
+        production.coordinated = draft.coordinated;
         production.scoped = draft.scoped;
         production.delimits = draft.delimits;
         production.tail = draft.tail;

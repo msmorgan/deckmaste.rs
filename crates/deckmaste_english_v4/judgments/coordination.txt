@@ -39,7 +39,7 @@
 +Clause target creature and each other creature that shares a color with it get +1/+1 until end of turn => NounPhrase "target creature and each other creature that shares a color with it" as Subject of get
 +Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => Clause "another creature dies"; Clause "a creature card leaves your graveyard"; Clause "a creature card is put into a graveyard"; readings 1
 +NounPhrase the top or bottom of their library => Nominal "top or bottom"; PrepositionPhrase "of their library" as Complement of top; PrepositionPhrase "of their library" as Complement of bottom; readings 1
-+NounPhrase the same number and kind of counters => PrepositionPhrase "of counters" as Complement of number; PrepositionPhrase "of counters" as Complement of kind; readings 1
++NounPhrase the same number and kind of counters => PrepositionPhrase "of counters" as Complement of number; PrepositionPhrase "of counters" as Complement of kind; Nominal "same number and kind of counters"; Nominal "number and kind of counters"
 + Target artifact or creature's owner puts it on the top of their library. => Nominal "artifact or creature"; readings 1
 + Put target creature into its owner's library second from the top. => AdjectivePhrase "second from the top" as Adjunct of put
 + The owner of target nonland permanent puts it into their library second from the top or on the bottom. => AdjectivePhrase "second from the top"; PrepositionPhrase "on the bottom"; !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
@@ -66,9 +66,11 @@
 +Clause you, they, and creatures attack => NounPhrase "you, they, and creatures" as Subject of attack; readings 1
 +Clause it has attacked or blocked => VerbPhrase "attacked or blocked" as Complement of have
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1
-+ <card=Cut Down> Destroy target creature with total power and toughness 5 or less. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
-+ <card=Meek Attack> {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
++ <card=Cut Down> Destroy target creature with total power and toughness 5 or less. => Nominal "total power and toughness 5 or less"; AdjectivePhrase "total"; Nominal "power and toughness 5 or less"; Nominal "power and toughness"; Amount "5 or less"
++ <card=Meek Attack> {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature. => Nominal "total power and toughness 5 or less"; AdjectivePhrase "total"; Nominal "power and toughness 5 or less"; Nominal "power and toughness"; Amount "5 or less"
 + <card=Sword of the Squeak> Equipped creature gets +1/+1 for each creature you control with base power or toughness 1. => Nominal "base power or toughness"; Amount "1"
 # A serial-comma *and/or* coordination of three nominals, in the Editorial Correction the census reads (`corrections.txt`).
 # Right Node Raising takes its shared constituent from the right edge of every conjunct: *the battlefield* fills no Gap before *Thinking Cap* in *named Thinking Cap*.
 + <card=Agency Outfitter> When this creature enters, you may search your graveyard, hand, and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle. => NounPhrase "your graveyard, hand, and/or library" as Object of search; NounPhrase "a card named Magnifying Glass and/or a card named Thinking Cap" as Complement of for; VerbPhrase "put them onto the battlefield"; !NounPhrase "the battlefield" as Object of name
++ <card=Lush Growth> Enchanted land is a Mountain, Forest, and Plains. => NounPhrase "a Mountain, Forest, and Plains" as PredicativeComplement of be; Nominal "Mountain, Forest, and Plains"
++ <card=Wild Shape> Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability. => NounPhrase "that base power and toughness" as Object of have; Nominal "base power and toughness"
