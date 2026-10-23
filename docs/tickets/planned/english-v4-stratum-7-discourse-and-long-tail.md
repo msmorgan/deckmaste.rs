@@ -153,6 +153,16 @@ delimited-complement fixes (F1, F2) land:
    holds no unclosed comma), so the coordination comma and the comma-set
    post-dependent's comma may need to be told apart.
 
+From `english-v4-numeric-coordination-gate` (owner ruling, round 13, item 2):
+
+- An unlike coordination of an Amount and a Noun Phrase under a head that
+  selects both (*equal to [2] or [the greatest power among Dinosaurs you
+  control]*), each conjunct able to fill the slot alone (CGEL, Ch. 15 §3.1,
+  p. 1323, rule [1]). Triumphant Chomp stays in `deferred.txt` until it lands;
+  its judgment in `property_equal_to.txt` is pending.
+- A wrong analysis at baseline: *[2 or the] greatest power*, a DeterminerPhrase
+  coordination of a numeral and *the*.
+
 ## Gate
 
 - 100% of non-deferred Vintage-legal Oracle corpus units across Strata 0–7 parse
