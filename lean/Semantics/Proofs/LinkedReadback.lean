@@ -252,12 +252,6 @@ theorem badRelateKindMismatch :
     Action.check (DRS.ofList []) (.relate .this haunting .you) = [.kindMismatch .object .player] := by
   decide
 
-/-- An undeclared relation is refused. -/
-theorem badRelateUndeclared :
-    Action.check (DRS.ofList []) (.relate .this (.named "befriended") (target isCreature))
-      = [.knownRelation (.named "befriended")] := by
-  decide
-
 /-- "the creature it haunts" [CR#702.55b]. -/
 theorem okCounterpart :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (.counterpart haunting .this) = [] := by
@@ -270,12 +264,11 @@ theorem okRelated :
       = ([], []) := by
   decide
 
-/-- The relation definitions the registry declares check clean, and a relation with a side that
-is no entity is refused. -/
+/-- The relation definitions the registry declares check clean, and a nameless one is
+refused. -/
 theorem okRelationDefinition :
-    (Definition.check (.relation haunting .object .object),
-      Definition.check (.relation (.named "x") .object .pile))
-      = ([], [.definitionHolder .pile]) := by
+    (Definition.check (.relation haunting), Definition.check (.relation (.named "")))
+      = ([], [.definitionNamed]) := by
   decide
 
 /-- Required pin: a mutating spell merges with one permanent [CR#730.2]. -/

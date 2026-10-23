@@ -80,13 +80,12 @@ structure ConferralRule where
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
 definition, where a `RulesTables` row is scoped by a predicate and names nothing.
 
-`Semantics.Check.Facts` holds, by hand, the columns of these that the checker reads: every
-counter definition has a `CounterFacts` row labelled with its kind's name, a subtype that sets a
-card frame a `SubtypeFacts` row, a designation definition a `DesignationFacts` row per label, and
-a relation definition a `RelationFacts` row. A card type definition is no facts row: the
-checker's card-type tables (`CardType.permanent`) do not read it yet. -/
+A counter kind, designation label, relation label or subtype is a self-contained catalog value
+(`Semantics.Definitions`) carrying its own columns, a counter's holder and a designation's scope;
+the record here adds only what the value cannot hold, the conferrals. A card type definition is
+not read by the checker's card-type tables (`CardType.permanent`) yet. -/
 inductive Definition where
-  /-- A counter [CR#122.1]: its kind, what holds it, and what it does to its bearer.
+  /-- A counter [CR#122.1]: its kind, which carries what holds it, and what it does to its bearer.
 
   The kind is the declaration's own name; the registry supplies it from the name the declaration
   carries, so the author never writes it and nothing in the body refers to the counter
@@ -105,28 +104,26 @@ inductive Definition where
   multiplicity. A counter whose rule makes one or more of it create a single effect — a shield,
   stun or finality counter [CR#122.1c,122.1d,122.1h] — writes no conferral today; giving it one
   needs a reading this one is not. -/
-  | counter (kind : CounterKind) (holder : Kind) (confers : List Conferral)
+  | counter (kind : CounterKind) (confers : List Conferral)
   /-- A subtype [CR#205.3] and the rules its type rule defines for it, empty for the subtypes
   that are inert vocabulary. -/
   | subtype (subtype : Subtype) (rules : List Conferral)
   /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
   ability and confers nothing, so the node carries columns rather than conferrals. The label is
   the declaration's own name, or a member's where the declaration lists several (`day` and
-  `night` [CR#731.1]); the registry supplies it, never the author. `effectful`
-  is whether an action may confer it directly; `zone`, `type` and `half` narrow the object
-  that holds it. -/
-  | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
-      (zone : Option Zone) (type : Option CardType) (half : Option RoomHalf)
+  `night` [CR#731.1]), which carries who holds it; the registry supplies it, never the author.
+  `effectful` is whether an action may confer it directly. -/
+  | designation (label : DesignationLabel) (effectful : Bool)
   /-- A card type [CR#205.2a]: the type, whether it is a permanent type [CR#110.4], and what it
   confers on every object of that type. A quality the type gives its objects — a creature is a
   Combatant [CR#508.1a], a land card may be played [CR#305.1], an instant may be cast whenever
   its owner has priority [CR#304.1] — is no ability of the object [CR#113.12], so it is the
   ability-free `property` flavor. Most card types confer nothing. -/
   | cardType (cardType : CardType) (permanentType : Bool) (confers : List Conferral)
-  /-- A Relation [CR#702.55b,702.95b,702.99b]: a named link between two entities, made by one
-  ability and read by others, with the kind of each side. The label is the declaration's own
-  name; the registry supplies it, never the author. -/
-  | relation (label : RelationLabel) (left : Kind) (right : Kind)
+  /-- A Relation [CR#702.55b,702.95b,702.99b]: a named link between two objects, made by one
+  ability and read by others. The label is the declaration's own name; the registry supplies it,
+  never the author. -/
+  | relation (label : RelationLabel)
 
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a
 counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its

@@ -990,19 +990,19 @@ theorem okTapBattlefieldPermanent :
     Action.check (DRS.ofList []) (.setStatus .tapped (target isCreature)) = [] := by decide
 
 /-- "if there is no monarch" -/
-theorem okNoHolderOnPlayer : Condition.check (DRS.ofList []) (thereIsNo (.named "monarch")) = [] := by decide
+theorem okNoHolderOnPlayer : Condition.check (DRS.ofList []) (thereIsNo (.named "monarch" (.heldBy .player))) = [] := by decide
 
 /-- "if there is no monstrous creature" -/
 theorem okNoHolderOnObject :
     Condition.check (DRS.ofList [])
-      (.not (exists_ (and [isCreature, .hasDesignation (.named "monstrous") none]))) = [] := by
+      (.not (exists_ (and [isCreature, .hasDesignation (.named "monstrous" (.heldBy .object)) none]))) = [] := by
   decide
 
 /-- "if there is no monarch creature": a player designation on an object is refused. -/
 theorem badPlayerDesignationOnObject :
     Condition.check (DRS.ofList [])
-      (.not (exists_ (and [isCreature, .hasDesignation (.named "monarch") none]))) =
-      [.designationHolder (.named "monarch") .object] := by
+      (.not (exists_ (and [isCreature, .hasDesignation (.named "monarch" (.heldBy .player)) none]))) =
+      [.designationHolder (.named "monarch" (.heldBy .player)) .object] := by
   decide
 
 /-- "Roll five d6. Store those results on this creature." -/

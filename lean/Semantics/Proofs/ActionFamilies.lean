@@ -223,7 +223,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (actionResult (DRS.ofList [])
-      (loseCounters (some (.printed (.named "poison")))
+      (loseCounters (some (.printed poison))
         (some 1) .you)) = 1 := by decide
 
 theorem ownPowerCanReadAnExistingReference :
@@ -249,7 +249,7 @@ theorem postposedCounterConditionReadsTheUnmovedSpell :
 
 theorem losingCountersAmountReadsItsPlayer :
     Action.check (DRS.ofList []) (loseCounters
-      (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a (.isOpponentOf .you))) = [] := by decide
+      (some (.printed poison)) (some (lifeTotalOf they)) (a (.isOpponentOf .you))) = [] := by decide
 
 theorem regenerationCanProtectANoncreaturePermanent :
     Action.check (DRS.ofList []) (regenerate (target isArtifact)) = [] := by decide

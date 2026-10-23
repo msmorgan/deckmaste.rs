@@ -21,21 +21,6 @@ def anyPermanentType (tys : List CardType) : Bool := tys.any CardType.permanent
 def kindredHasAnotherType (tys : List CardType) : Bool :=
   !tys.elem .kindred || tys.any (· != .kindred)
 
-def chapterLineOk (subs : List Subtype) (ab : Ability) (fuel : Nat := 64) : Bool :=
-  match fuel with
-  | 0 => true
-  | n + 1 => match ab with
-    | .triggered event _ _ _ _ _ _ _ =>
-      match event.scopeBody with
-      | .chapterMark _ => framesWith .chapters subs
-      | _ => true
-    | .italicHead _ ab => chapterLineOk subs ab n
-    | .inCaller ab | .qualified ab _ _ _ _ => chapterLineOk subs ab n
-    | _ => true
-termination_by structural fuel
-
-def chapterFrameOk (subs : List Subtype) (text : List Ability) : Bool := text.all (chapterLineOk subs)
-
 def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
 
 /-! ## Printed-position references
@@ -225,13 +210,12 @@ def modalFrameOk (text : List Ability) : Bool :=
 
 /-- The text laws a shared-line half shares with a face; a door header belongs to a Room's
 shared line, so the door-frame law is a face's alone. -/
-def halfTextLaws (line : Characteristics) (text : List Ability) : List Refusal :=
-  refuse (modalFrameOk text) .modalFrame ++
-    refuse (chapterFrameOk line.subtypes text) .chapterFrame ++ printedAfterLaws text
+def halfTextLaws (text : List Ability) : List Refusal :=
+  refuse (modalFrameOk text) .modalFrame ++ printedAfterLaws text
 
-/-- The laws a text obeys on a type line: modal frame, chapter frame, door frame. -/
-def textLaws (line : Characteristics) (text : List Ability) : List Refusal :=
-  halfTextLaws line text ++ refuse (doorFrameOk text) .doorFrame
+/-- The laws a text obeys on a type line: modal frame, door frame. -/
+def textLaws (text : List Ability) : List Refusal :=
+  halfTextLaws text ++ refuse (doorFrameOk text) .doorFrame
 
 /-- The laws of a type line alone (a shared line has nothing else). -/
 def Characteristics.lineLaws (c : Characteristics) : List Refusal :=
@@ -250,16 +234,15 @@ def faceContext (types : List CardType) (cost : Option ManaCost) : DRS :=
 def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
   let c := f.characteristics
   refuse c.name.isSome .cardName ++ Ability.checkText (faceContext c.types c.cost) c.text ++
-    c.lineLaws ++ textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
+    c.lineLaws ++ textLaws c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
     refuse (cardCostOk side c.types c.cost) .cardCost
 
 def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
   let line := shared.characteristics
-  Ability.checkText (faceContext line.types h.cost) h.text ++ halfTextLaws line h.text ++
+  Ability.checkText (faceContext line.types h.cost) h.text ++ halfTextLaws h.text ++
     refuse (cardBoxOk .front line.types h.text line) .cardBox ++
     refuse (cardCostOk .front line.types h.cost) .cardCost
 
-def adventureInsetOk (c : Characteristics) : Bool := framesWith .adventureInset c.subtypes
 def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
 
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
@@ -298,7 +281,7 @@ def LevelBand.box (b : LevelBand) : Characteristics :=
 /-- A level band writes a power and toughness and text [CR#711.2]. -/
 def LevelBand.check (inner : Characteristics) (b : LevelBand) : List Refusal :=
   refuse b.range.ok .levelRange ++ Ability.checkText (faceContext inner.types none) b.text ++
-    textLaws inner b.text ++
+    textLaws b.text ++
     refuse b.box.ptWritten .levelerFrame ++
     refuse (cardBoxOk .front inner.types b.text b.box) .cardBox
 
@@ -327,8 +310,7 @@ def Card.check : Card → List Refusal
     line.lineLaws ++ refuse (anyPermanentType line.types) .cardLine ++
       left.check shared ++ right.check shared
   | .adventurer normal adventure =>
-    normal.check .front ++ adventure.check .front ++
-      refuse (adventureInsetOk adventure.characteristics) .adventureInset
+    normal.check .front ++ adventure.check .front
   | .flip normal alternative =>
     normal.check .front ++ alternative.check .back ++
       refuse (flipHalfOk normal.characteristics) .flipHalf ++

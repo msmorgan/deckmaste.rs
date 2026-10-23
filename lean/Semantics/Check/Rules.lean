@@ -45,22 +45,15 @@ def ConferralRule.check (r : ConferralRule) : List Refusal :=
     (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2
 
 def Definition.check : Definition → List Refusal
-  | .counter kind k confers =>
+  | .counter kind confers =>
+    let k := kind.holder
     let hErr := if k == .object || k == .player then [] else [.definitionHolder k]
     hErr ++ refuse (!kind.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
   | .subtype sub rules =>
     refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
-  | .designation label scope _ zone type half =>
-    let nErr := if label.name.isEmpty then [.definitionNamed] else []
-    let sErr := if scope != .heldBy .object && (zone.isSome || type.isSome || half.isSome) then
-      [.definitionScoped label]
-    else []
-    nErr ++ sErr
+  | .designation label _ => refuse (!label.name.isEmpty) .definitionNamed
   | .cardType _ _ confers => confers.flatMap Conferral.check
-  | .relation label left right =>
-    refuse (!label.name.isEmpty) .definitionNamed ++
-      refuse (left == .object || left == .player) (.definitionHolder left) ++
-      refuse (right == .object || right == .player) (.definitionHolder right)
+  | .relation label => refuse (!label.name.isEmpty) .definitionNamed
 
 def PredefinedToken.check (t : PredefinedToken) : List Refusal :=
   let nErr := if t.name.isEmpty then [.tokenNamed] else []

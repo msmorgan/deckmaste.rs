@@ -24,7 +24,7 @@ def pumpSelf : Ability := .static (Templates.modification thisCreature .power (.
 /-- "When this creature dies, draw a card." -/
 def drawOnDeath : Ability := when (does thisCreature die) (draw 1)
 /-- "this Case is solved" -/
-def caseSolved : Condition := .matches thisCase (.hasDesignation (.named "solved") none)
+def caseSolved : Condition := .matches thisCase (.hasDesignation (.named "solved" (.heldBy .object)) none)
 
 /-! ## The qualifier -/
 

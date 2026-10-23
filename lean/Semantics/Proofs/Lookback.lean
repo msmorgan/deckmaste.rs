@@ -146,17 +146,17 @@ theorem unspecifiedSpellDoesNotIntroduceAReference :
 
 theorem designatedSpellIsWellKinded :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.headed .spell (.designated (.named "commander") .you)) = [] := by decide
+      (.headed .spell (.designated (.named "commander" .heldByCard) .you)) = [] := by decide
 
 theorem designatedSpellKeepsSelectedIdentity :
     let result := stepNounPhrase 64 (DRS.ofList []) .other false
-      (.headed .spell (.designated (.named "commander") .you))
+      (.headed .spell (.designated (.named "commander" .heldByCard) .you))
     result.2.1 = [1] ∧ (result.1.findById? 1).bind (·.zone) = some .stack := by decide
 
 theorem designatedSpellCanBeMatched :
     relativeCheck .player
       { subj := .actor .which
-        action := .procedure .cast (.headed .spell (.designated (.named "commander") .you))
+        action := .procedure .cast (.headed .spell (.designated (.named "commander" .heldByCard) .you))
           .itsOwnCost none none none
         within := some (.duration thisGame none) } = [] := by decide
 

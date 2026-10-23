@@ -312,14 +312,6 @@ theorem okChapterOnSaga :
               when (.chapterMark [3]) (draw 1) ] }) = [] := by
   decide
 
-theorem badChapterOnNonSaga :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .white], types := [.enchantment],
-          text := [when (.chapterMark [1]) (draw 1)] })
-      = [.chapterFrame] := by
-  decide
-
 /-- "You may sacrifice a Mountain rather than pay this spell's mana cost." -/
 theorem okAltCostSacrifice :
     StaticSpec.check (DRS.ofList [])
@@ -428,12 +420,12 @@ theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular 
 
 /-- "your commander" -/
 theorem okPossessedCommander :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.designated (.named "commander") .you) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.designated (.named "commander" .heldByCard) .you) = [] := by decide
 
 /-- "your monarch" -/
 theorem badPossessedMonarch :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.designated (.named "monarch") .you)
-      = [.designationScope (.named "monarch")] := by
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.designated (.named "monarch" (.heldBy .player)) .you)
+      = [.designationScope (.named "monarch" (.heldBy .player))] := by
   decide
 
 /-- "Unearth {B}" -/
@@ -528,15 +520,6 @@ theorem okNamedAdventure :
         { characteristics :=
           { name := some "", cost := some [pip .blue], types := [.sorcery],
             subtypes := [adventure] } }) = [] := by
-  decide
-
-/-- an adventurer card whose inset frame is a plain instant, naming no Adventure -/
-theorem badUnnamedAdventure :
-    Card.check
-      (.adventurer blueCreature
-        { characteristics :=
-          { name := some "", cost := some [pip .blue], types := [.instant] } })
-      = [.adventureInset] := by
   decide
 
 /-- A green 1/1 creature front face. -/

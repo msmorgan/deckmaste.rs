@@ -241,12 +241,12 @@ theorem okAscribeCreature : NounPhrase.checkAt (some .object) (DRS.ofList []) (.
 
 /-- "target creature that's goaded" -/
 theorem okObjectDesignation :
-    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "goaded") none) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "goaded" (.heldBy .object)) none) = [] := by decide
 
 /-- "target creature that is the monarch" -/
 theorem badObjectMonarch :
-    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "monarch") none)
-      = [.designationHolder (.named "monarch") .object] := by
+    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "monarch" (.heldBy .player)) none)
+      = [.designationHolder (.named "monarch" (.heldBy .player)) .object] := by
   decide
 
 /-- "one of the top two cards of your library" -/

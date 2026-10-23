@@ -306,17 +306,9 @@ theorem okExileWithCounterRider :
 theorem okPutBoostCounterOnCreature :
     Action.check (DRS.ofList []) (.putCounters 1 p11 (target isCreature)) = [] := by decide
 
-/-- "a +1/+1 counter": a +X/+Y counter is a declared kind like any other [CR#122.1a]. -/
-theorem okBoostCounterKind : CounterKind.check p1p1Counter = [] := by decide
-
-/-- "a 1/1 counter": a counter adds to or subtracts from power and toughness [CR#122.1a] and
-never sets either, so no counter declaration is a 1/1 counter, and the name is unknown. -/
-theorem badSetBoostCounter :
-    CounterKind.check (.named "1/1Counter") = [.knownCounter] := by decide
-
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := each
+    Action.check (DRS.ofList []) (loseCounters (some (.printed poison)) none (agent := each
         (.isOpponentOf .you)))
       = [] := by
   decide
@@ -383,15 +375,6 @@ theorem okEffectCausedCounterWithAgent :
 theorem okPlusOneCounterDescription :
     Predicate.checkAt .object (DRS.ofList []) (.hasCounters (some p1p1Counter)) = [] := by decide
 
-/-- "a first strike counter" -/
-theorem okFirstStrikeKeywordCounter :
-    CounterKind.check (.named "firstStrikeCounter") = [] := by
-  decide
-
-/-- "a cumulative upkeep counter" -/
-theorem badCumulativeUpkeepCounter :
-    CounterKind.check (.named "cumulativeUpkeepCounter") = [.knownCounter] := by decide
-
 /-- "your choice of a +1/+1 counter or a first strike counter on it." -/
 theorem okCounterMenu :
     StaticSpec.check (DRS.ofList [])
@@ -415,21 +398,8 @@ theorem okSameScopeCounterMenu :
 
 /-- "Put a poison counter on target opponent." -/
 theorem okPoisonCounterLabel :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "poison")) (target (.isOpponentOf .you)))
+    Action.check (DRS.ofList []) (.putCounters 1 (.printed poison) (target (.isOpponentOf .you)))
       = [] := by
-  decide
-
-/-- "Put a zorp counter on target creature." -/
-theorem badUnknownCounterLabel :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Zorp")) (target isCreature))
-      = [.knownCounter] := by
-  decide
-
-/-- "Put a flying counter on target creature." [CR#122.1b], written with the keyword's label:
-the kind is the declaration's name, `flyingCounter`, and "Flying" names no counter. -/
-theorem badKeywordCounterNamedPlainly :
-    Action.check (DRS.ofList []) (.putCounters 1 (.printed (.named "Flying")) (target isCreature))
-      = [.knownCounter] := by
   decide
 
 /-- "Put a flying counter on target creature." [CR#122.1b], written with the declared name. -/
@@ -599,7 +569,7 @@ theorem okAnnihilation : Conferral.check annihilation = [] := by decide
 /-- The −1/−1 counter's definition: its per-counter boost and its once-per-holder rule. -/
 theorem okM1m1CounterDefinition :
     Definition.check
-      (.counter m1m1Counter .object [boost (.down 1) (.down 1), annihilation])
+      (.counter m1m1Counter [boost (.down 1) (.down 1), annihilation])
       = [] := by
   decide
 

@@ -233,31 +233,6 @@ inductive Ordinal where
   | nth (n : Nat)
   deriving DecidableEq, Repr
 
-/-- A designation [CR#701.15b,725.1,731.1]: the NAME of the designation declaration that defines
-it, verbatim (`goaded`, `monarch`, `ringBearer`), or, where a declaration lists several members,
-the member's own name (`dayNight` lists `day` and `night`). The name is not English: the phrase
-a card prints ("the monarch", "Ring-bearer") is the declaration's spelling. Which designations
-exist, and who holds each, is the designation facts table (`designationTable`), beside each
-declaration's record (`Definition.designation`); the grammar carries only the mechanism.
-Plotted [CR#702.170a,702.170c] and foretold [CR#702.143c,702.143d], states of a card in exile, are
-designations like the rest. -/
-inductive DesignationLabel where
-  | named (name : String)
-  deriving DecidableEq, Repr
-
-/-- A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation declaration that defines
-it, verbatim (`haunting`, `paired`, `encodedOn`). Which relations exist is the relation facts
-table (`relationTable`), and the kinds of their two sides the declarations' definitions
-(`Definition.relation`); the grammar carries only the mechanism. -/
-inductive RelationLabel where
-  | named (name : String)
-  deriving DecidableEq, Repr
-
-/-- Where a merging object is placed: on top of the permanent or under it [CR#730.2]. -/
-inductive MergePosition where
-  | top | bottom
-  deriving DecidableEq, Repr
-
 /-- Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named kind, the card
 itself (a commander is designated on its card, and the designation follows the card between
 zones [CR#903.3]), or the game. -/
@@ -265,6 +240,31 @@ inductive DesignationScope where
   | heldBy (holder : Kind)
   | heldByCard
   | heldByGame
+  deriving DecidableEq, Repr
+
+/-- A designation [CR#701.15b,725.1,731.1]: the NAME of the designation declaration that defines
+it, verbatim (`goaded`, `monarch`, `ringBearer`), or, where a declaration lists several members,
+the member's own name (`dayNight` lists `day` and `night`), with who holds it. The name is not
+English: the phrase a card prints ("the monarch", "Ring-bearer") is the declaration's spelling.
+Each designation is its own declaration in `Semantics.Definitions.Designations`, and the
+constructor is an internal expansion, so a card names a declared designation or none; the
+grammar carries only the mechanism. Plotted [CR#702.170a,702.170c] and foretold
+[CR#702.143c,702.143d], states of a card in exile, are designations like the rest. -/
+inductive DesignationLabel where
+  | named (name : String) (scope : DesignationScope)
+  deriving DecidableEq, Repr
+
+/-- A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation declaration that defines
+it, verbatim (`haunting`, `paired`, `encodedOn`). Each relation is its own declaration in
+`Semantics.Definitions.Relations`, and the constructor is an internal expansion, so a card names
+a declared relation or none; the grammar carries only the mechanism. -/
+inductive RelationLabel where
+  | named (name : String)
+  deriving DecidableEq, Repr
+
+/-- Where a merging object is placed: on top of the permanent or under it [CR#730.2]. -/
+inductive MergePosition where
+  | top | bottom
   deriving DecidableEq, Repr
 
 /-- A keyword ability [CR#702.1]: the NAME of the keyword ability declaration that defines it,
@@ -539,14 +539,6 @@ inductive Supertype where
   | legendary | basic | snow | world
   deriving DecidableEq, Repr
 
-/-- A half of a split permanent with a shared type line, a Room's door [CR#709.5c,709.5j]. Not a
-vocabulary item a registry declares, as keywords, keyword actions and counters are: a split card
-has two faces [CR#709.1], its left and right halves [CR#709.5c], so the halves are closed, as a
-card's sides (`CardFaceSide`) are. -/
-inductive RoomHalf where
-  | left | right
-  deriving DecidableEq, Repr
-
 inductive LockState where
   | locked | unlocked
   deriving DecidableEq, Repr
@@ -581,11 +573,13 @@ inductive DefinedSlots where
 /-- A counter's kind [CR#122.1]: the NAME of the counter declaration that defines it, verbatim
 (`p1p1Counter`, `flyingCounter`, `chargeCounter`). "Counters with the same name or description
 are interchangeable" [CR#122.1], so the name is all a kind is. What a counter of the kind does
-is its Registry Definition (`Definition.counter`: holder and conferrals), and which kinds exist
-is the counter facts table (`counterFacts`), one row per definition, so a +1/+1 counter [CR#122.1a] and
-a keyword counter [CR#122.1b] are looked up exactly as a charge counter is. -/
+is its Registry Definition (`Definition.counter`: its conferrals). The kind carries what the
+counter is placed on, an object unless the declaration says a player [CR#122.1]. Each kind is its
+own declaration in `Semantics.Definitions.Counters`, and the constructor is an internal
+expansion, so a card names a declared kind or none: a +1/+1 counter [CR#122.1a] and a keyword
+counter [CR#122.1b] are declared exactly as a charge counter is. -/
 inductive CounterKind where
-  | named (name : String)
+  | named (name : String) (holder : Kind := .object)
   deriving DecidableEq, Repr
 
 inductive ProjAxis where
@@ -655,10 +649,13 @@ inductive EventSide where
 
 end Semantics
 
-attribute [semantic_expression] Semantics.Delta Semantics.Subtype
+attribute [semantic_expression] Semantics.Delta Semantics.Subtype Semantics.CounterKind
+  Semantics.DesignationLabel Semantics.RelationLabel
 
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
 
--- A `Subtype` is a semantic expression with no primitive wrapper: a card names a catalog entry
--- (`Semantics.Definitions.Subtypes`), and `spelled` refuses a raw `Subtype.of` or `Subtype.spell`.
-attribute [internal_expansion] Semantics.Subtype
+-- A `Subtype`, `CounterKind`, `DesignationLabel` or `RelationLabel` is a semantic expression with
+-- no primitive wrapper: a card names a catalog entry (`Semantics.Definitions.Subtypes`,
+-- `.Counters`, `.Designations`, `.Relations`), and `spelled` refuses a raw constructor.
+attribute [internal_expansion] Semantics.Subtype Semantics.CounterKind Semantics.DesignationLabel
+  Semantics.RelationLabel

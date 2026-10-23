@@ -86,8 +86,6 @@ def TextChange.check (drs : DRS) (change : TextChange) : List Refusal :=
 def Timing.check (drs : DRS) (timing : Timing) : List Refusal :=
   (stepTimingWith (stepOps 64) drs timing).2
 
-def CounterKind.check (kind : CounterKind) : List Refusal := refuse kind.known .knownCounter
-
 def Ballot.check (drs : DRS) (ballot : Ballot) : List Refusal :=
   (stepBallotWith (stepOps 64) drs ballot).2
 

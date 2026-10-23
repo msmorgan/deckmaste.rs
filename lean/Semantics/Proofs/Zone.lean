@@ -446,7 +446,7 @@ theorem badNonComparisonDifference :
 
 /-- "Goad target creature." -/
 theorem okGoadOnBattlefield :
-    Action.check (DRS.ofList []) (.gainDesignation (target isCreature) (.named "goaded") none) = [] := by
+    Action.check (DRS.ofList []) (.gainDesignation (target isCreature) (.named "goaded" (.heldBy .object)) none) = [] := by
   decide
 
 /-- "Whenever a creature attacks a planeswalker, …" -/

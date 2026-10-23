@@ -154,14 +154,6 @@ def battleDefenseDamage : ConferralRule :=
     (loseCounters (some (.printed (.named "defenseCounter"))) (some .thatMuch) .this)
 theorem okBattleDefenseDamage : ConferralRule.check battleDefenseDamage = [] := by decide
 
-/-- A counter kind is a registry key, and "loyalty" is not the declared name (`loyaltyCounter`). -/
-theorem badDamageResultUndeclaredCounter :
-    ConferralRule.check
-      (damageResultRow (.hasType .planeswalker)
-        (loseCounters (some (.printed (.named "loyalty"))) (some .thatMuch) .this))
-      = [.knownCounter] := by
-  decide
-
 /-- [CR#120.3g,702.164c] "Combat damage dealt to a player by a creature with toxic causes that
 creature's controller to give the player a number of poison counters equal to that creature's
 total toxic value, in addition to the damage's other results." One row for the creature,
@@ -197,7 +189,7 @@ theorem planeswalkerDamageResultIsNotAnAbility :
 
 /-- [CR#122.1] "A counter is a marker placed on an object or player." A charge counter is a
 marker and nothing else: the CR gives it no behavior of its own, so it confers nothing. -/
-def chargeCounter : Definition := .counter (.named "chargeCounter") .object []
+def chargeCounter : Definition := .counter (.named "chargeCounter") []
 theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
 
 /-- [CR#122.1b] "A keyword counter on a permanent … causes that object to gain that keyword."
@@ -205,7 +197,7 @@ The counter is not an ability, so its conferral is the ability-free `property` f
 bearer gains the keyword in layer 6 [CR#613.1f], and that gained ability can be removed by
 another effect [CR#113.12], applied in timestamp order [CR#613.7,613.7c]. -/
 def flyingCounter : Definition :=
-  .counter (.named "flyingCounter") .object [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
+  .counter (.named "flyingCounter") [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
 
 /-- The conferral helpers are the raw conferrals: `grants` is `flyingCounter`'s, and `boost` is
@@ -226,14 +218,14 @@ The conferral is about its bearer wherever the bearer is: a +1/+1 counter also c
 creature card in a zone other than the battlefield" [CR#122.1a], and the checker asserts no zone
 for the bearer of a stat change, a definition's or a card's (`lean-checker-sweep-zone`). -/
 def p1p1CounterDefinition : Definition :=
-  .counter (.named "p1p1Counter") .object [boost (.up 1) (.up 1)]
+  .counter (.named "p1p1Counter") [boost (.up 1) (.up 1)]
 theorem p1p1CounterDefinitionZone :
     Definition.check p1p1CounterDefinition = [] := by decide
 
 /-- [CR#122.1a]: the minus counter's twin of `p1p1CounterDefinition`, subtracting 1 from each
 stat. -/
 def m1m1CounterDefinition : Definition :=
-  .counter (.named "m1m1Counter") .object [boost (.down 1) (.down 1)]
+  .counter (.named "m1m1Counter") [boost (.down 1) (.down 1)]
 theorem m1m1CounterDefinitionZone :
     Definition.check m1m1CounterDefinition = [] := by decide
 
@@ -243,7 +235,7 @@ count or for not reading it, because multiplicity is the model's reading of a co
 and the checker computes none. -/
 def ownCount : Amount := .statOf (.counter (.named "p1p1Counter")) .this
 def p1p1CounterCountMultiplied : Definition :=
-  .counter (.named "p1p1Counter") .object
+  .counter (.named "p1p1Counter")
     [ .property (Templates.modification .this .power (.up ownCount)),
       .property (Templates.modification .this .toughness (.up ownCount)) ]
 theorem p1p1CounterCountMultipliedTwin :
@@ -251,20 +243,20 @@ theorem p1p1CounterCountMultipliedTwin :
 
 /-- [CR#122.1f] "If a player has ten or more poison counters, that player loses the game." A
 poison counter is a player's. -/
-theorem okPoisonCounter : Definition.check (.counter (.named "poison") .player []) = [] := by
+theorem okPoisonCounter : Definition.check (.counter (.named "poison" .player) []) = [] := by
   decide
 
 /-- A counter is placed on an object or a player [CR#122.1] and on nothing else; a color is
 neither. -/
 theorem badCounterHolder :
-    Definition.check (.counter (.named "chargeCounter") (.quality .color) [])
+    Definition.check (.counter (.named "chargeCounter" (.quality .color)) [])
       = [.definitionHolder (.quality .color)] := by
   decide
 
 /-- Counter names distinguish kinds [CR#122.1]. This registry uses nonempty names as lookup
 keys, so it refuses an unnamed row. -/
 theorem badNamelessCounter :
-    Definition.check (.counter (.named "") .object []) = [.definitionNamed] := by decide
+    Definition.check (.counter (.named "") []) = [.definitionNamed] := by decide
 
 /-- Subtypes are type-line vocabulary [CR#205.3a,205.3b]. This catalog row supplies the word
 without an intrinsic conferral. -/
@@ -398,26 +390,18 @@ theorem playableFromIsThePlayPermission :
 
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/
-def monarch : Definition := .designation (.named "monarch") (.heldBy .player) true none none none
+def monarch : Definition := .designation (.named "monarch" (.heldBy .player)) true
 theorem okMonarch : Definition.check monarch = [] := by decide
 
 /-- [CR#709.5c] "'Left half unlocked' and 'right half unlocked' are designations that a
-permanent on the battlefield can have." The room half narrows the object that holds it. -/
-def leftHalfUnlocked : Definition :=
-  .designation (.named "leftHalfUnlocked") (.heldBy .object) true (some .battlefield) none (some .left)
+permanent on the battlefield can have." -/
+def leftHalfUnlocked : Definition := .designation (.named "leftHalfUnlocked" (.heldBy .object)) true
 theorem okLeftHalfUnlocked : Definition.check leftHalfUnlocked = [] := by decide
-
-/-- The zone, card type and room half describe the object holding the designation, so a
-designation the game holds [CR#731.1] narrows nothing. -/
-theorem badNarrowedGameDesignation :
-    Definition.check (.designation (.named "day") .heldByGame true (some .battlefield) none none)
-      = [.definitionScoped (.named "day")] := by
-  decide
 
 /-- Goaded is one named designation [CR#701.15b]. This registry uses nonempty designation
 names as lookup keys. -/
 theorem badNamelessDesignation :
-    Definition.check (.designation (.named "") (.heldBy .player) true none none none)
+    Definition.check (.designation (.named "" (.heldBy .player)) true)
       = [.definitionNamed] := by
   decide
 

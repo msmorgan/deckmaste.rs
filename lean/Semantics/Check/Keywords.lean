@@ -125,10 +125,4 @@ def CostNamed.nameable : CostNamed → Bool
   | .containing _ => true
   | .ofKeyword kw => keywordCosts kw
 
-/-- Is the counter kind one the tables admit? One registry lookup: a kind is a counter
-declaration's name, and the counter facts table has a row for every declaration [CR#122.1], so
-a +X/+Y counter [CR#122.1a] and a keyword counter [CR#122.1b] are known exactly when they are
-declared. -/
-def CounterKind.known (c : CounterKind) : Bool := knownCounter c.name
-
 end Semantics
