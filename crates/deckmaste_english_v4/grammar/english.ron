@@ -223,8 +223,9 @@
         "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind"], gap: true),
         "NounPremodifier": (category: Some("Nominal"), features: ["Polarity"]),
         // A conjunct of a coordination of noun premodifiers: a noun premodifier,
-        // with any negative premodifier of its own (*artifact or [non-Aura
-        // enchantment] card*).
+        // with an adjective or negative noun premodifier of its own
+        // (*Knight, Aura, Equipment, or [legendary artifact] card*;
+        // *artifact or [non-Aura enchantment] card*; OSG §7).
         "NounPremodifierConjunct": (category: Some("Nominal")),
         "PrepositionalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounDistribution"]),
         // A Number-transparent quantity's plural oblique whose determiner is
@@ -1536,6 +1537,14 @@
         // scopes over the whole coordination instead (*non-Lesson [instant and
         // sorcery] card*; `english-lexical-analysis.md` §2).
         Adjunct(host: "NounPremodifierConjunct", adjunct: "NounPremodifier", side: Before, host_kind: Nominal, cost: 1, equations: [Carry("modifier.Polarity", "Negative")]),
+        // An attributive adjective can modify a noun premodifier within a
+        // conjunct under a shared carrier noun (*Knight, Aura, Equipment, or
+        // [legendary artifact] card*; `docs/oracle-style-guide.md` §7, Card
+        // types are common nouns and attributive modifiers; Supertypes are
+        // lowercase modifiers). As with AdjectivalAttribute, it is an
+        // attributive adjective without a post-head Complement.
+        Adjunct(host: "NounPremodifierConjunct", adjunct: "AdjectivePhrase", side: Before, host_kind: Nominal, cost: 1,
+            equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         // A complement costs nothing. A Preposition Phrase Adjunct costs the
         // same whether it postmodifies a Nominal or modifies a Predicate: the
         // Ranking Key's Right Association, not a Production Cost, prefers one
