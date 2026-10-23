@@ -84,6 +84,9 @@ pub enum FillSpec {
     MeasureNP,
     FiniteClause,
     VerblessClause,
+    /// A non-finite or verbless clause with its Subject (*with your hand
+    /// revealed*; CGEL, Ch. 14 §10(a), p. 1267).
+    AbsoluteClause,
     ToInf,
     /// A *to*-infinitival with an object Gap the Subject fills.
     HollowToInf,

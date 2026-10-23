@@ -53,6 +53,10 @@ pub enum SlotRelation {
 pub enum ClauseKind {
     Finite,
     Verbless,
+    /// A non-finite or verbless clause with its Subject, the Complement of
+    /// *with* and *without* (*with your hand revealed*; CGEL, Ch. 14 §8.3,
+    /// p. 1262, and §10(a), p. 1267).
+    Absolute,
     /// An interrogative content clause (*whether ...*, *which creatures
     /// attack*, *how each player votes*).
     Interrogative,
@@ -120,6 +124,7 @@ pub enum SlotKind {
     MeasureNP,
     FiniteClause,
     VerblessClause,
+    AbsoluteClause,
     InterrogativeClause,
     ToInf,
     HollowToInf,
@@ -148,6 +153,7 @@ impl SlotFill {
             Self::MeasureNP => SlotKind::MeasureNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
+            Self::Clause(ClauseKind::Absolute) => SlotKind::AbsoluteClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
             Self::ToInf => SlotKind::ToInf,
             Self::HollowToInf => SlotKind::HollowToInf,

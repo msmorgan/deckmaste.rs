@@ -244,7 +244,11 @@
         (complement: VerblessClause, hosts: Predicate),
         (complement: Gerund, hosts: Predicate),
     ]),
+    // An Absolute Clause Complement, a Subject and its predicate (*play with
+    // your hand revealed*), is an Adjunct of a clause or a Modifier in a Noun
+    // Phrase, never a selected Complement (CGEL, Ch. 14 §10(a), p. 1267).
     (lemma: "with", frames: [
+        (complement: AbsoluteClause, hosts: NominalAndPredicate),
         (complement: KeywordPhrase, hosts: Nominal),
         (complement: NP, hosts: NominalAndPredicate),
         (complement: QuotedAbility, hosts: Nominal),
@@ -255,6 +259,7 @@
     // *each creature without a +1/+1 counter on it*; *creatures without
     // flying*; *cast it without paying its mana cost*
     (lemma: "without", frames: [
+        (complement: AbsoluteClause, hosts: NominalAndPredicate),
         (complement: NP, hosts: Nominal),
         (complement: KeywordPhrase, hosts: Nominal),
         (complement: Gerund, hosts: Predicate),

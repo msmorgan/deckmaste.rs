@@ -55,9 +55,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -383,6 +383,7 @@
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
         "VerblessClause": (category: Some("Clause")),
+        "AbsoluteClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
         // a bare infinitival or gerund-participial its Verb Phrase.
         // A non-finite Complement never passes up a predicative Gap (*can't
@@ -535,6 +536,7 @@
         Cost: "SymbolCosts",
         FiniteClause: "FiniteClause",
         VerblessClause: "VerblessClause",
+        AbsoluteClause: "AbsoluteClause",
         InterrogativeClause: "InterrogativeClause",
         ToInf: "ToInf",
         HollowToInf: "HollowInf",
@@ -547,6 +549,10 @@
     // nominative.
     slot_equations: {
         NP: [Exclude("slot.Case", "Nominative")],
+        // A *with* or *without* phrase with an Absolute Clause is an Adjunct
+        // or a Modifier, never a selected Complement (CGEL, Ch. 14 §10(a),
+        // p. 1267).
+        PP: [Exclude("slot.ComplementKind", "AbsoluteClause")],
     },
     // A distributive adjunct, whose Complement has a Distributive
     // determinative (*for each …*), anchors to the outermost eligible clause,
@@ -1734,6 +1740,12 @@
         (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")],
             equations: [Require("head.VerbForm", "Finite")], unlinked: ["head"]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
+        // The Absolute Clause Complement of *with* and *without*: a Subject
+        // and a past-participial predicate (*with your hand revealed*; CGEL,
+        // Ch. 14 §8.3, p. 1262, and §10(a), p. 1267). Its Subject is never
+        // nominative (*with them tapped*).
+        (name: "PastParticipialAbsolute", lhs: "AbsoluteClause", rhs: [Cat("subject", "ComplementNounPhrase"), Cat("head", "VerbPhrase")],
+            equations: [Require("head.VerbForm", "PastParticiple"), Require("head.Voice", "Passive"), Exclude("head.VerbKind", "Auxiliary")]),
 
         // Interrogative content clauses: closed (*whether ...*), with an
         // interrogative phrase as Subject (*which creatures attack*) or filling
