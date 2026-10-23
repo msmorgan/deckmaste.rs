@@ -32,7 +32,7 @@ authored type.
 | `catalogs/counters.ron` | Catalog | `counter:` |
 | `catalogs/designations.ron` | Catalog | `designation:` |
 | `catalogs/statuses.ron` | Catalog | `status_adj:`, `prep:` |
-| `catalogs/turn_parts.ron` | Catalog | `turn_part:`, `turn_part_det:` |
+| `catalogs/turn_parts.ron` | Catalog | `turn_part:` |
 | `catalogs/tokens.ron` | Catalog | `token:` |
 | `catalogs/introduced_names.ron` | Catalog | `introduced_name:` |
 | `catalogs/anchor_words.ron` | Catalog | `anchor_word:`, `anchor_name:` |

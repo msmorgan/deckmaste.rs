@@ -33,3 +33,6 @@ contrast is why these two move.
 - Tests and clippy clean for the crates touched.
 
 Standard constraints apply.
+
+1. **Census delta** (measured on `zmymwltx`): faces read 28,801 → 28,801; total Readings 245,825 → 245,825; Surplus 106,859 → 106,859 (the strata report is byte-identical); lost faces: none.
+2. **Judgment set**: all enforced judgments hold (`cargo test -p deckmaste_english_v4`); none pending changed.

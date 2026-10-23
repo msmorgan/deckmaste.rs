@@ -669,19 +669,12 @@ pub struct Designation {
     pub adjectives: Vec<String>,
 }
 
-/// A phase or step [CR#500.1], or a role the rule for one defines: the
-/// combat roles [CR#506.2], which Oracle names with a determinative
-/// (*defending player*), as it names an Aura's host *enchanted* [CR#303.4b].
+/// A phase or step [CR#500.1].
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TurnPart {
     pub rule: Rule,
-    /// The phase or step's name.
-    #[serde(default)]
-    pub noun: Option<NounDecl>,
-    /// Determinative Lexemes the rule defines.
-    #[serde(default)]
-    pub determinatives: Vec<DeterminativeEntry>,
+    pub noun: NounDecl,
 }
 
 /// A predefined token [CR#111.10]: the subtype that names it and any token
