@@ -23,8 +23,19 @@ so the noun-word anaphor finds no referent after the destroy moved it.
 
 *Saw in Half*, *Kalitas, Bloodchief of Ghet*, *Kaervek's Purge* ("If that creature dies this way");
 *Tuktuk Scrapper*, *Afflicted Deserter // Werewolf Ransacker* ("If that artifact is put into a
-graveyard this way"). Six matches in the derived data for "If that/the <noun> dies / is put into a
-graveyard this way"; check each wording.
+graveyard this way"). The derived data holds five matches for "If that/the <noun> dies / is put
+into a graveyard this way", not six: three "If that creature dies this way" and two "If that
+artifact is put into a graveyard this way".
+
+This landing covers *Kalitas* and *Kaervek's Purge*. Two of the witnesses are carried by new
+tickets:
+
+- *Saw in Half* still refuses "that creature" after its possessor "its controller". The cause
+  is `AC>R1` step `C`, not the historical read:
+  [lean-v3-possessor-pronoun-step-c](../planned/lean-v3-possessor-pronoun-step-c.md).
+- *Tuktuk Scrapper* and *Afflicted Deserter* write no origin, so the read keyed to the written
+  origin does not apply:
+  [lean-v3-historical-read-from-recorded-zone-change](../planned/lean-v3-historical-read-from-recorded-zone-change.md).
 
 ## Change
 
@@ -37,5 +48,6 @@ path by evaluating before the change (read from code, not run).
 
 - `okThatCreatureDiesThisWay`: `did (that creature) die thisWay` after a `destroy` checks clean
   (the pin the owner named).
-- Cards: *Saw in Half*, *Kalitas*, *Kaervek's Purge* spelled with "that creature" check clean.
+- Cards: *Kalitas* and *Kaervek's Purge* spelled with "that creature" check clean. *Saw in Half*
+  moves to lean-v3-possessor-pronoun-step-c.
 - A refusal remains where nothing moved the object (`that creature` after a non-moving action).

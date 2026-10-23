@@ -212,9 +212,13 @@ holds of the exiled creature card. Evaluating a guard at runtime is the engine's
 
 A historical movement pattern such as “that creature dies this way” reads a previously
 introduced participant against the movement's written origin zone when selecting the movement
-patient in a `DidClause` (without a dedicated one-purpose flag on `DRS`). The selected referent
-retains its current zone, identity, and stamp. `HistoricalMove` proves the read and subsequent
-ordinary-action refusals.
+patient in a `DidClause` (without a dedicated one-purpose flag on `DRS`). The read covers a
+definite noun phrase as well as a mention written inside the move: where the clause's subject is
+the move's patient ("that creature dies", [CR#700.4]), that subject is read the same way, so
+"Destroy target creature. If that creature dies this way, …" reads the destroyed creature as
+"it" does. The noun still constrains the read: "that artifact" finds no destroyed creature. The
+selected referent retains its current zone, identity, and stamp. `HistoricalMove` proves the read
+and subsequent ordinary-action refusals; `Lookback.okThatCreatureDiesThisWay` the subject read.
 
 Counter removal cannot read counters across a zone change: the new object's identity may be
 available, but its old counters ceased to exist ([CR#400.7,122.2]). Removal or transfer from
