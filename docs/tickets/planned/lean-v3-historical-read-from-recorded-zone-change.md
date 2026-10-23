@@ -34,29 +34,44 @@ lean-v3-that-noun-after-move-historical, starting from `DRS.ofList []`, with `pu
   transforms into Werewolf Ransacker, you may destroy target artifact. If that artifact is put
   into a graveyard this way, this creature deals 3 damage to that artifact's controller."
 
-## Recommendation (proposed, not ruled)
+## Ruling (owner, 2026-10-22, batch 4): approved
 
-This applies to a grounded "this way" lookback whose move writes no origin (`positiveZones?` is
+When a grounded "this way" lookback's move writes no origin, take the origin from the matched
+event's recorded zone change. A written origin still decides on its own, and a recorded event never
+overrides it. [CR#603.6c] ("from anywhere") is unaffected, because this applies only to grounded
+"this way" lookbacks: a "this way" reads back an event its own text caused, which is a different
+question from the trigger rule that "from anywhere" is not leaves-the-battlefield [CR#603.6c].
+
+## Change
+
+Applies to a grounded "this way" lookback whose move writes no origin (`positiveZones?` is
 `none`). Take the origin from the zone change recorded by the caused event the lookback matches
-(`DRS.causedEvents`, `CausedEvent.zoneChange`), the same event `lookbackGroundRefusals` already
-finds [CR#608.2c]. If that recorded origin is the battlefield, read the subject or patient
-historically, as a written battlefield origin does today.
-
-A destroy records the move from the battlefield to a graveyard. So "that artifact" would read
-the destroyed artifact as the permanent it was [CR#608.2h], and the noun would still constrain
-the read. A lookback with no matching event stays ungrounded, as now. A written origin keeps
-deciding on its own, and a recorded event never overrides it.
-
-Here a "this way" reads back an event its own text caused, which is a different question from
-the trigger rule that "from anywhere" is not leaves-the-battlefield [CR#603.6c]. The ruling
-should confirm that the distinction holds.
-
-Changes:
+(`DRS.causedEvents`, `CausedEvent.zoneChange`), the same event `lookbackGroundRefusals`
+(`Check/Phrase.lean:1246`) already finds [CR#608.2c]. If that recorded origin is the battlefield,
+read the subject or patient historically, as a written battlefield origin does today. A destroy
+records the move from the battlefield to a graveyard, so "that artifact" reads the destroyed
+artifact as the permanent it was [CR#608.2h], and the noun still constrains the read. A lookback
+with no matching event stays ungrounded, as now.
 
 - **ADR, `semantics-v3.md` §1.5:** the historical-read paragraph says where the origin comes from
-  when the lookback writes none.
-- **Code:** `stepDidClauseWith`, where the subject read is set up, and the `.move` arm's
-  `readContext`. Both would consult the matched event when `from_` has no positive zones.
-- **Tests:** *Tuktuk Scrapper* and *Werewolf Ransacker* spelled in full. A negative where the
-  matched event's recorded origin is not the battlefield (an artifact card milled, then "if that
-  artifact is put into a graveyard this way") stays refused.
+  when the lookback writes none, and says the rule is limited to grounded "this way" lookbacks.
+- **Code** (line numbers re-verified 2026-10-22): `Location.readsDepartedPermanent`
+  (`Check/Phrase.lean:1273`) is keyed to the written origin and has no event; `stepDidClauseWith`
+  (`:1286`), where the subject read is set up through `Action.subjectReadsDepartedPermanent`
+  (`:1281`); the `.move` arm's `readContext` (`:3474`). Both consult the matched event when
+  `from_` has no positive zones.
+
+## Tests
+
+- `okTuktukScrapperThatArtifactPutIntoAGraveyardThisWay` and `okWerewolfRansackerThatArtifact…`:
+  *Tuktuk Scrapper* and *Werewolf Ransacker* (Afflicted Deserter // Werewolf Ransacker) spelled in
+  full, with the damage clause reading the destroyed artifact's controller.
+- The Problem's probes become pins: `did (that artifact) (putGy .arrival) thisWay` and the
+  `.departure` variant, after `destroy (target isArtifact)`, check clean.
+- `thatArtifactMilledThisWayStaysRefused`: a negative where the matched event's recorded origin is
+  not the battlefield (an artifact card milled, then "if that artifact is put into a graveyard this
+  way") stays refused.
+- `writtenOriginStillDecides`: a lookback with a written non-battlefield origin is not overridden
+  by a recorded battlefield event.
+- `fromAnywhereIsNotLeavesTheBattlefield` [CR#603.6c]: an existing pin on the trigger rule keeps
+  passing (name the pin found by grep in the landing).
