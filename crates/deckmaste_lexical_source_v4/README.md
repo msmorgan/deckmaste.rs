@@ -86,8 +86,12 @@ Adjective grades are adjectives of their own with a `Grade` feature
 (`Plain`, `Comparative`, `Superlative`) that share their adjective's lemma
 (*greater* is a grade of *great*); a comparative grade selects a *than*
 Complement. A lemma that is itself comparative (*less*, *lesser*) declares its
-grade, and *same* declares `Equative`, which licenses its *as* Complement. Adverbs
-record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
+grade, and *same* declares `Equative`, which licenses its *as* Complement.
+An adjective's optional `fused_head` declares the determination of its fused
+modifier-head NP: `Some(Ordinary)` for *each other* and *the other*, or
+`Some(DefiniteArticle)` for anaphoric *the same* (CGEL, Ch. 5 §9.3, p. 416;
+Ch. 17, p. 1545).
+Adverbs record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb` for a focusing or multiplying one, `BoundingAdverb`
 for one bounding a quantity, *at least*, *exactly*). Interrogative *how* is a Closed
 Word of the grammar (`How`), not a class. Subtypes record their families as classes

@@ -279,7 +279,7 @@ pub struct AdjectiveEntry {
     #[serde(default)]
     pub determination: Option<Determination>,
     #[serde(default)]
-    pub fused_head: bool,
+    pub fused_head: Option<FusedHeadDetermination>,
     pub lemma: String,
     #[serde(default)]
     pub comparative: Option<String>,
@@ -300,6 +300,15 @@ pub enum AdjectiveGrade {
     Comparative,
     Superlative,
     Equative,
+}
+
+/// The determiner in a fused modifier-head NP: ordinary determination
+/// (*each other*) or the definite article (*the same*; CGEL, Ch. 5 §9.3,
+/// p. 416; Ch. 17, p. 1545).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum FusedHeadDetermination {
+    Ordinary,
+    DefiniteArticle,
 }
 
 /// The function to which an adjective is restricted (CGEL Ch. 6 §4).
@@ -324,7 +333,7 @@ impl AdjectiveDecl {
             Self::Lemma(lemma) => AdjectiveEntry {
                 position: None,
                 determination: None,
-                fused_head: false,
+                fused_head: None,
                 lemma: lemma.clone(),
                 comparative: None,
                 grade: None,

@@ -38,6 +38,7 @@ use crate::schema::Catenation;
 use crate::schema::DeterminativeEntry;
 use crate::schema::FillSpec;
 use crate::schema::FrameSpec;
+use crate::schema::FusedHeadDetermination;
 use crate::schema::IdiomPart;
 use crate::schema::NounEntry;
 use crate::schema::PrepositionFrameSpec;
@@ -340,11 +341,12 @@ impl Builder {
                     Ident::new(&format!("{determination:?}")),
                 );
             }
-            if entry.fused_head {
-                lexeme
-                    .properties
-                    .classes
-                    .insert("FusedHeadAdjective".into());
+            if let Some(determination) = entry.fused_head {
+                let class = match determination {
+                    FusedHeadDetermination::Ordinary => "FusedHeadAdjective",
+                    FusedHeadDetermination::DefiniteArticle => "DefiniteFusedHeadAdjective",
+                };
+                lexeme.properties.classes.insert(class.into());
             }
             if let Some(grade) = grade {
                 lexeme
