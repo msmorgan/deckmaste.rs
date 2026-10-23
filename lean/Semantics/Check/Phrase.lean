@@ -514,7 +514,8 @@ def predicatePayload (k : Kind) (p : Predicate) (fuel : Nat := 64) : Payload :=
 termination_by structural fuel
 
 def bindFor (det : Determiner) (plur : Plurality) (k : Kind) (p : Predicate) : Referent :=
-  { det, plur, payload := predicatePayload k p }
+  { det, plur, payload := predicatePayload k p,
+    introducedAsSource := p.conjuncts.any (· matches .isSource) }
 
 /-- Whether `reach` is a bare pronoun governed by Rule `D′` (`it`, `them`, `they`). -/
 def Reach.isBarePronoun : Reach → Bool

@@ -497,9 +497,71 @@ def deflectingPalm : Spelled := spelled <| singleFacedCard
             (replace (would (aYourChoice isSource) (dealDamage anyAmount you))
               (instead
                 (preventDamage allDamage
-                  (also := instruct this_ (dealDamage thatMuch (controllerOf it)))))
+                  (also := instruct this_ (dealDamage thatMuch (controllerOf thatSource)))))
               (use := .nextTimeOnly))
             thisTurn) ] }
+
+def reflectDamage : Spelled := spelled <| singleFacedCard
+  { name := "Reflect Damage", cost := [generic 3, pip .red, pip .white], types := [.instant],
+    text :=
+      [ spell
+          (establishThroughout
+            (replace (would (aYourChoice isSource) (dealDamage anyAmount))
+              (instead (redirectDamage allDamage (controllerOf thatSource)))
+              (use := .nextTimeOnly))
+            thisTurn) ] }
+
+/-- "That source deals that damage to you instead": the same damage, from the same source, dealt
+to another player, which is a redirection effect [CR#614.9]; `redirectDamage` keeps the source. -/
+def jadeMonolith : Spelled := spelled <| singleFacedCard
+  { name := "Jade Monolith", cost := [generic 4], types := [.artifact],
+    text :=
+      [ activated [generic 1]
+          (establishThroughout
+            (replace (would (aYourChoice isSource) (dealDamage anyAmount (target isCreature)))
+              (instead (redirectDamage allDamage you)) (use := .nextTimeOnly))
+            thisTurn) ] }
+
+def belltowerSphinx : Spelled := spelled <| singleFacedCard
+  { name := "Belltower Sphinx", cost := [generic 4, pip .blue], types := [.creature],
+    subtypes := [sphinx],
+    text :=
+      [ flying,
+        whenever (does (a isSource) (dealDamage anyAmount thisCreature))
+          (instruct (controllerOf thatSource) (mill thatMuch)) ],
+    power := stat 2, toughness := stat 5 }
+
+/-- "All damage is dealt as though its source had wither", written out as wither's row for every
+source: damage a source deals to a creature isn't marked on it; rather, that source's controller
+puts that many −1/−1 counters on it [CR#702.80a,120.3d]. -/
+def everlastingTorment : Spelled := spelled <| singleFacedCard
+  { name := "Everlasting Torment", cost := [generic 2, hybridPip .black .red],
+    types := [.enchantment],
+    text :=
+      [ static (cant (bare isPlayer) (gainLife anyAmount)),
+        static (cant any (preventDamage allDamage (damage := would any (dealDamage anyAmount)))),
+        static
+          (replace (causedBy (bySource (a isSource)) (would any (markDamage (a isCreature))))
+            (instead
+              (instruct (controllerOf thatSource)
+                (putCounters thatMuch m1m1Counter (that creature))))) ] }
+
+/-- "All damage is dealt to you as though its source had infect", written out as infect's player
+row for every source: damage dealt to you doesn't cause you to lose life; rather, that source's
+controller gives you that many poison counters [CR#702.90b,120.3b]. -/
+def phyrexianUnlife : Spelled := spelled <| singleFacedCard
+  { name := "Phyrexian Unlife", cost := [generic 2, pip .white], types := [.enchantment],
+    text :=
+      [ static (cant you (loseGame (some .nonpositiveLife))),
+        static
+          (onlyWhile
+            (replace
+              (causedBy (byEvent (does (a isSource) (dealDamage anyAmount you)))
+                (would any (loseLife anyAmount)))
+              (instead
+                (instruct (controllerOf thatSource)
+                  (putCounters (theOutcome .damageDealt) poison you))))
+            (compareAmt (lifeTotalOf you) .atMost 0)) ] }
 
 def templeAltisaur : Spelled := spelled <| singleFacedCard
   { name := "Temple Altisaur", cost := [generic 4, pip .white], types := [.creature],

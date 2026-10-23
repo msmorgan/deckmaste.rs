@@ -156,4 +156,38 @@ theorem objectSubsetRetainsItsTypeZoneAndExactSize :
       (after.findById? 1).map (·.payload) =
         some (.object [.creature] (some .battlefield) none none (some 1)) := by decide
 
+/-! ## "That source" -/
+
+private def chosenSource : Referent :=
+  { det := .a, plur := .one, payload := .object [] none none none none,
+    introducedAsSource := true }
+private def chosenSourceOnStack : Referent :=
+  { chosenSource with payload := .object [.instant] (some .stack) none none none }
+private def theSource : Referent :=
+  { det := .self, plur := .one, payload := .object [.instant] (some .stack) none none none,
+    introducedAsSource := true }
+
+/-- "That source" reads an antecedent introduced as a source, in any zone [CR#609.7a]. -/
+theorem sourceWordReadsAChosenSourceInAnyZone :
+    countReach (.word .source) .one [chosenSource] = 1 ∧
+      countReach (.word .source) .one [chosenSourceOnStack] = 1 := by
+  decide
+
+/-- An object not introduced as a source is no antecedent of "that source", whatever its zone. -/
+theorem sourceWordRejectsAnObjectNotIntroducedAsASource :
+    countReach (.word .source) .one [creaturePermanent, creatureCard, sourceAbility] = 0 := by
+  decide
+
+/-- The Source of the text is never read by "that source". -/
+theorem sourceWordNeverReadsTheSource :
+    countReach (.word .source) .one [theSource] = 0 := by
+  decide
+
+/-- Introducing an object by a description that names it a source records it as one. -/
+theorem sourceDescriptionRecordsTheFlag :
+    (bindFor .a .one .object isSource).introducedAsSource = true ∧
+      (bindFor .a .one .object (and [isSource, hasColor .red])).introducedAsSource = true ∧
+      (bindFor .a .one .object isCreature).introducedAsSource = false := by
+  decide
+
 end Semantics.Proofs.NounWords

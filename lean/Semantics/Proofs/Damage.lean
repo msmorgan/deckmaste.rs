@@ -989,4 +989,59 @@ theorem lifelinkIsAnAdditionalResult :
         (asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch)) = [] :=
   ⟨rfl, by decide⟩
 
+/-! ## "That source" -/
+
+/-- *Deflecting Palm*'s prevention shield with its chosen source written as `chosen`. -/
+private def palmShield (chosen : NounPhrase) : Action :=
+  establishThroughout
+    (replace (would chosen (dealDamage anyAmount you))
+      (instead
+        (preventDamage allDamage
+          (also := instruct this_ (dealDamage thatMuch (controllerOf thatSource)))))
+      (use := .nextTimeOnly))
+    thisTurn
+
+/-- *Deflecting Palm*'s context at "that source's controller": the chosen source of the shield's
+event, then the spell's own mention as the one dealing the damage. -/
+private def palmContext : DRS :=
+  let header := nextClause (stepWouldClauseWith (stepOps 64) (DRS.ofList [])
+    (would (aYourChoice isSource) (dealDamage anyAmount you))).1
+  nextClause (stepAction 64 .postEvent .obj header (instruct this_ (dealDamage thatMuch you))).1
+
+/-- *Deflecting Palm*: "… Deflecting Palm deals that much damage to that source's controller."
+"That source" reads the source of your choice (referent 0), not the spell's own mention
+(referent 4), which is what the bare `it` the card used to write reads [CR#609.7a]. -/
+theorem deflectingPalmThatSourceReadsTheChosenSource :
+    (firstReach (.word .source) .one palmContext).map (fun ref => (ref.id, ref.det)) =
+        some (0, .a) ∧
+      (firstReach .bare .one palmContext).map (·.id) = some 4 := by
+  decide
+
+/-- The same shield over "a creature of your choice" has no source in scope: "that source" is
+refused, not read as the spell. -/
+theorem deflectingPalmThatSourceNeedsASourceAntecedent :
+    Action.check (DRS.ofList []) (palmShield (aYourChoice isSource)) = [] ∧
+      Action.check (DRS.ofList []) (palmShield (aYourChoice isCreature)) =
+        [.anaphor (.word .source) .one 0] := by
+  decide
+
+/-- With no source mentioned, "that source's controller" is refused; the Source of the text is
+not a source "that source" reads. -/
+theorem thatSourceWithNoSourceInScopeIsRefused :
+    Action.check (DRS.ofList []) (instruct this_ (dealDamage 1 (controllerOf thatSource))) =
+      [.anaphor (.word .source) .one 0] := by
+  decide
+
+/-- *Belltower Sphinx*: "Whenever a source deals damage to this creature, that source's controller
+mills that many cards." "That source" reads the trigger event's agent; over "a creature" it is
+refused. -/
+theorem belltowerSphinxThatSourceReadsTheEventAgent :
+    let trigger (agent : NounPhrase) : Ability :=
+      whenever (does agent (dealDamage anyAmount thisCreature))
+        (instruct (controllerOf thatSource) (mill thatMuch))
+    Ability.check (DRS.ofList []) (trigger (a isSource)) = [] ∧
+      Ability.check (DRS.ofList []) (trigger (a isCreature)) =
+        [.anaphor (.word .source) .one 0] := by
+  decide
+
 end Semantics.Proofs.Damage
