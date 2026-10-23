@@ -42,9 +42,50 @@ def Predicate.negatable (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body | n + 1, .bracketed body => body.negatable n
   | _ + 1, .anyPlayer | _ + 1, .chosenPlayer _ | _ + 1, .qualityNoun _ none
-  | _ + 1, .counterKindOn _ | _ + 1, .isSource => false
+  | _ + 1, .counterKindOn _ | _ + 1, .isSource | _ + 1, .eachKind _ _ => false
   | _, _ => true
 termination_by structural fuel
+
+/-- Whether a keyword's quality is "each <value>" as a whole (`Predicate.eachKind`), so that the
+keyword is one ability per value [CR#702.16h,702.16i]. -/
+def Predicate.isEachKind (predicate : Predicate) (fuel : Nat := 8) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.isEachKind n
+  | _ + 1, .eachKind _ _ => true
+  | _, _ => false
+termination_by structural fuel
+
+/-- Whether a keyword's arguments hold an "each <value>" quality. -/
+def KeywordParam.isEachKind : KeywordParam → Bool
+  | .quality predicate => predicate.isEachKind
+  | _ => false
+
+/-- The qualities "each <value of `axis`>" stands for when the axis alone fixes them: the five
+colors [CR#105.1]. Over a domain, which values there are is the game's to read as the effect
+applies [CR#611.3a]; on another axis the bench lists none. -/
+def KindAxis.eachQualities? : KindAxis → Option (List Predicate)
+  | .color => some ([Color.white, .blue, .black, .red, .green].map .colorIs)
+  | _ => none
+
+/-- The axis and domain of an "each <value>" quality. -/
+def Predicate.eachKindOf? (predicate : Predicate) (fuel : Nat := 8) :
+    Option (KindAxis × Option NounPhrase) :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.eachKindOf? n
+  | _ + 1, .eachKind axis domain => some (axis, domain)
+  | _, _ => none
+termination_by structural fuel
+
+/-- The abilities a keyword with one quality argument stands for, each as its keyword and
+quality: itself, or, with an "each <value>" quality, one per value, which behave as separate
+abilities [CR#702.16h,702.16i]. `none` where the values are the game's to read. -/
+def Ability.keywordInstances? : Ability → Option (List (KeywordLabel × Predicate))
+  | .keyword label [.quality quality] _ =>
+    match quality.eachKindOf? with
+    | some (axis, none) => axis.eachQualities?.map (·.map (label, ·))
+    | some (_, some _) => none
+    | none => some [(label, quality)]
+  | _ => none
 
 def Predicate.says (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with

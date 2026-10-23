@@ -126,6 +126,9 @@ inductive Refusal where
   | distinct
   | kindDomainOk
   | kindAxisSort
+  /-- "each <value>" (`Predicate.eachKind`) stands only as the whole quality of a keyword, which
+  it makes one ability per value [CR#702.16h,702.16i]. -/
+  | eachKindPlacement
   /- tables -/
   | knownKeywordTerm
   | linkedFacetNamed

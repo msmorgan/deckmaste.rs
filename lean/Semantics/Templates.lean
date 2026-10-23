@@ -632,6 +632,10 @@ semantic_template inCombat (relation : CombatRelation) (counterpart : Option Nou
 semantic_template inPile (pile : NounPhrase) : Predicate := .in_ (.pile pile)
 semantic_template manaCostHas (symbol : ManaSymbol) : Predicate := .manaCostHas symbol
 semantic_template notChosen : Predicate := .notChosen
+/-- "each <value of `axis`> [among <domain>]" as a keyword's quality, as "protection from each
+color among permanents you control": one ability per value [CR#702.16h,702.16i]. -/
+semantic_template eachKind (axis : KindAxis) (domain : Option NounPhrase := none) : Predicate :=
+  .eachKind axis domain
 semantic_template ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain := none) :
     Predicate :=
   .ofYourChoice sort domain
