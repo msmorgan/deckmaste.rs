@@ -38,6 +38,14 @@ def flickeringSpirit : Action :=
   sequentially [exile thisCreature, returnToBattlefield it [(under (ownerOf it))]]
 theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] := by decide
 
+/-- Bench item: "Mill a card. Return the card put into your graveyard this way to your hand." One
+milled card is read back as the one card moved [CR#701.17a]. -/
+def millACardReturnIt : Action :=
+  sequentially
+    [ mill (.lit 1),
+      returnToHand (the (and [isCard, was (putInto which yourGraveyard) thisWay])) ]
+theorem okMillACardReturnIt : Action.check (DRS.ofList []) millACardReturnIt = [] := by decide
+
 /-- Bond of Revival -/
 def bondOfRevival : Action :=
   sequentially

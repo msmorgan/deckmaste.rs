@@ -1076,4 +1076,66 @@ theorem rollADieAndRollOneOrMoreDiceAreDistinctPatterns :
         (GameEvent.extend (DRS.ofList []) (.does (.actor .you) (rollDice anyAmount .anyDie))) = 1 := by
   decide
 
+/-! ## Readbacks after a mill
+
+To mill a number of cards is to put that many from the top of one's library into one's graveyard
+[CR#701.17a]. The milled group's number is the argument's: "mill a card" moves one card, read
+back as "that card", "it" or "the card put into your graveyard this way" exactly as after "put the
+top card of your library into your graveyard"; "mill two cards" and "mill X cards" move a group. -/
+
+/-- The card put into your graveyard this way, as a "this way" Participial Description reads it. -/
+private def cardMilledThisWay (det : Predicate → NounPhrase) : NounPhrase :=
+  det (and [isCard, was (putInto which yourGraveyard) thisWay])
+
+/-- "Mill a card. Return that card / it / the card put into your graveyard this way to your
+hand." -/
+theorem singularReadbackAfterMillingOneCard :
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 1), returnToHand (that .card)]) = [] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 1), returnToHand it]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill (.lit 1), returnToHand (cardMilledThisWay the)]) = [] := by decide
+
+/-- One milled card reads as one moved card does: "mill a card" and "put the top card of your
+library into your graveyard" agree on every singular and plural readback. -/
+theorem millingOneCardReadsAsMovingTheTopCard :
+    ([that .card, it, cardMilledThisWay the, them, those .card].map fun np =>
+      Action.check (DRS.ofList []) (sequentially [mill (.lit 1), returnToHand np])) =
+    ([that .card, it, cardMilledThisWay the, them, those .card].map fun np =>
+      Action.check (DRS.ofList [])
+        (sequentially [putInto (topSlice (.lit 1)) graveyard, returnToHand np])) := by decide
+
+/-- "Mill a card. Return them to your hand." has no group to read: one card was milled. -/
+theorem pluralReadbackAfterMillingOneCardIsRefused :
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 1), returnToHand them]) =
+      [.anaphor .bare .many 0] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 1), returnToHand (those .card)]) =
+      [.anaphor (.word .card) .many 0] := by decide
+
+/-- "Mill two cards" and "mill X cards" move a group: the plural and "each" readbacks read it,
+the singular ones find no one card. -/
+theorem singularReadbackAfterMillingAGroupIsRefused :
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 2), returnToHand (that .card)]) =
+      [.anaphor (.word .card) .one 0] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 2), returnToHand it]) =
+      [.anaphor .bare .one 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill (.lit 2), returnToHand (cardMilledThisWay the)]) =
+      [.participialDescription (.zoneChange none .graveyard) 0] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (letter .x), returnToHand (that .card)]) =
+      [.anaphor (.word .card) .one 0] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (letter .x), returnToHand it]) =
+      [.anaphor .bare .one 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill (letter .x), returnToHand (cardMilledThisWay the)]) =
+      [.participialDescription (.zoneChange none .graveyard) 0] := by decide
+
+/-- After a group mill the plural readbacks read the group. -/
+theorem pluralReadbackAfterMillingAGroup :
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 2), returnToHand them]) = [] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (.lit 2), returnToHand (those .card)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill (.lit 2), returnToHand (cardMilledThisWay each)]) = [] ∧
+    Action.check (DRS.ofList []) (sequentially [mill (letter .x), returnToHand them]) = [] := by
+  decide
+
 end Semantics.Proofs.Anaphora
