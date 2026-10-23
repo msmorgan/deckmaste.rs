@@ -37,6 +37,38 @@ theorem badChooseYou :
     Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] := by
         decide
 
+/-- "Choose a creature card and/or a land card": a coordination is chosen when each member is. -/
+theorem okChooseCoordinatedIndefinites :
+    Action.check (DRS.ofList [])
+      (choose (NounPhrase.andOr [a (and [isCreature, isCard]), a (and [isLand, isCard])])) = [] := by
+  decide
+
+/-- "Choose the creature and a creature": one member is not chosen, so neither is the
+coordination ("the creature" is also refused: nothing in it makes it unique). -/
+theorem badChooseCoordinationWithUnchosenMember :
+    Action.check (DRS.ofList []) (choose (both (the isCreature) (a isCreature))) =
+      [.uniquifying, .choiceClause] := by
+  decide
+
+/-- Each member of a chosen coordination is marked by its own determiner: both targets of
+"choose target creature you control and target creature you don't control" are announced
+targets [CR#601.2c], and the group that collects them is not. -/
+theorem chosenCoordinationStampsEachTarget :
+    ((actionResult (DRS.ofList [])
+        (choose (both (target (and [isCreature, youControl]))
+                      (target (and [isCreature, youDontControl]))))).referents.filter
+      (·.announcedTargetResult)).map (·.det) = [.target, .target] := by
+  decide
+
+/-- Each indefinite member of a chosen coordination is announced as it is chosen [CR#608.2d]:
+"choose a creature card and/or a land card" leaves two chosen cards and their group. -/
+theorem chosenCoordinationAnnouncesEachIndefinite :
+    (actionResult (DRS.ofList [])
+        (choose (NounPhrase.andOr [a (and [isCreature, isCard]), a (and [isLand, isCard])]))
+      ).referents.map (fun ref => (ref.det, ref.plur)) =
+      [(.the, .many), (.part, .one), (.part, .one)] := by
+  decide
+
 /-- "Create a 1/1 white Soldier creature token if you control a creature. Put a +1/+1 counter
 on it.": a conditional's branch continues when it has no otherwise-branch, wherever its condition
 is printed, so "it" is the token, the nearer antecedent. -/

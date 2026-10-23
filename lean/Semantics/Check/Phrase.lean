@@ -356,6 +356,10 @@ def NounPhrase.agentChoosable (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   | 0, _ => false
   | n+1, .inCaller body | n+1, .firstMention _ body => body.agentChoosable n
   | _+1, .someOf .. | _+1, .pileOf .. => true
+  -- "Choose target creature you control and target creature you don't control", "a creature
+  -- card and/or a land card": a coordination is chosen when each of its members is.
+  | n+1, .and members | n+1, .coord .andOr members | n+1, .or members =>
+    !members.isEmpty && members.all (·.agentChoosable n)
   | _+1, phrase => phrase.det == some .a || phrase.det == some .target || phrase.det == some .count
 termination_by structural fuel
 
@@ -3693,18 +3697,25 @@ def stepOps : Nat → StepOps
             | some f => let (d, _, e) := ops.np drs .subj true f; (d, e)
             | none => (drs, [])
           let (drs2, ids, e2) := ops.np drs1 patientRole true chosen
-          let announces := chosen.det == some .a || chosen.det == some .count
-          let drs2 := if announces then
-            ids.foldl (fun context id => context.updateById id fun ref =>
-              match ref.payload with
-              | .player _ => { ref with payload := .player true }
-              | .object .. => { ref with det := .part }
-              | _ => ref) drs2
-            else drs2
-          let drs2 := if phase == .postEvent && chosen.det == some .target then
-            ids.foldl (fun context id => context.updateById id
-              (fun ref => { ref with announcedTargetResult := true })) drs2
-            else drs2
+          -- A coordination has no determiner of its own: each member referent is announced or
+          -- stamped by its own ("target creature you control and target creature you don't
+          -- control"), and the group that collects them by neither.
+          let detOf (id : ReferentId) : Option Determiner :=
+            chosen.det.orElse fun _ => (drs2.findById? id).map (·.det)
+          let announces (id : ReferentId) := detOf id == some .a || detOf id == some .count
+          let targeted (id : ReferentId) := detOf id == some .target
+          let drs2' := ids.foldl (fun context id => if announces id then
+              context.updateById id fun ref =>
+                match ref.payload with
+                | .player _ => { ref with payload := .player true }
+                | .object .. => { ref with det := .part }
+                | _ => ref
+            else context) drs2
+          let drs2 := if phase == .postEvent then
+            ids.foldl (fun context id => if targeted id then
+                context.updateById id (fun ref => { ref with announcedTargetResult := true })
+              else context) drs2'
+            else drs2'
           let drs2 := if phase == .postEvent then
             ids.foldl (fun context id => match context.findById? id with
               | some ref => context.recordSelection ref.kind none true
