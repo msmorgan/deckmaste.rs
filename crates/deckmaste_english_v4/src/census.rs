@@ -20,8 +20,6 @@ use std::collections::BTreeSet;
 
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::CompiledGrammar;
-use deckmaste_syntax::SegmentFrame;
-use deckmaste_syntax::Segmentation;
 
 use crate::corpus::Corpus;
 use crate::corpus::UnitKind;
@@ -34,6 +32,8 @@ use crate::profile::MAX_STRATUM;
 use crate::profile::Profile;
 use crate::profile::Profiler;
 use crate::profile::Stratum;
+use crate::segments::SegmentFrame;
+use crate::segments::Segmentation;
 
 /// How many of a unit's cheapest Readings round-trip law 2 is checked on.
 pub const LAW_TWO_READINGS: usize = 8;
@@ -160,7 +160,7 @@ pub fn run(
     baseline: Option<&BTreeMap<String, bool>>,
 ) -> Report {
     let grammar = crate::bind(&env.lexicon, &env.frames).and_then(|grammar| {
-        let frame = crate::segment_frame(&grammar)?;
+        let frame = crate::segments::segment_frame(&grammar)?;
         Ok((grammar, frame))
     });
     let bind_error = grammar.as_ref().err().map(ToString::to_string);
@@ -257,7 +257,7 @@ fn judge_unit(
     if derivations == 0 {
         return (Verdict::Unread(Unread::NoReading), 0, None, 0);
     }
-    let segments = Some(parse.segments(frame));
+    let segments = Some(crate::segments::segments(&parse, frame));
     let cheapest_tier = parse.cheapest_tier().map_or(0, |(_, tied)| tied);
     let (verdict, derivations) = judge_parse(grammar, env, &parse, derivations, scope, entries);
     (verdict, derivations, segments, cheapest_tier)

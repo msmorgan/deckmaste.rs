@@ -206,7 +206,7 @@ fn the_deferral_list_names_each_unit_once() {
 /// and a Surplus of 2, one per ambiguous Segment.
 #[test]
 fn a_unit_counts_its_segments_and_their_surplus() {
-    use deckmaste_syntax::Segmentation;
+    use deckmaste_english_v4::segments::Segmentation;
     let env = LexicalEnvironment {
         lexicon: seed::lexicon(),
         frames: seed::frames(),

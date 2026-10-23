@@ -47,8 +47,11 @@ pub(crate) struct Leaf {
     pub scoped: bool,
 }
 
+/// A child of a partial Production in a Packed Forest: a completed
+/// Constituent or a lexical alternative (by index), or structural
+/// punctuation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum ChildRef {
+pub enum ChildRef {
     Node(usize),
     Leaf(usize),
     Punct,
@@ -90,6 +93,43 @@ pub struct PackedForest {
 }
 
 impl PackedForest {
+    /// The completed Constituents that span the whole input.
+    #[must_use]
+    pub fn roots(&self) -> &[usize] {
+        &self.roots
+    }
+
+    /// The Category index of a completed Constituent.
+    #[must_use]
+    pub fn node_category(&self, node: usize) -> usize {
+        self.nodes[node].category
+    }
+
+    /// The extent of a completed Constituent, in chars.
+    #[must_use]
+    pub fn node_span(&self, node: usize) -> Range<usize> {
+        self.nodes[node].start..self.nodes[node].end
+    }
+
+    /// The completed items that are a Constituent's alternative Derivations.
+    pub fn node_items(&self, node: usize) -> impl Iterator<Item = usize> + '_ {
+        self.nodes[node].families.iter().map(|&(_, item)| item)
+    }
+
+    /// The (previous item, last child) alternatives of a partial Production.
+    pub fn item_families(
+        &self,
+        item: usize,
+    ) -> impl Iterator<Item = (Option<usize>, ChildRef)> + '_ {
+        self.items[item].families.iter().copied()
+    }
+
+    /// The extent of a lexical alternative, in chars.
+    #[must_use]
+    pub fn leaf_span(&self, leaf: usize) -> Range<usize> {
+        self.leaves[leaf].start..self.leaves[leaf].end
+    }
+
     #[must_use]
     pub fn metrics(&self) -> Metrics {
         Metrics {
@@ -115,6 +155,12 @@ pub struct Parse<'g> {
 }
 
 impl<'g> Parse<'g> {
+    /// The analyzed text, as chars.
+    #[must_use]
+    pub fn tokens(&self) -> &[char] {
+        &self.tokens
+    }
+
     /// Parses another analyzed text as the Category this Parse was made for.
     /// Unlike [`CompiledGrammar::parse_category`] with [`Parse::category`],
     /// this keeps a Category that Readings report under another Category's

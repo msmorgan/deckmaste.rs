@@ -41,21 +41,17 @@ It has no proc macros and no generated code: a grammar is data.
    (*At the beginning of each combat this turn, …*). The chart
    carries the first conjunct's `head_final` across the coordinator so that
    the last conjunct's item records it. `best_ranked(k)` returns the keys too,
-   `CompiledGrammar::ranking_key` computes a given Reading's key, and
-   `cheapest_tier()` counts the Derivations sharing the least key without
+   the tree-side `CompiledGrammar::ranking_key` (feature
+   `tree-ranking-key`, enabled for tests only) computes a given Reading's key to
+   check the forest's, and `cheapest_tier()` counts the Derivations sharing the least key without
    building trees. `derivation_count()` counts trees without building
    them. `readings()` builds them all and is for tests. A Derivation never
    contains its own Constituent, so a unary cycle adds none of its own and
    hides none of its finite siblings.
-   `segments(frame)` splits the forest into Segments without building trees:
-   a `SegmentFrame` (`CompiledGrammar::segment_frame`) names the outer
-   Categories the walk descends through and the punctuation ignored at a
-   Segment's edges. The first Constituent on each path of another Category,
-   or a leaf of an outer Production, is a Segment, identified by its extent;
-   its count is the Derivations of everything reached there. The result is the
-   Segments only when every Derivation divides the text the same way and their
-   counts multiply to `derivation_count()`; otherwise it says which failed
-   (`NotSegmentable`). The walk keeps at most 64 segmentations per node.
+   The forest is readable from outside through `PackedForest`'s accessors
+   (`roots`, `node_span`, `node_items`, `item_families`, `leaf_span`),
+   `Parse::count_node` and the `walk` memo; `deckmaste_english_v4`'s census
+   builds its Segments on them.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.

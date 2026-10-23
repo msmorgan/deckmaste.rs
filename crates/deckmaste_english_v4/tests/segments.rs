@@ -1,6 +1,9 @@
 //! The Segment walk over a Packed Forest: a parse's top-level stretches and
 //! their Derivations, over small hand grammars.
 
+use deckmaste_english_v4::segments::NotSegmentable;
+use deckmaste_english_v4::segments::SegmentFrame;
+use deckmaste_english_v4::segments::Segmentation;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Lexicon;
@@ -10,8 +13,6 @@ use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::FrameCatalog;
 use deckmaste_syntax::Grammar;
 use deckmaste_syntax::LoadError;
-use deckmaste_syntax::NotSegmentable;
-use deckmaste_syntax::Segmentation;
 
 fn word(id: &str, lemma: &str, category: Category) -> Lexeme {
     Lexeme::invariant(
@@ -66,8 +67,11 @@ const SEQUENCE: &str = r#"(
 
 fn segments(grammar: &CompiledGrammar, text: &str) -> (u128, Segmentation) {
     let parse = grammar.parse(&lexicon(), text);
-    let frame = grammar.segment_frame(OUTER, EDGES).unwrap();
-    (parse.derivation_count(), parse.segments(&frame))
+    let frame = SegmentFrame::resolve(grammar, OUTER, EDGES).unwrap();
+    (
+        parse.derivation_count(),
+        deckmaste_english_v4::segments::segments(&parse, &frame),
+    )
 }
 
 fn counts(segmentation: &Segmentation) -> Vec<(&str, u128)> {
@@ -164,7 +168,7 @@ fn several_outer_structures_over_one_segmentation_are_reported() {
 fn an_outer_category_must_be_declared() {
     let grammar = bind(SEQUENCE);
     assert!(matches!(
-        grammar.segment_frame(&["Document", "Paragraphs"], EDGES),
+        SegmentFrame::resolve(&grammar, &["Document", "Paragraphs"], EDGES),
         Err(LoadError::Invalid(message)) if message.contains("Paragraphs")
     ));
 }

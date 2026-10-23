@@ -16,9 +16,12 @@ mod laws;
 mod normal_form;
 mod prediction;
 mod reading;
+#[cfg(feature = "tree-ranking-key")]
+mod tree_key;
 mod step;
-mod walk;
+pub mod walk;
 
+pub use chart::ChildRef;
 pub use chart::Metrics;
 pub use chart::PackedForest;
 pub use chart::Parse;
@@ -29,13 +32,9 @@ pub use grammar::Grammar;
 pub use laws::RealizationFault;
 pub use reading::AdmissionError;
 pub use reading::Constituent;
-pub use reading::NotSegmentable;
 pub use reading::RankingKey;
 pub use reading::Reading;
 pub use reading::ReadingNode;
-pub use reading::Segment;
-pub use reading::SegmentFrame;
-pub use reading::Segmentation;
 pub use step::Gap;
 
 /// Why a grammar or frame catalog cannot be loaded or bound.

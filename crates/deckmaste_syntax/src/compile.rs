@@ -157,7 +157,9 @@ impl CompiledGrammar {
         self.productions.iter().map(|p| p.id.as_str())
     }
 
-    pub(crate) fn category_id(&self, name: &str) -> Option<usize> {
+    /// The index of a Category, by name.
+    #[must_use]
+    pub fn category_id(&self, name: &str) -> Option<usize> {
         self.category_ids.get(name).copied()
     }
 }

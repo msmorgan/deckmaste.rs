@@ -64,7 +64,7 @@ Forest, the number of trees: the census's no-Reading verdict and the judgment
 evaluator's 4096-derivation limit use it, and `total_derivations` sums it. It
 multiplies, so a unit of several sentences, each a little ambiguous, can count
 in the thousands. The unit is therefore also split into its **Segments**
-(`OUTER_CATEGORIES`): the walk descends from the root through the line, its
+(`OUTER_CATEGORIES`; the walk is `segments::segments`): the walk descends from the root through the line, its
 top-level sentence sequence, activation costs, labels, modes and modal headers,
 and a Keyword Line's items and parameters, and each first Constituent of another
 Category (always a `Sentence`), or leaf of an outer Production, is a Segment,

@@ -25,5 +25,5 @@ Implements owner-rulings-12 findings F4, F5, F6 and F8 (the oncology re-scan).
 
 Standard constraints apply.
 
-1. **Census delta**: not yet measured.
-2. **Judgment set**: not yet measured.
+1. **Census delta** (`uuplusuywuny`, full corpus): faces read 28,801 → 28,801; total Readings 245,781 → 245,781; Surplus 106,817 → 106,817; cheapest-tier line unchanged (singleton in 15,624 of 18,344 ambiguous units, summed 21,723, largest 8); `strata` output byte-identical. Lost faces: none.
+2. **Judgment set** (`uuplusuywuny`): all enforced judgments hold (`cargo test -p deckmaste_english_v4`); `strata --check` passes.

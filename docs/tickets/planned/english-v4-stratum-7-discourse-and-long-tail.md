@@ -129,6 +129,23 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   catalog idiom, a general production, or an explicit documented deferral
   (`unread`).
 
+## Coverage S7 intrinsically needs
+
+The round-12 re-scan (owner ruling F8) found four constructions that S7 cannot
+read without. They are planned as coverage under `docs/decisions/english-v4.md`
+§4.4 item 3, not as suppression, after the comma-scope and
+delimited-complement fixes (F1, F2) land:
+
+1. Stranded auxiliaries, VP ellipsis and pro-VP: *if you do*, *if they don't*,
+   *if you can't*, *if it isn't* (CGEL, Ch. 17 §3.1, pp. 1519–1524), and
+   *do so* / *done so*.
+2. Verbless *with*/*without* small-clause supplements: *with X equal to …*,
+   *with it tapped* (CGEL, Ch. 14 §10, p. 1267).
+3. Discourse connectives and replacement correlatives: clause-initial *Then*,
+   *Otherwise*, *After that*; clause-initial or clause-final *instead*;
+   *instead of* + Noun Phrase or Gerund.
+4. Delimited quoted-ability spans, and nominal (Noun Phrase) apposition.
+
 ## Gate
 
 - 100% of non-deferred Vintage-legal Oracle corpus units across Strata 0–7 parse

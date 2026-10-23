@@ -18,3 +18,4 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 ron = "0.12.1"
+deckmaste_syntax = { version = "0.1.0", path = "../deckmaste_syntax", features = ["tree-ranking-key"] }
