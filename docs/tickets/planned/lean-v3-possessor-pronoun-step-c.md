@@ -50,37 +50,51 @@ Found by grepping for `pronounResolved` and the §1.5 witnesses:
   `brokenVisageSelectsTokenThenDestroyedCreature`: both are spelled `getsPt it (.set (powerOf
   (that creature))) …`, so the pronoun is the argument of `gets`.
 
-## Recommendation (proposed, not ruled)
+## Ruling (owner, 2026-10-22, batch 4): option (2)
 
-Step `C` should not apply when the pronoun is a possessor inside a different argument from the
-one holding "that <noun>": "its controller creates copies of that creature". A possessor does
-not c-command the other argument, as in "His mother loves John", where "his" can be John. In the
-checker, `C` would then ignore a `pronounResolved` mark set from a possessor slot
-(`possessorOf`, `statOf`, `inArgSlot = false`). That needs the mark to record how the referent
-was resolved.
+**Step `C` becomes a preference, not an exclusion.** Exclude a referent already taken by a
+same-clause pronoun only when another candidate remains; otherwise allow coreference. This
+preserves *Kalitas* (there is a second creature for "that creature" to take, so `C` still removes
+the token) and admits *Saw in Half* (there is none, so the pronoun's referent stays). Both
+`demonstrativeRefusesWhenEveryCandidateExcluded` and the ADR §1.5 text change with it.
 
-Whether it keeps the pins:
+**Option (1) is rejected**, the possessor exemption ("a possessor does not c-command the other
+argument"). Why: *Kalitas*'s "Its power is equal to that creature's power" has "Its" as a
+possessor too. It does not c-command "that creature" either, yet the two are disjoint. A
+structural possessor exemption would therefore let `R1` pick the token for "that creature" in a
+literal spelling such as `powerOf it` beside `powerOf (that creature)`, and Kalitas and Broken
+Visage would stay correct only because they are spelled with `getsPt it`. The c-command rationale
+predicts coreference in Kalitas as well. What separates the two cards is whether a second
+candidate exists, which is exactly what the preference reads.
 
-- **The Lean pins all survive.** None resolves its pronoun from a possessor slot. In the two
-  DrtResolution pins the mark is set by hand, and it would have to default to the argument
-  case.
-- **The English motivation does not.** In the Oracle text of *Kalitas* and *Broken Visage*,
-  "Its power is equal to that creature's power" has "Its" as a possessor too. It does not
-  c-command "that creature" either, yet the two are disjoint. A structural possessor exemption
-  would let `R1` pick the token for "that creature" in a literal spelling such as `powerOf it`
-  beside `powerOf (that creature)`.
-- **So the c-command rationale predicts coreference in Kalitas as well.** What separates the two
-  cards is that Kalitas has a second creature for "that creature" to take, and Saw in Half has
-  none.
+## Change
 
-The owner should rule between:
+- `resolveCandidates` (`Check/Words.lean:1250`): `C` is the `afterC` line of the
+  `.word _ | .unionHalf _` arm (`:1273-1276`): `afterA.filter (fun b => !b.pronounResolved)`.
+  Replace it with the preference: keep `afterA` when the filter would leave nothing. Rule `A`
+  (clause-mates, when `inArgSlot`) is unchanged and applies first; the plural
+  `preferOrdinary` step and `R1` (most recently introduced) follow. The `.bare | .atSlot` arm has
+  no `C`.
+- Add *Saw in Half* to `Cards/Anaphora.lean` with its Oracle wording ("its controller"), and
+  amend `docs/decisions/semantics-v3.md` §1.5 Stage 2 ("Anti-coreference with same-clause
+  pronoun") to say `C` is a preference.
+- Keep the glossary untouched unless it states `C` as an exclusion (grep `pronounResolved` and
+  "Anti-coreference" in `docs/contexts/game-model/CONTEXT.md`).
 
-1. **The possessor exemption, as stated above.** Kalitas and Broken Visage then stay correct only
-   because they are spelled with `getsPt it`.
-2. **`C` as a preference rather than an exclusion.** If `C` would leave no candidate, keep the
-   pronoun's referent. This keeps Kalitas and fixes Saw in Half. It rewrites
-   `demonstrativeRefusesWhenEveryCandidateExcluded`, whose candidate 1 is excluded only by `C`,
-   to assert resolution to 1.
+## Tests
 
-The landing adds *Saw in Half* to `lean/Semantics/Cards/Anaphora.lean` with its Oracle wording
-("its controller"), and adds the ADR §1.5 step-`C` amendment.
+- `demonstrativeRefusesWhenEveryCandidateExcluded` (`Proofs/DrtResolution.lean:65`): **rewritten**
+  (it asserted `= []`, which pinned the exclusion option (2) replaces). Its candidate 1 is excluded
+  only by `C`, and candidate 2 by `A`; it is renamed
+  `demonstrativeKeepsPronounReferentWhenNoOtherCandidate` and asserts `= [1]`.
+- `demonstrativeExcludesPronounReferentBeforeRecency` (`:60`): unchanged and still passes,
+  because another candidate remains.
+- `kalitasSelectsTokenThenDestroyedCreature` and `brokenVisageSelectsTokenThenDestroyedCreature`
+  (`Proofs/DrtWitnesses.lean:23` and below), `pronoun_and_demonstrative_split` (`Check.lean:152`):
+  unchanged, must pass.
+- `okSawInHalf` (new): the card spelled in full, with `instruct (controllerOf it) (create 2
+  (copyOf (that creature) ex) [])`, checks clean; the three "that creature" mentions all read the
+  destroyed creature.
+- `kalitasLiteralPossessorStillDisjoint` (new): the literal `powerOf it` beside `powerOf (that
+  creature)` in Kalitas's shape still resolves "that creature" to the older creature, not the
+  token (the pin that distinguishes option (2) from the rejected option (1)).

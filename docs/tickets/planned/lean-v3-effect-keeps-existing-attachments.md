@@ -11,7 +11,8 @@ Lean first (`lean/Semantics/`); the Rust mirror follows the usual cutover and is
 
 A dedicated ticket for a construct that limits what a protection or enchantment-prohibition effect
 does to Attachments already attached, then *Guardian Beast* and the cycle written in full. This
-ticket is that ticket. **The design below is proposed, not ruled.**
+ticket is that ticket. Questions 3a and 3b are ruled (batch 4, below); the remaining design bullets
+are proposals.
 
 ## Ruling on "already attached" (owner, 2026-10-22; the audit-ruling batch)
 
@@ -19,8 +20,8 @@ Question 3c, "already attached", is ruled **no change**. [CR#702.16n] ("this eff
 remove" this Aura or all Auras) and [CR#702.16p] (*Benevolent Blessing*'s "already attached to")
 are already told apart by the absence or presence of `attachedTo` on `retention`'s subject. The
 ruling named *Spectra Ward* against *Benevolent Blessing* and *Guardian Beast*. Questions 3a
-(keep `retention` or replace it) and 3b (scope the exemption to the conjunct it limits) stay open:
-the design bullets for them below are still proposals.
+(keep `retention` or replace it) and 3b (scope the exemption to the conjunct it limits) were open then and are ruled in batch 4 below:
+the other design bullets below remain proposals.
 
 Verified against the bench (2026-10-22), with corrections:
 
@@ -49,6 +50,34 @@ attached' is a point in time" below is read that way. The test
 is written with the rest of the 3a/3b design. *Guardian Beast* rests on [CR#303.4c,704.5m] (an
 Aura on an artifact that can't be enchanted is illegal), not on [CR#702.16p], which is about
 protection only.
+
+## Ruling (owner, 2026-10-22, batch 4): 3a yes, 3b "the part it limits"
+
+- **3a: yes, keep `StaticSpec.retention`.** Document it as an exemption from one state-based
+  consequence of the effect [CR#702.16n,702.16p,303.4c,704.5m], with a checker law and a template
+  that says so.
+- **3b: "the part it limits".** Apply `retention` to the specific clause it limits (*Guardian
+  Beast*'s "can't be enchanted"), not to the whole conjunction. So the exemption does not reach
+  "have indestructible" or "can't gain control of".
+- 3c was already ruled (no change; see the two sections above).
+
+Re-verified code locations (2026-10-22, this workspace; the earlier citations in this ticket have
+drifted):
+
+- `StaticSpec.retention (spec) (subject)`: `lean/Semantics/Abilities.lean:903`, no doc comment
+  (the comment above it belongs to `characteristicDefining`); Template `Templates.lean:2136-2137`;
+  checker arm `Check/Phrase.lean:3948-3951` (steps the spec, then the subject, enforces no law);
+  other readers `Check/Phrase.lean:1546` (`writesDefining`), `Check/CardFacts.lean:101`
+  (`namesThisDoor`), `Check/NumberSlots.lean:126`.
+- `guardianBeastProtection` / `okGuardianBeastProtection`: `Cards/Deontic.lean:768,776`. Its
+  conjunction is `conjunction [cant any (attachTo (allOf aura) them), abilityGrant them
+  indestructible, cant … (gainControlOf them)] (bare (and [non isCreature, isArtifact,
+  youControl]))`, under `onlyWhile (is thisCreature isUntapped)`.
+
+What 3b means in the AST: the conjunction keeps its three parts; `retention` wraps only the
+`cant any (attachTo (allOf aura) them)` part, with the subject "Auras already attached to those
+artifacts" (an `attachedTo` filter on the host, as *Benevolent Blessing*). Where `retention`'s
+spec is a conjunction member, the checker law below applies to that member.
 
 ## Problem
 
@@ -101,11 +130,12 @@ this construct ("each color", "each color among permanents you control", a flash
 sacrifice, a return-to-hand activation); a card that is blocked by something else is ticketed for
 that, not spelled around.
 
-## Design (proposed, not ruled)
+## Design (3a and 3b ruled in batch 4; the rest proposed)
 
-- **Decide first whether `retention` is the construct.** If it is, give it a doc comment naming
-  [CR#702.16n,702.16p,303.4c,704.5m], a checker law, and the template its role. If not, replace it
-  and re-spell the six cards on the replacement in the same landing.
+- **`retention` is the construct (3a, ruled).** Give it a doc comment naming
+  [CR#702.16n,702.16p,303.4c,704.5m] that says it is an exemption from one state-based consequence
+  of the effect, a checker law (below), and the template its role. Nothing is replaced, so the
+  six existing cards are not re-spelled.
 - **The carve-out is an exemption limited to one State-Based Cause.** The project already has this
   shape: *Lich*'s "you don't lose the game for having 0 or less life" is a `loseGame` prohibition
   with a state-based cause (`lean-zero-life-exemption-is-a-deontic`,
@@ -113,10 +143,9 @@ that, not spelled around.
   covers this effect's protection and leaves any other instance of protection to act as normal.
   The proposal is to model the carve-out as an exemption keyed to the effect that would remove the
   Attachment, not to the Attachment alone.
-- **What "this effect" ranges over is a question to settle, not assume.** In *Guardian Beast* the
+- **What "this effect" ranges over (3b, ruled): the clause it limits.** In *Guardian Beast* the
   exemption concerns only the "can't be enchanted" conjunct, not "indestructible" or "can't gain
-  control". Decide whether the construct wraps the whole conjunction (as `retention` does today),
-  or attaches to the conjunct it limits.
+  control". `retention` attaches to that conjunct, not to the whole conjunction.
 - **(Ruled no change for the term, 2026-10-22; see the second-batch ruling above.)** **"Already attached" is a point in time, not a filter** (owner-acknowledged, second batch). [CR#702.16p] reads the Attachments when
   the effect starts to apply. `attachedTo it` as written in *Benevolent Blessing* reads the current
   state. The design must say which it models and pin the difference with an Aura attached after the
@@ -130,14 +159,17 @@ that, not spelled around.
 
 ## Actionable change
 
-1. Settle the design above, with the owner where a ruling is needed (the STOP is on "what the
-   exemption ranges over" and "retire or keep `retention`"; "already attached" is ruled, see
-   the 2026-10-22 section).
-2. Implement the construct in `Abilities.lean`, `Templates.lean`, `Check/` and any plugin
-   definition it touches (`cargo xtask lean check` if plugin definitions change).
-3. Spell *Guardian Beast* in full and replace `guardianBeastProtection` with the card.
-4. Spell the nine unspelled cycle cards, and re-spell the six existing ones if `retention` is
-   replaced.
+1. Nothing is left for the owner: 3a, 3b and 3c are ruled. (The remaining design bullets are the
+   implementer's to settle; STOP only if one contradicts a ruling.)
+2. Keep `StaticSpec.retention`. Document it (doc comment on the constructor, Template doc comment)
+   as an exemption from one state-based consequence of the effect
+   [CR#702.16n,702.16p,303.4c,704.5m]. Add the checker law in the `Check/Phrase.lean:3948` arm:
+   the spec must be a clause that would remove an Attachment (a protection grant, or a
+   "can't be enchanted" / "can't be equipped" prohibition), and the subject must be an Attachment
+   of the effect's host. Name the reason codes.
+3. Spell *Guardian Beast* in full with `retention` on the "can't be enchanted" clause only, and
+   replace `guardianBeastProtection` with the card.
+4. Spell the nine unspelled cycle cards. The six existing ones keep their spelling.
 5. `docs/decisions/semantics-v3.md`: record the construct where static specs are listed, with the
    rules above.
 
@@ -160,7 +192,11 @@ Each asserts the intended analysis, not a count (CLAUDE.md "Assurance").
 - `alreadyAttachedIsReadWhenTheEffectStarts` ([CR#702.16p]): the *Benevolent Blessing* shape
   distinguishes an Attachment present at the start from one attached later.
 - `guardianBeastExemptsOnlyTheEnchantProhibition`: the exemption does not reach "have
-  indestructible" or "can't gain control of" (rewritten if the design wraps the whole
-  conjunction, with the reason for the change named).
+  indestructible" or "can't gain control of" (3b, ruled): `retention` is on the
+  `cant any (attachTo …)` member, and a variant with `retention` wrapping the whole conjunction
+  is refused by the law.
+- `retentionLawRefusals`: a `retention` whose spec removes no Attachment is refused, and one whose
+  subject is no Attachment of the effect's host is refused (the two refusal pins above, named
+  here for the 3a law).
 - A reading pin that the exemption's referent ("those artifacts", "this Aura", "it") resolves to
   the effect's own subject and host, not to the nearest unrelated mention.

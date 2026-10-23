@@ -11,15 +11,26 @@ ordinal unification; this one does the deletion.
 
 ## Goal
 
-Design a lookback span for the object's own current-incarnation casting or activation [CR#400.7].
+Add a lookback span for the object's own current-incarnation casting or activation [CR#400.7].
 The `.unanchoredLookback`, participial (`participialDescription`) and uniquifying refusals must
 exempt it. Then fold `Predicate.castBy`, `castFrom` and `activatedBy` into `Predicate.did`:
 `did player (cast which)`, `did any (cast which (from_ := some zone))`, `did player (activate which)`.
 
-## Candidate design (analysis from the B6 ticket; NOT YET RULED)
+## Ruling (owner, 2026-10-22, batch 4): approved
+
+Add `LookbackSpan.thisObject` for the object's current existence [CR#400.7]. Fold `castBy`,
+`castFrom` and `activatedBy` into `Predicate.did … (within := some .thisObject)`. Keep duration
+spans for history-window lookbacks ("a spell you cast this turn"). The design below is approved.
+
+## Design (approved)
 
 Everything below was evaluated by reading code on 2026-10-22; the implementer confirms by running
-pins and the owner rules the design before it lands. Paths are under `lean/Semantics/`.
+pins. Paths are under `lean/Semantics/`. Line numbers drift: re-verified 2026-10-22 in this
+workspace, `LookbackSpan` is `Abilities.lean:131-139`, `DidClause` `:149`, `stepLookbackSpanWith`
+`Check/Phrase.lean:963-971` (add `.thisObject` beside `.thisWay | .triggering` at `:971`),
+`DidClause.anchor?` `Check/Phrase.lean:239`, `Period.thisObject` `Words.lean:627`,
+`Predicate.castBy`/`castFrom`/`activatedBy` `Abilities.lean:230,231,306`. The Defect-side claims
+below hold; only the numbers moved.
 
 - Add `thisObject` to `LookbackSpan` (`Abilities.lean:135-144`), reusing the meaning of
   `Period.thisObject` (`Words.lean:620-622`: the object's own existence, until it changes zones and
