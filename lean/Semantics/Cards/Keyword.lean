@@ -946,19 +946,61 @@ def borrowedMalevolence : Spelled := spelled <| singleFacedCard
           [ get (target isCreature) (up 1) (up 1) untilEndOfTurn,
             get (target isCreature) (down 1) (down 1) untilEndOfTurn ]) ] }
 
-/-- New Perspectives -/
+/-- New Perspectives: "As long as you have seven or more cards in hand, you may pay {0} rather
+than pay cycling costs." Cycling is an activated ability [CR#702.29a], and an alternative cost
+replaces an activation cost as it replaces a spell's mana cost [CR#118.9,602.2b]. -/
 def newPerspectivesCyclingAltCost : Ability :=
-  static (altCost (allOf (abilityHead (.keyword cycling))) [generic 0])
+  static (onlyWhile (altCost (allOf (abilityHead (.keyword cycling))) [generic 0])
+    (compareAmt (countOf (cardIn yourHand)) .atLeast 7))
 theorem okNewPerspectivesCyclingAltCost :
     Ability.check (DRS.ofList []) newPerspectivesCyclingAltCost = [] := by decide
-/-- Thick-Skinned Goblin -/
-def thickSkinnedGoblinEchoAltCost : Ability :=
-  static (altCost
-    (allOf (and [ abilityHead (.keyword echo),
-                   abilityOf (allOf (and [isPermanent, youControl])) ]))
-    [generic 0])
-theorem okThickSkinnedGoblinEchoAltCost :
-    Ability.check (DRS.ofList []) thickSkinnedGoblinEchoAltCost = [] := by decide
+/-- Whether an ability is an alternative cost that applies only "as long as" a condition holds. -/
+def altCostAsLongAs : Ability → Bool
+  | .static (.conditional (.altCost ..) _ .asLongAs) => true
+  | _ => false
+/-- The condition-less spelling drops the printed "as long as you have seven or more cards in
+hand": the card's alternative cost sits under a `conditional … .asLongAs`, which that spelling
+lacks. -/
+theorem badNewPerspectivesWithoutCondition :
+    altCostAsLongAs newPerspectivesCyclingAltCost = true ∧
+      altCostAsLongAs (static (altCost (allOf (abilityHead (.keyword cycling))) [generic 0]))
+        = false := by decide
+def newPerspectives : Spelled := spelled <| singleFacedCard
+  { name := "New Perspectives", cost := [generic 5, pip .blue], types := [.enchantment],
+    text :=
+      [ when (does thisEnchantment enter) (draw 3),
+        newPerspectivesCyclingAltCost ] }
+
+/-- Thick-Skinned Goblin: "You may pay {0} rather than pay the echo cost for permanents you
+control." Echo's cost is paid while its triggered ability resolves [CR#702.30a], neither a
+spell's mana cost nor an activation cost, so it is no alternative cost: the payment of echo's
+cost (the `keyword` field) is the event a replacement watches, and paying {0} is what may happen
+in its place, the shape an "instead" effect takes [CR#614.1a]. Declining the `may` leaves the
+echo cost to be paid. -/
+def thickSkinnedGoblinEchoPayment : Ability :=
+  static (replace
+    (would you (pay anyCost .once .paid (some (allOf (and [isPermanent, youControl])))
+      (some echo)))
+    (instead (may (pay [generic 0] .once))))
+theorem okThickSkinnedGoblinEchoPayment :
+    Ability.check (DRS.ofList []) thickSkinnedGoblinEchoPayment = [] := by decide
+/-- A payment ties itself to a keyword's cost only when the keyword has one: "the flying cost"
+names nothing. -/
+theorem badPaymentOfCostlessKeyword :
+    Ability.check (DRS.ofList [])
+      (static (replace
+        (would you (pay anyCost .once .paid (some (allOf (and [isPermanent, youControl])))
+          (some flying)))
+        (instead (may (pay [generic 0] .once)))))
+      = [.costNameable] := by decide
+def thickSkinnedGoblin : Spelled := spelled <| singleFacedCard
+  { name := "Thick-Skinned Goblin", cost := [generic 1, pip .red], types := [.creature],
+    subtypes := [goblin, shaman],
+    text :=
+      [ thickSkinnedGoblinEchoPayment,
+        activated [pip .red]
+          (gain thisCreature (protection (hasColor .red)) untilEndOfTurn) ],
+    power := stat 2, toughness := stat 1 }
 /-- Fumiko the Lowblood -/
 def fumikoBushidoX : Ability :=
   static (conjunction [ abilityGrant thisCreature (bushido (letter .x)),

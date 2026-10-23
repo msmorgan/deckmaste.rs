@@ -862,7 +862,14 @@ mutual
     /-- An alternative cost [CR#118.9]: the controller of a spell `subject` names may pay `cost`
     rather than its mana cost, or cast it without paying its mana cost when `cost` is `none`. It
     grants no cast; a cast from another zone or at another time is a `can` permission whose
-    payment is `payingInstead` [CR#601.3]. A condition is the `onlyWhile` wrapper. -/
+    payment is `payingInstead` [CR#601.3]. A condition is the `onlyWhile` wrapper.
+    Activating an ability follows casting's steps, its activation cost standing in for the mana
+    cost [CR#602.2b], so `subject` may also name activated abilities ("you may pay {0} rather
+    than pay cycling costs"). A cost paid while a triggered ability resolves, as echo's "unless
+    you pay [cost]" is [CR#702.30a], is no alternative cost: a card that lets a player pay
+    something in its place is spelled as a replacement of that payment (`replace` over
+    `Action.pay`, whose `keyword` names the cost), not as an `altCost`. The checker does not
+    police this: `altCost` refuses nothing for the ability class its subject names. -/
     | altCost (subject : NounPhrase) (cost : Option Cost)
     /-- An additional cost to cast the spell [CR#601.2f]: `offered` when the player may decline
     it ("you may pay"), and `times` how often it may be paid, as squad's and replicate's "any
