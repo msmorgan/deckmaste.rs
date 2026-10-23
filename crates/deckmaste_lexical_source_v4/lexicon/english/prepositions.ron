@@ -151,7 +151,7 @@
     (lemma: "now", frames: [(complement: Intransitive, hosts: Predicate)]),
     // *a creature of the chosen type*; *end of turn*; *instead of putting*;
     // *your choice of flying, first strike, or trample*
-    (lemma: "of", marking: Some(Oblique), frames: [
+    (lemma: "of", frames: [
         (complement: NP, hosts: Nominal),
         // *the value of X*
         (complement: Amount, hosts: ComplementOnly),
@@ -194,7 +194,7 @@
     (lemma: "since", frames: [(complement: NP, hosts: Predicate)]),
     // Selected by comparatives: *greater than 2*; *more lands than you*;
     // *more than twice*.
-    (lemma: "than", marking: Some(Comparative), frames: [
+    (lemma: "than", frames: [
         (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
         (complement: AdvP, hosts: ComplementOnly),

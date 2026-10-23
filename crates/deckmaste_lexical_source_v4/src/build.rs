@@ -41,7 +41,6 @@ use crate::schema::FrameSpec;
 use crate::schema::IdiomPart;
 use crate::schema::NounEntry;
 use crate::schema::PrepositionFrameSpec;
-use crate::schema::PrepositionMarking;
 use crate::schema::VerbEntry;
 
 /// Lexemes and frames gathered from every data file, with frames still naming
@@ -373,21 +372,14 @@ impl Builder {
         &mut self,
         lemma: &str,
         frames: &[PrepositionFrameSpec],
-        marking: Option<PrepositionMarking>,
         source: Source,
     ) {
-        let mut lexeme = Lexeme::invariant(
+        let lexeme = Lexeme::invariant(
             format!("prep:{lemma}"),
             lemma,
             Category::Preposition,
             source,
         );
-        if let Some(marking) = marking {
-            lexeme.properties.features.insert(
-                "PrepositionMarking".into(),
-                Ident::new(&format!("{marking:?}")),
-            );
-        }
         let id = lexeme.id;
         self.push(lexeme);
         self.prepositions

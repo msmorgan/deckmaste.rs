@@ -367,19 +367,6 @@ pub struct PrepositionFrameSpec {
 pub struct PrepositionEntry {
     pub lemma: String,
     pub frames: Vec<PrepositionFrameSpec>,
-    /// What a grammaticised preposition marks, as the grammar's
-    /// `PrepositionMarking` feature.
-    #[serde(default)]
-    pub marking: Option<PrepositionMarking>,
-}
-
-/// A grammaticised preposition's role: *of* marks an oblique (*each of
-/// them*; CGEL, Ch. 5 §9.3, pp. 408–410), *than* a comparative Complement
-/// (*more than one*; Ch. 13 §2.1, p. 1104).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-pub enum PrepositionMarking {
-    Oblique,
-    Comparative,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

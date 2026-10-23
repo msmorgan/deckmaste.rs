@@ -55,7 +55,10 @@ Frames are written once, in active voice, naming prepositions by lemma:
 (an interrogative content clause: *decide whether …*, *choose which creatures
 attack*), `Amount` (*scry 2*), `TransitiveAmount` (*amass Zombies 2*),
 `Cost` (*waterbend {3}*), and for nouns, adjectives and determinatives
-`Complement(PP(["of"]))`. Prepositions declare each complement
+`Complement(PP([...]))` (*the number of …*, *all but one*). A determinative's
+partitive *of* oblique and comparative *than* Complement are the grammar's: it
+takes each as the sibling of a determinative of a lexical class
+(`PartitiveQuantifier`, `ComparativeQuantifier`). Prepositions declare each complement
 frame with its Host Category; `Intransitive` is an Intransitive Preposition
 (*out* in *phase out*). The loader checks that every named preposition is
 declared, that every verb has a frame, and that each frame has the shape of
@@ -83,9 +86,7 @@ Adjective grades are adjectives of their own with a `Grade` feature
 (`Plain`, `Comparative`, `Superlative`) that share their adjective's lemma
 (*greater* is a grade of *great*); a comparative grade selects a *than*
 Complement. A lemma that is itself comparative (*less*, *lesser*) declares its
-grade, and *same* declares `Equative`, which licenses its *as* Complement. A
-preposition may declare what it marks as `PrepositionMarking`: *of* an
-oblique, *than* a comparative Complement. Adverbs
+grade, and *same* declares `Equative`, which licenses its *as* Complement. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb` for a focusing or multiplying one, `BoundingAdverb`
 for one bounding a quantity, *at least*, *exactly*). Interrogative *how* is a Closed

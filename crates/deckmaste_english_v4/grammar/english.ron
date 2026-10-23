@@ -13,11 +13,9 @@
         // line (style guide §3 "Periods", §14 "Keyword abilities").
         "FinalParameter": ["Amount", "Cost", "SetOffCost", "SetOffCondition", "Quality", "Name", "SetOffAbility", "SetOffMeasure", "SetOffKeyword"],
         "Number": ["Singular", "Plural"],
-        // The Number of a head's *of* oblique.
+        // The Number of a noun's *of* oblique, or of a determinative's
+        // Complement (*all but one*, *more than one*).
         "ObliqueNumber": ["Singular", "Plural"],
-        // What a grammaticised preposition marks: an oblique (*of*) or a
-        // comparative Complement (*than*).
-        "PrepositionMarking": ["Oblique", "Comparative"],
         // An adjective's inflectional grade.
         "Grade": ["Plain", "Comparative", "Superlative", "Equative"],
         // Internal numeral–noun agreement survives external group respecification.
@@ -52,7 +50,7 @@
         // The NounKind of a head's *of* oblique.
         "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
         "Determination": ["Bare", "Overt"],
-        // The Determination of a determinative's *than* Complement.
+        // The Determination of a determinative's Complement (*than one*).
         "ObliqueDetermination": ["Bare", "Overt"],
         "AdjectivePosition": ["Attributive", "Predicative"],
         "Sign": ["Negative", "Zero", "Positive"],
@@ -212,17 +210,17 @@
         // one*, *choose both*), and a coordination of such (*one or more*).
         "FusableDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability", "NounKind"]),
         "FusedQuantity": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
-        // A determinative's partitive oblique has a Number of its own (*each of
-        // them*; CGEL, Ch. 5 §9.3, pp. 408–410).
-        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "PrepositionMarking", "ObliqueDetermination"]),
+        // A determinative's Complement has a Number of its own (*all but
+        // one*; CGEL, Ch. 5 §7.3, p. 375).
+        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination"]),
         // A determiner ending in the Targeting Marker, without the Number
         // the Marker has on its own, which an outer determiner or an
         // adjective gives it instead (*two target creatures*, *other target
         // creatures*).
-        "TargetingMarker": (category: Some("DeterminerPhrase"), features: ["Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "PrepositionMarking", "ObliqueDetermination"]),
+        "TargetingMarker": (category: Some("DeterminerPhrase"), features: ["Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination"]),
         // A Preposition Phrase's Number and Determination are its Complement's
         // (*up to two*, a determiner; *of them*, a partitive oblique).
-        "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "PrepositionMarking", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
+        "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
         "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"], gap: true),
@@ -369,8 +367,16 @@
         "BeVerb": ["verb:be", "verb:'re", "verb:aren't"],
         // Perfect *have* and its contracted and negative forms.
         "HaveVerb": ["verb:have", "verb:'ve", "verb:haven't"],
-        // Comparative determinatives a measure phrase modifies (*{1} less*).
+        // Comparative determinatives: they select a *than* Complement (*more
+        // than one*; CGEL, Ch. 13 §2.1, p. 1104), and a measure phrase
+        // modifies them (*{1} less*).
         "ComparativeQuantifier": ["det:more.count", "det:more.mass", "det:less", "det:fewer"],
+        // Determinatives that head a partitive with an *of* oblique in fused
+        // determiner-head function (*some of them*, *each of those
+        // creatures*; CGEL, Ch. 5 §9.3, pp. 408–410). *Any* and a quantity
+        // (*one of them*, *that many of those tokens*) have Productions of
+        // their own.
+        "PartitiveQuantifier": ["det:all.count", "det:all.mass", "det:another", "det:both", "det:each", "det:either", "det:fewer", "det:less", "det:many", "det:more.count", "det:more.mass", "det:most", "det:much", "det:neither", "det:none", "det:some"],
         "SuperlativeQuantifier": ["det:most", "det:least", "det:fewest"],
         "FusedQuantifier": ["det:both", "det:more.count", "det:everything", "det:this", "det:none"],
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
@@ -856,15 +862,15 @@
         // (*costs {1} less to cast*; CGEL, Ch. 13 §4.4, pp. 1125–1126).
         (name: "MeasuredComparativeHead", lhs: "NounPhrase", rhs: [Cat("modifier", "NounPhrase"), Class("head", "ComparativeQuantifier")],
             equations: [Carry("modifier.Case", "Plain"), Exclude("modifier.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // Partitive Noun Phrases: a determinative fused head with its selected
-        // *of* oblique (CGEL, Ch. 5 §9.3, pp. 408–410). The Noun Phrase takes
-        // its Number from the oblique, a distributive head's singular from the
-        // head, and *any* may be singular with a plural oblique (*if any of
-        // those cards shares a card type*).
-        (name: "Partitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase")],
-            equations: [Require("head.ComplementKind", "PP"), Require("head.PrepositionMarking", "Oblique"), Exclude("head.DeterminativeDistribution", "Distributive"), Agree("$.Number", "head.ObliqueNumber"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "DistributivePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase")],
-            equations: [Require("head.ComplementKind", "PP"), Require("head.ObliqueNumber", "Plural"), Exclude("head.DeterminativeDistribution", "Dependent"), Exclude("head.DeterminativeDistribution", "Independent"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // Partitive Noun Phrases: a determinative fused head and its *of*
+        // oblique, its sibling (CGEL, Ch. 5 §9.3, pp. 408–410). The Noun
+        // Phrase takes its Number from the oblique, a distributive head's
+        // singular from the head, and *any* may be singular with a plural
+        // oblique (*if any of those cards shares a card type*).
+        (name: "Partitive", lhs: "PartitiveHead", rhs: [Class("head", "PartitiveQuantifier"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Exclude("head.DeterminativeDistribution", "Distributive"), Agree("$.Number", "complement.Number"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "DistributivePartitive", lhs: "PartitiveHead", rhs: [Class("head", "PartitiveQuantifier"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Require("complement.Number", "Plural"), Exclude("head.DeterminativeDistribution", "Dependent"), Exclude("head.DeterminativeDistribution", "Independent"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Distributive *each* with a plural oblique takes plural agreement
         // by synesis (*Each of X target creatures you control connive*;
         // CGEL, Ch. 5 §18.2, p. 504); its Number is the oblique's, not the
@@ -883,21 +889,19 @@
         (name: "QuantityPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.DeterminativeDistribution", "Numerical"),
                 Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A determinative with its own Complement heads a partitive: an
+        // exceptive one (*all but one of them*, *all but 1 of that damage*;
+        // CGEL, Ch. 5 §7.3, p. 375) or a comparative one with a bare standard
+        // (*more than one of the same mana symbol*; Ch. 5 §11(d), p. 432), a
+        // count one over a count oblique, a non-count one over a non-count
+        // oblique. The Noun Phrase has the determiner's Number: the
+        // exceptive's own, the comparative's standard's.
+        (name: "ComplementedPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Require("head.ComplementKind", "PP"), Carry("head.Countability", "Count"), Agree("head.Countability", "complement.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "ComplementedMassPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Require("head.ComplementKind", "PP"), Carry("head.Countability", "Mass"), Carry("complement.Countability", "Mass"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A modified degree determinative (*that many of those tokens*); a
-        // bare one selects its oblique.
-        // An exceptive determinative heads a partitive (*all but one of
-        // them*, *all but 1 of that damage*): a count one over a count
-        // oblique, a non-count one over a non-count oblique (CGEL, Ch. 5 §7.3,
-        // p. 375).
-        (name: "ExceptivePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
-            equations: [Require("head.ComplementKind", "PP"), Exclude("head.PrepositionMarking", "Oblique"), Exclude("head.PrepositionMarking", "Comparative"), Carry("head.Countability", "Count"), Agree("head.Countability", "complement.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "ExceptiveMassPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
-            equations: [Require("head.ComplementKind", "PP"), Exclude("head.PrepositionMarking", "Oblique"), Exclude("head.PrepositionMarking", "Comparative"), Carry("head.Countability", "Mass"), Carry("complement.Countability", "Mass"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // A comparative determinative with a bare standard heads a partitive
-        // as an exceptive one does (*more than one of the same mana symbol*;
-        // CGEL, Ch. 5 §11(d), p. 432).
-        (name: "ComparativePartitive", lhs: "PartitiveHead", rhs: [Cat("quantifier", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
-            equations: [Require("quantifier.ComplementKind", "PP"), Carry("quantifier.PrepositionMarking", "Comparative"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.ObliqueKind", "AdvP"), Agree("quantifier.Countability", "complement.Countability"), Agree("$.Number", "quantifier.ObliqueNumber"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // bare one is a Partitive Quantifier.
         (name: "DegreePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Dependent"), Agree("head.Countability", "complement.Countability"),
                 Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
@@ -916,7 +920,7 @@
         (name: "ComparativeBoundedAmount", lhs: "Amount", rhs: [Cat("first", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
             equations: [Agree("$.QuantityNumber", "first.QuantityNumber")]),
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
-            equations: [Require("head.Number", "Singular"), Require("modifier.ComplementKind", "PP"), Require("modifier.Number", "Plural"), Exclude("modifier.ObliqueKind", "AdvP")], heavy: ["modifier"], cost: 2),
+            equations: [Require("head.Number", "Singular"), Require("modifier.ComplementKind", "PP"), Require("modifier.Countability", "Count"), Exclude("modifier.ObliqueKind", "AdvP")], heavy: ["modifier"], cost: 2),
         (name: "PostpositiveLocativeAdjective", lhs: "LocativeHead", rhs: [Cat("head", "LocativeHead"), Cat("modifier", "AdjectivePhrase")],
             equations: [], heavy: ["modifier"]),
         // A comparative adjective modified by a measure phrase (*2 greater*;
@@ -937,10 +941,21 @@
             equations: [Require("head.Number", "Plural"), Require("head.Countability", "Count"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComparativeMassDetermined", lhs: "NounPhrase", rhs: [Class("determiner", "ComparativeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Require("head.Number", "Singular"), Require("head.Countability", "Mass"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // A determinative modifying a comparative (*no more than one*, *many
-        // more than two*; CGEL, Ch. 13 §4.4, p. 1126).
-        (name: "ModifiedComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Lex("modifier", Determinative), Cat("head", "DeterminerPhrase")],
-            equations: [Require("head.ComplementKind", "PP"), Require("head.PrepositionMarking", "Comparative")]),
+        // A comparative determinative and its *than* Complement, siblings in
+        // a Determinative Phrase (*more than one*, *fewer than six*; CGEL,
+        // Ch. 13 §2.1, p. 1104). Its standard is a bare quantity, and the
+        // phrase has the standard's Number (*more than one creature*, *more
+        // than two lands*; Ch. 5 §11(d), p. 432), so the comparative is
+        // `quantifier`, not `head`, which would give it the comparative's own
+        // Number. A determined standard follows the head instead (*more lands
+        // than you*); a bounding frequency is a degree Adjunct's
+        // (ComparativeAdverb).
+        (name: "ComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("complement.Determination", "Bare"), Exclude("complement.ComplementKind", "AdvP"), Agree("$.Number", "complement.Number"), Agree("$.Countability", "quantifier.Countability"), Agree("$.DeterminativeDistribution", "quantifier.DeterminativeDistribution"), Require("$.ComplementKind", "PP"), Agree("$.ObliqueNumber", "complement.Number"), Agree("$.ObliqueKind", "complement.ComplementKind"), Agree("$.ObliqueDetermination", "complement.Determination")]),
+        // The same with a determinative modifying the comparative (*no more
+        // than one*, *many more than two*; CGEL, Ch. 13 §4.4, p. 1126).
+        (name: "ModifiedComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Lex("modifier", Determinative), Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("complement.Determination", "Bare"), Exclude("complement.ComplementKind", "AdvP"), Agree("$.Number", "complement.Number"), Agree("$.Countability", "quantifier.Countability"), Agree("$.DeterminativeDistribution", "quantifier.DeterminativeDistribution"), Require("$.ComplementKind", "PP"), Agree("$.ObliqueNumber", "complement.Number"), Agree("$.ObliqueKind", "complement.ComplementKind"), Agree("$.ObliqueDetermination", "complement.Determination")]),
         // Arithmetic: *plus* and *minus* head Preposition Phrases modifying a
         // quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
         // one*).
@@ -973,13 +988,17 @@
             equations: [Require("determiner.DeterminativeDistribution", "Multiplier"), Require("head.Determination", "Overt")]),
         (name: "AdverbAdverbial", lhs: "Adverbial", rhs: [Cat("head", "AdverbPhrase")], equations: [Require("head.AdjunctPosition", "End")]),
         (name: "FrequencyAdverbial", lhs: "Adverbial", rhs: [Cat("head", "TemporalNounPhrase")]),
-        // A comparative determinative and its *than* Complement as a degree
-        // Adjunct (*choose the same mode more than once*; CGEL, Ch. 13 §4.4).
-        // Its standard is a bounding frequency (*once*, *twice*, *three
-        // times*), which counts occasions (CGEL, Ch. 8 §9, p. 715), so *more*
-        // is count *many*'s comparative (Ch. 13 §4.1, p. 1123).
-        (name: "ComparativeAdverb", lhs: "AdverbPhrase", rhs: [Cat("head", "DeterminerPhrase")],
-            equations: [Require("head.ComplementKind", "PP"), Require("head.ObliqueKind", "AdvP"), Require("head.Countability", "Count"), Require("$.AdjunctPosition", "End")]),
+        // A comparative determinative and its *than* Complement, siblings in
+        // a degree Adjunct (*choose the same mode more than once*; CGEL, Ch.
+        // 13 §4.4), with or without a determinative modifying the
+        // comparative (*activate no more than twice*). Its standard is a
+        // bounding frequency (*once*, *twice*), which counts occasions (CGEL,
+        // Ch. 8 §9, p. 715), so *more* is count *many*'s comparative (Ch. 13
+        // §4.1, p. 1123).
+        (name: "ComparativeAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("complement.ComplementKind", "AdvP"), Require("head.Countability", "Count"), Require("$.AdjunctPosition", "End")]),
+        (name: "ModifiedComparativeAdverb", lhs: "AdverbPhrase", rhs: [Lex("modifier", Determinative), Class("head", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("complement.ComplementKind", "AdvP"), Require("head.Countability", "Count"), Require("$.AdjunctPosition", "End")]),
         // A comparative adjective premodifier with its *than* Complement after
         // the head, an indirect Complement (*greater power than this
         // creature*; CGEL, Ch. 13 §2.1, p. 1104; Ch. 5 §16.1, p. 445).
@@ -998,7 +1017,7 @@
         // scalar *less than* is the adjective's. The Noun Phrase has its
         // standard's Number, not the quantifier's (*more* is plural).
         (name: "ComparativeFusedHead", lhs: "NounPhrase", rhs: [Cat("quantifier", "DeterminerPhrase")],
-            equations: [Require("quantifier.ComplementKind", "PP"), Require("quantifier.PrepositionMarking", "Comparative"), Exclude("quantifier.ObliqueKind", "AdvP"), Exclude("quantifier.ObliqueKind", "FiniteClause"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.Countability", "Mass"), Agree("$.Number", "quantifier.ObliqueNumber"), Agree("$.Countability", "quantifier.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("quantifier.ComplementKind", "PP"), Exclude("quantifier.ObliqueKind", "AdvP"), Exclude("quantifier.ObliqueKind", "FiniteClause"), Require("quantifier.ObliqueDetermination", "Bare"), Exclude("quantifier.Countability", "Mass"), Agree("$.Number", "quantifier.ObliqueNumber"), Agree("$.Countability", "quantifier.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A comparative determinative fused head whose standard a dependent
         // determinative determines (*can't be more than the total number of
         // ...*; CGEL, Ch. 13 §4.5(a), p. 1132): *more* is the head and its
@@ -1133,17 +1152,19 @@
             equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Carry("nominal.ConjunctNumber", "Singular"), Require("nominal.Number", "Plural"), Agree("$.Number", "determiner.Number"),
                 Agree("determiner.Countability", "nominal.Countability"), Agree("$.NounKind", "nominal.NounKind"), Agree("$.Countability", "nominal.Countability"),
                 Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], transparent: ["nominal"]),
-        // A comparative quantity determines a count head that agrees with its
-        // *than* Complement (*more than one creature*), or a mass head (*less
-        // than three mana*). A singular noun both count and mass carries no
-        // Countability of its own, so it is not a mass head here. In a
-        // determiner the standard is a bare quantity (*than* + numeral): a
-        // determined standard comes after the head instead (CGEL, Ch. 5
-        // §11(d), p. 432), so *more than the total* determines nothing.
+        // A comparative or exceptive quantity determines a count head that
+        // agrees with its Complement (*more than one creature*, *all but one
+        // +1/+1 counter*), or a mass head of the determinative's Countability
+        // (*less than three mana*, *all but 1 life*). A singular noun both
+        // count and mass carries no Countability of its own, so it is not a
+        // mass head here. In a determiner the standard is a bare quantity
+        // (*than* + numeral): a determined standard comes after the head
+        // instead (CGEL, Ch. 5 §11(d), p. 432), so *more than the total*
+        // determines nothing.
         (name: "ComparativeQuantityCountDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Require("determiner.ComplementKind", "PP"), Require("determiner.PrepositionMarking", "Comparative"), Require("determiner.ObliqueDetermination", "Bare"), Require("head.Countability", "Count"), Agree("determiner.ObliqueNumber", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.ComplementKind", "PP"), Require("determiner.ObliqueDetermination", "Bare"), Require("head.Countability", "Count"), Agree("determiner.ObliqueNumber", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComparativeQuantityMassDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Require("determiner.ObliqueDetermination", "Bare"), Carry("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Require("determiner.ObliqueDetermination", "Bare"), Carry("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Free-choice *any* determines a nominal, but a quantificational noun
         // only without its oblique: with one, the Noun Phrase takes the
         // oblique's Number (*any number of target creatures become ...*).
@@ -1459,7 +1480,7 @@
         // count nominal (*the amount of [excess] damage dealt*).
         Valence(head: Noun, phrase: "PrepositionalNominal", obligatory: true),
         Valence(head: Adjective, phrase: "AdjectivePhrase", complement_kind: Some("ComplementKind")),
-        Valence(head: Determinative, phrase: "DeterminerPhrase", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
+        Valence(head: Determinative, phrase: "DeterminerPhrase", complement_kind: Some("ComplementKind"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueDetermination", "Determination")]),
         // A carrier noun distributes over a coordination of noun premodifiers
         // (`docs/oracle-style-guide.md` §7, Card types are common nouns and
         // attributive modifiers), and a later conjunct may carry its own
