@@ -37,10 +37,11 @@ The whole ruling is split across five tickets that land one at a time, in this o
 refuses a card holding one; `[internal_expansion]` only suppresses the generated primitive template
 (`Authoring.lean:246-253`). `KeywordLabel`, `AbilityWordLabel` and `Deed` are not
 `semantic_expression` today (`Words.lean:637` tags only `Delta` and `Subtype`), so this ticket tags
-them. **STOP-1 (narrowed, awaiting the owner)**: terms outside `spelled` (about 750 fragment
-definitions in `Cards/` and all of `Proofs/`) are not covered by the boundary; proposed: they are
-fixtures and keep no `known*` check. Every step except the final deletion of the `known*` checks
-proceeds either way.
+them. **Ruled (owner, 2026-10-23), STOP-1 accepted**: the authoring boundary
+(`Authoring.inspect` / `spelled`) covers only `Spelled` cards. Card fragments in `Cards/` and
+everything in `Proofs/` are fixtures and keep no `known*` check; a typo in a fixture surfaces when
+the full card is spelled. No `known*` check is kept for non-`spelled` input, so the deletion steps
+are not gated.
 
 ## Verified (2026-10-22, paths under `lean/Semantics/`)
 
@@ -92,7 +93,7 @@ proceeds either way.
    rules before relying on that)).
 4. Delete `keywordActionLabels`, `actFacts`, `abilityDeedFacts`, `deedFacts`, `ActFacts`,
    `knownAct`, `distinctActLabels`, `distinctAbilityDeedLabels` and the `.knownAct` refusal once
-   nothing raises it (after STOP-1). `abilityDeedFacts` is the one place the ruling is silent:
+   nothing raises it. `abilityDeedFacts` is the one place the ruling is silent:
    `Deed.ofAbility k` is a keyword ability (typed by B3), so its `knownAct` falls with it.
 
 ## Tests
