@@ -765,4 +765,31 @@ def kaerveksPurge : Spelled := spelled <| singleFacedCard
               (instruct this_
                 (dealDamage (powerOf (that creature)) (controllerOf (that creature)))) ]) ] }
 
+
+/-- Saw in Half: "Destroy target creature. If that creature dies this way, its controller creates
+two tokens that are copies of that creature, except their power is half that creature's power and
+their toughness is half that creature's toughness. Round up each time." The possessor "its" and
+every later "that creature" read the destroyed creature: step `C` of `AC>R1` only prefers a
+referent no same-clause pronoun took, and here no other creature remains. -/
+def sawInHalfBody : Action :=
+  sequentially
+    [ destroy (target isCreature),
+      doIf (did (that creature) die thisWay)
+        (instruct (controllerOf it)
+          (create 2
+            (copyOf (that creature)
+              (copyCharacteristics
+                { power := some (half .up (powerOf (that creature))),
+                  toughness := some (half .up (toughnessOf (that creature))) } false))
+            [])) ]
+def sawInHalf : Spelled := spelled <| singleFacedCard
+  { name := "Saw in Half", cost := [generic 2, pip .black], types := [.instant],
+    text := [spell sawInHalfBody] }
+/-- The card checks clean, and the destroyed creature (`1`) is the only referent any anaphor
+resolved: "its" and all three "that creature" mentions read it. -/
+theorem okSawInHalf :
+    Action.check (DRS.ofList []) sawInHalfBody = [] ∧
+      (stepAction 64 .postEvent .obj (DRS.ofList []) sawInHalfBody).1.resolvedIds = [1] := by
+  decide
+
 end Semantics.Cards

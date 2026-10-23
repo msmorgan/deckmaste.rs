@@ -1251,9 +1251,10 @@ def DRS.rankingRole (drs : DRS) (ref : Referent) : Nat :=
   ranks there, so "That creature deals damage equal to its power …" reads "its" as that
   creature; in an argument slot such a referent is a `J2` clause-mate and is already excluded.
 - Demonstratives / definite NPs (`.word _`, `.unionHalf _`) use `AC>R1`: filter by
-  `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), exclude any referent already resolved
-  by a bare pronoun in the current clause (`C`, `pronounResolved == true`), and pick the most
-  recently introduced candidate (`R1`, highest `id`).
+  `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), prefer a referent not already resolved
+  by a bare pronoun in the current clause (`C`, `pronounResolved == true`: such a referent is
+  excluded only when another candidate remains, so "its controller creates … copies of that
+  creature" corefers), and pick the most recently introduced candidate (`R1`, highest `id`).
 - Neither reaches an object a linked ability published (`Referent.linked`): only a Participial
   Description reads one back. -/
 def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
@@ -1277,7 +1278,10 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           wholeGroups (inClause.filter (drs.rankingRole · == minRank))
   | .word _ | .unionHalf _ =>
       let afterA := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
-      let afterC := afterA.filter (fun b => !b.pronounResolved)
+      -- `C` is a preference: a pronoun's referent stays a candidate when nothing else does.
+      let afterC := match afterA.filter (fun b => !b.pronounResolved) with
+        | [] => afterA
+        | kept => kept
       let afterC := if pl.isOne then afterC else preferOrdinary afterC
       match afterC with
       | [] => []
