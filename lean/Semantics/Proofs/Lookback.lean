@@ -655,6 +655,51 @@ theorem okThatArtifactPutIntoAGraveyardThisWay :
       (sequentially [destroy (target isArtifact),
         doIf (did you (putInto (that artifact) graveyard) thisWay) (draw 1)]) = [] := by decide
 
+/-- A target an optional body announces is chosen as the spell or ability is put on the stack,
+whether or not the player acts [CR#601.2c,603.3d,115.1], so it is an ordinary referent after the
+body (owner ruling 2026-10-22, narrowed 2026-10-23): "it" and "that <noun>" read it in a lookback
+and out of one, as announced. -/
+theorem optionalBodyTargetStaysVisible :
+    Action.check (DRS.ofList [])
+      (sequentially [may (destroy (target isArtifact)),
+        doIf (did it (putInto .actor graveyard) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (destroy (target isCreature)),
+        doIf (did (that creature) die thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (tap (target isArtifact)),
+        instruct this_ (dealDamage 3 (controllerOf (that artifact)))]) = [] := by decide
+
+/-- The target is read on both sides of `may`: in the "if you do" arm, when the player acts, and
+in the "if you don't" arm, when the player does not, as well as after both. A "this way" in the
+"if you don't" arm still reads no event of the body, which did not happen on that path. -/
+theorem optionalBodyTargetReadOnBothSides :
+    Action.check (DRS.ofList [])
+      (sequentially [may (destroy (target isArtifact))
+        (some (doIf (did it (putInto .actor graveyard) thisWay) (draw 1)))
+        (some (tap it))]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (destroy (target isCreature))
+        (some (doIf (did (that creature) die thisWay) (draw 1)))
+        (some (tap (that creature)))]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (tap (target isArtifact))
+        (some (instruct this_ (dealDamage 3 (controllerOf (that artifact)))))
+        (some (instruct this_ (dealDamage 3 (controllerOf (that artifact))))),
+        untap (that artifact)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (destroy (target isArtifact)) none
+        (some (doIf (did it (putInto .actor graveyard) thisWay) (draw 1)))]) =
+      [.thisWayUngrounded] := by decide
+
+/-- Only the announcement escapes as an ordinary referent: what the body did to the target stays
+participial-only, read once. After "you may exile target creature. If you don't, exile it", "the
+card exiled this way" reads the one creature, exiled on either path. -/
+theorem optionalBodyTargetStampReadOnce :
+    Action.check (DRS.ofList [])
+      (sequentially [may (exile (target isCreature)) none (some (exile it)),
+        tap (the (and [isCard, was (exile which) thisWay]))]) = [] := by decide
+
 /-- The recorded origin reads the permanent only when it is the battlefield. After "Exile target
 artifact, then put it from exile into a graveyard", the matched event moved the artifact from
 exile, so "that artifact" finds nothing, though the card once left the battlefield; after a mill
