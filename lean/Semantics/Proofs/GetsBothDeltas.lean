@@ -174,13 +174,13 @@ theorem diminishKeepsOneTargetForBothSetDeltas :
   · rfl
   · decide
 
-/-- The caster "you" is a mention, stepped before the target it restricts, so the target is
-referent 1. -/
+/-- The lookback "you cast this turn" steps its own referents, the caster "you" among them, before
+the target it restricts, so the target is referent 3. -/
 theorem cycleOfLifeKeepsItsCastCreatureTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
-    result.2 = [] ∧ creatureIdentity result.1 1 = true ∧
-      (result.1.findById? 1).map (·.det) = some .target ∧
-      Cards.cycleOfLife = get (target (.and [isCreature, castBy .you]))
+    result.2 = [] ∧ creatureIdentity result.1 3 = true ∧
+      (result.1.findById? 3).map (·.det) = some .target ∧
+      Cards.cycleOfLife = get (target (.and [isCreature, did you (cast which) soFarThisTurn]))
         (.set 0) (.set 1)
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))) := by
   refine ⟨by decide, by decide, by decide, rfl⟩

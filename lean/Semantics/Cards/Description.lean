@@ -247,7 +247,7 @@ def approachOfTheSecondSun : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (doIf
           (and
-            [ is this_ (castFrom yourHand),
+            [ is this_ (did any (cast which (from_ := yourHand)) thisObject),
               did you (cast (a
                 (and [ isSpell, isOther,
                            named "Approach of the Second Sun" ]))) thisGame ])

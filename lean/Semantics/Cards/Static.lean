@@ -115,8 +115,9 @@ def diminish : Spelled := spelled <| singleFacedCard
              untilEndOfTurn) ] }
 
 def cycleOfLife : Action :=
-  establishThroughout (getsBase (target (and [isCreature, castBy you])) 0
-                         1) (untilEvent (beginningOf .upkeep you nextTime))
+  establishThroughout
+    (getsBase (target (and [isCreature, did you (cast which) soFarThisTurn])) 0 1)
+    (untilEvent (beginningOf .upkeep you nextTime))
 theorem okCycleOfLife : Action.check (DRS.ofList []) cycleOfLife = [] := by decide
 
 def aboutFace : Spelled := spelled <| singleFacedCard
@@ -668,7 +669,7 @@ theorem okDeflectingSwatCommanderAltCost :
 def fistOfSuns : Spelled := spelled <| singleFacedCard
   { name := "Fist of Suns", cost := [generic 3], types := [.artifact],
     text :=
-      [ static (altCost (allOf (and [isSpell, castBy you]))
+      [ static (altCost (allOf (and [isSpell, did you (cast which) thisObject]))
           [pip .white, pip .blue, pip .black, pip .red, pip .green]) ] }
 
 /-- Rooftop Storm -/
@@ -676,7 +677,7 @@ def rooftopStorm : Spelled := spelled <| singleFacedCard
   { name := "Rooftop Storm", cost := [generic 5, pip .blue], types := [.enchantment],
     text :=
       [ static (altCost
-          (allOf (and [zombie, isCreature, isSpell, castBy you]))
+          (allOf (and [zombie, isCreature, isSpell, did you (cast which) thisObject]))
           [generic 0]) ] }
 
 /-- Voltage Surge's declaration -/

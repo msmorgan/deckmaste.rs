@@ -163,7 +163,8 @@ def carrionGrub : Spelled := spelled <| singleFacedCard
     power := stat 0, toughness := stat 5 }
 
 /-- Once Upon a Time -/
-def onceUponATimeFirstCast : Predicate := nthCastBy (.nth 1) you .game
+def onceUponATimeFirstCast : Predicate :=
+  did you (cast which) thisObject (ordinal := some (.nth 1, some .game))
 theorem okOnceUponATimeFirstCast : Predicate.checkAt .object (DRS.ofList []) onceUponATimeFirstCast = [] := by
   decide
 
@@ -593,7 +594,7 @@ def fblthp : Spelled := spelled <| singleFacedCard
           (replace (draw 1)
             (doIf (or
                 [ did it (enter (from_ := yourLibrary)) triggering,
-                  is it (castFrom yourLibrary) ])
+                  is it (did any (cast which (from_ := yourLibrary)) thisObject) ])
               (instead (draw 2)))),
         when (does (a isSpell) (target this_)) (shuffleInto this_) ],
     power := stat 1, toughness := stat 1 }
@@ -673,7 +674,7 @@ def troubleInPairsArms : Ability :=
 theorem okTroubleInPairsArms : Ability.check (DRS.ofList []) troubleInPairsArms = [] := by decide
 
 private def castRank? : Predicate → Option (Ordinal × Option Period)
-  | .castBy _ rank => rank
+  | .did clause => clause.ordinal
   | _ => none
 
 private def eventOrdinal? : GameEvent → Option (Ordinal × Option Period)
@@ -716,7 +717,7 @@ def hallowedMoonlight : Spelled := spelled <| singleFacedCard
   { name := "Hallowed Moonlight", cost := [generic 1, pip .white], types := [.instant],
     text :=
       [ spell (sequentially
-          [ replaceEvent (would (a (and [isCreature, not (castBy any)])) enter)
+          [ replaceEvent (would (a (and [isCreature, not (did any (cast which) thisObject)])) enter)
               (instead (exile it))
               untilEndOfTurn,
             draw 1 ]) ] }
@@ -738,7 +739,8 @@ def dontBlinkReplacement : Action :=
     (replace
       (wouldAny
         [ would (counted (orMore 1) isCreature) (enter (from_ := exileZone)),
-          would (counted (orMore 1) (and [isCreature, castFrom exileZone])) enter ])
+          would (counted (orMore 1) (and [isCreature,
+              did any (cast which (from_ := exileZone)) thisObject])) enter ])
       (instead (shuffleInto them)))
     untilEndOfTurn
 theorem okDontBlinkReplacement : Action.check (DRS.ofList []) dontBlinkReplacement = [] := by decide

@@ -314,7 +314,7 @@ def councilOfTheAbsolute : Spelled := spelled <| singleFacedCard
       [ static (entersChoosingFrom thisCreature .cardName
           (nameOfCard (not (or [isCreature, isLand])))),
         static (cant yourOpponents (cast (allOf (and [isSpell, named chosenName])))),
-        static (costShift (allOf (and [isSpell, named chosenName, castBy you]))
+        static (costShift (allOf (and [isSpell, named chosenName, did you (cast which) thisObject]))
           (less 2)) ],
     power := stat 2, toughness := stat 4 }
 

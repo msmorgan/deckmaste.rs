@@ -614,7 +614,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
     { name := "Arcane Proxy", cost := [generic 7], types := [.artifact, .creature],
       subtypes := [wizard],
       text :=
-        [ when (does thisCreature enter) (if_ := is it (castBy you))
+        [ when (does thisCreature enter) (if_ := is it (did you (cast which) thisObject))
             (sequentially
               [ exile
                   (target (and [ isInstantOrSorcery, isCard,

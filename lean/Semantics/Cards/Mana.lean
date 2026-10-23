@@ -201,7 +201,8 @@ def saheeliFiligreeMaster : Spelled := spelled <| singleFacedCard
           (getEmblem
             [ static (getsPt (allOf (and [isArtifact, isCreature, youControl]))
                 (up 1) (up 1)),
-              static (costShift (allOf (and [isArtifact, isSpell, castBy you])) (less 1)) ]) ],
+              static (costShift (allOf (and [isArtifact, isSpell,
+                  did you (cast which) thisObject])) (less 1)) ]) ],
     loyalty := stat 3 }
 
 def manalith : Spelled := spelled <| singleFacedCard
@@ -296,7 +297,8 @@ def mercadianBazaar : Spelled := spelled <| singleFacedCard
 def rootcoilCreeperGraveyardMana : Ability :=
   activated tapSymbol
     (addMana 2 (ofAnyColor .sameColor)
-      [spendOnly [toCast (and [isSpell, castFrom yourGraveyard])]])
+      [spendOnly [toCast (and [isSpell,
+          did any (cast which (from_ := yourGraveyard)) thisObject])]])
 theorem okRootcoilCreeperGraveyardMana : Ability.check (DRS.ofList []) rootcoilCreeperGraveyardMana = [] := by
   decide
 
@@ -575,14 +577,15 @@ def secretsOfTheDead : Spelled := spelled <| singleFacedCard
   { name := "Secrets of the Dead", cost := [generic 2, pip .blue], types := [.enchantment],
     text :=
       [ whenever (does you (cast (a
-        (and [isSpell, castFrom yourGraveyard]))))
+        (and [isSpell, did any (cast which (from_ := yourGraveyard)) thisObject]))))
           (draw 1) ] }
 
 def coalStoker : Spelled := spelled <| singleFacedCard
   { name := "Coal Stoker", cost := [generic 3, pip .red], types := [.creature],
     subtypes := [elemental],
     text :=
-      [ when (does thisCreature enter) (if_ := is it (castFrom yourHand))
+      [ when (does thisCreature enter)
+          (if_ := is it (did you (cast which (from_ := yourHand)) thisObject))
           (addMana 1 (manaOf [[.of .red, .of .red, .of .red]])) ],
     power := stat 3, toughness := stat 3 }
 
@@ -594,7 +597,7 @@ def vegaTheWatcher : Spelled := spelled <| singleFacedCard
       [ flying,
         whenever (does you (cast (a
           (and [isSpell, not
-          (castFrom yourHand)]))))
+          (did any (cast which (from_ := yourHand)) thisObject)]))))
           (draw 1) ],
     power := stat 2, toughness := stat 2 }
 

@@ -344,8 +344,6 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
                     (``Semantics.Action, `Semantics.Templates.Action.attachment) ]),
     (`bracketed, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.bracketed),
                    (``Semantics.Action, `Semantics.Templates.Action.bracketed) ]),
-    (`activatedBy, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.activatedBy),
-                     (``Semantics.Ability, `Semantics.Templates.activatedBy) ]),
     (`duringPart, [ (``Semantics.Timing, `Semantics.Templates.duringPart),
                     (``Semantics.Condition, `Semantics.Templates.Condition.duringPart) ]),
     (`did, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.did),
@@ -613,12 +611,6 @@ semantic_template targetsOnly (subject : NounPhrase) : Predicate := .targets sub
 /-- The four party roles, in rule order [CR#700.8]. -/
 semantic_template partyRoles : List Predicate :=
   [.hasSubtype cleric, .hasSubtype rogue, .hasSubtype warrior, .hasSubtype wizard]
-/-- "cast by <player>" -/
-semantic_template castBy (player : NounPhrase) : Predicate := .castBy player none
-/-- "the Nth spell <player> cast <period>" -/
-semantic_template nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : Period) :
-    Predicate :=
-  .castBy player (ordinal, some period)
 /-- "a color", "a creature type": a quality noun. -/
 semantic_template quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
@@ -637,8 +629,6 @@ semantic_template abilityOf (source : NounPhrase) : Predicate := .abilityOf sour
 /-- "that has triggered but not yet left the stack": waiting to be put on the stack, or on it
 [CR#113.7,603.3]. -/
 semantic_template triggeredNotLeftStack : Predicate := .triggeredNotLeftStack
-semantic_template Predicate.activatedBy (activator : NounPhrase) : Predicate :=
-  .activatedBy activator
 /-- "another spell" -/
 semantic_template anotherSpell : Predicate := .and [isSpell, .other]
 semantic_template Predicate.attachment (side : AttachmentSide)
@@ -646,7 +636,6 @@ semantic_template Predicate.attachment (side : AttachmentSide)
   .attachment side word counterpart
 semantic_template Predicate.bracketed (predicate : Predicate) : Predicate := .bracketed predicate
 semantic_template cardIn (zone : Location) : Predicate := .and [.isCard, .in_ zone]
-semantic_template castFrom (zone : Location) : Predicate := .castFrom zone
 /-- "<spell> was <designation>": the spell was a card holding it before it was cast, as "if this
 spell was foretold" [CR#702.143c]. -/
 semantic_template wasBeforeCast (designation : DesignationLabel) : Predicate :=
@@ -2232,16 +2221,21 @@ semantic_template within (d : Duration) (timing : Option Timing := none) : Lookb
 semantic_template thisWay : LookbackSpan := .thisWay
 /-- The event that triggered the enclosing ability [CR#603.2]. -/
 semantic_template triggering : LookbackSpan := .triggering
+/-- The described object's own current existence: "spells you cast", "if you cast it from your
+hand" read its own casting [CR#400.7]. -/
+semantic_template thisObject : LookbackSpan := .thisObject
 /-- A bare duration is the span over it: `did you attack soFarThisTurn`. -/
 instance [AuthoringContext] : Coe Duration LookbackSpan := ⟨(within · none)⟩
 /-- A bare duration is a written span over it, where the span is optional. -/
 instance [AuthoringContext] : Coe Duration (Option LookbackSpan) := ⟨fun d => some (within d none)⟩
 /-- "<subj> <action>ed [<within>]" as a description of the entity `which` stands for
 ("creatures that attacked this turn"); with no span written, the attributive participle a
-Participial Description reads ("the creature you sacrificed"). -/
+Participial Description reads ("the creature you sacrificed"). An `ordinal` picks out the
+`ordinal`th matching event ("the second spell you cast each turn"). -/
 semantic_template Predicate.did (subj : Subject) (action : Action)
-    (within : Option LookbackSpan := none) : Predicate :=
-  .did { subj, action, within }
+    (within : Option LookbackSpan := none) (ordinal : Option (Ordinal × Option Period) := none) :
+    Predicate :=
+  .did { subj, action, within, ordinal }
 /-- "if <subj> <action>ed <within>": a condition always reads a written span. -/
 semantic_template Condition.did (subj : Subject) (action : Action) (within : LookbackSpan) :
     Condition :=

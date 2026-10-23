@@ -246,42 +246,49 @@ theorem badPlayerCastComplement :
       = [.kindMismatch .object .player] := by
   decide
 
-/-- "target spell cast from your graveyard" -/
+/-- "target spell cast from your graveyard": the spell's own casting [CR#400.7]. -/
 theorem okCastFromGraveyard :
-    Predicate.checkAt .object (DRS.ofList []) (.castFrom (graveyardOf .you)) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList [])
+      (did any (cast which (from_ := graveyardOf you)) thisObject) = [] := by decide
 
 /-- "spells cast by a creature": a player casts a spell [CR#601.2]. -/
 theorem badCastByNonPlayer :
-    Predicate.checkAt .object (DRS.ofList []) (.castBy (a isCreature) none) =
+    Predicate.checkAt .object (DRS.ofList []) (did (a isCreature) (cast which) thisObject) =
       [.kindMismatch .player .object] := by decide
 
-/-- "spells they cast" and "spells it cast", with nothing for the pronoun to read. -/
+/-- "spells they cast", with nothing for the pronoun to read, and "spells it cast", whose "it"
+can read only the spell itself, which casts nothing: a player casts a spell [CR#601.2]. -/
 theorem badCastByUnresolvedPronoun :
-    Predicate.checkAt .object (DRS.ofList []) (.castBy they none) =
+    Predicate.checkAt .object (DRS.ofList []) (did they (cast which) thisObject) =
         [.anaphor (.word .player) .one 0] ∧
-      Predicate.checkAt .object (DRS.ofList []) (.castBy it none) = [.anaphor .bare .one 0] := by
+      Predicate.checkAt .object (DRS.ofList []) (did it (cast which) thisObject) =
+        [.kindMismatch .player .object] := by
   decide
 
 /-- "the second spell you cast each turn" counts within a turn; an object's own existence is no
-span an event ordinal counts within [CR#400.7]. -/
-theorem castByRankIsAnEventOrdinal :
-    Predicate.checkAt .object (DRS.ofList []) (.castBy .you (some (.nth 2, some .turn))) = [] ∧
-      Predicate.checkAt .object (DRS.ofList []) (.castBy .you (some (.nth 2, some .thisObject))) =
+span an event ordinal counts within [CR#400.7], though it is the span the lookback reads. -/
+theorem ownCastingRankIsAnEventOrdinal :
+    Predicate.checkAt .object (DRS.ofList [])
+        (did you (cast which) thisObject (ordinal := some (.nth 2, some .turn))) = [] ∧
+      Predicate.checkAt .object (DRS.ofList [])
+        (did you (cast which) thisObject (ordinal := some (.nth 2, some .thisObject))) =
         [.eventOrdinalPeriod .thisObject] := by decide
 
 /-- "spells cast from their graveyard", with nothing for "their" to read, is refused as "in
 their graveyard" is. -/
 theorem badCastFromUnresolvedZone :
-    Predicate.checkAt .object (DRS.ofList []) (.castFrom (graveyardOf they)) =
+    Predicate.checkAt .object (DRS.ofList [])
+        (did any (cast which (from_ := graveyardOf they)) thisObject) =
         [.anaphor (.word .player) .one 0] ∧
       Predicate.checkAt .object (DRS.ofList []) (.in_ (graveyardOf they)) =
         [.anaphor (.word .player) .one 0] := by decide
 
 /-- "abilities activated by a creature": a player activates an ability [CR#602.2]. -/
 theorem badActivatedByNonPlayer :
-    Predicate.checkAt .object (DRS.ofList []) (.activatedBy (a isCreature)) =
+    Predicate.checkAt .object (DRS.ofList []) (did (a isCreature) (activate which) thisObject) =
         [.kindMismatch .player .object] ∧
-      Predicate.checkAt .object (DRS.ofList []) (.activatedBy .you) = [] := by decide
+      Predicate.checkAt .object (DRS.ofList []) (did you (activate which) thisObject) = [] := by
+  decide
 
 /-- "… that was put somewhere from the battlefield this turn." -/
 theorem okPlacementOriginBattlefield :

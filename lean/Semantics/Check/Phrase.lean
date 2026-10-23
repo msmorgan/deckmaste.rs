@@ -155,7 +155,7 @@ def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
   | _ + 1, .inCombat .attackedBy _ => none
   | _ + 1, .isToken | _ + 1, .inCombat .. | _ + 1, .attachment ..
   | _ + 1, .currentFace _ => some .battlefield
-  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _
+  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _
   | _ + 1, .targets _ _ => some .stack
   | _ + 1, .isEmblem => some .command
   | _ + 1, .hasStatus _ => some .battlefield
@@ -458,7 +458,7 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
     b.seedsAbility n
-  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _
+  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _
   | _ + 1, .triggeredNotLeftStack => true
   | n + 1, .and ps => ps.any (fun p => p.seedsAbility n)
   | n + 1, .or ps | n + 1, .coord .andOr ps => !ps.isEmpty && ps.all (fun p => p.seedsAbility n)
@@ -969,7 +969,7 @@ def stepLookbackSpanWith (ops : StepOps) (drs : DRS) (sp : LookbackSpan) : DRS �
       | some tm => stepTimingWith ops drs1 tm
       | none => (drs1, [])
     (drs2, e1 ++ e2)
-  | .thisWay | .triggering => (drs, [])
+  | .thisWay | .triggering | .thisObject => (drs, [])
 
 def kindCheck (expected : Kind) (found : Option Kind) : List Refusal :=
   found.toList.flatMap fun k => refuse (k == expected) (.kindMismatch expected k)
@@ -2590,16 +2590,6 @@ def stepOps : Nat → StepOps
         | .counterKindOn src | .abilityOf src | .legalAttachment _ src =>
           let (drs', _, errs) := ops.np drs .other false src
           (drs', errs)
-        | .activatedBy activator =>
-          -- A player activates an ability [CR#602.2].
-          let (out, ids, errors) := ops.np drs .other false activator
-          (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)))
-        | .castBy caster rank =>
-          -- A player casts a spell [CR#601.2].
-          let (out, ids, errors) := ops.np drs .other false caster
-          (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)) ++
-            eventOrdinalRefusals rank)
-        | .castFrom zone => stepLocationWith ops drs zone
         | .other =>
           let kind := drs.relativeKind.getD .object
           match drs.contrastAnchor? kind drs.relativeTypes drs.relativeZone drs.relativeControl with

@@ -184,6 +184,53 @@ theorem lookbackOrdinalIsAnEventOrdinal :
                                     within := some (.duration thisGame none) }])) =
         [.uniquifying] := by decide
 
+/-! ## An object's own casting
+
+`thisObject` reads the described object's own casting or activation, in its current existence
+[CR#400.7]: "artifact spells you cast", "if you cast it from your hand", "spend this mana only to
+cast a spell from your graveyard". A history window ("a creature spell you cast this turn") keeps
+its duration span. -/
+
+/-- Foundry Inspector: "Artifact spells you cast cost {1} less to cast." -/
+theorem okArtifactSpellsYouCastReadsItsOwnCasting :
+    NounPhrase.check (DRS.ofList [])
+      (allOf (and [isArtifact, isSpell, did you (cast which) thisObject])) = [] := by decide
+
+/-- Coal Stoker: "When this creature enters, if you cast it from your hand, …" -/
+theorem okCastItFromYourHandReadsItsOwnCasting :
+    Ability.check (DRS.ofList [])
+      (when (does thisCreature enter)
+        (if_ := is it (did you (cast which (from_ := yourHand)) thisObject)) (draw 1)) = [] := by
+  decide
+
+/-- Rootcoil Creeper: "Spend this mana only to cast a spell from your graveyard." -/
+theorem okSpendOnlyToCastFromYourGraveyard :
+    Ability.check (DRS.ofList [])
+      (activated tapSymbol
+        (addMana 2 (ofAnyColor .sameColor)
+          [spendOnly [toCast (and [isSpell,
+            did any (cast which (from_ := yourGraveyard)) thisObject])]])) = [] := by decide
+
+/-- With no span written, "artifact spells you cast" is an attributive participle, which only a
+Participial Description reads. -/
+theorem badBareDidCastIsParticipial :
+    NounPhrase.check (DRS.ofList []) (allOf (and [isArtifact, isSpell, did you (cast which)])) =
+      [.participialDescription (.deed (.action "cast")) 0] := by decide
+
+/-- A `thisObject` lookback anchors no Participial Description, is no unanchored lookback, and,
+with an event ordinal, uniquifies a `the`-headed description ("the second spell you cast each
+turn"); without one it does not. -/
+theorem okThisObjectPassesTheLookbackChecks :
+    DidClause.anchor? { subj := .actor .you, action := cast .which, within := some .thisObject } =
+        none ∧
+      NounPhrase.check (DRS.ofList [])
+        (target (and [isSpell, did any (cast which (from_ := graveyard)) thisObject])) = [] ∧
+      NounPhrase.check (DRS.ofList [])
+        (the (and [isSpell,
+          did you (cast which) thisObject (ordinal := some (.nth 2, some .turn))])) = [] ∧
+      NounPhrase.check (DRS.ofList [])
+        (the (and [isSpell, did you (cast which) thisObject])) = [.uniquifying] := by decide
+
 /-! ## Unwritten spans
 
 A lookback with no span written is an attributive participle, read only by a Participial

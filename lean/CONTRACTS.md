@@ -240,7 +240,12 @@ occurrence (`thisWay`, every event of the named kind the current spell or abilit
 its costs included, read through the referents it stamped (Participial Descriptions, below), so
 *Rally the Horde*'s "each nonland card exiled this way" reads the cards all three of its exiles
 exiled, and *Sinister Concierge*'s "each card exiled this way" reads both cards its optional exile
-and its "if you do" exile exiled; `triggering`, the event that triggered the ability), which names no span. `Condition.did`, `Predicate.did` and
+and its "if you do" exile exiled; `triggering`, the event that triggered the ability), which names no span,
+or `thisObject`, the described object's own casting or activation in its current existence
+[CR#400.7] ("artifact spells you cast", "if you cast it from your hand"; a history window, "a
+spell you cast this turn", keeps its `duration`). There is no separate cast-by, cast-from or
+activated-by predicate: each is a `Predicate.did` over `cast` or `activate` with that span.
+`Condition.did`, `Predicate.did` and
 `Amount.tally` carry one; the `did` and `was` (agentless) templates write it, and only
 `Predicate.did`/`Predicate.was` may leave the span unwritten. An unwritten span is refused
 `unanchoredLookback` everywhere but a Participial Description (below). With no agent
