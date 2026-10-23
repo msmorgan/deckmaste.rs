@@ -487,9 +487,9 @@ theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch 
 def scapeshiftAfterSearch : DRS := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
-    (participialCandidates (.deed (.action "search")) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
+    (participialCandidates (.deed search) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 theorem scapeshiftOneSacrificedGroup :
-    (participialCandidates (.deed (.action "sacrifice")) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
+    (participialCandidates (.deed sacrifice) (some .many) none false scapeshiftAfterSearch).length = 1 := by decide
 
 /-- Scapeshift -/
 def scapeshift : Spelled := spelled <| singleFacedCard

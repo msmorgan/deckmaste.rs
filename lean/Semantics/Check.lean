@@ -1,4 +1,3 @@
-import Semantics.Check.Facts
 import Semantics.Check.Words
 import Semantics.Check.Keywords
 import Semantics.Check.Refusal
@@ -43,7 +42,7 @@ private def graveyardZone : Location :=
 /-- Representative multi-step definition 1: `explore` [CR#701.44a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
 def exploreDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "explore")) <|
+  .ownScope (some (.action "explore" true)) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .sequentially [
         .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
@@ -60,7 +59,7 @@ theorem explore_def_sound :
 /-- Representative multi-step definition 2: `connive` [CR#701.50a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` + `doIf`). -/
 def conniveDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "connive")) <|
+  .ownScope (some (.action "connive" true)) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [

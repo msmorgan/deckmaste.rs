@@ -338,7 +338,7 @@ private def afterEarlier (earlier : Action) : DRS :=
 theorem okShuffleLocusAtLibrary :
     Condition.check (afterEarlier shuffle)
       (.did { subj := (.actor .you)
-              action := (.enact (.action "shuffle") (.shuffle (.zone .library (some .you))) none (some yourLibrary))
+              action := (.enact shuffle (.shuffle (.zone .library (some .you))) none (some yourLibrary))
               within := some .thisWay })
       = [] := by
   decide
@@ -356,7 +356,7 @@ theorem searchLookbackCarriesItsScope :
 theorem badShuffleLocusAtGraveyard :
     Condition.check (afterEarlier shuffle)
       (.did { subj := (.actor .you)
-              action := (.enact (.action "shuffle") (.shuffle (.zone .library (some .you))) none (some (graveyardOf
+              action := (.enact shuffle (.shuffle (.zone .library (some .you))) none (some (graveyardOf
                 .you)))
               within := some .thisWay })
       = [.lookbackLocus] := by
@@ -435,8 +435,6 @@ theorem okThirdFromTop :
 theorem badZerothFromTop :
     Location.check (DRS.ofList []) (.fromEnd .top (.nth 0) (.zone .library none)) = [.ordinalNonZero] := by
   decide
-
-theorem copyParticipleUnwritten : participleOf (.core .copy) = none := by decide
 
 /-- "Copy target instant or sorcery spell twice. You may choose new targets for those spells."
 A copy of a spell is itself a spell [CR#707.10,112.1a], so the plural spell read reaches the

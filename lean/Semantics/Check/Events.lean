@@ -49,7 +49,7 @@ def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .bracketed body => body.deonticHeadOk n
-  | _ + 1, .ownScope (some (.action _)) _ => true
+  | _ + 1, .ownScope (some (.action _ _)) _ => true
   | n + 1, .ownScope none body => body.deonticHeadOk n
   | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .target .. | _ + 1, .attachment ..
   | _ + 1, .procedure .. | _ + 1, .copy .. | _ + 1, .draw .. | _ + 1, .changeLife ..

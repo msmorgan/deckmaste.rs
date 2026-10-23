@@ -258,6 +258,34 @@ example : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
       power := stat 1, toughness := stat 1, text := [keywordCosting ward [generic 2]] } }
 
+-- A keyword action's `Deed` is a catalog item the same way: each Action Definition generates its
+-- authored deed constant (`exile.deed`), which a card writes by the Definition's name
+-- (`enact exile …`), and `Deed.action` is an internal expansion. So a card names only a declared
+-- keyword action: a raw label is refused and a misspelled one is no identifier.
+
+theorem deedIsGenerated : exile.deed = .action "exile" ∧ searchZonesOf.deed = search.deed ∧
+    explore.deed = .action "explore" true := by decide
+
+private def withEnactedDeed : Spelled := spelled <|
+  instantWith (enact destroy (destroy (target isCreature)))
+
+theorem enactedDeedRecordsDefinitionAuthorship : withEnactedDeed.authoring.onlyAuthored = true :=
+  withEnactedDeed.onlyAuthored
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Deed.action] -/
+#guard_msgs in
+example : Spelled := spelled <|
+  instantWith (enact (.action "descry") (destroy (target isCreature)))
+
+/--
+error: Unknown identifier `destory`
+---
+error: Definition sorryAx has no authoring evidence
+-/
+#guard_msgs in
+example : Spelled := spelled <|
+  instantWith (enact destory (destroy (target isCreature)))
+
 /-! ## Coercions and the card envelope
 
 `spelled` accepts the authoring coercions: core's `α → Option α`, a written mana cost and an action

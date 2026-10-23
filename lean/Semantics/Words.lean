@@ -288,10 +288,10 @@ abbrev FlavorWordLabel := String
 words, read back by the same card ("the option with the most votes"). -/
 abbrev VoteLabel := String
 
-/-- A keyword action's name [CR#701.1]. The keyword actions are an open set the registry
-declares, so a deed of that source is keyed by the declaration's name verbatim (`exile`,
-`collectEvidence`), as a designation is. An enacted deed whose label no declaration has is
-refused (`knownAct`), and a participle naming one reaches nothing. -/
+/-- A keyword action's name [CR#701.1], as its Action Definitions write it (`exile`,
+`collectEvidence`; `attach` for `attachTo`). A card never spells one: each Action Definition
+generates its authored deed constant (`attachTo.deed`), which a card names by the Definition's own
+name, so an undeclared action is no identifier at all. -/
 abbrev KeywordActionLabel := String
 
 /-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
@@ -311,11 +311,15 @@ inductive StateBasedCause where
   deriving DecidableEq, Repr
 
 /-- A deed: something a card's text says is done. Three sources define one, and only the middle
-one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the registry declares
-[CR#701.1], and the verb a keyword ability defines for itself [CR#702.122b,702.171a,702.26a]. -/
+one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the Action Definitions
+declare [CR#701.1], and the verb a keyword ability defines for itself
+[CR#702.122b,702.171a,702.26a]. -/
 inductive Deed where
   | core (deed : CoreDeed)
-  | action (label : KeywordActionLabel)
+  /-- A keyword action, written by its Action Definition. `permanentActor`: a permanent is
+  instructed to perform it, so written with no Handoff to a Permanent, the source Permanent
+  performs it [CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]. -/
+  | action (label : KeywordActionLabel) (permanentActor : Bool := false)
   | ofAbility (keyword : KeywordLabel)
   deriving DecidableEq, Repr
 
@@ -653,6 +657,7 @@ end Semantics
 attribute [semantic_expression] Semantics.Delta Semantics.Subtype Semantics.CounterKind
   Semantics.DesignationLabel Semantics.RelationLabel Semantics.KeywordLabel
   Semantics.AbilityWordLabel
+  Semantics.Deed
 
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
 
@@ -668,3 +673,8 @@ attribute [internal_expansion] Semantics.Subtype Semantics.CounterKind Semantics
 -- `spelled` refuses a raw `KeywordLabel.named`. An `AbilityWordLabel` is the same: a card writes
 -- the ability word's Template (`landfall`), never the raw label.
 attribute [internal_expansion] Semantics.KeywordLabel.named Semantics.AbilityWordLabel.named
+
+-- A `Deed` is a semantic expression whose keyword-action constructor is internal: each Action
+-- Definition generates its authored deed constant (`exile.deed`, `Authoring.deedConstant`), which
+-- a card names by the Definition's own name, and `spelled` refuses a raw `Deed.action`.
+attribute [internal_expansion] Semantics.Deed.action

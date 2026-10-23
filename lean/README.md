@@ -95,15 +95,14 @@ write.
 
 ## Registry facts
 
-`Semantics/Check/Facts.lean` is hand-maintained Lean, the source of truth for
-the keyword-action label list the checker reads; `Check/Words` interprets it.
-Keyword abilities, counters, designations, relations and subtypes have no table:
-each is a self-contained declaration in `Semantics/Definitions/` whose value
-carries its own columns (a counter's holder, a designation's scope), and the
-authoring boundary refuses a raw one in a card. A keyword ability's Definition
-generates the authored label constant a card names it by (`kicker.label`), and its
-typed signature fixes its parameters. The table-integrity pins (`Semantics/Proofs/Tables.lean`) remain part of
-`lean/scripts/build`.
+There are no registry tables. Keyword actions, keyword abilities, counters, designations,
+relations and subtypes are each a self-contained declaration in `Semantics/Definitions/` whose
+value carries its own columns (a counter's holder, a designation's scope, whether a permanent
+performs a keyword action), and the authoring boundary refuses a raw one in a card. A keyword
+ability's Definition generates the authored label constant a card names it by (`kicker.label`),
+and its typed signature fixes its parameters; an Action Definition generates the deed constant a
+card names its keyword action by (`exile.deed`). The catalog pins
+(`Semantics/Proofs/Tables.lean`) remain part of `lean/scripts/build`.
 
 ## Numbers
 

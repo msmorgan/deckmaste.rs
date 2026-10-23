@@ -104,21 +104,15 @@ theorem okDiscardHand : Action.check (DRS.ofList []) (discard (a (.and [.isCard,
     decide
 
 /-- "Destroy a creature." -/
-theorem okKnownKeywordAction :
-    Action.check (DRS.ofList []) (.enact (.action "destroy") (.move (a isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []) none none)
+theorem okEnactedKeywordAction :
+    Action.check (DRS.ofList []) (.enact destroy (.move (a isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []) none none)
       = [] := by
   decide
 
-/-- A keyword action the registry does not declare -/
-theorem badUnknownKeywordAction :
-    Action.check (DRS.ofList []) (.enact (.action "descry") (.move (a isCreature) .anyLocation (some graveyard) .arrival []) none none)
-      = [.knownAct (.action "descry")] := by
-  decide
-
 /-- "You exile a card from your hand." -/
-theorem okAgentedKnownAct :
+theorem okAgentedKeywordAction :
     Action.check (DRS.ofList [])
-      (.enact (.action "exile") (.move (a (.and [.isCard, .in_ hand])) .anyLocation (some exileZone) .arrival []) none none)
+      (.enact exile (.move (a (.and [.isCard, .in_ hand])) .anyLocation (some exileZone) .arrival []) none none)
       = [] := by
   decide
 
@@ -136,7 +130,7 @@ that read; the printed sentence hands it the first fighting creature,
 `instruct(<first>, fight(<second>))`. -/
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
-      (instruct (target (.isOpponentOf .you)) (.enact (.action "fight") (.simultaneously [
+      (instruct (target (.isOpponentOf .you)) (.enact fight (.simultaneously [
         instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.other" (target isCreature))),
         instruct (.laterMention "fight.other" (target isCreature))
           (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor)]) none none))

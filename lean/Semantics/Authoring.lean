@@ -232,6 +232,31 @@ label `kicker` is written under. A card names a keyword through it (`elabKeyword
 the internal `KeywordLabel.named`. -/
 def keywordLabelConstant (name : Name) : Name := name ++ `label
 
+/-- The keyword-action deed an Action Definition establishes its own Reference Scope for
+(`.ownScope (some (.action "exile")) …`), read from its expansion with its parameters left
+abstract; `none` for any other Definition, or a deed that depends on a parameter. -/
+def actionDefinitionDeed? (name : Name) : MetaM (Option Expr) := do
+  let some value := (← getConstInfo name).value? | return none
+  lambdaTelescope value fun _ body => do
+    unless (← whnf (← inferType body)).isConstOf `Semantics.Action do return none
+    let body ← whnf body
+    unless body.isAppOfArity `Semantics.Action.ownScope 2 do return none
+    let deed ← whnf body.appFn!.appArg!
+    unless deed.isAppOfArity `Option.some 2 do return none
+    let deed ← instantiateMVars deed.appArg!
+    let deed ← whnf deed
+    unless deed.isAppOfArity `Semantics.Deed.action 2 do return none
+    let label ← whnf deed.appFn!.appArg!
+    let permanentActor ← whnf deed.appArg!
+    unless label.isStringLit && !permanentActor.hasFVar && !permanentActor.hasMVar do
+      return none
+    return some (mkApp2 (mkConst `Semantics.Deed.action) label permanentActor)
+
+/-- The authored `Deed` an Action Definition generates: `exile.deed` is the keyword action
+`exile` performs. A card names a deed through it (`elabDeedName`), never by the internal
+`Deed.action`. -/
+def deedConstant (name : Name) : Name := name ++ `deed
+
 syntax (name := semanticDefinitionDecl) declModifiers "semantic_definition " declId
   ppIndent(optDeclSig) declVal : command
 
@@ -263,6 +288,17 @@ elab_rules : command
         safety := .safe
       }
       definitionAttribute.setTag labelName
+    if let some deed ← liftTermElabM (actionDefinitionDeed? declaration) then
+      let deedName := deedConstant declaration
+      liftCoreM <| addAndCompile <| .defnDecl {
+        name := deedName
+        levelParams := []
+        type := mkConst `Semantics.Deed
+        value := deed
+        hints := .regular 0
+        safety := .safe
+      }
+      definitionAttribute.setTag deedName
   | `($mods:declModifiers semantic_template $name:declId
       $signature:optDeclSig $value:declVal) => do
     elabAuthoredDecl mods name signature value

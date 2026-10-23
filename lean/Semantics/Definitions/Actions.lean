@@ -199,8 +199,8 @@ semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Act
         (.inCaller for_)))
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
 semantic_definition fight (other : NounPhrase) : Action :=
-  .ownScope (some (.action "fight"))
-    (enact (.action "fight")
+  .ownScope (some (.action "fight" true))
+    (enact (.action "fight" true)
       (doIf (and [
         is (.firstMention "fight.other" (.inCaller other)) isCreature,
         is (.firstMention "fight.source" .actor) isCreature])
@@ -280,8 +280,8 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
           none ]))
 /-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]). -/
 semantic_definition monstrosity (amount : Amount) : Action :=
-  .ownScope (some (.action "monstrosity"))
-    (enact (.action "monstrosity")
+  .ownScope (some (.action "monstrosity" true))
+    (enact (.action "monstrosity" true)
       (doIf (not (is .actor (hasDesignation monstrous)))
         (sequentially
           [ putCounters (.inCaller amount) p1p1Counter .actor,
@@ -422,8 +422,8 @@ semantic_definition support (amount : Amount) : Action :=
 
 /-- "<performer> explores" (`Definition`, [CR#701.44a]). -/
 semantic_definition explore : Action :=
-  .ownScope (some (.action "explore"))
-    (enact (.action "explore")
+  .ownScope (some (.action "explore" true))
+    (enact (.action "explore" true)
       (instruct (controllerOf (.firstMention "explore.permanent" .actor))
         (sequentially
           [ reveal (.slice .top 1 (libraryOf .actor)),
@@ -437,8 +437,8 @@ semantic_definition explore : Action :=
 `"each nonland card discarded this way"`
 (`allOf(and([not(land), card, did(any, discard(which), thisWay)]))`). -/
 semantic_definition connive (amount : Amount := 1) : Action :=
-  .ownScope (some (.action "connive"))
-    (enact (.action "connive")
+  .ownScope (some (.action "connive" true))
+    (enact (.action "connive" true)
       (instruct (controllerOf (.firstMention "connive.permanent" .actor))
         (sequentially
           [ draw (.inCaller amount),
@@ -619,8 +619,8 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
 /-! ## Keyword actions -/
 
 semantic_definition adapt (amount : Amount) : Action :=
-  .ownScope (some (.action "adapt"))
-    (enact (.action "adapt")
+  .ownScope (some (.action "adapt" true))
+    (enact (.action "adapt" true)
       (doIf (not (is .actor (.hasCounters p1p1Counter)))
         (putCounters (.inCaller amount) p1p1Counter .actor)
         none))
@@ -689,8 +689,8 @@ semantic_definition earthbend (amount : Amount) : Action :=
             (returnTo (that land) battlefield [.entersAs .tapped, .under .actor])
             [does .any (.move (that land) battlefield exileZone .departure [])] ]))
 semantic_definition endure (amount : Amount) : Action :=
-  .ownScope (some (.action "endure"))
-    (enact (.action "endure")
+  .ownScope (some (.action "endure" true))
+    (enact (.action "endure" true)
       (instruct (controllerOf .actor)
         (chooseOne (putCounters (.inCaller amount) p1p1Counter (that .permanent))
           (createToken (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit])))))
@@ -715,8 +715,8 @@ semantic_definition goad (subject : NounPhrase) : Action :=
       (gainDesignation (.firstMention "goad.subject" (.inCaller subject)) goaded
         untilYourNextTurn))
 semantic_definition harness (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "harness"))
-    (enact (.action "harness")
+  .ownScope (some (.action "harness" true))
+    (enact (.action "harness" true)
       (doIf
         (not
           (is (.firstMention "harness.subject" (.inCaller subject))

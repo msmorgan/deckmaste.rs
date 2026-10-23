@@ -523,6 +523,30 @@ def elabKeywordName : TermElab := fun stx expectedType? => do
     tryPostpone
     throwUnsupportedSyntax
   return mkConst label
+
+open Lean Elab Term Meta in
+/-- An Action Definition names its keyword action wherever a `Deed` is expected:
+`enact explore …`, `.deed exile`. The identifier elaborates as the authored deed constant the
+Definition generates (`exile.deed`, `Authoring.deedConstant`), so a card never spells the internal
+`Deed.action` and a misspelled action is no identifier at all. Any other identifier, or an
+expected type other than `Deed`, is left to the ordinary elaborator. -/
+@[scoped term_elab ident]
+def elabDeedName : TermElab := fun stx expectedType? => do
+  let some expected := expectedType? | throwUnsupportedSyntax
+  let expected ← instantiateMVars expected
+  unless expected.getAppFn.isMVar || (← whnfR expected).isConstOf ``Semantics.Deed do
+    throwUnsupportedSyntax
+  if (← getLCtx).findFromUserName? stx.getId |>.isSome then throwUnsupportedSyntax
+  let candidates ← try resolveGlobalConst stx catch _ => throwUnsupportedSyntax
+  let env ← getEnv
+  let some definition := candidates.find? (Authoring.definitionAttribute.hasTag env)
+    | throwUnsupportedSyntax
+  let deed := Authoring.deedConstant definition
+  unless env.contains deed do throwUnsupportedSyntax
+  if expected.getAppFn.isMVar then
+    tryPostpone
+    throwUnsupportedSyntax
+  return mkConst deed
 /-- "with a counter on it", or "with a <kind> counter on it". -/
 semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := .hasCounters kind
 /-- "named <name>" -/
