@@ -1,0 +1,22 @@
+# A word cited rather than used is a metalinguistic Noun Phrase (CGEL, Ch. 5 §8.2, p. 401), a Mention, where a head's frame selects one: the Object of *choose*, the Complement of *than* or of *with* after *replace*
++ <card=Mystic Barrier> When this enchantment enters and at the beginning of your upkeep, choose left or right. => Mention "left or right" as Object of choose
++ <card=Pir's Whim> For each player, choose friend or foe. => Mention "friend or foe" as Object of choose
++ <card=Abundant Harvest> Choose land or nonland. => Mention "land or nonland" as Object of choose; Mention "nonland"
++ <card=Cloud Key> As this artifact enters, choose artifact, creature, enchantment, instant, or sorcery. => Mention "artifact, creature, enchantment, instant, or sorcery" as Object of choose
++ <card=Stenn, Paranoid Partisan> As Stenn enters, choose a card type other than creature or land. => Mention "creature or land" as Complement of than; AdjectivePhrase "other than creature or land" as Modifier of type
++ <card=Standardize> Choose a creature type other than Wall. => Mention "Wall" as Complement of than
++ <card=New Blood> Gain control of target creature. Change the text of that creature by replacing all instances of one creature type with Vampire. => Mention "Vampire" as Complement of with; PrepositionPhrase "with Vampire" as Complement of replace
+# Text-changing effects [CR#612.1]: *another* as a fused determiner-head opposed to *one* (CGEL, Ch. 5 §9.1, p. 410), and two object-and-complement clusters of *replace* coordinated by *or*
++ <card=Alter Reality> Change the text of target spell or permanent by replacing all instances of one color word with another. => NounPhrase "another" as Complement of with; PrepositionPhrase "with another" as Complement of replace; NounPhrase "all instances of one color word" as Object of replace
++ <card=Mind Bend> Change the text of target permanent by replacing all instances of one color word with another or one basic land type with another. => NounPhrase "all instances of one color word" as Object of replace; NounPhrase "one basic land type" as Object of replace; PrepositionPhrase "with another"#2 as Complement of replace
+# A vote option is a Name the card prints [CR#701.38a,701.38b]: the Complement of *for* after *vote*, a Subject, and a noun premodifier (*each numbers vote*)
++ <card=Bite of the Black Rose> Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards. => NounPhrase "sickness or psychosis" as Complement of for; NounPhrase "psychosis"#2 as Subject of get
++ <card=Lieutenants of the Guard> Put a +1/+1 counter on this creature for each strength vote and create a 1/1 white Soldier creature token for each numbers vote. => NounPhrase "each numbers vote"; Name "numbers" as Modifier of vote
++ <card=Trial of a Time Lord> If guilty gets more votes, the owner of each card exiled with this Saga puts that card on the bottom of their library. => NounPhrase "guilty" as Subject of get
++ <card=Path of the Enigma> If planeswalk gets more votes, planeswalk. => NounPhrase "planeswalk" as Subject of get
+# Quotation marks around a term that mentions literal wording (style guide §3, Quotation marks and apostrophes)
++ <card=Mirror Box> The "legend rule" doesn't apply to permanents you control. => NounPhrase "The \"legend rule\"" as Subject of do
++ <card=Shelkin Brownie> {T}: Target creature loses all "bands with other" abilities until end of turn. => NounPhrase "all \"bands with other\" abilities" as Object of lose
+# Names cited from outside the corpus: an expansion [CR#206.1] and a dungeon card [CR#309.1]
++ <card=Golgothian Sylex> {1}, {T}: Each nontoken permanent with a name originally printed in the Antiquities expansion is sacrificed by its controller. => NounPhrase "the Antiquities expansion"
++ <card=Acererak the Archlich> When Acererak enters, if you haven't completed Tomb of Annihilation, return Acererak to its owner's hand and venture into the dungeon. => NounPhrase "Tomb of Annihilation" as Object of complete

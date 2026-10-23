@@ -1,0 +1,51 @@
+// Vote options [CR#701.38a]: the words a vote offers, "words with no rules meaning that are each
+// connected to a different effect" [CR#701.38b]. A card names its options with lowercase common
+// words unless they are exact names (`docs/oracle-style-guide.md` §12, "Randomness, dice, coins,
+// and voting"), and its text then mentions them: *votes for sickness or psychosis*, *If psychosis
+// gets more votes*, *for each numbers vote*. A mentioned word is a name, not a use of the word
+// (CGEL, Ch. 5 §8.2, p. 401), so each option is a Name in scope only on the cards that print it.
+// Options that are objects or players (*votes for a player*) are ordinary Noun Phrases and are not
+// listed, nor is an option that is a card name, in scope everywhere (*Mines of Moria*).
+[
+    (name: "aid", cards: ["Elrond of the White Council"]),
+    (name: "bribery", cards: ["Tivit, Seller of Secrets"]),
+    (name: "carnage", cards: ["Coercive Portal"]),
+    (name: "chaos", cards: ["Path of the Animist", "Path of the Enigma", "Path of the Ghosthunter", "Path of the Pyromancer", "Path of the Schemer"]),
+    (name: "condemnation", cards: ["Magister of Worth"]),
+    (name: "consequences", cards: ["Truth or Consequences"]),
+    (name: "death", cards: ["Capital Punishment", "Tyrant's Choice"]),
+    (name: "denial", cards: ["Split Decision"]),
+    (name: "dominion", cards: ["Galadriel, Elven-Queen"]),
+    (name: "duplication", cards: ["Split Decision"]),
+    (name: "embark", cards: ["Sail into the West"]),
+    (name: "evidence", cards: ["Tivit, Seller of Secrets"]),
+    (name: "feather", cards: ["Messenger Jays"]),
+    (name: "fellowship", cards: ["Elrond of the White Council"]),
+    (name: "free", cards: ["Selvala's Stampede"]),
+    (name: "grace", cards: ["Magister of Worth"]),
+    (name: "guidance", cards: ["Galadriel, Elven-Queen"]),
+    (name: "guilty", cards: ["Trial of a Time Lord"]),
+    (name: "harvest", cards: ["Orchard Elemental"]),
+    (name: "homage", cards: ["Coercive Portal"]),
+    (name: "innocent", cards: ["Trial of a Time Lord"]),
+    (name: "knowledge", cards: ["Plea for Power"]),
+    (name: "money", cards: ["Expropriate"]),
+    (name: "numbers", cards: ["Lieutenants of the Guard"]),
+    (name: "past", cards: ["Fateful Tempest"]),
+    (name: "planeswalk", cards: ["Path of the Animist", "Path of the Enigma", "Path of the Ghosthunter", "Path of the Pyromancer", "Path of the Schemer"]),
+    (name: "present", cards: ["Fateful Tempest"]),
+    (name: "profit", cards: ["Emissary Green"]),
+    (name: "psychosis", cards: ["Bite of the Black Rose"]),
+    (name: "quill", cards: ["Messenger Jays"]),
+    (name: "Redhorn Pass", cards: ["Travel Through Caradhras"]),
+    (name: "return", cards: ["Sail into the West"]),
+    (name: "security", cards: ["Emissary Green"]),
+    (name: "sickness", cards: ["Bite of the Black Rose"]),
+    (name: "sprout", cards: ["Orchard Elemental"]),
+    (name: "strength", cards: ["Lieutenants of the Guard"]),
+    (name: "taxes", cards: ["Capital Punishment"]),
+    (name: "time", cards: ["Expropriate", "Plea for Power"]),
+    (name: "torture", cards: ["Tyrant's Choice"]),
+    (name: "truth", cards: ["Truth or Consequences"]),
+    (name: "wild", cards: ["Selvala's Stampede"]),
+]

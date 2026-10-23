@@ -498,6 +498,7 @@ impl Resolver<'_> {
             FillSpec::Gerund => SlotFill::Gerund,
             FillSpec::KeywordPhrase => SlotFill::KeywordPhrase,
             FillSpec::QuotedAbility => SlotFill::QuotedAbility,
+            FillSpec::Mention => SlotFill::Mention,
             FillSpec::Nominal => SlotFill::Nominal,
             FillSpec::Amount => SlotFill::Amount,
             FillSpec::Cost => SlotFill::Cost,

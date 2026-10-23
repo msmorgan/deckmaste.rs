@@ -1,0 +1,11 @@
+// Names a card's text cites that name nothing in the supported corpus: an expansion, which the
+// expansion symbol identifies [CR#206.1] (*a name originally printed in the Antiquities
+// expansion*), and a dungeon card, which begins outside the game [CR#309.1,309.2] (*if you haven't
+// completed Tomb of Annihilation*). Each lists the cards whose text uses it, which are the only
+// cards on which it is in scope.
+[
+    (name: "Antiquities", cards: ["Golgothian Sylex"]),
+    (name: "Arabian Nights", cards: ["City in a Bottle"]),
+    (name: "Homelands", cards: ["Apocalypse Chime"]),
+    (name: "Tomb of Annihilation", cards: ["Acererak the Archlich"]),
+]

@@ -55,9 +55,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -393,6 +393,11 @@
         // a Subject only (CGEL, Ch. 14 §2.1, p. 1188).
         "GerundClause": (category: Some("Clause")),
         "QuotedAbility": (),
+        // A word cited rather than used: a metalinguistic Noun Phrase (CGEL,
+        // Ch. 5 §8.2, p. 401), as *left or right* in *choose left or right*
+        // and *Wall* in *other than Wall*. It fills only a slot a head's
+        // frame selects, never an ordinary Noun Phrase's.
+        "Mention": (),
         // An interrogative content clause (CGEL, Ch. 11 §5.1, pp. 972–973).
         "InterrogativeClause": (category: Some("Clause")),
         // An interrogative phrase with *which* (*which creatures*).
@@ -472,7 +477,10 @@
         // their own.
         "PartitiveQuantifier": ["det:all.count", "det:all.mass", "det:another", "det:both", "det:each", "det:either", "det:fewer", "det:less", "det:many", "det:more.count", "det:more.mass", "det:most", "det:much", "det:neither", "det:none", "det:some"],
         "SuperlativeQuantifier": ["det:most", "det:least", "det:fewest"],
-        "FusedQuantifier": ["det:both", "det:more.count", "det:everything", "det:this", "det:none"],
+        // Determinatives that stand alone as a fused determiner-head (CGEL,
+        // Ch. 5 §9.1, p. 410): *both*, *none*, and *another* opposed to *one*
+        // (*replacing all instances of one color word with another*; p. 391).
+        "FusedQuantifier": ["det:another", "det:both", "det:more.count", "det:everything", "det:this", "det:none"],
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
@@ -515,6 +523,7 @@
         BareInf: "BareInf",
         Gerund: "Gerund",
         QuotedAbility: "QuotedAbility",
+        Mention: "Mention",
     },
     // A Noun Phrase Complement of a verb, preposition or other head is never
     // nominative.
@@ -551,6 +560,15 @@
         // premodifies only as a Keyword Mention, without that Cost (*a
         // disturb cost*, *the flashback cost*).
         (name: "KeywordPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility"), Exclude("modifier.FinalParameter", "Cost")]),
+        // Quotation marks around a term that mentions literal wording: a
+        // keyword premodifier (*all "bands with other" abilities*) and the
+        // singular nominal that names one term (*the "legend rule"*,
+        // [CR#704.5j]), written without a period of its own (style guide §3,
+        // Quotation marks and apostrophes; CGEL, Ch. 20 §6, pp. 1753–1755).
+        // A quoted plural is a granted ability's (*have "bands with other
+        // legendary creatures."*), never a term's.
+        (name: "QuotedKeywordPremodifier", lhs: "BareNominal", rhs: [Quoted("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility"), Exclude("modifier.FinalParameter", "Cost")]),
+        (name: "QuotedNominal", lhs: "BareNominal", rhs: [Quoted("head", "BareNominal")], equations: [Require("head.Number", "Singular")]),
 
         (name: "TextSymbols", lhs: "Document", rhs: [Cat("head", "Symbols")]),
         // A symbol sequence is also a noun under a determiner (*each {B} in a
@@ -1314,6 +1332,11 @@
         (name: "LocativeFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "LocativeHead")]),
         (name: "PartitiveFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "PartitiveHead")]),
         (name: "FusedLocative", lhs: "LocativeHead", rhs: [Word("head", "Anywhere")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A cited noun, alone or prefixed by *non-* (*choose land or
+        // nonland*; CGEL, Ch. 5 §8.2, p. 401): bare and singular, whatever its
+        // countability, since it names the word, not what the word denotes.
+        (name: "WordMention", lhs: "Mention", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular")]),
+        (name: "NegativeMention", lhs: "Mention", rhs: [Lex("prefix", Affix), Cat("head", "Mention")], uncoordinated: ["head"]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")], equations: [Require("$.Polarity", "Negative")]),
         // A participle premodifier prefixed by *non-* (*nonattacking*).
@@ -1819,6 +1842,8 @@
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
         // *"A" and "B"*; *"A," "B," and "C."*
         Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
+        // *left or right*; *artifact, creature, or land*.
+        Coordination(category: "Mention", coordinators: "Coordinator"),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it
         // doesn't untap ...*).

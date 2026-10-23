@@ -94,6 +94,10 @@ pub enum FillSpec {
     /// [CR#113.1a]). Its one preposition holder is *with*, beside the verbs
     /// *has* and *gain*.
     QuotedAbility,
+    /// A word cited rather than used (*choose left or right*, *other than
+    /// Wall*): a metalinguistic Noun Phrase (CGEL, Ch. 5 §8.2, p. 401), only
+    /// where a head's frame selects one.
+    Mention,
     Nominal,
     Amount,
     Cost,
@@ -719,6 +723,16 @@ pub struct Token {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct IntroducedName {
+    pub name: String,
+    pub cards: Vec<String>,
+}
+
+/// A name in scope only on the cards that print it: a vote option
+/// (`catalogs/vote_options.ron`) or a name cited from outside the corpus
+/// (`catalogs/cited_names.ron`).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScopedName {
     pub name: String,
     pub cards: Vec<String>,
 }

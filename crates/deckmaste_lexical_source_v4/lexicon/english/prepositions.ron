@@ -205,6 +205,9 @@
         // A comparative clause: *more creatures than you do* (CGEL Ch. 13
         // §2.1, p. 1108).
         (complement: FiniteClause, hosts: ComplementOnly),
+        // A cited word: *a creature type other than Wall*, *a card type
+        // other than creature or land*.
+        (complement: Mention, hosts: ComplementOnly),
     ]),
     // *was put there from anywhere*
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
@@ -245,6 +248,9 @@
         (complement: KeywordPhrase, hosts: Nominal),
         (complement: NP, hosts: NominalAndPredicate),
         (complement: QuotedAbility, hosts: Nominal),
+        // A cited word, selected by *replace* (*replacing all instances of
+        // one creature type with Vampire*; [CR#612.1]).
+        (complement: Mention, hosts: ComplementOnly),
     ]),
     // *each creature without a +1/+1 counter on it*; *creatures without
     // flying*; *cast it without paying its mana cost*
