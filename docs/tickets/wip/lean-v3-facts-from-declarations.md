@@ -8,6 +8,19 @@ generator (Step 1), then let the Lean declarations register their own facts so a
 materialises the tables (Step 2).** Standard constraints apply. Owner ruling, 2026-10-22: "new
 facts is not going to be ron, and can be hooked up through a lean syntax overlay".
 
+## Owner rulings, 2026-10-22 (batch 4)
+
+- **This ticket lands Step 1 only.** Step 2 is superseded by the five tickets
+  `lean-v3-template-helpers-into-definitions` (B1), `lean-v3-catalog-items-self-contained` (B2),
+  `lean-v3-keyword-facts-deleted` (B3), `lean-v3-action-facts-deleted` (B4) and
+  `lean-v3-card-type-composite-definition` (B5); the owner chose neither (A) nor (B).
+- **Ruling #2, Option A: no keyword card-class gate.** A keyword on the wrong card class is a
+  card-authoring mistake, not a text-meaning error, so `onPermanentCard`,
+  `onInstantOrSorceryCard` and `keywordCardOk` go (item 5). This supersedes the 2026-08-22
+  ruling that kept the gate. The six `Proofs/Faces.lean` pins that asserted the gate are deleted,
+  not flipped, and no "the gate is gone" pin is added (see `lean-v3-card-class-gate-removal`,
+  landed with this step). Ascend's card-class guards stay; the owner is still ruling on them.
+
 `needs` `lean-v3-checker-rules-scope-refusals`, whose §5 edits the four card-class
 rows of `Check/Facts.lean` and of the generator's overlay (`crates/xtask/src/facts.rs`); this
 ticket deletes both, so it lands after. If that ticket is changed to delete the gates rather than
@@ -50,7 +63,9 @@ Findings that matter to the work:
   the declaration gives it". That sentence is wrong today and is fixed in Step 1 (state what
   `Phrase.lean:3145-3148` actually does: it requires the label to be declared and checks both
   operands as objects). Whether to drop the dead columns is the Step 1 call below.
-- **No Lean pin asserts the keyword card-class gate negatively.** Every `cardTextOk` pin over a
+- **Wrong (corrected by ruling #2 above):** "No Lean pin asserts the keyword card-class gate
+  negatively." Six `Card.check … = [.cardText]` pins in `Proofs/Faces.lean` did; they are
+  deleted. Every `cardTextOk` pin over a
   keyword is positive (`KeywordByCardClass.lean:39,45`, `GiftVariants.lean:64,70`,
   `LinkedChoiceReadback.lean:88,94`); the `DrtCards.lean:52-58` and `Faces.lean:52-57` pins are
   about spell and static abilities, which are separate rules and stay. An unknown keyword is
@@ -126,16 +141,16 @@ reads.
   `everyActRowIsDeclared` now compare two hand-written lists, so say so in the docstring and keep
   them (they still catch a row added to one list only; deleting them would weaken the check) until
   Step 2 derives the list.
-- Add card-class pins that the gate is gone: a keyword the old rows kept to one class on a card of
-  the other (flashback on a creature, flying on an instant) is `cardTextOk = true`; extend
-  `KeywordByCardClass.lean` and cite [CR#702.80c] on the wither one.
+- Not carried out (ruling #2): no pins that the gate is gone. A pin that a sorcery with flying
+  checks clean asserts nothing wanted. Instead the six gate pins in `Proofs/Faces.lean` are
+  deleted.
 - `lean/scripts/build` (`lake build --wfail`), `cargo xtask lean check`, `cargo test -p xtask -p
   deckmaste_semantics_v2`, `cargo clippy -p xtask -p deckmaste_semantics_v2 --tests -- -D
   warnings`; the cite gates.
 
-## Step 2: later; declarations register their facts (pending)
+## Step 2: superseded (not done here)
 
-Pending: the owner picks (A) or (B) below before this stage starts.
+Superseded by B1-B5 (owner rulings above); kept as the record of the options considered.
 
 Decided: facts are written in Lean, not RON, as an overlay on the declarations. A declaration
 registers its facts through an attribute or a custom command into an environment extension

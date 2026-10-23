@@ -9,9 +9,9 @@ writes one definition holding both halves. Gift's and haunt's halves carry no ca
 each is scoped by its ability category and its event, an entering or dying trigger on the
 permanent, and on the spell a spell ability or a trigger on its being put into a graveyard during
 its resolution [CR#113.3a,113.6,603.4,608.2n,702.55a,702.174b] (ruling 2026-10-22). Ascend keeps
-its guards until the card-class gate of `lean-v3-facts-from-declarations` decides them
-[CR#113.6,702.131a,702.131b]. Each half is checked as a term on every card, with no class context;
-against the card's class the keyword itself is checked, not the halves of its definition.
+its guards while the owner rules on them (the ascend STOP of `lean-v3-card-class-gate-removal`)
+[CR#113.6,702.131a,702.131b]. Each half is checked as a term on every card, with no class context,
+and no keyword is checked against the card's class (ruling 2026-10-22, batch 4).
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -76,14 +76,6 @@ theorem okSpellKeywordsOnPermanentCards :
 theorem okPermanentKeywordsOnSpellCards :
     cardTextOk [.instant] [webSlinging (mana [generic 1, pip .red])] = true ∧
       cardTextOk [.instant] [wither] = true := by
-  decide
-
-/-- Keywords the retired card-class columns kept to one class, on a card of the other: a creature
-card with flashback or fuse, an instant card with flying. -/
-theorem okKeywordsOnTheOtherCardClass :
-    cardTextOk [.creature] [flashback (mana [generic 1, pip .red])] = true ∧
-      cardTextOk [.creature] [fuse] = true ∧
-      cardTextOk [.instant] [flying] = true := by
   decide
 
 end Semantics.Proofs.KeywordByCardClass

@@ -943,9 +943,9 @@ permanent half is an entering trigger and its spell half a spell ability
 [CR#113.3a,702.174b], and haunt's are a dies trigger and a trigger on the spell's
 being put into a graveyard during its resolution [CR#603.4,608.2n,702.55a]. Ascend's
 halves keep their card-class guards (`is this_ isPermanentType`,
-`is this_ isInstantOrSorcery`) until the card-class gate of
-`lean-v3-facts-from-declarations` decides them [CR#113.6,702.131a,702.131b]. There is
-no selector device.
+`is this_ isInstantOrSorcery`) while the owner rules on them (the ascend STOP of
+`lean-v3-card-class-gate-removal`) [CR#113.6,702.131a,702.131b]. There is no selector
+device.
 
 "During its resolution" and "as it resolves" (haunt's spell half, buyback, rebound
 [CR#702.27a,702.55a,702.88a]) write the move as caused by the spell's resolution, over
@@ -962,7 +962,9 @@ the look-back zone changes [CR#603.10a].
 - Each half is checked as a term on every card, with no class context
   (`Ability.checkAll [] body`).
 - A keyword ability is admitted on a card of either class: `classAbilityOk` has
-  no keyword gate. Which class the printed corpus puts a keyword on is
+  no keyword gate (ruling 2026-10-22, batch 4, superseding the 2026-08-22 ruling
+  that kept one: a keyword on the wrong card class is a card-authoring mistake,
+  not a text-meaning error). Which class the printed corpus puts a keyword on is
   observation, not a rule; a CR entry that says its ability functions while the
   spell is on the stack names no card class, and wither works from any zone
   [CR#702.56a,702.61a,702.188a,702.80c]. A static ability of an instant or sorcery card
