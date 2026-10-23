@@ -22,9 +22,9 @@ namespace Semantics.Proofs.OffStack
 
 /-- "As this permanent enters, you may draw a card": an action carried out as part of the
 entering it replaces, which still happens [CR#614.1c]. -/
-theorem okAsEnteringAlso :
+theorem okAsEnteringAlongside :
     StaticSpec.check (DRS.ofList [])
-      (replace (would thisPermanent enter) (also (may (draw 1)))) = [] := by
+      (replace (would thisPermanent enter) (alongside (may (draw 1)))) = [] := by
   decide
 
 /-- "As it becomes night, transform this permanent": an action carried out as an event that is
@@ -235,7 +235,8 @@ theorem enchantReplacesTheEntering :
           (would .any
               (.move thisAura (not stack) battlefield .arrival [.not (.attachedTo .any)]),
             doIf (exists_ (legalHostOf thisAura))
-              (also (attachTo thisAura (a (legalHostOf thisAura))))),
+              (before (choose (a (legalHostOf thisAura)))
+                (some (alongside (attachTo thisAura it))))),
           (would thisAura
               (enter (riders := [.attachedTo .any, .not (.attachedTo (a (legalHostOf thisAura)))])),
             instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard))) ]) := by

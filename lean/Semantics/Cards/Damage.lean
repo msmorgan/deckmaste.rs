@@ -1507,4 +1507,26 @@ def terminationFacilitator : Spelled := spelled <| singleFacedCard
           (destroy it) ],
     power := stat 1, toughness := stat 3 }
 
+/-- Wolverine, Fierce Fighter. "If damage would be dealt to Wolverine, instead that damage is
+dealt, but all other damage already dealt to him is healed": the damage is still dealt, so the
+replacement keeps its event, and the healing is a `before`. Healing damage already dealt to a
+permanent removes all damage marked on it [CR#701.69a], and the damage the event deals is marked
+by that event [CR#120.3e]. The text heals only damage "already dealt", what was marked before the
+event marks the new damage, so healing before the event removes exactly that and never the new
+damage; healed as part of the event, whether the new damage is removed too would turn on an order
+the text does not state. -/
+def wolverineFierceFighter : Spelled := spelled <| singleFacedCard
+  { name := "Wolverine, Fierce Fighter", cost := [generic 2, pip .red, pip .green],
+    supertypes := [.legendary], types := [.creature], subtypes := [mutant, berserker, hero],
+    text :=
+      [ haste,
+        when (does thisCreature enter)
+          (instruct thisCreature (fight (targets (upTo 1) (and [isCreature, isOther])))),
+        static
+          (replace (would any (dealDamage anyAmount thisCreature))
+            (before (heal thisCreature))) ],
+    power := stat 3, toughness := stat 5 }
+theorem okWolverineFierceFighter : wolverineFierceFighter.card.check = [] :=
+  wolverineFierceFighter.ok
+
 end Semantics.Cards

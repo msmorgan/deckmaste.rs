@@ -46,6 +46,7 @@ import Semantics.Proofs.Numbers
 import Semantics.Proofs.OffStack
 import Semantics.Proofs.Piles
 import Semantics.Proofs.ReferenceScopes
+import Semantics.Proofs.ReplacementArms
 import Semantics.Proofs.Retention
 import Semantics.Proofs.RefusalReachability
 import Semantics.Proofs.Rules

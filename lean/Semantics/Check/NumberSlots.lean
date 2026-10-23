@@ -84,7 +84,7 @@ def Replacement.numberSlots (value : Replacement) (fuel : Nat := 64) :
   | 0, _ => []
   | n + 1, .inCaller body => body.numberSlots n
   | _ + 1, .withRiders riders => MoveRider.ridersSlots riders
-  | _ + 1, .instead _ | _ + 1, .also _ | _ + 1, .onlyIf _ _ => []
+  | _ + 1, .instead _ | _ + 1, .before _ _ | _ + 1, .alongside _ | _ + 1, .onlyIf _ _ => []
 termination_by structural fuel
 
 /-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and

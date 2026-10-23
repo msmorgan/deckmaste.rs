@@ -1761,10 +1761,11 @@ def keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) 
     Ability :=
   .keyword label [.number amount, .cost cost] []
 /-- "As <subject> enters, [secretly] choose <chosen>": a replacement effect whose choice is made
-as part of the permanent's entering [CR#603.6d,614.1c,614.12]. -/
+before the permanent enters [CR#603.6d,614.1c,614.12a]. -/
 semantic_template entryChoice (subject chosen : NounPhrase) (disclosure : Disclosure := .openly) :
     StaticSpec :=
-  .replace (would subject enter) (.also (.choose none chosen disclosure none)) none .repeatedly none
+  .replace (would subject enter) (.before (.choose none chosen disclosure none) none) none
+    .repeatedly none
 /-- "As <subject> becomes attached, choose <chosen>": an Off-Stack Static whose choice is made as
 it becomes attached. -/
 semantic_template attachmentChoice (subject chosen : NounPhrase) : StaticSpec :=
@@ -1964,9 +1965,15 @@ semantic_template StaticSpec.replace (event : WouldClause) (replacement : Replac
 ("draw two cards instead", "you may instead mill …") [CR#614.1a]. Cards write a conditional
 replacement in Oracle word order, `doIf c (instead a)`. -/
 semantic_template instead (action : Action) : Replacement := .instead action
-/-- `action` done as part of the replaced event, which still happens: "As this enters, choose a
-color", "that player may put … counters on it as it enters" [CR#603.6d,614.1c]. -/
-semantic_template also (action : Action) : Replacement := .also action
+/-- `action` done before the replaced event, which still happens, modified by `body` if one is
+written: "As this enters, choose a color", whose choice is made before the permanent enters
+[CR#614.1c,614.12a]. -/
+semantic_template before (action : Action) (body : Option Replacement := none) : Replacement :=
+  .before action body
+/-- `action` done as part of the replaced event, which still happens ("with" it): "that player may
+put … counters on it as it enters", "you may have this permanent enter with an additional +1/+1
+counter on it" [CR#614.1c,702.104a,702.136a]. -/
+semantic_template alongside (action : Action) : Replacement := .alongside action
 /-- The replaced entering still happens, with Entry Riders `riders`: "enters tapped", "enters
 with N counters", "enters as a copy", "enters transformed" [CR#614.1c,614.1d]. -/
 semantic_template withRiders (riders : List MoveRider) : Replacement := .withRiders riders

@@ -831,10 +831,20 @@ mutual
     /-- `action` happens in the event's place, the clause the word "instead" marks ("draw two
     cards instead", "you may instead mill …") [CR#614.1a,614.6]. -/
     | instead (action : Action)
-    /-- The event still happens, and `action` is done as part of it: "As this enters, choose a
-    color", "That player may put an additional N +1/+1 counters on it as it enters"
-    [CR#603.6d,614.1c]. -/
-    | also (action : Action)
+    /-- `action` is done before the event, which still happens, modified by `body` if one is
+    written. A choice a replacement of an entering requires is made before the permanent enters
+    [CR#614.12a]: "As this enters, choose a color"; "As this creature enters, choose an
+    opponent", then `body`, "That player may put an additional N +1/+1 counters on it as it
+    enters" [CR#702.104a]; devour's sacrifice, then the counters it enters with [CR#702.82a]. So
+    is the choice of what an Aura put onto the battlefield will enchant, made as it enters
+    [CR#303.4f]. `body`'s action reads what `action` did. -/
+    | before (action : Action) (body : Option Replacement)
+    /-- The event still happens, and `action` is done as part of it ("enters with", "as it
+    enters"): riot's and unleash's counter, "you may have this permanent enter with an additional
+    +1/+1 counter on it" [CR#702.136a,702.98a], an Aura's attachment as it enters [CR#303.4f], or
+    megamorph's counter on a permanent "as [it] is turned face up" [CR#702.37b,614.1e]. The
+    constructor reads as "with"; `with` is a Lean keyword. -/
+    | alongside (action : Action)
     /-- The replaced entering still happens, with `riders`: "this enters tapped", "enters with N
     counters", "enters as a copy of", "enters transformed" [CR#614.1c,614.1d,614.12]. Only an
     entering, a move to the battlefield or a token's creation, is ridden, and only by Entry
@@ -942,10 +952,10 @@ mutual
     [CR#614.1a,614.1c,614.1d]. Under `instead`, only when the action is wholly a `may` with no
     failure arm ("you may instead mill …") does declining it leave `event` to happen; otherwise
     that action is what happens in its place, a failure arm ("if you don't, put it into its
-    owner's graveyard") included, so a `may` nested inside it spells out both arms. Under `also`,
-    `event` happens whatever is chosen: declining a `may` does its failure arm if it has one
-    (riot's "if you don't, it gains haste") and otherwise nothing. Under `withRiders`, the
-    entering happens with the riders, and there is nothing to decline. Under `onlyIf`, `event`
+    owner's graveyard") included, so a `may` nested inside it spells out both arms. Under `before`
+    and `alongside`, `event` happens whatever is chosen: declining a `may` does its failure arm
+    if it has one (riot's "if you don't, it gains haste") and otherwise nothing. Under
+    `withRiders`, the entering happens with the riders, and there is nothing to decline. Under `onlyIf`, `event`
     happens unmodified while the condition fails. -/
     | replace (event : WouldClause) (replacement : Replacement) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
@@ -969,7 +979,7 @@ mutual
     spell that creates a delayed trigger creates it as the permanent is put onto the battlefield,
     with the spell as its source and the spell's controller as it resolved as its controller
     (dash, blitz, warp [CR#608.3g,603.7d]). "As this enters, …" text is a replacement of the
-    entering instead (`replace … (also …)`, [CR#614.1c]). -/
+    entering instead (`replace … (before …)` or `replace … (alongside …)`, [CR#614.1c]). -/
     | asEvent (event : GameEvent) (does : Action)
     /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
     is carried out without using the stack, as a static ability is [CR#113.9,702.131b]. -/

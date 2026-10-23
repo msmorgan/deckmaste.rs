@@ -1650,7 +1650,7 @@ def deadpoolTradingCard : Spelled := spelled <| singleFacedCard
     text :=
       [ static
           (replace (would thisCreature enter)
-            (also
+            (alongside
               (may
                 (establish
                   (textChange thisCreature
