@@ -22,7 +22,10 @@ needs: [lean-v3-rules-and-card-fidelity]
   `multikicker` `[CR#702.33c]`, `miracle` `[CR#702.94a]`, `prototype`
   `[CR#702.160a]` — removing `set_option linter.unusedVariables false` at
   `Keywords.lean:1128` — plus `learn` `[CR#701.48]` and `ventureIntoTheDungeon`
-  `[CR#701.49]` in `Definitions/Actions.lean`). `multikicker`'s body and its kicker label (a
+  `[CR#701.49]` in `Definitions/Actions.lean`; once venture exists, also author the initiative's
+  two "ventures into Undercity" triggers on `initiativeDefinition` in
+  `Definitions/DesignationRules.lean` [CR#726.2], left out by
+  `lean-v3-designation-inherent-triggers` for want of venture). `multikicker`'s body and its kicker label (a
   multikicker cost is a kicker cost `[CR#702.33c]`) are written by
   [lean-v3-keyword-cast-permissions-and-costs](lean-v3-keyword-cast-permissions-and-costs.md)
   §3; do not give it a separate label here.

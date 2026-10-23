@@ -45,6 +45,7 @@ def linkedTextContext (drs : DRS) : DRS :=
   let grantor := published.zipIdx.map fun (ref, index) =>
     { ref with id := site + 1 + index, linked := true, linkSite := site + 1 }
   { choiceContext drs with
+    sourceless := false
     referents := grantor.reverse ++ current
     nextId := if published.isEmpty then drs.nextId else site + 1 + published.length }
 

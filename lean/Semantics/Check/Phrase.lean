@@ -1811,6 +1811,7 @@ as in `linkedTextContext`. -/
 def grantedContext (drs : DRS) : DRS :=
   { drs with
     sourceTypes := []
+    sourceless := false
     contrastExcluded := drs.contrastExcluded ++
       (drs.visibleReferents.filter (·.kind == .object)).map (·.id) }
 
@@ -3159,7 +3160,7 @@ def stepOps : Nat → StepOps
             payload := .object drs.sourceTypes none none none none }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
-          (drs', [rid], [])
+          (drs', [rid], refuse (!drs.sourceless) .noSource)
         | .any => (drs, [], []),
 
       amt := fun drs a =>

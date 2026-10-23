@@ -38,6 +38,11 @@ def Conferral.checkIn (drs : DRS) : Conferral → List Refusal
 
 def Conferral.check (c : Conferral) : List Refusal := c.checkIn (DRS.ofList [])
 
+/-- The context a registry definition's conferrals are read in: empty, and with no Source when
+the definition's conferrals have none (`Definition.controllingDesignation?`) [CR#725.2,726.2]. -/
+def Definition.conferralContext (d : Definition) : DRS :=
+  { DRS.ofList [] with sourceless := d.controllingDesignation?.isSome }
+
 def ConferralRule.check (r : ConferralRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let e2 := r.confer.checkIn drs1
@@ -51,7 +56,8 @@ def Definition.check : Definition → List Refusal
     hErr ++ refuse (!kind.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
   | .subtype sub rules =>
     refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
-  | .designation label _ => refuse (!label.name.isEmpty) .definitionNamed
+  | d@(.designation label _ confers) =>
+    refuse (!label.name.isEmpty) .definitionNamed ++ confers.flatMap (·.checkIn d.conferralContext)
   | .cardType type confers =>
     refuse (!type.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
   | .relation label => refuse (!label.name.isEmpty) .definitionNamed

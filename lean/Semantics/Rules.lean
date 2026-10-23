@@ -109,12 +109,19 @@ inductive Definition where
   that are inert vocabulary. The rows with rules are declared beside the values
   (`Semantics.Definitions.SubtypeRules`). -/
   | subtype (subtype : Subtype) (rules : List Conferral)
-  /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
-  ability and confers nothing, so the node carries columns rather than conferrals. The label is
-  the declaration's own name, or a member's where the declaration lists several (`day` and
-  `night` [CR#731.1]), which carries who holds it; the registry supplies it, never the author.
-  `effectful` is whether an action may confer it directly. -/
-  | designation (label : DesignationLabel) (effectful : Bool)
+  /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not itself
+  an ability. The label is the declaration's own name, or a member's where the declaration lists
+  several (`day` and `night` [CR#731.1]), which carries who holds it; the registry supplies it,
+  never the author. `effectful` is whether an action may confer it directly.
+
+  The conferrals are the designation's inherent abilities, the monarch's two and the
+  initiative's three triggered abilities [CR#725.2,726.2]: no object has them, so they have no
+  source, and each is controlled by the player who held the designation when it triggered, an
+  exception to [CR#113.8]. That reading is the row's (`Definition.controllingDesignation?`), as a
+  counter row's once-per-counter reading is, so an `ability` conferral here is the same
+  `Ability` a card prints; the checker reads the row's conferrals with no source to name
+  (`DRS.sourceless`), and refuses "this" in them. -/
+  | designation (label : DesignationLabel) (effectful : Bool) (confers : List Conferral)
   /-- A card type [CR#205.2a] and what it confers on every object of that type; whether it is a
   permanent type [CR#110.4] is a field of the value, as its stats are. A quality the type gives
   its objects — a creature is a Combatant [CR#508.1a], a land card may be played [CR#305.1], an
@@ -126,6 +133,15 @@ inductive Definition where
   ability and read by others. The label is the declaration's own name; the registry supplies it,
   never the author. -/
   | relation (label : RelationLabel)
+
+/-- The designation whose holder controls the abilities a definition confers, when they have no
+source: a designation's own, controlled by the player who held it as each triggered
+[CR#725.2,726.2], an exception to [CR#113.8]. `none` for every other definition, whose
+conferrals are abilities of the object or player they are conferred on, controlled as their
+source is [CR#113.8]. -/
+def Definition.controllingDesignation? : Definition → Option DesignationLabel
+  | .designation label .. => some label
+  | _ => none
 
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a
 counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its
