@@ -15,7 +15,7 @@ inductive FaceSide where
   | front | back
   deriving DecidableEq, Repr
 
-def anyPermanentType (tys : List CardType) : Bool := tys.any CardType.permanent
+def anyPermanentType (tys : List CardType) : Bool := tys.any (·.permanent)
 
 def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
 
@@ -116,13 +116,14 @@ is the printed `*` a characteristic-defining ability fills, and nothing else fil
 def ptSlotOk (creature : Bool) (defined : Bool) (slot : Option Amount) : Bool :=
   if creature then slot.isNone == defined else !defined || slot.isNone
 
-/-- The stat slots a face prints against its types [CR#208.1,209.1,210.1]: a creature has
-power and toughness, a planeswalker loyalty (the back face of a transforming one may leave it
-absent), a battle defense; loyalty and defense belong only to those types. -/
+/-- The stat slots a face prints against its types' `stats` [CR#208.1,209.1,210.1]: a creature
+has power and toughness, a planeswalker loyalty (the back face of a transforming one may leave it
+absent), a battle defense; loyalty and defense belong only to the types that have them. -/
 def boxSuitsTypes (side : FaceSide) (tys : List CardType) (c : Characteristics) : Bool :=
-  (!tys.elem .planeswalker || c.loyalty.isSome || side == .back) &&
-    (c.loyalty.isNone || tys.elem .planeswalker) &&
-    (!tys.elem .battle || c.defense.isSome) && (c.defense.isNone || tys.elem .battle)
+  let loyal := typesHaveStat tys .loyalty
+  let defended := typesHaveStat tys .defense
+  (!loyal || c.loyalty.isSome || side == .back) && (c.loyalty.isNone || loyal) &&
+    (!defended || c.defense.isSome) && (c.defense.isNone || defended)
 
 /-- A written stat in a printed box is a literal; absent slots retain their box/type laws.
 Effect-written characteristics instead check their expressions in the supplied context. -/
@@ -134,8 +135,8 @@ def Characteristics.printedStatsOk (c : Characteristics) : Bool :=
 def cardBoxOk (side : FaceSide) (tys : List CardType) (text : List Ability)
     (c : Characteristics) : Bool :=
   c.printedStatsOk && boxSuitsTypes side tys c &&
-    ptSlotOk (tys.elem .creature) (textDefines .power text) c.power &&
-    ptSlotOk (tys.elem .creature) (textDefines .toughness text) c.toughness
+    ptSlotOk (typesHaveStat tys .power) (textDefines .power text) c.power &&
+    ptSlotOk (typesHaveStat tys .toughness) (textDefines .toughness text) c.toughness
 
 def cardCostOk : FaceSide → List CardType → Option ManaCost → Bool
   | _, _, none => true

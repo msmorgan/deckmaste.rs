@@ -3,16 +3,24 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.TypeEvidence
 
+/-- Normalizing keeps exactly the declared card types written: the order is the declared one
+(`cardTypes`), and a raw `CardType` no card can spell is not remembered. -/
 theorem normalizeTypes_mem (t : CardType) (ts : List CardType) :
-    t ∈ normalizeTypes ts ↔ t ∈ ts := by
-  cases t <;> simp [normalizeTypes]
+    t ∈ normalizeTypes ts ↔ t ∈ cardTypes ∧ t ∈ ts := by
+  simp [normalizeTypes]
 
+/-- A declared card type is remembered exactly when it is written. -/
+theorem normalizeTypes_mem_of_declared (t : CardType) (ts : List CardType) (h : t ∈ cardTypes) :
+    t ∈ normalizeTypes ts ↔ t ∈ ts := by
+  simp [normalizeTypes_mem, h]
+
+/-- Two lists writing the same declared card types normalize alike. -/
 theorem normalizeTypes_ext (xs ys : List CardType)
-    (h : ∀ t, t ∈ xs ↔ t ∈ ys) : normalizeTypes xs = normalizeTypes ys := by
+    (h : ∀ t, t ∈ cardTypes → (t ∈ xs ↔ t ∈ ys)) : normalizeTypes xs = normalizeTypes ys := by
   unfold normalizeTypes
   apply List.filter_congr
-  intro t _
-  simp only [h t]
+  intro t ht
+  simp only [h t ht]
 
 theorem pureWritten (ts : List CardType) :
     (ts.map Predicate.hasType).foldr (fun p acc => mergeTypes (p.seedTy 31) acc) [] =
@@ -23,8 +31,8 @@ theorem pureWritten (ts : List CardType) :
     simp only [List.map_cons, List.foldr_cons, Predicate.seedTy, ih]
     unfold mergeTypes
     apply normalizeTypes_ext
-    intro u
-    simp [normalizeTypes_mem]
+    intro u hu
+    simp [normalizeTypes_mem, hu]
 
 theorem pureSeed (ts : List CardType) :
     Predicate.seedTy (.and (ts.map Predicate.hasType)) = normalizeTypes ts := by
@@ -35,7 +43,7 @@ theorem pureTypePermutation (xs ys : List CardType) (h : xs.Perm ys) :
       Predicate.seedTy (.and (ys.map Predicate.hasType)) := by
   rw [pureSeed, pureSeed]
   apply normalizeTypes_ext
-  intro t
+  intro t _
   exact h.mem_iff
 
 private def artifactCreature : Predicate := .and [isArtifact, isCreature]

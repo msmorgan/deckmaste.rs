@@ -139,6 +139,22 @@ example : Subtype := Semantics.Primitives.Subtype.of .creature "Dragon"
 #guard_msgs in
 example : Subtype := Semantics.Primitives.Subtype.spell "Adventure"
 
+-- `CardType` is a catalog item in the same way (`Semantics.Definitions.CardTypes`): a structure
+-- carrying its own fields, tagged `semantic_expression` and `internal_expansion`. A card names a
+-- declared card type (`.creature`); a raw structure in a card is refused, here one that would
+-- make an "Artifact" that is no permanent type [CR#110.4].
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.CardType.mk] -/
+#guard_msgs in
+example : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [{ name := "Artifact", permanent := false }],
+      cost := some [generic 1] } }
+
+/-- error: Unknown identifier `Semantics.Primitives.CardType.mk` -/
+#guard_msgs in
+example : CardType := Semantics.Primitives.CardType.mk "Artifact" true [] false
+
 -- `CounterKind`, `DesignationLabel` and `RelationLabel` are catalog items in the same way
 -- (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`): each value carries its own
 -- columns, a counter's holder and a designation's scope, and is tagged `semantic_expression` and

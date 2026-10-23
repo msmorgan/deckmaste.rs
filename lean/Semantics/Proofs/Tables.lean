@@ -6,10 +6,10 @@ import Semantics.Check.Card
 
 Catalog pins: not a port of an Idris family, but `decide` theorems reading a few declarations
 back through the accessors the checker uses: a counter's holder, a designation's holder and scope,
-the keyword a keyword's variant is, and whether a keyword action is one a permanent performs. No
-catalog has a table: keyword abilities, keyword actions, counters, designations, relations and
-subtypes are each their own declaration in `Semantics.Definitions`, where a duplicate is a Lean
-error.
+the keyword a keyword's variant is, whether a keyword action is one a permanent performs, and a
+card type's permanence, stats and Card Class. No catalog has a table: card types, keyword
+abilities, keyword actions, counters, designations, relations and subtypes are each their own
+declaration in `Semantics.Definitions`, where a duplicate is a Lean error.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -57,5 +57,34 @@ theorem permanentPerformedActions :
         monstrosity.deed].all (·.permanentActor) = true ∧
       [search.deed, exile.deed, scry.deed, sacrifice.deed, destroy.deed, shuffle.deed].all
         (!·.permanentActor) = true := by decide
+
+/-! ## Card types read back -/
+
+/-- The six permanent types are artifact, battle, creature, enchantment, land and planeswalker
+[CR#110.4]; instant, sorcery, kindred and dungeon are not [CR#110.4,309.2c]. -/
+theorem permanentTypesAreDeclared :
+    cardTypes.filter (·.permanent) =
+        [.creature, .artifact, .land, .enchantment, .planeswalker, .battle] ∧
+      cardTypes.filter (!·.permanent) = [.instant, .sorcery, .kindred, .dungeon] := by decide
+
+/-- A card type's stats are its declaration's: power and toughness are a creature's
+[CR#302.4], loyalty a planeswalker's [CR#306.5] and defense a battle's [CR#310.4]; no other card
+type has a stat of its own. -/
+theorem cardTypeStatsAreDeclared :
+    (CardType.creature.stats, CardType.planeswalker.stats, CardType.battle.stats) =
+        ([.power, .toughness], [.loyalty], [.defense]) ∧
+      (cardTypes.filter (·.stats.isEmpty)).length = 7 := by decide
+
+/-- Card Class read off the declared fields [CR#110.4,110.4a]: an artifact, battle, creature,
+enchantment, land or planeswalker card is a permanent card; an instant or sorcery card is an
+instant or sorcery card; a kindred card reads by its other card type [CR#308.1]; and kindred
+alone, as a dungeon, gives no Card Class [CR#309.2c]. -/
+theorem cardClassIsDeclared :
+    ([.artifact, .battle, .creature, .enchantment, .land, .planeswalker] : List CardType).map
+        (fun t => cardClassOf [t]) = List.replicate 6 (some .permanentCard) ∧
+      ([[.instant], [.sorcery], [.kindred, .instant], [.kindred, .sorcery]] :
+          List (List CardType)).map cardClassOf = List.replicate 4 (some .instantOrSorceryCard) ∧
+      cardClassOf [.kindred, .creature] = some .permanentCard ∧
+      cardClassOf [.kindred] = none ∧ cardClassOf [.dungeon] = none := by decide
 
 end Semantics.Proofs.Tables

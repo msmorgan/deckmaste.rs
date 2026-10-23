@@ -1358,7 +1358,7 @@ mutual
     keyword the rules define one way "on a permanent" and another "on an instant or sorcery
     spell" writes its two halves here [CR#702.55a,702.131a,702.131b,702.174b]. The checker checks
     both, each in the same incoming context; the engine keeps the one the card's Card Class
-    (`cardClassOf`) selects and the card has only that one. -/
+    (`cardClassOf`, read off the card types' fields) selects and the card has only that one. -/
     | byCardClass (onPermanent : Ability) (onInstantOrSorcery : Ability)
 end
 

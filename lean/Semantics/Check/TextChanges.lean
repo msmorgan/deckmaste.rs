@@ -11,7 +11,8 @@ def TextWord.sort : TextWord → QualitySort
 /-- The sorts of word a Text Change replaces: color words, land types and creature types
 [CR#612.2,612.2a]. -/
 def QualitySort.replaceable : QualitySort → Bool
-  | .color | .subtype .land | .subtype .creature => true
+  | .color => true
+  | .subtype host => host == .land || host == .creature
   | _ => false
 
 def TextWord.sortCheck (sorts : List QualitySort) : Option TextWord → List Refusal

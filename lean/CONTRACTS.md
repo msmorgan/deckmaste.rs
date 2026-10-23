@@ -138,7 +138,12 @@ a transparent phrasing the rules do not define). Printed-data records,
 enumerated leaf values, and numeric literals remain ordinary data; their
 semantic fields are inspected recursively. The modules are layered one way,
 `Semantics.Primitives` ← `Semantics.Templates` ← Definitions ← cards, the Definitions all
-re-exported by `Semantics.Definitions`. Templates name no catalog item and no card type. The leaf
+re-exported by `Semantics.Definitions`. Templates name no catalog item and no card type. The card
+types (`Semantics.Definitions.CardTypes`) are the one catalog below the stack: each is a
+`semantic_definition` in `namespace Semantics` (`CardType.creature`) over `Semantics.Words`
+alone, because the checker compares card types by value and reads their fields (`permanent`,
+`stats`, `instantOrSorcery`); what a card type confers is its `Definition.cardType` row
+(`Semantics.Definitions.CardTypeRules`), above Templates. The other leaf
 catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are
 spelled over primitives only, except that `.Subtypes` is spelled over the raw `Subtype`
 constructors, which have no primitive; `Semantics.Definitions.Phrasings` holds the Templates that
@@ -992,9 +997,9 @@ trigger on the spell's being put into a graveyard during its resolution
 
 - **Engine.** The card has one half, the one its Card Class selects:
   `onPermanent` on a permanent card, `onInstantOrSorcery` on an instant or sorcery
-  card (`cardClassOf`, `Words.lean`) [CR#110.4,110.4a]. Once
-  `lean-v3-card-type-composite-definition` lands, the class is computed from the
-  card type's fields.
+  card (`cardClassOf`, `Words.lean`) [CR#110.4,110.4a], computed from the card
+  types' `permanent` and `instantOrSorcery` fields. A card whose types give it no
+  Card Class (a dungeon [CR#309.2c]) has neither half.
 - **Checker.** Both halves are checked, each in the same incoming context
   (`Check/Phrase.lean`, the `byCardClass` arm), so a choice an earlier ability
   publishes (gift's chosen player [CR#607.2d]) resolves in both, and a half wrong on
