@@ -400,14 +400,24 @@ pub enum DeterminativeDistribution {
     #[default]
     Dependent,
     Independent,
+    /// The indefinite article *a*, which selects a singular head (CGEL, Ch. 5
+    /// §3.4, p. 353, set (a) [67]). It has one holder, *a*, and that is the
+    /// whole class: never a bare quantified plural (*\*a three creatures*),
+    /// and never the determiner of a temporal location Noun Phrase (*\*a
+    /// day*; Ch. 8 §6.3, p. 698), a kept gate on `TemporalLocation`
+    /// (`docs/decisions/english-v4.md` §4.4, item 10).
     IndefiniteArticle,
     Distributive,
     /// Deictic *this*, *that*, *last* and *next*, which with a period noun form
     /// a Noun Phrase Adjunct of temporal location (*this turn*; CGEL, Ch. 8
     /// §6.3, p. 698).
     Deictic,
-    /// Selects a singular head or a quantified plural (CGEL, Ch. 5 §3.4, p.
-    /// 353).
+    /// Selects a singular head or a quantified plural (*another three
+    /// bodies*; CGEL, Ch. 5 §3.4, p. 353, set (c) [69–70]). It has one holder,
+    /// *another*, and that is the whole class: the other members are
+    /// sequences, *a* with *further* or *additional*, whose quantified plural
+    /// the grammar reads with the modifier. Unlike *a*, it also determines a
+    /// temporal location Noun Phrase (*another day*; Ch. 8 §6.3, p. 698).
     SingularOrQuantified,
     /// Free-choice *any* (CGEL, Ch. 5 §7.5, p. 381): with a quantificational
     /// noun the Noun Phrase takes the Number of its oblique (*any number of
