@@ -15,7 +15,7 @@
 + If this spell was kicked, any number of target creatures you control gain indestructible until end of turn.
 +Clause instead, that card is revealed and put on the bottom of that player's library => PrepositionPhrase "instead"; VerbPhrase "is revealed and put on the bottom of that player's library"
 # the final connective may scope over the whole coordination or only its last conjunct
-+Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; Clause "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
++Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; VerbPhrase "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
 + <card=Pariah> All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal; PrepositionPhrase "instead"
 + All damage that would be dealt to you is dealt to enchanted creature. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
 # "instead" preposed without a comma to the Clause it modifies, after a fronted conditional
@@ -25,3 +25,20 @@
 + <card=The Final Days> If this spell was cast from a graveyard, instead create X of those tokens, where X is the number of creature cards in your graveyard. => Clause "instead create X of those tokens, where X is the number of creature cards in your graveyard"; !Clause "instead create X of those tokens"
 + If you do, draw a card.
 + Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card.
+# "instead" in central position, before a bare infinitival or a finite Verb Phrase
++ You may instead draw a card. => PrepositionPhrase "instead" as Adjunct of draw
++Clause That player instead puts that card onto the battlefield => PrepositionPhrase "instead" as Adjunct of put
+# the Complement of the *of* that *instead* selects: a gerund-participial, or a goal Preposition Phrase
++PrepositionPhrase instead of drafting a card => VerbPhrase "drafting a card" as Complement of of
++PrepositionPhrase instead of onto the battlefield => PrepositionPhrase "onto the battlefield" as Complement of of
++ <card=Jace, Ingenious Mind-Mage> −9: Gain control of up to three target creatures. => NounPhrase "up to three target creatures" as Complement of of; !PrepositionPhrase "up to three target creatures"
+# the endpoint of a scalar change: a number, or a comparative bound on one
++VerbPhrase reduce it to 1 => PrepositionPhrase "to 1" as Complement of reduce
++VerbPhrase reduce your life total to less than 1 => PrepositionPhrase "to less than 1" as Complement of reduce; Amount "less than 1" as Complement of to
++ <card=Worship> If you control a creature, damage that would reduce your life total to less than 1 reduces it to 1 instead. => PrepositionPhrase "to less than 1" as Complement of reduce; PrepositionPhrase "to 1" as Complement of reduce
++ <card=Remand> Counter target spell. If that spell is countered this way, put it into its owner's hand instead of into that player's graveyard. => PrepositionPhrase "instead of into that player's graveyard" as Adjunct of put; PrepositionPhrase "into that player's graveyard" as Complement of of
+# arithmetic on a quantity of objects or of occurrences
++NounPhrase that many dice plus one => NounPhrase "that many dice"; PrepositionPhrase "plus one" as Modifier of die
++ <card=Proft's Eidetic Memory> At the beginning of combat on your turn, if you've drawn more than one card this turn, put X +1/+1 counters on target creature you control, where X is the number of cards you've drawn this turn minus one. => !NounPhrase "this turn minus one"
++TemporalNounPhrase that many times plus an additional time => NounPhrase "that many times"; PrepositionPhrase "plus an additional time" as Modifier of time
++ <card=Twinning Staff> If you would copy a spell one or more times, instead copy it that many times plus an additional time. You may choose new targets for the additional copy. => NounPhrase "that many times plus an additional time" as Adjunct of copy; PrepositionPhrase "plus an additional time" as Modifier of time

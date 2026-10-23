@@ -505,10 +505,17 @@ pub(crate) struct Summary {
     /// child: one set off by a comma (*When …, …*, *Until end of turn, …*)
     /// or a preposed Adjunct without one (*instead put …*). Such a Clause
     /// hosts no comma-set post-dependent, which attaches inside the fronted
-    /// one, and is never the initial conjunct of a coordination undelimited
-    /// before its coordinator: the fronted dependent scopes over the whole
-    /// coordination (`english-lexical-analysis.md` §2).
+    /// one (`english-lexical-analysis.md` §2). Unless it is a
+    /// `preposed_predicate`, it is never the initial conjunct of a
+    /// coordination undelimited before its coordinator: the fronted
+    /// dependent scopes over the whole coordination.
     pub fronted: bool,
+    /// Its fronted dependent is a Predicate Adjunct preposed without a comma
+    /// (*instead put …*, *instead puts …*). Its scope is ambiguous between
+    /// the initial conjunct of a coordination and the whole coordination
+    /// (*Yesterday Ed was taken ill and the lecture's been cancelled*; CGEL,
+    /// Ch. 15 §1.3.4, pp. 1285–1286), so it may be that initial conjunct.
+    pub preposed_predicate: bool,
     /// It contains a comma that no bracket closes: it is, or has at any depth,
     /// a coordination delimited before its coordinator (*[it's an artifact,
     /// and it has flying]*) or the host of a comma-set post-dependent
@@ -987,20 +994,23 @@ impl Production {
     }
 
     /// Whether a fronted dependent's scope rules this child out: a fronted
-    /// dependent scopes over a whole coordination, never its initial
-    /// conjunct, and over a comma-set post-dependent of its Clause, never
-    /// inside the post-dependent's host (`english-lexical-analysis.md` §2).
-    /// The initial conjunct of a coordination delimited before its
-    /// coordinator may have its own (*[If you do, …], and [if you don't,
-    /// …]*), and so may a middle conjunct of a serial one, since a fronted
-    /// dependent there cannot scope over the whole (*C1, [if …, C2], and
-    /// C3*).
+    /// dependent scopes over a comma-set post-dependent of its Clause, never
+    /// inside the post-dependent's host, and, unless it is a Predicate
+    /// Adjunct preposed without a comma (`Summary::preposed_predicate`), over
+    /// a whole coordination, never its initial conjunct
+    /// (`english-lexical-analysis.md` §2). The initial conjunct of a
+    /// coordination delimited before its coordinator may have its own (*[If
+    /// you do, …], and [if you don't, …]*), and so may a middle conjunct of a
+    /// serial one, since a fronted dependent there cannot scope over the
+    /// whole (*C1, [if …, C2], and C3*).
     fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
         let first_conjunct = self.coordinator.is_some()
             && !self.delimits
             && !self.tail
             && self.names[position] == "first";
-        summary.fronted && (first_conjunct || (position == 0 && self.hosts_comma_set_dependent()))
+        summary.fronted
+            && ((first_conjunct && !summary.preposed_predicate)
+                || (position == 0 && self.hosts_comma_set_dependent()))
     }
 
     /// Whether the Production hosts a comma-set post-dependent: its head
@@ -1293,6 +1303,12 @@ impl Production {
                 _ => state.conjunct_hosts,
             },
             fronted: self.fronts(),
+            preposed_predicate: self.fronts()
+                && self.host_check.is_some_and(|(host, adjunct, kind)| {
+                    adjunct < host
+                        && kind == HostKind::Predicate
+                        && !self.set_off_before_head(adjunct)
+                }),
             internal_comma: state.internal_comma
                 || self.delimits
                 || self.hosts_comma_set_dependent(),

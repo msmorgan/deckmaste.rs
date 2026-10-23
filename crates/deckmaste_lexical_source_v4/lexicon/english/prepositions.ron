@@ -158,6 +158,10 @@
         (complement: Nominal, hosts: ComplementOnly),
         (complement: Gerund, hosts: ComplementOnly),
         (complement: KeywordPhrase, hosts: ComplementOnly),
+        // *instead of into that player's graveyard*: a goal or location
+        // that *instead* contrasts with the clause's own, its preposition
+        // not specified by *of* (CGEL, Ch. 7 §5.1(c), pp. 638–640).
+        (complement: PP(["into", "onto", "on", "in"]), hosts: ComplementOnly),
         // *your choice of 5/1 or 1/5*
         (complement: MeasureNP, hosts: ComplementOnly),
     ]),
