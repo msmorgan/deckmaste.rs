@@ -672,6 +672,25 @@ def troubleInPairsArms : Ability :=
     (draw 1)
 theorem okTroubleInPairsArms : Ability.check (DRS.ofList []) troubleInPairsArms = [] := by decide
 
+private def castRank? : Predicate → Option (Ordinal × Option Period)
+  | .castBy _ rank => rank
+  | _ => none
+
+private def eventOrdinal? : GameEvent → Option (Ordinal × Option Period)
+  | .nthOccurrence ordinal per _ => some (ordinal, per)
+  | _ => none
+
+private def triggerAlternatives : Ability → List GameEvent
+  | .triggered _ alternatives .. => alternatives
+  | _ => []
+
+/-- "The first spell you've cast this game" and "your second spell each turn" carry one ordinal
+shape, an `Ordinal` counted within an optional `Period`. -/
+theorem onceUponATimeAndTroubleInPairsShareTheOrdinalShape :
+    castRank? onceUponATimeFirstCast = some (.nth 1, some .game) ∧
+      (triggerAlternatives troubleInPairsArms).map eventOrdinal? =
+        [some (.nth 2, some .turn), some (.nth 2, some .turn)] := by decide
+
 /-- Bioplasm -/
 def bioplasm : Spelled := spelled <| singleFacedCard
   { name := "Bioplasm", cost := [generic 3, pip .green, pip .green], types := [.creature],
@@ -888,8 +907,9 @@ def dread : Spelled := spelled <| singleFacedCard
 
 private semantic_template creatureDamagedByAttachedHostThisTurn (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
-    .did ⟨.actor (.attachHost attachment creature),
-      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩])
+    .did { subj := .actor (.attachHost attachment creature)
+           action := .dealDamage .anyAmount .which
+           within := some (.duration soFarThisTurn none) }])
 
 /-- Vampiric Embrace. -/
 def vampiricEmbrace : Spelled := spelled <| singleFacedCard

@@ -63,13 +63,16 @@ theorem damagePublishesParticipantsAndOutcome :
 theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
     (drs : DRS) (kind : Option DamageKind) (source patient : NounPhrase) :
     ((stepDidClause 64 drs
-      ⟨.actor source, .dealDamage .anyAmount patient kind, some .thisWay⟩).1.referents.head?).map
+      { subj := .actor source
+        action := .dealDamage .anyAmount patient kind
+        within := some .thisWay }).1.referents.head?).map
         (·.payload) = some (.outcome .damageDealt) := by rfl
 
 theorem observedDamageDoesNotExportOrRefineReferents (kind : Option DamageKind) :
     let before := nounResult (DRS.ofList []) (target isArtifact)
-    let after := (stepPredicate 64 before (.did ⟨.actor .which,
-      .dealDamage .anyAmount .you kind, some .thisWay⟩)).1
+    let after := (stepPredicate 64 before (.did { subj := .actor .which
+                                                  action := .dealDamage .anyAmount .you kind
+                                                  within := some .thisWay })).1
     after.referents = before.referents ∧ countOutcomes .damageDealt after = 0 := by
   rcases kind with _ | _ | _ <;> decide
 
@@ -153,8 +156,9 @@ theorem mixedOriginWithTheBattlefieldIsObservedOnDeparture :
 
 theorem historyDoesNotMoveTheCurrentReference :
     let before := nounResult (DRS.ofList []) (a isCreature)
-    let after := (stepPredicate 64 before (.did ⟨.any,
-      .move .which (battlefield) (some graveyard) .departure [], some .thisWay⟩)).1
+    let after := (stepPredicate 64 before (.did { subj := .any
+                                                  action := .move .which (battlefield) (some graveyard) .departure []
+                                                  within := some .thisWay })).1
     nounZone after it = some .battlefield := by decide
 
 theorem anyZoneChangeIsMeaningful :
@@ -309,7 +313,7 @@ private def firstCreationEachTurn : WouldClause :=
   nthOccurrence (.nth 1)
     (would (by_ you)
       (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])))
-    (some .turn)
+    (some Period.turn)
 
 private def moonlitReplacement : StaticSpec :=
   replace firstCreationEachTurn
@@ -317,7 +321,7 @@ private def moonlitReplacement : StaticSpec :=
 
 theorem firstTimeEachTurnIsTheWatchedEventsOrdinal :
     firstCreationEachTurn =
-        .nthOccurrence (.nth 1) (some .turn)
+        .nthOccurrence (.nth 1) (some Period.turn)
           (would (by_ you)
             (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []))) ∧
       moonlitReplacement =
@@ -327,6 +331,26 @@ theorem firstTimeEachTurnIsTheWatchedEventsOrdinal :
       WouldClause.check (DRS.ofList []) firstCreationEachTurn = [] ∧
       StaticSpec.check (DRS.ofList []) moonlitReplacement = [] :=
   ⟨rfl, rfl, by decide⟩
+
+/-- "Each turn" has one spelling, `Period.turn`: `Period.part .turn` would say the same and is
+refused. An object's own existence (`Period.thisObject`) bounds a Usage Limit, never an event
+ordinal, and an ordinal counts from one. -/
+theorem eventOrdinalPeriodIsSpelledOnce :
+    WouldClause.check (DRS.ofList [])
+        (nthOccurrence (.nth 1)
+          (would (by_ you)
+            (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])))
+          (some (.part .turn))) =
+      [.eventOrdinalPeriod (.part .turn)] ∧
+    GameEvent.check (DRS.ofList [])
+        (nthOccurrence (.nth 2) (does anOpponent (cast (a isSpell))) (some .thisObject)) =
+      [.eventOrdinalPeriod .thisObject] ∧
+    GameEvent.check (DRS.ofList [])
+        (nthOccurrence (.nth 0) (does anOpponent (cast (a isSpell))) (some .turn)) =
+      [.ordinalNonZero] ∧
+    GameEvent.check (DRS.ofList [])
+        (nthOccurrence (.nth 2) (does anOpponent (cast (a isSpell))) (some (.part .upkeep))) =
+      [] := by decide
 
 /-- The primary event followed by the alternatives of a keyword's triggered abilities. -/
 private def keywordTriggerEvents : Ability → List GameEvent

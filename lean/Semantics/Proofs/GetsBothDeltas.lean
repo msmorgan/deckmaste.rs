@@ -174,10 +174,12 @@ theorem diminishKeepsOneTargetForBothSetDeltas :
   · rfl
   · decide
 
+/-- The caster "you" is a mention, stepped before the target it restricts, so the target is
+referent 1. -/
 theorem cycleOfLifeKeepsItsCastCreatureTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
-    result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
-      (result.1.findById? 0).map (·.det) = some .target ∧
+    result.2 = [] ∧ creatureIdentity result.1 1 = true ∧
+      (result.1.findById? 1).map (·.det) = some .target ∧
       Cards.cycleOfLife = get (target (.and [isCreature, castBy .you]))
         (.set 0) (.set 1)
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))) := by

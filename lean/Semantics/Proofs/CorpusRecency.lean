@@ -74,8 +74,9 @@ private def runeswordBefore : DRS :=
   (stepNounPhrase 64 (DRS.ofList []) .obj true runeswordSource).1
 private def runeswordVictim : NounPhrase :=
   .firstMention "runesword.victim" (a (.and [isCreature,
-    .did ⟨.actor (.laterMention "runesword.source" (target isCreature)),
-      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩]))
+    .did { subj := .actor (.laterMention "runesword.source" (target isCreature))
+           action := .dealDamage .anyAmount .which
+           within := some (.duration soFarThisTurn none) }]))
 private def runeswordWould : WouldClause :=
   .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure [])
 
@@ -153,8 +154,9 @@ theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
 
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
-    .did ⟨.actor (.attachHost attachment (.type .creature)),
-      .dealDamage .anyAmount .which, some (.duration soFarThisTurn none)⟩])
+    .did { subj := .actor (.attachHost attachment (.type .creature))
+           action := .dealDamage .anyAmount .which
+           within := some (.duration soFarThisTurn none) }])
 
 private def scytheDeath : GameEvent :=
   does (damagedVictim .equipped) die
@@ -205,7 +207,9 @@ private def cycledContext : DRS :=
 private def cycloneFinalCard : NounPhrase :=
   a (.and [.isCard, .in_ yourLibrary,
     .shares .cardType .share
-      (the (.and [.did ⟨.any, .enact (.ofAbility (.named "cycling")) (discard .which) none none, none⟩,
+      (the (.and [.did { subj := .any
+                         action := .enact (.ofAbility (.named "cycling")) (discard .which) none none
+                         within := none },
         .isCard]))])
 private def cycloneExile : Action :=
   .move cycloneFinalCard (yourLibrary) (some exileZone) .arrival []

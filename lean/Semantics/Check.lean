@@ -69,10 +69,10 @@ def conniveDef (subject : NounPhrase) : Action :=
         .move (.described (.a .unmarked) (.and [.isCard, .in_ handZone]))
           (handZone) (some graveyardZone) .departure [],
         .doIf
-          (.did ⟨.actor .you,
-            .move (.described (.a .unmarked) (.not (.hasType .land)))
-              (handZone) (some graveyardZone) .departure [],
-            some .thisWay⟩)
+          (.did { subj := .actor .you
+                  action := .move (.described (.a .unmarked) (.not (.hasType .land)))
+                    (handZone) (some graveyardZone) .departure []
+                  within := some .thisWay })
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.laterMention "subject" (.inCaller subject)))
           none
@@ -93,7 +93,9 @@ def airbendDef (subject : NounPhrase) : Action :=
         (.can (.actor .you)
           (.procedure .cast
             (.described (.the .one)
-              (.and [.did ⟨.any, .move .which .anyLocation (some exileZone) .departure [], none⟩,
+              (.and [.did { subj := .any
+                            action := .move .which .anyLocation (some exileZone) .departure []
+                            within := none },
                 .isCard]))
             (.payingInstead (.mana [.simple (.generic 2)])) none none none)
           {})

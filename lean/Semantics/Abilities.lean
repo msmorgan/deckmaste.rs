@@ -146,11 +146,15 @@ mutual
   this way", "creatures that attacked this turn"), used by `Condition.did`, `Predicate.did`,
   and `Amount.tally`. With no span written (`within = none`) it is an attributive participle
   ("the exiled card"), which only a Participial Description reads: it names the objects a deed
-  in scope acted on, in this ability or in an ability linked to it [CR#607.1,607.2a]. -/
+  in scope acted on, in this ability or in an ability linked to it [CR#607.1,607.2a]. An
+  `ordinal` picks out the `ordinal`th matching event, counted within each `per` when one is
+  written ("the first spell you've cast this game"): the same shape as `GameEvent.nthOccurrence`
+  and `WouldClause.nthOccurrence`. -/
   structure DidClause where
     subj : Subject
     action : Action
     within : Option LookbackSpan
+    ordinal : Option (Ordinal × Option Period) := none
 
   /-- Which turn a timing or duration names. `that` reads back the turn an earlier phrase
   named ("that turn"); there is no "this", which names an object. -/
@@ -227,7 +231,7 @@ mutual
     | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
     | hasKeyword (keyword : KeywordTerm)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
-    | castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))
+    | castBy (caster : NounPhrase) (rank : Option (Ordinal × Option Period))
     | castFrom (zone : Location)
     /-- The spell was a card holding `designation` before it was cast: "if this spell was
     foretold" reads a spell that was a foretold card before it was cast, even one cast for a cost
@@ -508,7 +512,7 @@ mutual
     | chapterMark (chapters : List ChapterNumber)
     /-- "Whenever you cast your second spell each turn". "When the Nth counter is put" is no
     occurrence count but a threshold, `Amount.theNth` [CR#122.7]. -/
-    | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
+    | nthOccurrence (ordinal : Ordinal) (per : Option Period) (event : GameEvent)
     /-- "Whenever an ability you control causes you to…". -/
     | causes (cause : Causing) (event : GameEvent)
     /-- State-based actions check boundary for lookback [CR#704.3,704.5h]. -/
@@ -835,7 +839,7 @@ mutual
     for [CR#614.1], not a Usage Limit: matching events are counted over the span's whole
     history, so one that happened before the effect existed, or that the effect applied to and
     its controller declined to replace, still uses up "the first". -/
-    | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (clause : WouldClause)
+    | nthOccurrence (ordinal : Ordinal) (per : Option Period) (clause : WouldClause)
 
   /-- What a replacement effect makes of the event it replaces [CR#614.1]: an action in its
   place, an action done as part of it, or Entry Riders on the entering it is, each of which may

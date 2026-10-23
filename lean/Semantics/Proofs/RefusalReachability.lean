@@ -152,8 +152,10 @@ theorem onlyACoordinatedTestSubjectHoldsAnIndefinite :
 /-- "the creatures put into a graveyard": a definite plural Participial Description. -/
 private def thePutCreatures : NounPhrase :=
   .described (.the .many)
-    (.and [ .did ⟨.any, .move .which (.zone .battlefield none) (some (.zone .graveyard none))
-              .departure [], none⟩,
+    (.and [ .did { subj := .any
+                   action := .move .which (.zone .battlefield none) (some (.zone .graveyard none))
+                     .departure []
+                   within := none },
             .hasType .creature ])
 
 /-- Two creatures moved from the battlefield to a graveyard. -/

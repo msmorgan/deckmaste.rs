@@ -23,10 +23,14 @@ private def relativeCheckAfter (earlier : Action) (kind : Kind) (clause : DidCla
     (.did clause)
 
 theorem scopedPlayerDraw :
-    relativeCheck .player ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ = [] := by decide
+    relativeCheck .player { subj := .actor .which
+                            action := .draw (.exactlyOf .anyAmount)
+                            within := some withinThisTurn } = [] := by decide
 
 theorem playerGapCannotStandForObject :
-    relativeCheck .object ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ =
+    relativeCheck .object { subj := .actor .which
+                            action := .draw (.exactlyOf .anyAmount)
+                            within := some withinThisTurn } =
       [.kindMismatch .player .object] := by decide
 
 theorem gapRequiresLookback :
@@ -35,55 +39,66 @@ theorem gapRequiresLookback :
 
 theorem scopedCreatureDeath :
     relativeCheck .object
-      ⟨.any, .move (.headed (.type .creature) .which)
-        (.zone .battlefield none) (some (.zone .graveyard none)) .departure [],
-        some withinThisTurn⟩ = [] := by decide
+      { subj := .any
+        action := .move (.headed (.type .creature) .which)
+          (.zone .battlefield none) (some (.zone .graveyard none)) .departure []
+        within := some withinThisTurn } = [] := by decide
 
 theorem nestedLookbackBindsItsOwnParticipant :
     relativeCheck .player
-      ⟨.actor .which,
-        .procedure .cast
+      { subj := .actor .which
+        action := .procedure .cast
           (.described (.a .unmarked)
             (.and [.hasType .creature, .in_ (.zone .stack none),
-              .did ⟨.any, .move (.headed (.type .creature) .which)
-                (.zone .battlefield none) (some (.zone .graveyard none))
-                .departure [], some withinThisTurn⟩]))
-          .itsOwnCost none none none,
-        some withinThisTurn⟩ = [] := by decide
+              .did { subj := .any
+                     action := .move (.headed (.type .creature) .which)
+                       (.zone .battlefield none) (some (.zone .graveyard none))
+                       .departure []
+                     within := some withinThisTurn }]))
+          .itsOwnCost none none none
+        within := some withinThisTurn } = [] := by decide
 
 theorem nestedLookbackCannotCaptureOuterGap :
     relativeCheck .player
-      ⟨.actor .which,
-        .procedure .cast
+      { subj := .actor .which
+        action := .procedure .cast
           (.described (.a .unmarked)
             (.and [.hasType .creature, .in_ (.zone .stack none),
-              .did ⟨.actor .which, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩]))
-          .itsOwnCost none none none,
-        some withinThisTurn⟩ = [.kindMismatch .player .object] := by decide
+              .did { subj := .actor .which
+                     action := .draw (.exactlyOf .anyAmount)
+                     within := some withinThisTurn }]))
+          .itsOwnCost none none none
+        within := some withinThisTurn } = [.kindMismatch .player .object] := by decide
 
 theorem lookbackRequiresBoundParticipant :
-    relativeCheck .player ⟨.actor .you, .draw (.exactlyOf .anyAmount), some withinThisTurn⟩ =
+    relativeCheck .player { subj := .actor .you
+                            action := .draw (.exactlyOf .anyAmount)
+                            within := some withinThisTurn } =
       [.lookbackSubject] := by decide
 
 theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
-      ⟨.actor .you, .draw (.exactlyOf .anyAmount),
-        some (.duration soFarThisTurn
+      { subj := .actor .you
+        action := .draw (.exactlyOf .anyAmount)
+        within := some (.duration soFarThisTurn
           (some (.onlyIf (.exists_ (.described (.a .unmarked)
             (.and [.hasType .creature,
-              .did ⟨.any, .move .which (.zone .battlefield none)
-                (some (.zone .graveyard none)) .departure [], some withinThisTurn⟩]))))))⟩ =
+              .did { subj := .any
+                     action := .move .which (.zone .battlefield none)
+                       (some (.zone .graveyard none)) .departure []
+                     within := some withinThisTurn }])))))) } =
       [.lookbackSubject] := by decide
 
 theorem participantCanOccurMoreThanOnce :
     relativeCheck .object
-      ⟨.actor (.headed (.type .creature) .which),
-        .dealDamage .anyAmount (.headed (.type .creature) .which),
-        some withinThisTurn⟩ = [] := by decide
+      { subj := .actor (.headed (.type .creature) .which)
+        action := .dealDamage .anyAmount (.headed (.type .creature) .which)
+        within := some withinThisTurn } = [] := by decide
 
 private def damageHistory : Predicate :=
-  .did ⟨.actor (.headed (.type .creature) .which),
-    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)), some withinThisTurn⟩
+  .did { subj := .actor (.headed (.type .creature) .which)
+         action := .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you))
+         within := some withinThisTurn }
 
 theorem historyDoesNotIntroduceDamageOutcome :
     countOutcomes .damageDealt (stepPredicate 64 (DRS.ofList []) damageHistory).1 = 0 := by decide
@@ -94,31 +109,31 @@ theorem historyDoesNotExportNamedParticipant :
 
 theorem historyNamedParticipantAccessibleLocally :
     relativeCheck .object
-      ⟨.actor .which,
-        .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) (.isOpponentOf .you)))
-          (.pro (.word .player) .one),
-        some withinThisTurn⟩ = [] := by decide
+      { subj := .actor .which
+        action := .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) (.isOpponentOf .you)))
+          (.pro (.word .player) .one)
+        within := some withinThisTurn } = [] := by decide
 
 theorem castCanCarryExcludedOrigins :
     relativeCheck .player
-      ⟨.actor .which,
-        .procedure .cast (.described (.a .unmarked) (.and [.isCard, .in_ (.zone .stack none)]))
-          .itsOwnCost none (some (.not (.zone .hand (some .you)))) none,
-        some withinThisTurn⟩ = [] := by decide
+      { subj := .actor .which
+        action := .procedure .cast (.described (.a .unmarked) (.and [.isCard, .in_ (.zone .stack none)]))
+          .itsOwnCost none (some (.not (.zone .hand (some .you)))) none
+        within := some withinThisTurn } = [] := by decide
 
 theorem namedActionCanCarryItsLocus :
     relativeCheckAfter (search yourLibrary) .player
-      ⟨.actor .which,
-        .enact (.action "search") (.search (.zone .library (some .you)) .any) none
-          (some (.zone .library (some .you))),
-        some .thisWay⟩ = [] := by decide
+      { subj := .actor .which
+        action := .enact (.action "search") (.search (.zone .library (some .you)) .any) none
+          (some (.zone .library (some .you)))
+        within := some .thisWay } = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :
     relativeCheckAfter shuffle .player
-      ⟨.actor .which,
-        .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
-          none (some (.zone .graveyard (some .you))),
-        some .thisWay⟩ = [.lookbackLocus] := by decide
+      { subj := .actor .which
+        action := .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
+          none (some (.zone .graveyard (some .you)))
+        within := some .thisWay } = [.lookbackLocus] := by decide
 
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :
     (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder ∧
@@ -140,15 +155,34 @@ theorem designatedSpellKeepsSelectedIdentity :
 
 theorem designatedSpellCanBeMatched :
     relativeCheck .player
-      ⟨.actor .which,
-        .procedure .cast (.headed .spell (.designated (.named "commander") .you))
-          .itsOwnCost none none none,
-        some (.duration thisGame none)⟩ = [] := by decide
+      { subj := .actor .which
+        action := .procedure .cast (.headed .spell (.designated (.named "commander") .you))
+          .itsOwnCost none none none
+        within := some (.duration thisGame none) } = [] := by decide
 
 theorem eventModifiersPreserveFacts (event : GameEvent) (ordinal : Ordinal)
-    (part : Option TurnPart) (cause : Causing) (fuel : Nat) :
-    (GameEvent.nthOccurrence ordinal part event).facts (fuel + 1) = event.facts fuel ∧
+    (per : Option Period) (cause : Causing) (fuel : Nat) :
+    (GameEvent.nthOccurrence ordinal per event).facts (fuel + 1) = event.facts fuel ∧
       (GameEvent.causes cause event).facts (fuel + 1) = event.facts fuel := ⟨rfl, rfl⟩
+
+/-- "the first spell you've cast this game": a lookback's ordinal is an event ordinal, which
+counts within a period an event ordinal names, and which singles out the one event the
+description reads, so a `the`-headed description with it uniquifies. -/
+theorem lookbackOrdinalIsAnEventOrdinal :
+    relativeCheck .object
+        { subj := .actor .you, action := cast .which, within := some (.duration thisGame none),
+          ordinal := some (.nth 1, none) } = [] ∧
+      relativeCheck .object
+        { subj := .actor .you, action := cast .which, within := some (.duration thisGame none),
+          ordinal := some (.nth 1, some .thisObject) } = [.eventOrdinalPeriod .thisObject] ∧
+      NounPhrase.check (DRS.ofList [])
+        (the (and [isSpell, .did { subj := .actor .you, action := cast .which,
+                                    within := some (.duration thisGame none),
+                                    ordinal := some (.nth 1, none) }])) = [] ∧
+      NounPhrase.check (DRS.ofList [])
+        (the (and [isSpell, .did { subj := .actor .you, action := cast .which,
+                                    within := some (.duration thisGame none) }])) =
+        [.uniquifying] := by decide
 
 /-! ## Unwritten spans
 
@@ -157,11 +191,15 @@ Description ("the destroyed creature"). A condition and a tally always write the
 does a relative clause under any other determiner. -/
 
 theorem unanchoredConditionRefused :
-    Condition.check (DRS.ofList []) (.did ⟨.any, destroy (a isCreature), none⟩) =
+    Condition.check (DRS.ofList []) (.did { subj := .any
+                                            action := destroy (a isCreature)
+                                            within := none }) =
       [.unanchoredLookback] := by decide
 
 theorem unanchoredTallyRefused :
-    Amount.check (DRS.ofList []) (.tally ⟨.any, destroy (a isCreature), none⟩ .events) =
+    Amount.check (DRS.ofList []) (.tally { subj := .any
+                                           action := destroy (a isCreature)
+                                           within := none } .events) =
       [.unanchoredLookback] := by decide
 
 /-- "target creature destroyed" names no span and no destruction to read back. -/

@@ -57,6 +57,8 @@ inductive Refusal where
   | testSubject
   /- zones -/
   | ordinalNonZero
+  /-- An event ordinal counts within a period no event ordinal names (`Period.eventOrdinalOk`). -/
+  | eventOrdinalPeriod (period : Period)
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
   /-- A Participial Description ("the exiled card", "each creature destroyed this way", "the

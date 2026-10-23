@@ -233,7 +233,8 @@ remains Rust's responsibility. The fold does not claim an execution proof.
 
 ## Historical events
 
-A lookback is a `DidClause`: a `Subject`, an `Action` and an optional `LookbackSpan`,
+A lookback is a `DidClause`: a `Subject`, an `Action`, an optional event ordinal (`Ordinal`
+within an optional `Period`, the shape `nthOccurrence` carries) and an optional `LookbackSpan`,
 either a `duration` (with an optional `Timing` the action happened under) or an
 occurrence (`thisWay`, every event of the named kind the current spell or ability caused, paying
 its costs included, read through the referents it stamped (Participial Descriptions, below), so
@@ -1353,7 +1354,9 @@ it would need a `Quantity` on `putCounters`, which takes an `Amount`.
 
 A replacement effect's "the first time … each turn" is the ordinal of the event it watches for
 [CR#614.1], `WouldClause.nthOccurrence`, as a trigger's is `GameEvent.nthOccurrence`; it is not a
-Usage Limit. Which event is the first is a fact of the turn's history, the engine's to count.
+Usage Limit, though it counts within the same `Period`. An event ordinal counts from one, never
+within `Period.thisObject`, and spells "each turn" `Period.turn`, never `part .turn`
+(`Refusal.ordinalNonZero`, `Refusal.eventOrdinalPeriod`). Which event is the first is a fact of the turn's history, the engine's to count.
 
 A Roll Modifier (`StaticSpec.rollModifier roll modify limit`, the `after` Template: "After you
 roll a die, you may remove a +1/+1 counter from this creature. If you do, increase or decrease the

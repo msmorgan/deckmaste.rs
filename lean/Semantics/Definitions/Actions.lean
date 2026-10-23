@@ -444,7 +444,7 @@ semantic_definition connive (amount : Amount := 1) : Action :=
           [ draw (.inCaller amount),
             discard (counted (.exactlyOf (.inCaller amount)) .isCard),
             .doForEach (allOf (and [non isLand, .isCard,
-                .did ⟨.any, discard .which, some .thisWay⟩]))
+                .did { subj := .any, action := discard .which, within := some .thisWay }]))
               (putCounters 1 p1p1Counter
                 (.laterMention "connive.permanent" .actor)) ])))
 /-- "Airbend <subject>" (`Definition`, [CR#701.65a]): per-card `doForEach` loop over
@@ -455,7 +455,9 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
     (enact (.action "airbend")
       (sequentially
         [ exile (.firstMention "airbend.subject" (.inCaller subject)),
-          .doForEach (allOf (and [.isCard, .did ⟨.any, exile .which, some .thisWay⟩]))
+          .doForEach (allOf (and [.isCard, .did { subj := .any
+                                                  action := exile .which
+                                                  within := some .thisWay }]))
             (instruct (ownerOf it)
               (.establish
                 (can (ownerOf it)
@@ -570,7 +572,9 @@ semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Act
   sequentially
     [ discard discarded,
       .doForEach
-        (allOf (and [non isLand, .isCard, .did ⟨.any, discard .which, some .thisWay⟩]))
+        (allOf (and [non isLand, .isCard, .did { subj := .any
+                                                 action := discard .which
+                                                 within := some .thisWay }]))
         step ]
 /-- "<subject> doesn't untap during [<whose>] untap step": the untap step's untapping is the
 `untap` Deed [CR#502.3,701.26b], so this forbids the same Deed a "can't untap" pattern names. -/

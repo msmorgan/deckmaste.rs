@@ -615,7 +615,10 @@ inductive TurnPart where
   deriving DecidableEq, Repr
 
 /-- What a usage limit or an event ordinal counts within: each turn, each of its player's turns,
-each game, or each occurrence of a phase or step [CR#602.5b]. -/
+each game, or each occurrence of a phase or step [CR#602.5b]. One type serves both: a Usage Limit
+(`UsageLimit.mk`) and an event's ordinal (`GameEvent.nthOccurrence`, `WouldClause.nthOccurrence`,
+`DidClause.ordinal`, `Predicate.castBy`), which is not a Usage Limit. An event ordinal never counts
+within `thisObject`, and spells "each turn" `turn`, not `part .turn`. -/
 inductive Period where
   | turn | yourTurn | game
   | part (part : TurnPart)

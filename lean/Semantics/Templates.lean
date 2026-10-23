@@ -612,7 +612,7 @@ semantic_template castBy (player : NounPhrase) : Predicate := .castBy player non
 /-- "the Nth spell <player> cast <period>" -/
 semantic_template nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : Period) :
     Predicate :=
-  .castBy player (ordinal, period)
+  .castBy player (ordinal, some period)
 /-- "a color", "a creature type": a quality noun. -/
 semantic_template quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
@@ -1009,7 +1009,7 @@ semantic_template down (amount : Amount) : (Delta Amount) := .down amount
 span. -/
 semantic_template eventTally (subj : Subject) (action : Action) (within : LookbackSpan)
     (mode : TallyMode) : Amount :=
-  .tally ⟨subj, action, within⟩ mode
+  .tally { subj, action, within } mode
 semantic_template greatestStoredMatch (subject : NounPhrase) : Amount :=
   .greatestStoredMatch subject
 semantic_template groupSize : Amount := .groupSize
@@ -1300,11 +1300,11 @@ semantic_template which : NounPhrase := .which
 /-- The number of occurrences of a historical action clause. -/
 semantic_template eventCount (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
-  .tally ⟨subj, action, some (.duration within timing)⟩ .events
+  .tally { subj, action, within := some (.duration within timing) } .events
 /-- The accumulated magnitude of historical action events. -/
 semantic_template eventSum (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
-  .tally ⟨subj, action, some (.duration within timing)⟩ .quantity
+  .tally { subj, action, within := some (.duration within timing) } .quantity
 /-- "if there is no <designation>" ("if there is no monarch"): nothing holds it. -/
 semantic_template thereIsNo (designation : DesignationLabel) : Condition :=
   .not (.exists_ (.described (.a .unmarked) (.hasDesignation designation none)))
@@ -1712,7 +1712,7 @@ semantic_template wouldAny (clauses : List WouldClause) : WouldClause := .wouldA
 /-- "the <ordinal> time <clause> [each <per>]": the replaced event's ordinal, as "The first time
 you would create one or more tokens each turn" [CR#614.1]. -/
 semantic_template WouldClause.nthOccurrence (ordinal : Ordinal) (clause : WouldClause)
-    (per : Option TurnPart := none) : WouldClause :=
+    (per : Option Period := none) : WouldClause :=
   .nthOccurrence ordinal per clause
 /-- "at the beginning of <possessor>'s <part>", each time it comes -/
 semantic_template beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
@@ -1789,7 +1789,7 @@ semantic_template endOf (part : TurnPart) (whose : Option NounPhrase) (which : T
 semantic_template gameBecomes (designation : DesignationLabel) : GameEvent :=
   .does .any (.gameGains designation)
 semantic_template nthOccurrence (ordinal : Ordinal) (event : GameEvent)
-    (per : Option TurnPart := none) : GameEvent :=
+    (per : Option Period := none) : GameEvent :=
   .nthOccurrence ordinal per event
 semantic_template stateHolds (condition : Condition) : GameEvent := .stateHolds condition
 /-- "<ability> triggers [by <cause>]": the ability is the subject of `trigger` [CR#603.2]; whose
@@ -2191,19 +2191,19 @@ instance [AuthoringContext] : Coe Duration (Option LookbackSpan) := ⟨fun d => 
 Participial Description reads ("the creature you sacrificed"). -/
 semantic_template Predicate.did (subj : Subject) (action : Action)
     (within : Option LookbackSpan := none) : Predicate :=
-  .did ⟨subj, action, within⟩
+  .did { subj, action, within }
 /-- "if <subj> <action>ed <within>": a condition always reads a written span. -/
 semantic_template Condition.did (subj : Subject) (action : Action) (within : LookbackSpan) :
     Condition :=
-  .did ⟨subj, action, within⟩
+  .did { subj, action, within }
 /-- "<action>ed [<within>]", the passive with no agent: "the exiled card", "each creature
 destroyed this way", "creatures that were dealt damage this turn". -/
 semantic_template Predicate.was (action : Action) (within : Option LookbackSpan := none) :
     Predicate :=
-  .did ⟨.any, action, within⟩
+  .did { subj := .any, action, within }
 /-- "if <action> was done <within>", the passive with no agent. -/
 semantic_template Condition.was (action : Action) (within : LookbackSpan) : Condition :=
-  .did ⟨.any, action, within⟩
+  .did { subj := .any, action, within }
 /-- "if <cause> would cause <clause>" -/
 semantic_template causedBy (cause : Causing) (clause : WouldClause) : WouldClause :=
   .causedBy cause clause

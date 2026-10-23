@@ -441,7 +441,7 @@ inductive GameEvent where
   | gameBecomes              (designation : DesignationName)            -- "Whenever it becomes day / night" [CR#731.1]
   | chapterMark              (chapters : List ChapterNumber)            -- Saga chapter triggers [CR#714.2]
   | triggers                 (ability : NounPhrase) (of_ : NounPhrase) (by : Option NounPhrase) -- "Whenever a triggered ability of ... triggers"
-  | nthOccurrence            (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)    -- "Whenever you cast your second spell each turn"
+  | nthOccurrence            (ordinal : Ordinal) (per : Option Period) (event : GameEvent)      -- "Whenever you cast your second spell each turn"
   | causes                   (cause : Causing) (event : GameEvent)      -- "Whenever an ability you control causes you to..."
   | stateBasedActionsChecked                                            -- State-based check boundary for lookback [CR#704.3,704.5h] (Ruling 2026-10-13, Q90)
 ```
@@ -496,11 +496,16 @@ inductive LookbackSpan where
   deriving DecidableEq, Repr
 
 structure DidClause where
-  subj   : Subject
-  action : Instruction
-  within : Option LookbackSpan
+  subj    : Subject
+  action  : Instruction
+  within  : Option LookbackSpan
+  ordinal : Option (Ordinal × Option Period) := none
   deriving DecidableEq, Repr
 ```
+
+`ordinal` is an event ordinal ("the first spell you've cast this game"), the shape
+`GameEvent.nthOccurrence` and `WouldClause.nthOccurrence` carry; it is what makes a `the`-headed
+lookback unique (`lean-v3-cast-predicates-and-ordinals`).
 
 The templates mirror `does` and `would`, subject first: `did(subj, action, within)` and its
 agentless passive `was(action, within)` (`Subject.any`), each dispatched on the expected type to
@@ -582,7 +587,7 @@ Because `docs/archive/` is excluded from agent search, the domain mechanisms and
   - `TurnRef = current | previous | next (player) | each (player) | later | that`.
   - `Timing` combines `inPart (part) (whose) (which)`, `relativeToEvent (before | after) (event)`, `whileDoing (event)`, and `onlyIf (condition)` under `and`/`or`/`not` (with `asSorcery` over priority + main phase + your turn + empty stack `[CR#307.5]`, and instant speed `onlyIf(hasPriority(you))` `[CR#117.1d]`).
   - `Duration` is `between (start : Option GameEvent) (end : Option GameEvent)` (using `beginningOf`, `endOf`, `now`, `stateBasedActionsChecked`) or `forAsLongAs (condition)` `[CR#611.2b]`, or `modifiesPrecedingAction`, later text that modifies the meaning of the action before it, in force only for that action's event and no separate continuous effect ("Destroy target creature. It can't be regenerated." `[CR#608.2c,701.19c]`; owner ruling 2026-10-22).
-  - `UsageLimit` is `(times) (per : Period)` where `Period = turn | yourTurn | game | part (TurnPart) | thisObject` `[CR#602.5b,702.177a]`.
+  - `UsageLimit` is `(times) (per : Period)` where `Period = turn | yourTurn | game | part (TurnPart) | thisObject` `[CR#602.5b,702.177a]`. An event ordinal (`nthOccurrence`, `DidClause.ordinal`, `Predicate.castBy`'s rank) counts within the same `Period`, which subsumes `TurnPart`, but not within `thisObject`, and spells "each turn" `turn`, never `part .turn` (`Refusal.eventOrdinalPeriod`).
 - **Face-Down Specs, Special Actions, and Move Riders (`[CR#406.3a,708.2,702.37a,702.168a,116.1,614.1c]`):**
   - `FaceDown (characteristics : Option Characteristics)` is `none` for face-down exile and `some` for face-down spells/permanents (morph, disguise, manifest, cloak), used by `Instruction.turnFaceDown`, `EntryRider.faceDown`, `PilePlacement.faceDown`, and `PlayPayment.faceDown`.
   - `StaticSpec.specialAction (player : Option NounPhrase) (when : Option Timing) (cost : Cost) (does : Instruction)` models special actions `[CR#116.1]`; `player` is written when an effect allows a player other than you one, and a delayed triggered ability `delay` created is stopped from triggering by a special action whose instruction establishes `cant (.actor ability) trigger` with no duration (*Quenchable Fire*, `[CR#116.2c]`).
