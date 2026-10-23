@@ -96,13 +96,13 @@ write.
 ## Registry facts
 
 `Semantics/Check/Facts.lean` is hand-maintained Lean, the source of truth for
-the keyword-action label list and the keyword table the checker reads; a keyword
-declared under `Semantics/Definitions/` gets its row there by hand. `FactTypes.lean`
-owns the row types; `Check/Words` and `Check/Keywords` interpret them. Counters,
-designations, relations and subtypes have no table: each is a self-contained
-declaration in `Semantics/Definitions/` whose value carries its own columns (a
-counter's holder, a designation's scope), and the authoring boundary refuses a raw
-one in a card. The table-integrity pins (`Semantics/Proofs/Tables.lean`) remain part of
+the keyword-action label list the checker reads; `Check/Words` interprets it.
+Keyword abilities, counters, designations, relations and subtypes have no table:
+each is a self-contained declaration in `Semantics/Definitions/` whose value
+carries its own columns (a counter's holder, a designation's scope), and the
+authoring boundary refuses a raw one in a card. A keyword ability's Definition
+generates the authored label constant a card names it by (`kicker.label`), and its
+typed signature fixes its parameters. The table-integrity pins (`Semantics/Proofs/Tables.lean`) remain part of
 `lean/scripts/build`.
 
 ## Numbers

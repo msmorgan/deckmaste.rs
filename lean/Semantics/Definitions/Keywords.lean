@@ -637,8 +637,14 @@ semantic_definition equip (cost : Cost) : Ability :=
     [ activatedOnlyDuring (.inCaller cost)
         (attachTo thisPermanent (target (and [isCreature, youControl])))
         asSorcery ]
+/-- "Equip [quality] [cost]": equip whose target is a creature you control with the quality
+[CR#702.6c], as "[Cost]: Attach this permanent to target [quality] creature you control. Activate
+only as a sorcery." [CR#702.6a] -/
 semantic_definition equipQuality (quality : Predicate) (cost : Cost) : Ability :=
-  keywordQualityCosting (.named "equip") (.inCaller quality) (.inCaller cost)
+  .keyword (.named "equip") [.quality (.inCaller quality), .cost (.inCaller cost)]
+    [ activatedOnlyDuring (.inCaller cost)
+        (attachTo thisPermanent (target (and [.inCaller quality, isCreature, youControl])))
+        asSorcery ]
 semantic_definition escalate (cost : Cost) : Ability :=
   .keyword (.named "escalate") [.cost (.inCaller cost)]
     [static (.modeChoice (.extraModesCost (.inCaller cost)))]
@@ -1623,9 +1629,15 @@ semantic_definition tribute (amount : Amount) : Ability :=
                 instruct (the isChosenPlayer)
                   (may (putCounters (.inCaller amount) p1p1Counter thisCreature)) ]))) ]
 /-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
-cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. -/
+cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. "[Cost], Discard
+this card: Search your library for a [type] card, reveal it, and put it into your hand. Then
+shuffle your library." [CR#702.29e] -/
 semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
-  keywordQualityCosting (.named "cycling") (.inCaller quality) (.inCaller cost)
+  .keyword (.named "cycling") [.quality (.inCaller quality), .cost (.inCaller cost)]
+    [ activated (.compound [.inCaller cost, .perform (discard this_)])
+        (sequentially
+          [ search yourLibrary (a (and [isCard, .inCaller quality])),
+            reveal it, putInto it hand, shuffle ]) ]
 semantic_definition umbraArmor : Ability :=
   .keyword (.named "umbraArmor") []
     [ static

@@ -130,8 +130,6 @@ inductive Refusal where
   | knownAct (v : Deed)
   | knownKeywordTerm
   | linkedFacetNamed
-  | costNameable
-  | keywordParamFits (k : KeywordLabel)
   | eventHead
   | verbedVoiceOk
   /-- A handoff names neither a player nor an object. -/

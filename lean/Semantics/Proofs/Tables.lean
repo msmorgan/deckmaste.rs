@@ -5,11 +5,11 @@ import Semantics.Check.Card
 # Semantics.Proofs.Tables
 
 Table-integrity pins: not a port of an Idris family, but `decide` theorems asserting what the
-checker's label tables assume of themselves — that `actFacts`, `abilityDeedFacts` and
-`keywordFacts` each name every row once. A duplicate label would let one row shadow another
-silently, so each table's existing `distinct*` validator is asserted here rather than left
-unchecked. Counters, designations, relations and subtypes have no table: each is its own
-declaration in `Semantics.Definitions`, where a duplicate is a Lean error.
+checker's label tables assume of themselves — that `actFacts` and `abilityDeedFacts` each name
+every row once. A duplicate label would let one row shadow another silently, so each table's
+existing `distinct*` validator is asserted here rather than left unchecked. Keyword abilities,
+counters, designations, relations and subtypes have no table: each is its own declaration in
+`Semantics.Definitions`, where a duplicate is a Lean error.
 
 `keywordActionLabels` (`Check.Facts`) and `actFacts` (`Check.Words`) are two hand-written lists
 of the keyword actions, so two theorems here pin them against each other in both directions: a
@@ -17,7 +17,7 @@ row added to one list only is caught. They stay until the declarations themselve
 label list.
 
 The rest read a few declarations and rows back through the accessors the checker uses: a
-counter's holder, a designation's holder and scope, a keyword's argument schemas.
+counter's holder, a designation's holder and scope, the keyword a keyword's variant is.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -38,8 +38,6 @@ theorem everyActRowIsDeclared :
     actFacts.all (fun row => keywordActionLabels.contains row.1) = true := by decide
 
 theorem abilityDeedLabelsDistinct : distinctAbilityDeedLabels abilityDeedFacts = true := by decide
-
-theorem keywordWordsDistinct : distinctKeywordWords keywordFacts = true := by decide
 
 /-! ## Declarations and rows read back -/
 
@@ -68,12 +66,9 @@ theorem designationHoldersFollowFromScope :
       (commander.heldByItsCard, commander.holder) = (true, some .object) ∧
       (day.gameWide, day.holder, designationHolderOk day) = (true, none, false) := by decide
 
-/-- Hexproof is admitted bare and with a quality [CR#702.11d]; cycling with a cost alone and,
-as typecycling's, with an object quality before the cost [CR#702.29a,702.29e]. -/
-theorem hexproofAndCyclingAdmitTheirVariants :
-    (keywordFactsFor (.named "hexproof")).map (·.argumentSchemas)
-        = some [[], [⟨.quality, none⟩]] ∧
-      (keywordFactsFor (.named "cycling")).map (·.argumentSchemas)
-        = some [[⟨.cost, none⟩], [⟨.quality, some .object⟩, ⟨.cost, none⟩]] := by decide
+/-- Hexproof bare and "hexproof from [quality]" are one keyword [CR#702.11d], as cycling and
+typecycling are [CR#702.29f]: each variant's Definition generates the label its keyword's does. -/
+theorem hexproofAndCyclingVariantsShareTheirKeyword :
+    hexproofFrom.label = hexproof.label ∧ typecycling.label = cycling.label := by decide
 
 end Semantics.Proofs.Tables

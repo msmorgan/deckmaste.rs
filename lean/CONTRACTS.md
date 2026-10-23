@@ -779,7 +779,7 @@ expected child kinds in the incoming `DRS`.
 | `Action` | `stepAction` (`Action.check`) steps it. `search scope for_` steps `scope`, then `for_` in the patient role; after the event, what `for_` introduced is in the searched zone (if the scope names one) with the `search` stamp (`applySearchFound`). An unqualified search's `for_` is `any`, which introduces nothing. |
 | `Instructions` | The length is the actual list length; `sequentially` refuses an empty list (`nonEmpty`) and steps each member in a new clause after the previous output. No independent length value remains. |
 | `SimInstructions` | The length is the actual list length; `simultaneously` refuses an empty list and withholds earlier siblings' outcomes from later siblings. |
-| `KeywordParam` | `checkKeywordParamsWith` steps each argument against the keyword's schema (`keywordSchemaFor`). |
+| `KeywordParam` | `checkKeywordParamsWith` steps each argument in its sort; the keyword's typed Definition fixes their number and order. |
 | `AbilityLost` | `stepAbilitySelectionWith` steps each carried keyword term (`knownKeywordTerm`) or written ability (in the granted context). |
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
 | `StaticParts` | The actual list supplies length; `StaticSpec.conjunction` refuses an empty list, refuses a nested conjunction (`notCoord`) and steps each part in a new clause after the previous one. |
@@ -871,7 +871,7 @@ expected child kinds in the incoming `DRS`.
 | `Targetable` | `Kind.targetable` at determiner, copying and target consumers (`targetable`). |
 | `Targeter` | `Kind.targeter` in the `targets` predicate case and the deontic patients (`targeter`). |
 | `Phrasal` | `Kind.phrasal` at copying, iteration and noun consumers. |
-| `KnownKeyword` | `knownKeyword`, `KeywordTerm.known`, and `keywordParamFits` at keyword consumers. |
+| `KnownKeyword` | The authoring boundary: a card names a keyword through its Definition's generated label constant (`elabKeywordName`), and `KeywordLabel.named` and `Ability.keyword` are internal expansions `spelled` refuses. `KeywordTerm.known` refuses only the empty label `keywordOf` gives an ability that is no keyword. |
 | `BasicLandType` | The Idris reference's `basicLandLine` helper has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `stepDeltaWith` steps a `Delta Amount`'s carried amount. |
@@ -964,13 +964,20 @@ retained type. `copyCharacteristics` expands the old
 packed input into one edit block and separate ability exceptions. The former
 minimum-two-fields packing rule has no semantic counterpart in an edit list.
 
-`Ability.keyword` takes an ordered `List KeywordParam`. The hand-maintained
-`KeywordFacts.argumentSchemas` (`Check/Facts.lean`) enumerate admissible orders
-and each quality argument's domain; the checker does not branch on keyword
-names. In particular, qualified cost forms retain their object-quality
-constraint and cost-only alternative. Quality arguments can read the incoming
+`Ability.keyword` takes an ordered `List KeywordParam`. It is an internal
+expansion carrier: a card writes a keyword ability through its typed Definition
+(`Semantics/Definitions/Keywords.lean`), whose signature fixes the arguments'
+number and order, so there is no argument schema table and the checker does not
+branch on keyword names. A quality a keyword restricts to objects is restricted by
+the Definition's body, which uses it as an object's quality: typecycling's "[type]
+card" [CR#702.29e], equip's "[quality] creature" [CR#702.6c], emerge's sacrificed
+permanent and splice's spell, and a conjunction whose conjuncts name kinds that do
+not overlap is refused (`kindMismatch`). Quality arguments can read the incoming
 context; subject arguments, numbers, costs, and deck conditions retain their
-closed contexts. Argument lists do not publish referents between elements.
+closed contexts. Argument lists do not publish referents between elements. Which
+keywords have a cost, take a parameter or a number is not checked where a term
+names a keyword ("its flying cost", "flying abilities"): those are authoring
+mistakes (ruling 2026-10-23, `lean-v3-keyword-facts-deleted`).
 
 ### A keyword defined by card class: `byCardClass`
 

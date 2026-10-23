@@ -344,16 +344,6 @@ theorem okExactlyZeroColors :
 theorem okPaidCostOnKeywordWithACost :
     Amount.check (DRS.ofList []) (.paid (.readback (.byKeyword (.named "kicker")) none) .this) = [] := by decide
 
-/-- "if this creature's flying cost was paid" -/
-theorem badPaidCostOnCostlessKeyword :
-    Amount.check (DRS.ofList []) (.paid (.readback (.byKeyword (.named "flying")) none) .this) = [.linkedFacetNamed] := by
-  decide
-
-/-- "for each time it was kickre'd" -/
-theorem badTimesPaidUnknownKeyword :
-    Amount.check (DRS.ofList []) (.paid (.timesPaid (.byKeyword (.named "kickre"))) thisCreature) = [.linkedFacetNamed] := by
-  decide
-
 /-- "for each color of mana spent to cast this spell" -/
 theorem okColorsSpentOnThis : Amount.check (DRS.ofList []) (colorsSpentToCast .this) = [] := by decide
 

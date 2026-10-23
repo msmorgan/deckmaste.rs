@@ -1719,14 +1719,6 @@ def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 16)
   | _, _ => false
 termination_by structural fuel
 
-def KeywordParam.shape : KeywordParam → KeywordParamShape
-  | .cost _ => .cost
-  | .quality _ => .quality
-  | .subject _ => .subject
-  | .number _ => .number
-  | .deckCondition _ => .deckCondition
-  | .ability _ => .ability
-
 /-- A prohibition publishes the sources its clause names (a target, a definite mention, an
 attachment host) to the text after it. -/
 def publishProhibitionSources (before after : DRS) : DRS :=
@@ -1741,18 +1733,11 @@ def publishProhibitionSources (before after : DRS) : DRS :=
     nextSelectionScope := max before.nextSelectionScope after.nextSelectionScope
     pendingRoles := after.pendingRoles.filter (fun mention => ids.contains mention.1) ++ before.pendingRoles }
 
-def keywordSchemaFor (k : KeywordLabel) (params : List KeywordParam) : Option KeywordSchema :=
-  (keywordSchemas k).find? (fun schema => schema.shapes == params.map KeywordParam.shape)
-
-def keywordParamFits (k : KeywordLabel) (params : List KeywordParam) : Bool :=
-  (keywordSchemaFor k params).isSome
-
 def checkDeckTraitWith (ops : StepOps) (trait : DeckTrait) (fuel : Nat := 32) : List Refusal :=
   match fuel, trait with
   | 0, _ => [.recursionLimit]
   | _ + 1, .aCharacteristic predicate =>
     (ops.pred (DRS.ofList []) predicate).2 ++ kindCheck .object predicate.kind?
-  | _ + 1, .hasAbilityOf class_ => refuse class_.known .knownKeywordTerm
   | n + 1, .anyOf traits =>
     refuse (!traits.isEmpty) .nonEmpty ++ traits.flatMap (fun t => checkDeckTraitWith ops t n)
   | _, _ => []
@@ -1770,14 +1755,16 @@ def checkDeckConditionWith (ops : StepOps) (condition : DeckCondition) : List Re
     errors ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind))
   | .deckSizeOverMinimum _ => []
 
-def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
-    (params : List KeywordParam) : List Refusal :=
-  (params.zipIdx).flatMap fun (param, i) =>
+/-- A keyword's arguments, each stepped in its own sort. Their number and order are the
+keyword Definition's own: a card writes the typed Definition, never `Ability.keyword`. A quality
+an Object-only keyword restricts (emerge, splice, equip, typecycling) meets that restriction in
+the Definition's body, which uses it as an object's quality. -/
+def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (params : List KeywordParam) :
+    List Refusal :=
+  params.flatMap fun param =>
     match param with
     | .cost c => (ops.cost (enterOwnScope drs) c).2
-    | .quality p =>
-      let expected := ((schema[i]?).bind (·.qualityDomain)).getD (p.kindOr .object)
-      (ops.pred drs p).2 ++ kindCheck expected p.kind?
+    | .quality p => (ops.pred drs p).2
     | .subject p => (ops.pred (enterOwnScope drs) p).2
     | .number a => (ops.amt (enterOwnScope drs) a).2
     | .deckCondition condition => checkDeckConditionWith ops condition
@@ -1800,9 +1787,7 @@ def stepAbilitySelectionWith (ops : StepOps) (drs : DRS) (sel : AbilitySelection
       | .written ab => es ++ ops.ab (grantedContext drs) ab
       | .term term => es ++ refuse term.known .knownKeywordTerm) [])
   | .allExcept (some p) => ops.pred drs p
-  | .family family => (drs, refuse family.known .knownKeywordTerm)
-  | .printedAfter k => (drs, refuse (knownKeyword k) .knownKeywordTerm)
-  | .allExcept none => (drs, [])
+  | .family _ | .printedAfter _ | .allExcept none => (drs, [])
 
 def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicEdit) : DRS × List Refusal :=
   match ed with
@@ -2016,7 +2001,7 @@ def stepSpendPurposeWith (ops : StepOps) (drs : DRS) (sp : SpendPurpose) : DRS �
   match sp with
   | .toCast p | .toActivate (some p) => ops.pred drs p
   | .toActivate none => (drs, [])
-  | .toPay cost => (drs, refuse cost.nameable .costNameable)
+  | .toPay _ => (drs, [])
 
 def stepSpendPurposeListWith (ops : StepOps) (drs : DRS) (sps : List SpendPurpose) : DRS × List Refusal :=
   sps.foldl (fun (d, es) sp =>
@@ -2728,7 +2713,7 @@ def stepOps : Nat → StepOps
           let count := countChoice (.quality .cardName) drs
           (drs, refuse (count == 1) (.choiceRef .theChoice (.quality .cardName) count))
         | .hasKeyword term => (drs, refuse term.known .knownKeywordTerm)
-        | .abilityHead family => (drs, refuse family.known .knownKeywordTerm)
+        | .abilityHead _ => (drs, [])
         | .counterKindOn src | .abilityOf src | .legalAttachment _ src =>
           let (drs', _, errs) := ops.np drs .other false src
           (drs', errs)
@@ -2766,10 +2751,17 @@ def stepOps : Nat → StepOps
               | .did clause => stepRelativeDidWith ops d seed clause
               | q => ops.pred d q
             (d', es ++ e')) (drs, [])
+          -- A conjunction describes one thing, so each conjunct that names a kind names one the
+          -- head's kind overlaps: "a card that is a player" describes nothing. A quality a
+          -- keyword's Definition conjoins with an object's (typecycling's "[type] card", equip's
+          -- "[quality] creature") is an object's quality by this.
+          let kindErrors := headKind.elim [] fun head => ps.flatMap fun q =>
+            (q.kind?).elim [] fun k => refuse (Kind.lte k head || Kind.lte head k)
+              (.kindMismatch head k)
           ({ out with
               relativeKind := drs.relativeKind, relativeTypes := drs.relativeTypes
               relativeZone := drs.relativeZone, relativeControl := drs.relativeControl },
-            errs ++ refuse (otherAnchorOkWith ops drs ps) .otherAnchored)
+            errs ++ kindErrors ++ refuse (otherAnchorOkWith ops drs ps) .otherAnchored)
         | .or ps | .coord .andOr ps =>
           let headKind := p.kind? <|> drs.relativeKind
           let (nextId, errors) := ps.foldl (fun (nextId, errors) alternative =>
@@ -3846,10 +3838,7 @@ def stepOps : Nat → StepOps
           let out := if phase == .postEvent && repeated then
               drs2.push (outcomeB .repeatCount) .other false
             else drs2
-          -- A payment names the keyword whose cost it pays ("the echo cost"), so the keyword
-          -- has one, as "the <keyword> cost" does (`CostNamed.nameable`).
-          let e3 := keyword.elim [] (fun k => refuse (keywordCosts k) .costNameable)
-          (out, e1 ++ e2 ++ e3)
+          (out, e1 ++ e2)
         | .withContinuation policy body ifDid ifNot =>
           let (drs1, e1) := ops.inst phase patientRole (nextClause drs) body
           let (drs2, e2) := match ifDid with
@@ -4325,10 +4314,8 @@ def stepOps : Nat → StepOps
       ab := fun drs ab =>
         match ab with
         | .inCaller body => ops.ab (enterCaller drs) body
-        | .keyword k params body =>
-          checkKeywordParamsWith ops drs ((keywordSchemaFor k params).getD []) params ++
-            checkTextWith ops (enterOwnScope drs) body ++
-            refuse (keywordParamFits k params) (.keywordParamFits k)
+        | .keyword _ params body =>
+          checkKeywordParamsWith ops drs params ++ checkTextWith ops (enterOwnScope drs) body
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)

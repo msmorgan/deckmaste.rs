@@ -213,6 +213,25 @@ private def elabAuthoredDecl (mods : TSyntax ``Parser.Command.declModifiers)
     let declaration ← resolveGlobalConstNoOverload identifier
     modifyEnv fun env => spliceSchemas.addEntry env (declaration, splices.map (·.getId))
 
+/-- The label a keyword ability Definition is written under (`.keyword (.named "kicker") …`), read
+from its expansion with its parameters left abstract; `none` for any other Definition. -/
+def keywordDefinitionLabel? (name : Name) : MetaM (Option String) := do
+  let some value := (← getConstInfo name).value? | return none
+  lambdaTelescope value fun _ body => do
+    unless (← whnf (← inferType body)).isConstOf `Semantics.Ability do return none
+    let body ← whnf body
+    unless body.isAppOfArity `Semantics.Ability.keyword 3 do return none
+    let label ← whnf body.appFn!.appFn!.appArg!
+    unless label.isAppOfArity `Semantics.KeywordLabel.named 1 do return none
+    match ← whnf label.appArg! with
+    | .lit (.strVal label) => return some label
+    | _ => return none
+
+/-- The authored `KeywordLabel` a keyword ability Definition generates: `kicker.label` is the
+label `kicker` is written under. A card names a keyword through it (`elabKeywordName`), never by
+the internal `KeywordLabel.named`. -/
+def keywordLabelConstant (name : Name) : Name := name ++ `label
+
 syntax (name := semanticDefinitionDecl) declModifiers "semantic_definition " declId
   ppIndent(optDeclSig) declVal : command
 
@@ -233,6 +252,17 @@ elab_rules : command
             unless (← whnf body).getAppFn.isConstOf `Semantics.Action.ownScope do
               throwError "An Action Definition must establish its own Reference Scope"
     elabCommand (← `(attribute [«semantic_definition»] $identifier:ident))
+    if let some label ← liftTermElabM (keywordDefinitionLabel? declaration) then
+      let labelName := keywordLabelConstant declaration
+      liftCoreM <| addAndCompile <| .defnDecl {
+        name := labelName
+        levelParams := []
+        type := mkConst `Semantics.KeywordLabel
+        value := mkApp (mkConst `Semantics.KeywordLabel.named) (mkStrLit label)
+        hints := .regular 0
+        safety := .safe
+      }
+      definitionAttribute.setTag labelName
   | `($mods:declModifiers semantic_template $name:declId
       $signature:optDeclSig $value:declVal) => do
     elabAuthoredDecl mods name signature value
@@ -364,6 +394,16 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
         if bodyParameter && (← whnf type).isConstOf `Semantics.NounPhrase then
           return .binder name (← inspectCore cache clean (body.instantiate1 arg) visited context
             (arg.fvarId! :: parameters) true)
+        -- A binder of an ordinary record that only holds semantic expressions (a `KeywordTerm`,
+        -- holding a `KeywordLabel`) is filled by the template the function is passed to, from
+        -- arguments inspected where they are written: an applied function is beta-reduced
+        -- first. Such a record has no Reference Scope to close, so unlike a semantic
+        -- expression's binder (`NounPhrase`) it needs no supplied body.
+        let env ← getEnv
+        if let .const typeName _ := (← whnf type).getAppFn then
+          if !expressionAttribute.hasTag env typeName && containsExpression env type then
+            return .binder name (← inspectCore cache clean (body.instantiate1 arg) visited context
+              (arg.fvarId! :: parameters) bodyParameter)
         inspectCore cache clean (body.instantiate1 arg) visited context parameters bodyParameter
     | .letE _ _ value body _ =>
       return .data [← inspectCore cache clean value visited context parameters bodyParameter,

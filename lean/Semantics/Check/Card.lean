@@ -148,11 +148,15 @@ def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
 def Characteristics.cardLineOk (c : Characteristics) : Bool :=
   c.lineNonEmpty && typesDistinct c.types && subsFitLine c.subtypes c.types
 
+/-- A keyword whose definition writes a Mode Change wants a modal spell: entwine, escalate, spree
+and tiered [CR#702.42a,702.120a,702.172a,702.183a]. -/
 def Ability.keywordWantsModes (ab : Ability) (fuel : Nat := 64) : Bool :=
   match fuel with
   | 0 => false
   | n + 1 => match ab with
-    | .keyword k _ _ => (keywordFactsFor k).elim false (·.wantsModes)
+    | .keyword _ _ body => body.any fun
+      | .static (.modeChoice _) | .inCaller (.static (.modeChoice _)) => true
+      | _ => false
     | .italicHead _ ab => ab.keywordWantsModes n
     | .inCaller ab | .qualified ab _ _ _ _ => ab.keywordWantsModes n
     | _ => false

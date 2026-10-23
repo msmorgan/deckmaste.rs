@@ -490,7 +490,7 @@ semantic_template hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw
 /-- The keyword a keyword ability is, as "with flying" names it: `hasKeyword flying`, or a list
 `[flying, firstStrike, trample]`. A keyword ability is written under its declaration's name
 (`.keyword (.named "flying") …`), so that name is the keyword. An ability that is no keyword
-names none: its term is the empty label, which names no registered keyword and is refused
+names none: its term is the empty label, which names no keyword and is refused
 `knownKeywordTerm` wherever a keyword term is checked. -/
 semantic_template keywordOf (ability : Ability) : KeywordTerm :=
   match ability with
@@ -500,24 +500,11 @@ semantic_template keywordOf (ability : Ability) : KeywordTerm :=
 instance [AuthoringContext] : Coe Ability KeywordTerm := ⟨keywordOf⟩
 
 open Lean Elab Term Meta in
-/-- The label a keyword ability Definition is written under (`.keyword (.named "kicker") …`), read
-from its expansion with its parameters left abstract. -/
-private def keywordDefinitionLabel? (name : Name) : MetaM (Option String) := do
-  let some value := (← getConstInfo name).value? | return none
-  lambdaTelescope value fun _ body => do
-    let body ← whnf body
-    unless body.isAppOfArity ``Semantics.Ability.keyword 3 do return none
-    let label ← whnf body.appFn!.appFn!.appArg!
-    unless label.isAppOfArity ``Semantics.KeywordLabel.named 1 do return none
-    match ← whnf label.appArg! with
-    | .lit (.strVal label) => return some label
-    | _ => return none
-
-open Lean Elab Term Meta in
 /-- A keyword ability's Definition names its keyword wherever a `KeywordLabel` is expected:
 `keywordCostPaid kicker it`, `abilityHead (.keyword cycling)`, `.anyIn ⟨protection, none⟩`. The
-identifier elaborates as the label the Definition is written under, so the term is the label
-itself. Any other identifier, or an expected type other than `KeywordLabel`, is left to the
+identifier elaborates as the authored label constant the Definition generates (`kicker.label`,
+`Authoring.keywordLabelConstant`), so a card never spells the internal `KeywordLabel.named` and a
+misspelled keyword is no identifier at all. Any other identifier, or an expected type other than `KeywordLabel`, is left to the
 ordinary elaborator. -/
 @[scoped term_elab ident]
 def elabKeywordName : TermElab := fun stx expectedType? => do
@@ -530,11 +517,12 @@ def elabKeywordName : TermElab := fun stx expectedType? => do
   let env ← getEnv
   let some definition := candidates.find? (Authoring.definitionAttribute.hasTag env)
     | throwUnsupportedSyntax
-  let some label ← keywordDefinitionLabel? definition | throwUnsupportedSyntax
+  let label := Authoring.keywordLabelConstant definition
+  unless env.contains label do throwUnsupportedSyntax
   if expected.getAppFn.isMVar then
     tryPostpone
     throwUnsupportedSyntax
-  return mkApp (mkConst ``Semantics.KeywordLabel.named) (mkStrLit label)
+  return mkConst label
 /-- "with a counter on it", or "with a <kind> counter on it". -/
 semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := .hasCounters kind
 /-- "named <name>" -/
@@ -1705,7 +1693,11 @@ semantic_template triggers (ability : NounPhrase) (by_ : Option NounPhrase := no
   | some cause => .causes (.source cause) (.does (.actor ability) .trigger)
 /-! ## Abilities -/
 
-semantic_template keyword (label : KeywordLabel) : Ability := .keyword label [] []
+/-- A keyword ability with no parameters and no written definition, by its label. This and the
+`keyword…` helpers below are not Templates: they spell `Ability.keyword`, an internal expansion
+carrier, so they serve Definitions and fixtures, and `spelled` refuses them in a card, which
+writes the keyword's typed Definition instead. -/
+def keyword (label : KeywordLabel) : Ability := .keyword label [] []
 /-- An ability word in italics before an ability: "Will of the council — …" [CR#207.2c]. -/
 semantic_template abilityWord (word : AbilityWordLabel) (ability : Ability) : Ability :=
   .italicHead (.abilityWord word) ability
@@ -1713,23 +1705,23 @@ semantic_template abilityWord (word : AbilityWordLabel) (ability : Ability) : Ab
 semantic_template flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability :=
   .italicHead (.flavorWord word) ability
 /-- "<keyword> <cost>" -/
-semantic_template keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
+def keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label [.cost cost] []
 /-- "<keyword> <quality>", e.g. "protection from red" -/
-semantic_template keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
+def keywordQuality (label : KeywordLabel) (quality : Predicate) : Ability :=
   .keyword label [.quality quality] []
 /-- "<keyword> <subject>", e.g. "enchant creature" -/
-semantic_template keywordSubject (label : KeywordLabel) (subject : Predicate) : Ability :=
+def keywordSubject (label : KeywordLabel) (subject : Predicate) : Ability :=
   .keyword label [.subject subject] []
 /-- "<keyword> N", e.g. "bushido 2" -/
-semantic_template keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
+def keywordNumber (label : KeywordLabel) (amount : Amount) : Ability :=
   .keyword label [.number amount] []
 /-- "<keyword> <quality> <cost>", e.g. "plainscycling {2}" [CR#702.29e] -/
-semantic_template keywordQualityCosting (label : KeywordLabel) (quality : Predicate) (cost : Cost) :
+def keywordQualityCosting (label : KeywordLabel) (quality : Predicate) (cost : Cost) :
     Ability :=
   .keyword label [.quality quality, .cost cost] []
 /-- "<keyword> N—<cost>", e.g. "suspend 4—{1}{U}" -/
-semantic_template keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) :
+def keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) :
     Ability :=
   .keyword label [.number amount, .cost cost] []
 /-- "As <subject> enters, [secretly] choose <chosen>": a replacement effect whose choice is made

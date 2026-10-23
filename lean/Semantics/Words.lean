@@ -270,7 +270,8 @@ inductive MergePosition where
 /-- A keyword ability [CR#702.1]: the NAME of the keyword ability declaration that defines it,
 verbatim (`flying`, `firstStrike`), never the phrase a card prints ("first strike"), which is the
 declaration's spelling. A type of its own rather than a `String`, as `DesignationLabel` is, so a
-card names a keyword by its declaration's name and an undeclared name is refused when it loads. -/
+card names a keyword by its declaration's name, through the label constant the declaration
+generates, and an undeclared name is no identifier at all. -/
 inductive KeywordLabel where
   | named (name : String)
   deriving DecidableEq, Repr
@@ -650,7 +651,8 @@ inductive EventSide where
 end Semantics
 
 attribute [semantic_expression] Semantics.Delta Semantics.Subtype Semantics.CounterKind
-  Semantics.DesignationLabel Semantics.RelationLabel
+  Semantics.DesignationLabel Semantics.RelationLabel Semantics.KeywordLabel
+  Semantics.AbilityWordLabel
 
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
 
@@ -659,3 +661,10 @@ attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
 -- `.Counters`, `.Designations`, `.Relations`), and `spelled` refuses a raw constructor.
 attribute [internal_expansion] Semantics.Subtype Semantics.CounterKind Semantics.DesignationLabel
   Semantics.RelationLabel
+
+-- A `KeywordLabel` is a semantic expression whose one constructor is internal: each keyword
+-- ability Definition generates its authored label constant (`kicker.label`,
+-- `Authoring.keywordLabelConstant`), which a card names by the Definition's own name, and
+-- `spelled` refuses a raw `KeywordLabel.named`. An `AbilityWordLabel` is the same: a card writes
+-- the ability word's Template (`landfall`), never the raw label.
+attribute [internal_expansion] Semantics.KeywordLabel.named Semantics.AbilityWordLabel.named
