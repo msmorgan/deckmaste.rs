@@ -37,6 +37,9 @@ inductive Refusal where
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
   | designationPossessorFits (designation : DesignationLabel)
+  /-- "This" names the Source of the text it is in, and the text has none: a designation's
+  inherent abilities have no source [CR#725.2,726.2]. -/
+  | noSource
   /- number -/
   | soleHolder
   | singular

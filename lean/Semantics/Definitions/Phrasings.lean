@@ -91,6 +91,11 @@ semantic_template thisCase : NounPhrase := .headed (.subtype case) .this
 semantic_template thisClass : NounPhrase := .headed (.subtype class_) .this
 /-- "your commander" -/
 semantic_template yourCommander : NounPhrase := .designated commander .you
+/-- "the monarch": only one player can be the monarch at a time [CR#725.3]. -/
+semantic_template theMonarch : NounPhrase := the (.and [isPlayer, .hasDesignation monarch none])
+/-- "the player who has the initiative": only one player can have it at a time [CR#726.3]. -/
+semantic_template theInitiativeHolder : NounPhrase :=
+  the (.and [isPlayer, .hasDesignation initiative none])
 /-- "a card exiled with this artifact" -/
 semantic_template exiledWithThisArtifact : Predicate := .in_ (.exiledWith thisArtifact)
 /-- "[a player]'s party" [CR#700.8]. -/

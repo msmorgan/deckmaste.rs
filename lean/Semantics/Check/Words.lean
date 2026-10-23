@@ -494,6 +494,10 @@ structure DRS where
   unboundIdentities : List BindingId := []
   /-- The Source's Card Types from its card frame; empty when unknown, as in a Definition. -/
   sourceTypes : List CardType := []
+  /-- The text has no Source, so "this" names nothing: a designation's inherent abilities
+  [CR#725.2,726.2]. Text it grants or creates has a Source of its own, the object or emblem it is
+  on (`grantedContext`, `linkedTextContext`). -/
+  sourceless : Bool := false
   /-- The Card Types the Head Noun of the enclosing conjunction names, read by its bare
   "another"/"other". -/
   relativeTypes : List CardType := []
