@@ -323,6 +323,30 @@
         // A predicate Adjunct of unlike categories coordinated (*only during
         // your turn and only once each turn*), and each of its conjuncts.
         "PredicateAdjunct": (function: true, features: ["ComplementKind"]),
+        // A clause fragment of Predicate Adjuncts that *but* or *and* adds to
+        // a whole Clause, and the fragment focused by *only* or *not* that
+        // qualifies it (*but only during their turn before the end step*;
+        // CGEL, Ch. 15 §4.5, pp. 1347–1348).
+        // Complement Clusters, sequences of a verb's Complements, each with
+        // an optional Adjunct after them, coordinated after the shared verb
+        // (*put [one of them into your hand] and [the rest into your
+        // graveyard]*; *has [lifelink if you control a Cleric], [deathtouch
+        // if you control a Rogue], and [flying if you control a Wizard]*):
+        // right nonce-constituent coordination (CGEL, Ch. 15 §4.3,
+        // pp. 1341–1343), whose coordination bears no function (p. 1343).
+        "ComplementCluster": (),
+        "ClusterCoordination": (category: Some("ComplementCluster")),
+        "ClauseFragment": (),
+        "QualifyingFragment": (),
+        // Coordinates joined by *but* that contrast as positive and negative,
+        // *not* modifying the second (*life equal to the damage dealt, but
+        // not more life than ...*; *from your graveyard, but not from
+        // anywhere else*; CGEL, Ch. 15 §2.6, p. 1313, [60iia]: *They had
+        // invited [Jill but not her husband]*), and each coordinate.
+        "ContrastConjunct": (category: Some("NounPhrase"), function: true, features: ["Polarity"]),
+        "ContrastCoordination": (category: Some("NounPhrase"), function: true, features: ["Polarity"]),
+        "ContrastPrepositionConjunct": (category: Some("PrepositionPhrase"), function: true, features: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability", "DeterminativeDistribution", "Polarity"]),
+        "ContrastPrepositionCoordination": (category: Some("PrepositionPhrase"), function: true, features: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability", "DeterminativeDistribution", "Polarity"]),
         // Premodifiers of unlike categories coordinated, with a coordinator or
         // asyndetically (*noncreature, nonland card*; *nonartifact, nonblack
         // creature*), and each premodifier in the chain.
@@ -437,6 +461,8 @@
         "AndOr": "coord:and/or",
         "Nor": "coord:nor",
         "But": "coord:but",
+        "Not": "adv:not",
+        "Those": "det:those",
         "Both": "det:both",
         "Either": "det:either",
         "Neither": "det:neither",
@@ -458,6 +484,14 @@
         "Coordinator": ["coord:and", "coord:or", "coord:and/or", "coord:nor"],
         "Disjunctive": ["coord:or", "coord:and/or", "coord:nor"],
         "Alternative": ["coord:or", "coord:nor"],
+        // The coordinators that attach a new element to a whole Clause
+        // (CGEL, Ch. 15 §4.5, p. 1347: "*But* is the most common coordinator
+        // in this construction; *and* is also possible, but *or* is not").
+        "AddingCoordinator": ["coord:and", "coord:but"],
+        // The focusing adverbs of a qualifying added element (CGEL, Ch. 15
+        // §4.5, p. 1347: "*only* is not omissible, though *not* could take
+        // its place").
+        "FocusingAdverb": ["adv:only", "adv:not"],
         // *Be* and its contracted and negative forms.
         "BeVerb": ["verb:be", "verb:'re", "verb:aren't"],
         // Perfect *have* and its contracted and negative forms.
@@ -497,8 +531,10 @@
         // recovered from an antecedent (*one or more creatures enter, each
         // enters with ...*; Ch. 5 §9.3, p. 413), as *both* and *either* do;
         // in Oracle only as a Subject (NonNumericComplement,
-        // NominalPredicative).
-        "FusedQuantifier": ["det:another", "det:both", "det:each", "det:more.count", "det:everything", "det:this", "det:none"],
+        // NominalPredicative). *Either* and *neither* choose from a set in
+        // an implicit partitive (*If a player does either*; p. 413, [11ii]:
+        // *there wasn't time to watch either (of them)*).
+        "FusedQuantifier": ["det:another", "det:both", "det:each", "det:more.count", "det:everything", "det:this", "det:none", "det:either", "det:neither"],
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
@@ -622,6 +658,12 @@
         (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive"), ExcludeTogether([("head.DeterminativeDistribution", "Distributive"), ("head.NounKind", "Quantity")])], transparent: ["head"]),
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
+        // Plural demonstrative *those* as a fused determiner-head,
+        // interpreted anaphorically or with a relative clause that sets its
+        // set (*except those that share a creature type with ...*; CGEL,
+        // Ch. 5 §9.2, p. 414, [14i]: *Those who break the rules*; "*Those* is
+        // used in the same way" as fused-head *these*).
+        (name: "FusedDemonstrative", lhs: "FusedNounPhrase", rhs: [Word("head", "Those")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Number", "Plural"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "FusedQuantifierNominalPhrase", lhs: "NounPhrase", rhs: [Class("head", "FusedQuantifier")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Cardinal)], equations: [Require("$.Countability", "Count")]),
         (name: "VariableDeterminer", lhs: "NumericalDeterminer", rhs: [Class("head", "Variable")], equations: [Require("$.Countability", "Count")]),
@@ -854,6 +896,31 @@
         // token's description (OSG §12, Tokens). The Supplement is a full
         // Noun Phrase, retaining its own postmodifiers.
         (name: "NounPhraseSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "NounPhrase")]),
+        // End-attachment coordination by addition of a new element, in its
+        // qualifying use: *but* or *and* adds to the whole main Clause before
+        // it a clause fragment that weakens it, focused by *only* or *not*,
+        // which is not omissible there (*Any player may activate this
+        // ability but only during their turn*; *Only your opponents may
+        // activate this ability and only as a sorcery*; CGEL, Ch. 15 §4.5,
+        // pp. 1346–1347, [33iii]: *I'll drive you there, but only if you pay
+        // for the petrol*; *but not if you criticise my driving*). The
+        // fragment is of Adjuncts the Clause's predicate could take
+        // (p. 1347). As a main Clause's, it ends its Sentence; Oracle sets it
+        // off with no comma.
+        (name: "AddedElement", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Class("coordinator", "AddingCoordinator"), Cat("fragment", "QualifyingFragment"), Punct('.')],
+            equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")], cost: 2),
+        // A non-initial coordinate may open, after its coordinator, with a
+        // fronted Adjunct delimited on both sides (*except it's legendary
+        // ... and, if it's a creature, it enters with ...*): heavy
+        // punctuation marks the Adjunct's left boundary after the
+        // coordinator, where light punctuation leaves it unmarked (CGEL,
+        // Ch. 20 §3.2.5, p. 1745, note 13; *But if that's not convenient,
+        // ...*).
+        (name: "DelimitedFrontConjunct", lhs: "Clause", rhs: [Cat("first", "Clause"), Class("coordinator", "Coordinator"), Punct(','), Cat("last", "Clause")],
+            equations: [Require("last.FrontPosition", "Occupied"), Agree("$.VerbForm", "first.VerbForm"), Agree("$.VerbForm", "last.VerbForm"), Agree("$.ClauseMarking", "first.ClauseMarking"), Agree("$.ClauseMarking", "last.ClauseMarking"), Agree("$.FrontPosition", "first.FrontPosition")], cost: 2),
+        (name: "QualifyingFragment", lhs: "QualifyingFragment", rhs: [Class("modifier", "FocusingAdverb"), Cat("head", "ClauseFragment")], cost: 0),
+        (name: "AdjunctFragment", lhs: "ClauseFragment", rhs: [Cat("head", "PredicateAdjunct")], cost: 0),
+        (name: "ExtendedFragment", lhs: "ClauseFragment", rhs: [Cat("head", "ClauseFragment"), Cat("adjunct", "PredicateAdjunct")], cost: 1),
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
@@ -1597,6 +1664,12 @@
         (name: "AmountConjunct", lhs: "AmountOrNounConjunct", rhs: [Cat("filler", "Amount")], equations: [Require("$.ComplementKind", "Amount")]),
         (name: "NounPhraseConjunct", lhs: "AmountOrNounConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
+        (name: "AffirmativeConjunct", lhs: "ContrastConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.Polarity", "Affirmative")]),
+        (name: "NegatedConjunct", lhs: "ContrastConjunct", rhs: [Word("modifier", "Not"), Cat("filler", "ComplementNounPhrase")], equations: [Require("$.Polarity", "Negative")]),
+        (name: "ContrastedComplement", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ContrastCoordination")]),
+        (name: "AffirmativePrepositionConjunct", lhs: "ContrastPrepositionConjunct", rhs: [Cat("head", "PrepositionPhrase")], equations: [Require("$.Polarity", "Affirmative")]),
+        (name: "NegatedPrepositionConjunct", lhs: "ContrastPrepositionConjunct", rhs: [Word("modifier", "Not"), Cat("head", "PrepositionPhrase")], equations: [Require("$.Polarity", "Negative")]),
+        (name: "ContrastedPrepositionPhrase", lhs: "PrepositionPhrase", rhs: [Cat("head", "ContrastPrepositionCoordination")]),
         (name: "AdjectivalConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Require("$.ComplementKind", "AdjP")], heavy: ["filler"]),
         // A past-participial conjunct is a lexical passive participle clause
         // (CGEL, Ch. 14 §9, p. 1264), as the single participial postmodifier
@@ -1816,7 +1889,8 @@
             internalised: [Require("internalised.ComplementKind", "NP")],
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
-            interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"), clusters: Some("Coordinator")),
+            interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"),
+            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct")))),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
         Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
@@ -1929,9 +2003,12 @@
         // *left or right*; *artifact, creature, or land*.
         Coordination(category: "Mention", coordinators: "Coordinator"),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
-        // Imperatives and then a declarative (*tap that creature and it
-        // doesn't untap ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
+        // An imperative and then a declarative, with imperatives or
+        // declaratives between them in a serial one (*tap that creature and
+        // it doesn't untap ...*; *gain control of that permanent, it loses
+        // all abilities, and it can't attack or block*): the first and last
+        // unlike.
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
@@ -2004,7 +2081,13 @@
         // Noun Phrase or a quoted ability, where it is no Object.
         Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true),
             equations: [ExcludeTogether([("first.ComplementKind", "NP"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "NP")]), ExcludeTogether([("first.ComplementKind", "QuotedAbility"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "QuotedAbility")])]),
-        Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "ClusterCoordination", conjunct: Some("ComplementCluster"), coordinators: "Coordinator"),
+        Coordination(category: "ContrastCoordination", conjunct: Some("ContrastConjunct"), coordinators: "But", unshared: ["Polarity"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "ContrastPrepositionCoordination", conjunct: Some("ContrastPrepositionConjunct"), coordinators: "But", unshared: ["Polarity", "DeterminativeDistribution"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"], delimiter: Some(','), serial: Some(false)),
+        // Unlike predicate Adjuncts coordinate serially too, the first and
+        // last unlike (*only during the declare blockers step, only if ...,
+        // and only once each turn*).
+        Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "AmountOrNounPhrase", conjunct: Some("AmountOrNounConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "MeasureNounPhrase", coordinators: "Coordinator"),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),

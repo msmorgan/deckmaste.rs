@@ -1,0 +1,18 @@
+# End-attachment coordination by addition of a new element, in its
+# qualifying use: *but* or *and* adds to a whole main Clause a fragment of
+# Adjuncts focused by *only* or *not* (CGEL, Ch. 15 §4.5, pp. 1346–1347,
+# [33iii]: *I'll drive you there, but only if you pay for the petrol*).
++ <card=Lightning Storm> Discard a land card: Put two charge counters on Lightning Storm. You may choose a new target for it. Any player may activate this ability but only if Lightning Storm is on the stack. => QualifyingFragment "only if Lightning Storm is on the stack"; PrepositionPhrase "if Lightning Storm is on the stack"; Clause "Any player may activate this ability"
++ Remove a charge counter from this enchantment: Add {C}. Any player may activate this ability but only during their turn before the end step. => QualifyingFragment "only during their turn before the end step"; PrepositionPhrase "during their turn"; PrepositionPhrase "before the end step"
++ {4}: Remove a doom counter from this artifact. Any player may activate this ability but only during any upkeep step. => QualifyingFragment "only during any upkeep step"; Clause "Any player may activate this ability"
++ {4}: Return target creature card from a graveyard to its owner's hand. Any player may activate this ability but only as a sorcery. => QualifyingFragment "only as a sorcery"
++ {3}: Remove a time counter from this artifact. Any player may activate this ability but only during any upkeep step. => QualifyingFragment "only during any upkeep step"
++ {2}: Target player discards a card. Any player may activate this ability but only as a sorcery. => QualifyingFragment "only as a sorcery"
++ {2}: This enchantment deals 1 damage to target creature. Any player may activate this ability but only as a sorcery. => QualifyingFragment "only as a sorcery"
++ Pay 5 life: Destroy this enchantment. Any player may activate this ability but only during their turn. => QualifyingFragment "only during their turn"
++ {2}: Draw a card. Any player may activate this ability but only during their draw step. => QualifyingFragment "only during their draw step"
++ {3}: Destroy this Aura. Only your opponents may activate this ability and only as a sorcery. => Clause "Only your opponents may activate this ability"; QualifyingFragment "only as a sorcery"
++ {1}: Draw a card. Gain control of this creature and put a -1/-1 counter on it. Only your opponents may activate this ability and only as a sorcery. => QualifyingFragment "only as a sorcery"
++ {2}: Put a +1/+1 counter on this creature, then you may reselect which player this creature is attacking. Only the player this creature is attacking may activate this ability and only during the declare attackers step. => QualifyingFragment "only during the declare attackers step"
+# It qualifies a main Clause, never a subordinate one.
++ Activate only if you control no creatures and only once each turn. => !Clause "you control no creatures and only once each turn"

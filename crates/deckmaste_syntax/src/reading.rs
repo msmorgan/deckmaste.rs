@@ -852,7 +852,7 @@ impl CompiledGrammar {
         })?;
         let (text, offsets) = join(&atoms);
         let mut out = Vec::new();
-        self.locate(reading, None, None, &mut out);
+        self.locate(reading, None, None, None, &mut out);
         for (constituent, &(first, last)) in out.iter_mut().zip(&spans) {
             constituent.span = if first == last {
                 let at = offsets.get(first).map_or(text.len(), |r| r.start);
@@ -867,12 +867,15 @@ impl CompiledGrammar {
     }
 
     /// Preorder Constituents without spans; `atoms` fills the spans in the
-    /// same order.
+    /// same order. `clustered` is the preorder index of the phrase whose head
+    /// a coordination of Complement Clusters at or above `reading` shares:
+    /// each dependent in a Cluster bears its function in that phrase too.
     fn locate(
         &self,
         reading: &Reading,
         parent: Option<usize>,
         function: Option<Ident>,
+        clustered: Option<usize>,
         out: &mut Vec<Constituent>,
     ) {
         let Reading::Node(node) = reading else {
@@ -888,6 +891,19 @@ impl CompiledGrammar {
             gap: node.gap,
             also: Vec::new(),
         });
+        let production = self
+            .by_id
+            .get(&node.production)
+            .map(|&p| &self.productions[p]);
+        // A Cluster's dependents bear their functions in the phrase whose
+        // head the coordination of Clusters shares; a coordination passes
+        // that phrase down to its Clusters.
+        let cluster_host = clustered.filter(|_| production.is_some_and(|p| p.cluster.is_some()));
+        let pass = |name: &Ident| match production {
+            Some(p) if p.clusters.is_some_and(|(at, _)| p.names[at] == *name) => Some(index),
+            Some(p) if p.cluster.is_some() => None,
+            _ => clustered,
+        };
         // The head of a function Category bears its function in its phrase.
         let wraps = self.function_categories.contains(&node.category)
             || self.brackets.contains(&node.production);
@@ -914,9 +930,17 @@ impl CompiledGrammar {
                 Self::gap_sites(child, gap, &mut at, &mut sites);
             }
             if wraps && name == "head" {
-                self.locate(child, parent, function, out);
+                self.locate(child, parent, function, pass(&name), out);
             } else {
-                self.locate(child, Some(index), Some(name), out);
+                self.locate(child, Some(index), Some(name), pass(&name), out);
+            }
+            if let Some(host) = cluster_host {
+                // A function Category's head bears it too.
+                for constituent in &mut out[start..] {
+                    if constituent.parent == Some(index) && constituent.function == Some(name) {
+                        constituent.also.push((name, host));
+                    }
+                }
             }
             if raising && name == "shared" {
                 // A function Category's head bears the shared function too

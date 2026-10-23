@@ -1,0 +1,11 @@
+# Mixed-mood coordinations of Clauses: an imperative first, a declarative
+# last, and either between (*gain control of that permanent, it loses all
+# abilities, and it can't attack or block*). A fronted dependent scopes over
+# the whole coordination (`english-lexical-analysis.md` §2).
++ When this creature enters, choose target Human or artifact an opponent controls. For as long as this creature remains on the battlefield, gain control of that permanent, it loses all abilities, and it can't attack or block. => Clause "gain control of that permanent, it loses all abilities, and it can't attack or block"; PrepositionPhrase "For as long as this creature remains on the battlefield"
++ Whenever you cast a spell with mana value 5 or greater, each opponent reveals the top card of their library. If any of those cards shares a card type with that spell, copy that spell, you may choose new targets for the copy, and each opponent draws a card. Otherwise, you draw a card. => Clause "copy that spell, you may choose new targets for the copy, and each opponent draws a card"; PrepositionPhrase "If any of those cards shares a card type with that spell"
++ Whenever another creature you control enters, you may discard a card. If you do, put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types. => Clause "put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types"
++ At the beginning of combat on your turn, any opponent may sacrifice a creature of their choice. If a player does, tap this creature, you gain 3 life, and you draw a card. => Clause "tap this creature, you gain 3 life, and you draw a card"
++ At the beginning of your upkeep, surveil 1. Then if there are seven or more cards in your graveyard, sacrifice this artifact, it deals 2 damage to each opponent, and you gain 2 life. => Clause "sacrifice this artifact, it deals 2 damage to each opponent, and you gain 2 life"
+# Like-mood Clauses coordinate in their own schema: one tree.
++Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => readings 1

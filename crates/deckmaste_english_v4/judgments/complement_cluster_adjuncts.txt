@@ -1,0 +1,24 @@
+# Complement Clusters that end in an Adjunct: right nonce-constituent
+# coordination of parallel sequences of a verb's Object and an Adjunct after
+# the shared verb (CGEL, Ch. 15 §4.3, pp. 1341–1343, [17ie]: *I sent Ed a
+# letter on Monday and Sue a postcard on Friday*). Each dependent bears its
+# function in the verb's phrase.
++ Equipped creature has lifelink if you control a Cleric, deathtouch if you control a Rogue, haste if you control a Warrior, and flying if you control a Wizard. => ComplementCluster "lifelink if you control a Cleric"; ComplementCluster "deathtouch if you control a Rogue"; ComplementCluster "flying if you control a Wizard"; KeywordPhrase "deathtouch" as Object of have; PredicateAdjunct "if you control a Rogue" as Adjunct of have; KeywordPhrase "flying" as Object of have; PredicateAdjunct "if you control a Wizard" as Adjunct of have
++ Each creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green. => ComplementCluster "vigilance if it's white"; ComplementCluster "first strike if it's red"; KeywordPhrase "first strike" as Object of have; PredicateAdjunct "if it's red" as Adjunct of have; KeywordPhrase "trample" as Object of have; PredicateAdjunct "if it's green" as Adjunct of have
+# The Clusters are parallel in function, not in category: a keyword phrase
+# and a quoted ability are each the Object of *have*.
++ This creature has trample as long as you control a Beast, haste as long as you control a Goblin, first strike as long as you control a Soldier, flying as long as you control a Wizard, and "{B}: Regenerate this creature" as long as you control a Zombie. => ComplementCluster "trample as long as you control a Beast"; ComplementCluster "\"{B}: Regenerate this creature\" as long as you control a Zombie"; QuotedAbility "\"{B}: Regenerate this creature\"" as Object of have; PredicateAdjunct "as long as you control a Zombie" as Adjunct of have; KeywordPhrase "haste" as Object of have
+# Gapped *get* over two Object + Adjunct Clusters, beside the attachment of the
+# second measure inside the first *for each* phrase.
++ This creature and enchanted creature each get +1/+1 for each creature you control and +1/+1 for each Aura you control. => ComplementCluster "+1/+1 for each creature you control"; ComplementCluster "+1/+1 for each Aura you control"; PredicateAdjunct "for each Aura you control" as Adjunct of get || PrepositionPhrase "for each creature you control and +1/+1"
+# A Cluster may end in an Adjunct that its parallel Clusters lack, and each
+# Cluster may end in its own.
++ Put one of them on top of your library in any order and the rest on the bottom of your library. => ComplementCluster "one of them on top of your library in any order"; ComplementCluster "the rest on the bottom of your library"; PredicateAdjunct "in any order" as Adjunct of put
++ Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"
+# A single Object forms a Cluster only with its Adjunct: alone it coordinates
+# as itself.
++ Equipped creature has lifelink, deathtouch, and flying. => !ComplementCluster "lifelink"; !ComplementCluster "deathtouch"
+# The Clusters of one coordination have the shape of the head's frame: an
+# Object and an Adjunct do not coordinate with an Object and a selected
+# Complement (CGEL, Ch. 15 §4.3, p. 1341, [17ii]).
++ Put one of them into your hand and the rest into your graveyard. => ComplementCluster "one of them into your hand"; ComplementCluster "the rest into your graveyard"; NounPhrase "the rest" as Object of put; PrepositionPhrase "into your graveyard" as Complement of put; readings 1

@@ -10,3 +10,5 @@
 + Activate during your turn and during your upkeep.
 + Any player may activate this ability.
 + Only your opponents may activate this ability.
+# Unlike focused Adjuncts coordinate serially too.
++ {R}: This creature gets +2/+0 until end of turn. Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn. => PredicateAdjunct "only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn" as Adjunct of activate

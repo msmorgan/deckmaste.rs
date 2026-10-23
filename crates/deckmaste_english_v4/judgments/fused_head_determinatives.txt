@@ -1,0 +1,6 @@
+# Fused determiner-heads: plural demonstrative *those*, anaphoric or set by a
+# relative clause (CGEL, Ch. 5 §9.2, p. 414, [14i]: *Those who break the
+# rules*), and *either* as an implicit partitive (§9.3, p. 413, [11ii]).
++ Exile those. => NounPhrase "those" as Object of exile
++ Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments. => NounPhrase "all creatures except those that share a creature type with a creature that convoked this spell"; RelativeClause "that share a creature type with a creature that convoked this spell"; NounPhrase "all artifacts"; NounPhrase "all enchantments"
++ <card=Worms of the Earth> At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment. => NounPhrase "either" as Object of do

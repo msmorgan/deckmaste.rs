@@ -271,6 +271,11 @@ pub(crate) struct Production {
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
+    /// It builds a Complement Cluster of this frame (`Summary::cluster`).
+    pub cluster: Option<u16>,
+    /// The child that must be a coordination of Complement Clusters of this
+    /// frame, the head's (`grammar::ClustersDecl`).
+    pub clusters: Option<(usize, u16)>,
     /// The State before any child, its variables bound to their constants.
     start: State,
 }
@@ -432,6 +437,8 @@ pub(crate) fn resolve(
         omission: Omission::None,
         lexical_head,
         link: None,
+        cluster: None,
+        clusters: None,
         id,
         lhs,
         rhs,
@@ -483,6 +490,8 @@ pub(crate) fn resolve(
             internal_comma: false,
             unwritten_period: false,
             headed_link: None,
+            cluster: None,
+            head_lexeme: None,
         },
     })
 }
@@ -592,6 +601,16 @@ pub(crate) struct Summary {
     /// coordination's own: a chain linked by one connective has one tree,
     /// its serial (`Production::link`).
     pub link: Option<LexemeId>,
+    /// The frame, plus one, of the Complement Cluster it is, or of the first
+    /// one its head line holds (0: none). The Clusters of one coordination
+    /// are parallel: their frames have one shape
+    /// (`CompiledGrammar::cluster_shapes`), and the first is the head's
+    /// (`grammar::ClustersDecl`).
+    pub cluster: u16,
+    /// Another frame, plus one, of a Cluster its head line holds (0: none):
+    /// the head must declare it too (*has trample ..., and "{B}: Regenerate
+    /// this creature" ...*).
+    pub cluster_other: u16,
 }
 
 /// A lexical leaf as a child sees it.
@@ -677,6 +696,12 @@ pub(crate) struct State {
     pub unwritten_period: bool,
     /// The `head` child's `Summary::link`.
     headed_link: Option<LexemeId>,
+    /// The `Summary::cluster` and `Summary::cluster_other` of the head-line
+    /// children so far.
+    cluster: Option<(u16, u16)>,
+    /// The lexeme of the lexical `head` child of a Production that requires
+    /// a coordination of Complement Clusters (`Production::clusters`).
+    head_lexeme: Option<LexemeId>,
 }
 
 impl Production {
@@ -840,6 +865,64 @@ impl Production {
             }
             ChildView::Node(summary) => next.ellipsis = summary.ellipsis,
             ChildView::Leaf(_) => next.ellipsis = 0,
+        }
+        Some(())
+    }
+
+    /// The Complement Cluster frames the head line so far holds, or `None`
+    /// if child `position` is in the head line with Clusters of another shape
+    /// (the Clusters of one coordination are parallel; CGEL, Ch. 15 §4.3,
+    /// p. 1341), or is the coordination of Clusters its Production requires
+    /// and does not begin with one of the head's frame, or holds one of a
+    /// frame the head does not declare (`Summary::cluster`).
+    fn track_cluster(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        let (cluster, other) = match child {
+            ChildView::Node(summary) => (summary.cluster, summary.cluster_other),
+            ChildView::Leaf(_) => (0, 0),
+            ChildView::Punct => return Some(()),
+        };
+        let shape = |c: u16| (c != 0).then(|| grammar.cluster_shapes[usize::from(c - 1)]);
+        if let Some((at, frame)) = self.clusters
+            && at == position
+        {
+            let declared = next
+                .head_lexeme
+                .and_then(|head| grammar.lexemes.get(&head))
+                .map(|facts| &facts.frames)?;
+            if cluster != frame + 1
+                || (other != 0
+                    && (!declared.contains(&usize::from(other - 1))
+                        || shape(other) != shape(cluster)))
+            {
+                return None;
+            }
+        }
+        if self.head_line[position] {
+            next.cluster = Some(match next.cluster {
+                None => (cluster, other),
+                Some((first, held)) => {
+                    if shape(first) != shape(cluster) {
+                        return None;
+                    }
+                    let mut held = held;
+                    for c in [cluster, other] {
+                        if c == 0 || c == first || c == held {
+                            continue;
+                        }
+                        if held != 0 {
+                            return None;
+                        }
+                        held = c;
+                    }
+                    (first, held)
+                }
+            });
         }
         Some(())
     }
@@ -1058,6 +1141,11 @@ impl Production {
         if self.coordinator == Some(position) {
             next.coordinator = leaf.lexeme;
         }
+        // Only a head whose Complement Clusters it must declare is recorded,
+        // so that homographs elsewhere still pack.
+        if self.clusters.is_some() && self.head == Some(position) {
+            next.head_lexeme = leaf.lexeme;
+        }
         if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
             next.preposition = leaf.lexeme.map(|l| (l, *frame));
         }
@@ -1219,6 +1307,7 @@ impl Production {
         self.track_final_preposition(grammar, &mut next, position, child)?;
         self.track_omitted_complement(grammar, &mut next, position, child)?;
         self.track_ellipsis(&mut next, position, child)?;
+        self.track_cluster(grammar, &mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -1439,6 +1528,16 @@ impl Production {
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
             link: self.link.or(state.headed_link),
+            cluster: self
+                .cluster
+                .map_or(state.cluster.map_or(0, |(first, _)| first), |frame| {
+                    frame + 1
+                }),
+            cluster_other: if self.cluster.is_some() {
+                0
+            } else {
+                state.cluster.map_or(0, |(_, other)| other)
+            },
         })
     }
 }

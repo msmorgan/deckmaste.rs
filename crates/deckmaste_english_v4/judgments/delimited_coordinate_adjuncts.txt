@@ -1,0 +1,5 @@
+# A non-initial coordinate may open, after its coordinator, with a fronted
+# Adjunct delimited on both sides: heavy punctuation marks its left boundary
+# after the coordinator (CGEL, Ch. 20 §3.2.5, p. 1745, note 13).
++ <card=Moritte of the Frost> You may have Moritte enter as a copy of a permanent you control, except it's legendary and snow in addition to its other types and, if it's a creature, it enters with two additional +1/+1 counters on it and has changeling. => Clause "it's legendary and snow in addition to its other types and, if it's a creature, it enters with two additional +1/+1 counters on it and has changeling"; Clause "if it's a creature, it enters with two additional +1/+1 counters on it and has changeling"
++ It's legendary and, if it's a creature, it has changeling. => Clause "if it's a creature, it has changeling"
