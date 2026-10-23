@@ -704,6 +704,13 @@
         // p. 1058), so its head Clause passes up no Gap.
         (name: "ParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
             equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
+        // A trailing NP Supplement is outside the integrated Clause: its
+        // anchor remains an Object or another constituent, rather than
+        // becoming a larger NP with the description (CGEL, Ch. 15 §§5.1,
+        // 5.2(b), pp. 1350–1351, 1357–1358). Oracle uses this for a named
+        // token's description (OSG §12, Tokens). The Supplement is a full
+        // Noun Phrase, retaining its own postmodifiers.
+        (name: "NounPhraseSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "NounPhrase")]),
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
@@ -1254,8 +1261,15 @@
         // head lexeme and the head line are forgone.
         (name: "TemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Carry("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // Ordinary bare plurals have plural count heads, not just the plural
+        // Number of a coordination of singular count nominals. A shared
+        // determiner belongs outside that coordination and cannot be left
+        // behind when its tail becomes a Supplement (CGEL, Ch. 5 §8.5,
+        // pp. 409–410; Ch. 15 §3.1, p. 1323; OSG §7, Plurals and agreement).
+        // Mass-noun coordinations remain bare; exceptional bare singular
+        // expressions are separately licensed, not ordinary bare plurals.
         (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
-            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third")]),
+            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third"), ExcludeTogether([("head.Countability", "Count"), ("head.ConjunctNumber", "Singular")])]),
         (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Exclude("head.Case", "Genitive"), Exclude("head.PronounKind", "Existential"), Exclude("head.PronounKind", "Relative"), Require("head.Inflection", "Invariant")]),
         (name: "IndependentGenitive", lhs: "NounPhrase", rhs: [Lex("pronoun", Pronoun)],
