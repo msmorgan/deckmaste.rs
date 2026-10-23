@@ -77,7 +77,10 @@ pub enum FillSpec {
     /// An Adverb Phrase or a Noun Phrase of frequency (*than twice*).
     AdvP,
     LocativeNP,
-    /// A slash measure as a Noun Phrase (*gets +2/+2*).
+    /// A slash measure as a Noun Phrase (*gets +2/+2*; *your choice of 5/1
+    /// or 1/5*). A bare slash measure occurs only where a head selects one,
+    /// so *get* and *of* are its only holders (project term Measure Noun
+    /// Phrase).
     MeasureNP,
     FiniteClause,
     VerblessClause,
@@ -87,6 +90,9 @@ pub enum FillSpec {
     BareInf,
     Gerund,
     KeywordPhrase,
+    /// A quoted granted ability (*a token with "This token can't block."*;
+    /// [CR#113.1a]). Its one preposition holder is *with*, beside the verbs
+    /// *has* and *gain*.
     QuotedAbility,
     Nominal,
     Amount,
@@ -207,6 +213,9 @@ pub enum NounKind {
     #[default]
     Ordinary,
     Temporal,
+    /// A Manner Adjunct without a governing preposition (*do it this way*;
+    /// CGEL, Ch. 8 §2.1, p. 671). It has one holder, *way*, and that is the
+    /// whole class; `MannerAdjunct` reads it.
     Manner,
 }
 
@@ -432,7 +441,11 @@ pub enum DeterminativeDistribution {
     /// life*, *double that damage*; CGEL, Ch. 5 §7.3, p. 434).
     Multiplier,
     /// The Targeting Marker, a determiner on its own or the last word of
-    /// one (*target creature*, *two target creatures*).
+    /// one (*target creature*, *two target creatures*). It has one holder,
+    /// *target*, and that is the whole class: a determinative that only
+    /// determines a nominal, so it is kept apart from `Dependent`, which the
+    /// fused and partitive Productions require (not *choose target*, *target
+    /// of those*).
     Targeting,
 }
 
@@ -470,6 +483,9 @@ pub struct PronounEntry {
 pub enum PronounKind {
     #[default]
     Personal,
+    /// Dummy *there*, the subject of an existential clause (CGEL, Ch. 16
+    /// §6.2, p. 1394). It has one holder, and that is the whole class: the
+    /// Existential Production reads it and the Pronoun Production excludes it.
     Existential,
     Relative,
 }
@@ -738,7 +754,8 @@ pub enum NounDistribution {
     #[default]
     Ordinary,
     /// A number-transparent quantificational noun (*any number of*; CGEL,
-    /// Ch. 5 §3.3, pp. 349–351).
+    /// Ch. 5 §3.3, pp. 349–351). It has one holder, *number*, and that is the
+    /// whole class: the Productions that carry number transparency read it.
     Quantity,
     /// A mass noun accepting a direct cardinal measure without a unit noun.
     DirectMeasure,

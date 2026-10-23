@@ -27,7 +27,12 @@
         "Person": ["Second", "Third"],
         "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         // A to-infinitival Clause is marked by its subordinator; a relative
-        // clause by *that* or a relative phrase.
+        // clause by *that* or a relative phrase. `To` has one source, the
+        // ToInfinitival Production, and is the whole class: only a clause
+        // whose VP carries the subordinator *to* (CGEL, Ch. 2 §14, pp. 64–65)
+        // is a ToInf Complement (InfinitivalComplement), takes a phrasal
+        // adverb before it (ModifiedInfinitival), or follows *whether*
+        // (ClosedInfinitivalInterrogative).
         "ClauseMarking": ["Unmarked", "To", "Relative"],
         "Voice": ["Active", "Passive"],
         // A verb whose Adjectival Passive is a declared Adjective (*tapped*);
@@ -36,16 +41,31 @@
         // Auxiliary verbs (CGEL's NICE verbs); privative: a lexical verb
         // leaves it unvalued.
         "VerbKind": ["Auxiliary"],
-        // The Slot Kind of a Preposition Phrase's Complement.
+        // The Slot Kind of a Preposition Phrase's Complement. `MeasureNP` has
+        // one preposition holder, *of* (*your choice of 5/1 or 1/5*), and
+        // `QuotedAbility` one, *with* (*a token with "This token can't
+        // block."*): each is a Complement that is no ordinary Noun Phrase.
+        // A bare slash measure occurs only where a head selects one (project
+        // term Measure Noun Phrase; *get* selects it as its Object by frame),
+        // and a quoted ability is the granted ability of [CR#113.1a],
+        // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
         "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
         "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        // `Quantity` has one holder, *number*: the number-transparent
+        // quantificational noun (*any number of target creatures*; CGEL,
+        // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
+        // and FreeChoiceQuantity read; no other Oracle noun takes its
+        // Number from its *of* oblique.
         // `Serial` has one holder, *time*, and that is the whole class: a
         // bounding frequency Noun Phrase has *times* as its head (*three
         // times*; CGEL, Ch. 8 §9, p. 715), and so does a cardinal multiplier
         // (*three times X*; Ch. 5 §12, p. 434).
         "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
+        // `Manner` has one holder, *way*, the only Oracle noun that is a
+        // Manner Adjunct without a governing preposition (*do it this way*;
+        // CGEL, Ch. 8 §2.1, p. 671); MannerAdjunct reads it.
         "NounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
         // The NounKind of a head's *of* oblique.
         "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
@@ -54,6 +74,9 @@
         "ObliqueDetermination": ["Bare", "Overt"],
         "AdjectivePosition": ["Attributive", "Predicative"],
         "Sign": ["Negative", "Zero", "Positive"],
+        // `Existential` has one holder, dummy *there*, the subject of an
+        // existential clause (CGEL, Ch. 16 §6.2, p. 1394); the Existential
+        // Production reads it, and the Pronoun Production excludes it.
         "PronounKind": ["Personal", "Existential", "Relative"],
         // `FreeChoice` has one holder, *any*, and that is the whole class, as
         // `Serial` is *time*. Determined and DeterminedModifiedQuantity
@@ -74,6 +97,13 @@
         // The two also part in temporal location: *another day*, never *a
         // day* (Ch. 8 §6.3, p. 698), a kept gate on TemporalLocation
         // (`docs/decisions/english-v4.md` §4.4, item 10).
+        // `Targeting` has one holder, the Targeting Marker *target* (project
+        // term, `docs/contexts/oracle-english/CONTEXT.md`): a determinative
+        // that only determines a nominal, so it is kept apart from
+        // `Dependent`, which FusedDegreeDeterminer and DegreePartitive
+        // require, and it never fuses or partitions (not *choose target*,
+        // *target of those*). TargetedNounPhrase and BareTargetingMarker
+        // carry it.
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
@@ -393,6 +423,12 @@
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
+    // `FusedHeadAdjective` has one member, *other*, the one Oracle adjective
+    // that heads a Noun Phrase alone (*the other*, *each other*; CGEL, Ch. 5
+    // §9.1, p. 410, modifier-head), read by FusedAdjectiveHead. `RangeMarker`
+    // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
+    // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
+    // by its header and mode Productions (RangeHeader, SinglePawprint).
     typed_classes: ["CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
     slot_categories: {
         TypeModifier: "TypeModifier",
