@@ -53,3 +53,18 @@ row. The protector choice, attack and block, and summoning sickness have no benc
 
 - Each new row checks (`Definition.check … = []`), with its CR citation.
 - The pins of the moved bench rows read the declared rows, their claims unchanged.
+
+## Decisions (2026-10-23)
+
+- **Summoning sickness moved out** to `lean-v3-summoning-sickness-row`. [CR#302.6] cannot be
+  written today: no `TurnRef` names a player's most recent turn, nothing reads "controlled
+  continuously since", and haste is bodiless [CR#702.10b,702.10c]. Owner chose option (a), new
+  vocabulary, there.
+- **The battle protector is an entry choice.** [CR#310.9a] and [CR#310.12a] are written as "as
+  this enters, choose a player" (`entersChoosingPlayer`), conferred as properties: a battle that
+  is no Siege chooses a player not other than its controller, a Siege an opponent. There is no
+  protector link (`Definitions/Designations.lean` defers it until a card reads a protector), so
+  the chosen player is the battle's choice until then.
+- **The lethal-damage row was added** [CR#704.5g]: `lethalDamage` on the creature row reads
+  `statOf .markedDamage`, which already exists. `lean-marked-damage-projection` and
+  `lean-v3-proofs-and-docs-alignment` §2 are narrowed accordingly; [CR#704.5h] stays there.

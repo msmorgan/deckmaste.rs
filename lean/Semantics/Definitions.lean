@@ -4,8 +4,9 @@ import Semantics.Definitions.Designations
 import Semantics.Definitions.Relations
 import Semantics.Definitions.Subtypes
 import Semantics.Definitions.Phrasings
-import Semantics.Definitions.CardTypeRules
 import Semantics.Definitions.Actions
+import Semantics.Definitions.CardTypeRules
+import Semantics.Definitions.SubtypeRules
 import Semantics.Definitions.Keywords
 
 /-!
@@ -21,7 +22,7 @@ values live in `namespace Semantics` (`CardType.creature`), over `Semantics.Word
 the checker compares card types by value. The rest are in `namespace Semantics.Definitions`, above
 `Semantics.Templates`: the leaf catalogs (`Counters`, `Designations`, `Relations`, `Subtypes`) are
 spelled over primitives; `Phrasings` holds the Templates that name a card type or a leaf catalog
-entry, spelled over `Semantics.Templates` and the leaf catalogs; `CardTypeRules` holds what each
-card type confers; and the composite Definitions (`Actions`, `Keywords`) are spelled over all of
-them.
+entry, spelled over `Semantics.Templates` and the leaf catalogs; the composite Definitions
+(`Actions`, `Keywords`) are spelled over all of them; and `CardTypeRules` and `SubtypeRules` hold
+what each card type and each rules-defined subtype confers, spelled over `Actions`.
 -/

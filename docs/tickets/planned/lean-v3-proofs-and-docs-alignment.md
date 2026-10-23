@@ -30,6 +30,10 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
 
 ### 2. Complete the `[CR#704.5g]` Rules Row & Tighten Proof Quality (Astra §6, Opus §§6.3–6.5, 6.8, 7.1)
 
+**Narrowed (2026-10-23):** the `[CR#704.5g]` lethal-damage row landed in
+`lean-v3-card-type-conferral-rows` as `lethalDamage` on the creature `Definition.cardType` row
+(`Definitions/CardTypeRules.lean`), not in `builtinTables`; the first bullet's lethal-damage half is done.
+
 - **Add the `[CR#704.5g]` lethal-damage row to `builtinTables` and complete
   truncated SBA / spell-copy guards (`lean/Semantics/Proofs/Rules.lean:240-251,395-401`,
   Astra §6, Opus §7.1):**
