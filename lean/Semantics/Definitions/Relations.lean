@@ -4,7 +4,8 @@ import Semantics.Primitives
 # Semantics.Definitions.Relations
 
 The rules-defined relation labels: each declaration's name is its `RelationLabel`. A leaf
-catalog, spelled over primitives only, so `Semantics.Templates` can name its entries.
+catalog, spelled over primitives only. `Semantics.Templates` names none of its
+entries.
 -/
 
 namespace Semantics.Definitions

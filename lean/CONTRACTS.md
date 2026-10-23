@@ -131,18 +131,20 @@ Semantic expressions must use authored declarations: a `semantic_definition`
 ability, counter, token or designation) or a `semantic_template` (a Template,
 a transparent phrasing the rules do not define). Printed-data records,
 enumerated leaf values, and numeric literals remain ordinary data; their
-semantic fields are inspected recursively. The modules are layered
-`Semantics.Primitives` ← leaf catalogs ← `Semantics.Templates` ← composite Definitions, all
-re-exported by `Semantics.Definitions`. The leaf catalogs
-(`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are spelled over
-primitives only, except that `.Subtypes` is spelled over the raw `Subtype` constructors, which
-have no primitive; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`) are
-spelled over Templates. The checker sits beside this stack, not under it: Primitives, the leaf
-catalogs and Templates import none of `Semantics.Check` (the structural readers they need, such
-as `Location.sort`, live with the Core AST), and only the composite Definitions read a checker
-reader (`NounPhrase.plur`, for "It/They can't be regenerated"). A word a Template sort and a
-Definition share (`crew`, `saddle`) is dispatched on its expected type where the Definition is
-declared, so Templates name nothing above them. A declaration whose bare name another
+semantic fields are inspected recursively. The modules are layered one way,
+`Semantics.Primitives` ← `Semantics.Templates` ← Definitions ← cards, the Definitions all
+re-exported by `Semantics.Definitions`. Templates name no catalog item and no card type. The leaf
+catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are
+spelled over primitives only, except that `.Subtypes` is spelled over the raw `Subtype`
+constructors, which have no primitive; `Semantics.Definitions.Phrasings` holds the Templates that
+name a card type or a leaf catalog entry ("this creature", "your party"), spelled over Templates
+and the leaf catalogs; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`)
+are spelled over all of them. The checker sits beside this stack, not under it: Primitives, the
+leaf catalogs, Templates and `Phrasings` import none of `Semantics.Check` (the structural readers
+they need, such as `Location.sort`, live with the Core AST), and only the composite Definitions
+read a checker reader (`NounPhrase.plur`, for "It/They can't be regenerated"). A word a Template
+sort and a Definition share (`crew`, `saddle`) is dispatched on its expected type where the
+Definition is declared, so Templates name nothing above them. A declaration whose bare name another
 declaration or a syntax word already takes is named in its sort's namespace (`Subtype.army`,
 `Subtype.infinity`, `DesignationLabel.solved`, `Ability.splice`).
 `Semantics.Primitives` provides the generated constructor wrappers
@@ -161,10 +163,11 @@ that the card inspection follows. Authored declarations (`semantic_definition`,
 cards are not checked: the checker's tables (`Check/Facts.lean`), and the pins that build a raw
 subtype on purpose (`badNamelessSubtype` in `Proofs/Rules.lean`, and the refusal pins in
 `Proofs/Authoring.lean`). `Semantics.Templates` holds every
-`semantic_template` and names leaf catalog entries rather than spelling their strings;
-the `Semantics.Definitions` submodules hold every `semantic_definition` and the few
-templates whose bodies need a composite definition: the templates over its actions
-follow the actions, and a keyword's licensed phrasings follow the keyword.
+`semantic_template` that names no card type and no catalog entry; the `Semantics.Definitions`
+submodules hold every `semantic_definition` and the templates that name a card type or a catalog
+entry (`Phrasings`, which names leaf catalog entries rather than spelling their strings) or whose
+bodies need a composite definition: the templates over its actions follow the actions, and a
+keyword's licensed phrasings follow the keyword.
 Defaults retain their calls.
 
 A declaration generates the hidden construction context, splice closures, and

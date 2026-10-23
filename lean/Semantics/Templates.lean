@@ -1,9 +1,5 @@
 import Semantics.Primitives
 import Semantics.CallerScope
-import Semantics.Definitions.Counters
-import Semantics.Definitions.Designations
-import Semantics.Definitions.Relations
-import Semantics.Definitions.Subtypes
 
 /-!
 # Semantics.Templates
@@ -11,15 +7,14 @@ import Semantics.Definitions.Subtypes
 Phrasing helpers (`Template`s, `semantic_template`) for `semantics-v3`
 (`docs/decisions/semantics-v3.md` §§1–3). A Template expands transparently in the caller's DRS
 scope and uses `firstMention` / `laterMention` whenever a `NounPhrase` parameter is mentioned more
-than once before a zone change. Templates are spelled over primitives, other Templates and the
-leaf catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`); a
-phrasing helper that needs a composite Definition lives after it, in `Semantics.Definitions.Actions`
-or `Semantics.Definitions.Keywords`.
+than once before a zone change. Templates are spelled over primitives and other Templates and
+name no catalog item and no card type: the layering is Primitives → Templates → Definitions →
+Cards. A phrasing helper that names a card type or a catalog entry ("this creature", "your party")
+lives above it, in `Semantics.Definitions.Phrasings`, and one that needs a composite Definition in
+`Semantics.Definitions.Actions` or `Semantics.Definitions.Keywords`.
 -/
 
 namespace Semantics.Templates
-
-open Semantics.Definitions
 
 /-! ## Worded primitives
 
@@ -118,11 +113,6 @@ semantic_template thoseTokens : NounPhrase := those .token
 semantic_template they : NounPhrase := .pro (.word .player) .one
 /-- "them" reading players, as `they` reads one: "you choose one of them". -/
 semantic_template themPlayers : NounPhrase := .pro (.word .player) .many
-/-- "that player or that permanent's controller": the player half of a "target player or
-planeswalker" split, or the controller of the permanent half. -/
-semantic_template splitOverPlaneswalker : NounPhrase :=
-  eitherOf (.pro (.unionHalf .player) .one)
-    (.possessorOf .controller (.pro (.unionHalf (.type .planeswalker)) .one))
 /-- The same over "any target": the player, or the permanent's controller. -/
 semantic_template splitOverPermanent : NounPhrase :=
   eitherOf (.pro (.unionHalf .player) .one)
@@ -396,27 +386,8 @@ def elabExpectedTypeDispatch : TermElab := dispatchOnExpectedType expectedTypeDi
 
 /-! ### Types, kinds and roles -/
 
-semantic_template isCreature : Predicate := .hasType .creature
-semantic_template isArtifact : Predicate := .hasType .artifact
-semantic_template isEnchantment : Predicate := .hasType .enchantment
-semantic_template isLand : Predicate := .hasType .land
-semantic_template isInstant : Predicate := .hasType .instant
-semantic_template isSorcery : Predicate := .hasType .sorcery
-semantic_template isPlaneswalker : Predicate := .hasType .planeswalker
-semantic_template isBattle : Predicate := .hasType .battle
-semantic_template isKindred : Predicate := .hasType .kindred
-semantic_template isInstantOrSorcery : Predicate := or [isInstant, isSorcery]
-/-- "has a permanent type": an artifact, battle, creature, enchantment, land, or planeswalker
-[CR#110.4]; read off the types, so it holds of a card or a token. -/
-semantic_template isPermanentType : Predicate :=
-  .or [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
-        .hasType .land, .hasType .planeswalker ]
 /-- "permanent": an object on the battlefield [CR#110.1]. -/
 semantic_template isPermanent : Predicate := .in_ battlefield
-/-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
-battle, creature, enchantment, land, or planeswalker type [CR#110.4a]; a reading of the card's
-types, wherever it is. -/
-semantic_template isPermanentCard : Predicate := .and [.isCard, isPermanentType]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
 semantic_template isSpell : Predicate := .and [.in_ stack, .not (.abilityHead .anyOnStack)]
 semantic_template isCard : Predicate := .isCard
@@ -446,19 +417,6 @@ semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestCho
 /-- "another player", "other player": a bare "other", whose Contrast Anchor is "you" unless the
 text mentions a player first ("Choose a player. Each other player…"). -/
 semantic_template isOtherPlayer : Predicate := and [isPlayer, .other]
-/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, and/or Warlock [CR#700.12]. -/
-semantic_template isOutlaw : Predicate :=
-  .coord .andOr
-    [ .hasSubtype assassin, .hasSubtype mercenary, .hasSubtype pirate, .hasSubtype rogue,
-      .hasSubtype warlock ]
-/-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
-semantic_template isHistoric : Predicate :=
-  .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype saga]
-/-- "any target" [CR#115.4]. -/
-semantic_template isAnyTarget : Predicate :=
-  .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
-/-- "any other target" -/
-semantic_template isAnyOtherTarget : Predicate := and [isAnyTarget, .other]
 
 /-! ### Player groups -/
 
@@ -608,9 +566,6 @@ semantic_template cardOnTheStack : Predicate := and [isCard, isSpell]
 semantic_template tokenOnTheBattlefield : Predicate := and [isToken, isPermanent]
 /-- "that targets only <subject>" [CR#115.9c] -/
 semantic_template targetsOnly (subject : NounPhrase) : Predicate := .targets subject .only
-/-- The four party roles, in rule order [CR#700.8]. -/
-semantic_template partyRoles : List Predicate :=
-  [.hasSubtype cleric, .hasSubtype rogue, .hasSubtype warrior, .hasSubtype wizard]
 /-- "a color", "a creature type": a quality noun. -/
 semantic_template quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
@@ -693,32 +648,13 @@ semantic_template withMostVotes : Predicate := .withMostVotes
 semantic_template anOpponent : NounPhrase := a (.isOpponentOf .you)
 /-- "an opponent controls" -/
 semantic_template anOpponentControls : Predicate := controlledBy anOpponent
-semantic_template thisCreature : NounPhrase := .headed (.type .creature) .this
-semantic_template thisArtifact : NounPhrase := .headed (.type .artifact) .this
-semantic_template thisLand : NounPhrase := .headed (.type .land) .this
 semantic_template thisPermanent : NounPhrase := .headed .permanent .this
 semantic_template thisSpell : NounPhrase := .headed .spell .this
-semantic_template thisRoom : NounPhrase := .headed (.subtype room) .this
-semantic_template thisPlaneswalker : NounPhrase := .headed (.type .planeswalker) .this
 semantic_template thisAbility : NounPhrase := .headed .ability .this
 /-- "this card": the source as a card, in whatever zone it is [CR#109.1]. -/
 semantic_template thisCard : NounPhrase := .headed .card .this
 semantic_template thisToken : NounPhrase := .headed .token .this
 semantic_template thisEmblem : NounPhrase := .headed .emblem .this
-semantic_template thisEnchantment : NounPhrase := .headed (.type .enchantment) .this
-semantic_template thisAura : NounPhrase := .headed (.subtype aura) .this
-semantic_template thisEquipment : NounPhrase := .headed (.subtype equipment) .this
-semantic_template thisSiege : NounPhrase := .headed (.subtype siege) .this
-semantic_template thisVehicle : NounPhrase := .headed (.subtype vehicle) .this
-semantic_template thisSpacecraft : NounPhrase := .headed (.subtype spacecraft) .this
-semantic_template thisSaga : NounPhrase := .headed (.subtype saga) .this
-semantic_template thisFortification : NounPhrase := .headed (.subtype fortification) .this
-semantic_template thisCase : NounPhrase := .headed (.subtype case) .this
-semantic_template thisClass : NounPhrase := .headed (.subtype class_) .this
-/-- "your commander" -/
-semantic_template yourCommander : NounPhrase := .designated commander .you
-/-- "a card exiled with this artifact" -/
-semantic_template exiledWithThisArtifact : Predicate := .in_ (.exiledWith thisArtifact)
 /-- "the rest of them" -/
 semantic_template theRest (kind : Kind) : NounPhrase := .theRest kind .many
 /-- "the other pile": the one remaining after a choice among two. -/
@@ -762,18 +698,6 @@ semantic_template ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .o
 semantic_template topSlice (amount : Amount) : NounPhrase := .slice .top amount (libraryOf .you)
 /-- "the bottom card of your library" -/
 semantic_template bottomCard : NounPhrase := .slice .bottom 1 (libraryOf .you)
-/-- "[a player]'s party" [CR#700.8]. -/
-semantic_template partyOf (player : NounPhrase) : NounPhrase :=
-  .oneEachOf partyRoles (allOf (.and [isCreature, .hasPossessor .controller player]))
-/-- "your party" -/
-semantic_template party : NounPhrase := partyOf .you
-/-- "the number of creatures in <player>'s party" [CR#700.8a]. -/
-semantic_template partySizeOf (player : NounPhrase) : Amount := .countOf (partyOf player)
-semantic_template partySize : Amount := partySizeOf .you
-/-- "<player> has a full party": four creatures in that party [CR#700.8c]. -/
-semantic_template fullPartyOf (player : NounPhrase) : Condition :=
-  .compareAmt (partySizeOf player) .eq 4
-semantic_template fullParty : Condition := fullPartyOf .you
 semantic_template agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase) :
     NounPhrase :=
   .agree axis agreement group
@@ -810,12 +734,6 @@ The bare nouns a pronoun or an attached host reads: "that creature", "those card
 "enchanted creature".
 -/
 
-semantic_template creature : NounWord := .type .creature
-semantic_template artifact : NounWord := .type .artifact
-semantic_template enchantment : NounWord := .type .enchantment
-semantic_template land : NounWord := .type .land
-semantic_template planeswalker : NounWord := .type .planeswalker
-semantic_template battle : NounWord := .type .battle
 semantic_template card : NounWord := .card
 semantic_template permanent : NounWord := .permanent
 semantic_template player : NounWord := .player
@@ -1173,15 +1091,6 @@ semantic_template rollDice (count : Amount := 1)
 
 /-- A card exiled face down: no characteristics [CR#406.3a]. -/
 semantic_template exiledFaceDown : FaceDown := ⟨none⟩
-/-- A 2/2 face-down creature with no text, no name, no subtypes and no mana cost [CR#708.2a]. -/
-semantic_template faceDownCreature : FaceDown :=
-  ⟨some { types := [.creature], power := some 2, toughness := some 2 }⟩
-/-- A 2/2 face-down creature with ward {2}, no name, no subtypes and no mana cost
-[CR#701.58a,702.168a]. Ward is written bare by its label: cloak, a keyword action, reads it, and
-keyword actions are declared below the keyword abilities. -/
-semantic_template faceDownWardedCreature : FaceDown :=
-  ⟨some { types := [.creature], text := [.keyword (.named "ward") [.cost (.mana [generic 2])] []],
-          power := some 2, toughness := some 2 }⟩
 /-- "put <subject> <destination>" -/
 semantic_template put (subject : NounPhrase) (destination : Location) : Action :=
   zoneChange subject destination .anyLocation []
@@ -1272,17 +1181,6 @@ clause subject, `source`. -/
 semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Action :=
   .instruct source (.dealDamage (powerOf it) recipient)
-/-- A token's characteristics from the parts a creature token names, with the abilities it is
-created with ("… with flying") [CR#111.3]. -/
-semantic_template creatureTokenOf (power toughness : Amount) (colors : List Color)
-    (subtypes : List Subtype)
-    (abilities : List Ability := []) : CharacteristicBundle :=
-  { characteristics :=
-      { colors, types := [.creature], subtypes, text := abilities, power := power,
-        toughness := toughness } }
-semantic_template creatureToken (power toughness : Nat) (colors : List Color)
-    (subtypes : List Subtype) (abilities : List Ability := []) : CharacteristicBundle :=
-  creatureTokenOf (.lit power) (.lit toughness) colors subtypes abilities
 /-- "for each color of mana spent to cast <n>" -/
 semantic_template colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
 /-- "if colored mana was spent to cast <spell>" -/
@@ -1522,11 +1420,6 @@ semantic_template addMana (amount : Amount) (produced : ProducedMana)
 semantic_template addTurnPart (part : TurnPart) (count : Amount)
     (anchor : Option TurnPart := none) (followedBy : Option TurnPart := none) : Action :=
   .addTurnPart part anchor count followedBy
-semantic_template artifactCreatureToken (power toughness : Nat) (colors : List Color)
-    (subtypes : List Subtype) (abilities : List Ability := []) : CharacteristicBundle :=
-  { characteristics :=
-      { colors, types := [.artifact, .creature], subtypes, text := abilities,
-        power := some (.lit power), toughness := some (.lit toughness) } }
 semantic_template atNext (part : TurnPart) (action : Action) : Action :=
   delay (.beginningOf part none (.next none)) action
 semantic_template Action.attachment (move : AttachMove) (subject : NounPhrase)
@@ -1707,9 +1600,6 @@ semantic_template replaceWord (sorts : List QualitySort) (from_ : Option TextWor
   .replaceWord sorts from_ to
 /-- Exchange the subject's rules text with `other`'s [CR#612.5,701.12h]. -/
 semantic_template exchangeWith (other : NounPhrase) : TextChange := .exchangeWith other
-/-- An Army the performer controls. -/
-semantic_template army : Predicate :=
-  .and [.hasSubtype Subtype.army, isCreature, actorControls]
 /-- "any number of <group> with total <axis> <comparator> <bound>" [CR#701.59a]. -/
 semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
     (group : NounPhrase) : NounPhrase :=
