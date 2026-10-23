@@ -156,7 +156,6 @@ pub(crate) enum Symbol {
     Punct(char, deckmaste_lexical::Binding),
 }
 
-/// A compiled Production.
 /// The Complements a Production's phrase omits at its right edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Omission {
@@ -164,10 +163,17 @@ pub(crate) enum Omission {
     /// A noun's bare phrase omits the Complements its head's frames select
     /// (`Summary::omitted_complement`).
     Selected,
-    /// It ends in an ellipsis site (`ProductionDecl::elliptical`).
-    Ellipsis,
+    /// It ends in an ellipsis site whose omitted Complement takes these word
+    /// forms (`ProductionDecl::elliptical`), as a mask (`form_bit`).
+    Ellipsis(u16),
 }
 
+/// A word form's bit in a mask of word forms.
+pub(crate) fn form_bit(form: WordForm) -> u16 {
+    1 << form as u16
+}
+
+/// A compiled Production.
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
@@ -252,6 +258,9 @@ pub(crate) struct Production {
     pub auxiliary: Option<usize>,
     /// The Complements its phrase omits at its right edge.
     pub omission: Omission,
+    /// The child whose `Summary::head_forms` the mother takes: its head, or
+    /// the first conjunct of a coordination.
+    pub lexical_head: Option<usize>,
     /// The identity of the Linked Coordination it builds, which has no
     /// Coordinator leaf: it stands for one as the coordination's own
     /// (`Summary::coordinator`) and keeps each chain to one tree
@@ -382,6 +391,7 @@ pub(crate) fn resolve(
         }
     }
     let head = children.iter().position(|(name, ..)| name == "head");
+    let lexical_head = head.or_else(|| children.iter().position(|(name, ..)| name == "first"));
     let head_line = children
         .iter()
         .map(|(name, ..)| matches!(name.as_str(), "head" | "first" | "last" | "rest"))
@@ -417,6 +427,7 @@ pub(crate) fn resolve(
         unlike: None,
         auxiliary: None,
         omission: Omission::None,
+        lexical_head,
         link: None,
         id,
         lhs,
@@ -448,7 +459,8 @@ pub(crate) fn resolve(
             head_final: false,
             final_preposition: None,
             omitted_complement: 0,
-            ellipsis_final: false,
+            ellipsis: 0,
+            head_forms: 0,
             after_unlike_omissions: false,
             conjunct_omitted: None,
             unlike_omissions: false,
@@ -503,10 +515,16 @@ pub(crate) struct Summary {
     /// Complement, never a dependent of another host
     /// (`english-lexical-analysis.md` §2, same-head complement priority).
     pub omitted_complement: u16,
-    /// It ends in an ellipsis site, through its last child
-    /// (`ProductionDecl::elliptical`): before any punctuation, only a head it
-    /// is a dependent of follows it.
-    pub ellipsis_final: bool,
+    /// The word forms the omitted Complement of the ellipsis site it ends in
+    /// takes, through its last child, as a mask (0: none;
+    /// `ProductionDecl::elliptical`): before any punctuation, only a
+    /// coordinator or a head it is a dependent of follows it, whose
+    /// `head_forms` are none of these.
+    pub ellipsis: u16,
+    /// The word forms of every word spelled like its lexical head, reached
+    /// through its head or a coordination's first conjunct, as a mask
+    /// (`LeafFacts::forms`).
+    pub head_forms: u16,
     /// It is a coordination whose conjuncts omit unlike Complements, the last
     /// conjunct's `omitted_complement`: a Preposition Phrase right after it
     /// may be a dependent of the whole coordination, which cannot share it as
@@ -583,6 +601,9 @@ pub(crate) struct LeafFacts {
     pub category: LexicalCategory,
     /// Feature values by feature id.
     pub features: [Option<u16>; MAX_FEATURES],
+    /// The word forms of every Word spelled like it, ignoring case, as a
+    /// mask (`form_bit`).
+    pub forms: u16,
 }
 
 pub(crate) enum ChildView<'a> {
@@ -614,9 +635,11 @@ pub(crate) struct State {
     /// The Complements omitted by the bare noun phrase the last child so far
     /// ends in (`Summary::omitted_complement`).
     omitted_complement: u16,
-    /// The last child so far ends in an ellipsis site
-    /// (`Summary::ellipsis_final`).
-    ellipsis_final: bool,
+    /// The omitted Complement forms of the ellipsis site the last child so
+    /// far ends in (`Summary::ellipsis`).
+    ellipsis: u16,
+    /// The `lexical_head` child's `Summary::head_forms`.
+    head_forms: u16,
     /// The last child so far is a coordination with unlike omissions
     /// (`Summary::unlike_omissions`).
     after_unlike_omissions: bool,
@@ -784,26 +807,36 @@ impl Production {
         Some(())
     }
 
-    /// Whether the phrase so far ends in an ellipsis site, or `None` if child
-    /// `position` comes right after one and is neither the head the phrase
-    /// ending in it is a dependent of nor a coordinator
-    /// (`ProductionDecl::elliptical`). Punctuation ends the site's reach.
-    fn track_ellipsis_final(
+    /// The omitted Complement forms of the ellipsis site the phrase so far
+    /// ends in, or `None` if child `position` comes right after one and is
+    /// neither the head the phrase ending in it is a dependent of nor a
+    /// coordinator, or could be the omitted Complement: a word spelled like
+    /// its lexical head has one of those forms (`ProductionDecl::elliptical`;
+    /// CGEL Ch. 17 §7.1, p. 1519). Punctuation ends the site's reach.
+    fn track_ellipsis(
         &self,
         next: &mut State,
         position: usize,
         child: &ChildView<'_>,
     ) -> Option<()> {
+        let head_forms = match child {
+            ChildView::Node(summary) => summary.head_forms,
+            ChildView::Leaf(leaf) => leaf.forms,
+            ChildView::Punct => 0,
+        };
+        if self.lexical_head == Some(position) {
+            next.head_forms = head_forms;
+        }
         match child {
-            ChildView::Punct => next.ellipsis_final = false,
-            _ if next.ellipsis_final
-                && self.head != Some(position)
-                && self.coordinator != Some(position) =>
+            ChildView::Punct => next.ellipsis = 0,
+            _ if next.ellipsis != 0
+                && ((self.head != Some(position) && self.coordinator != Some(position))
+                    || head_forms & next.ellipsis != 0) =>
             {
                 return None;
             }
-            ChildView::Node(summary) => next.ellipsis_final = summary.ellipsis_final,
-            ChildView::Leaf(_) => next.ellipsis_final = false,
+            ChildView::Node(summary) => next.ellipsis = summary.ellipsis,
+            ChildView::Leaf(_) => next.ellipsis = 0,
         }
         Some(())
     }
@@ -1182,7 +1215,7 @@ impl Production {
         self.track_head_final(&mut next, position, child);
         self.track_final_preposition(grammar, &mut next, position, child)?;
         self.track_omitted_complement(grammar, &mut next, position, child)?;
-        self.track_ellipsis_final(&mut next, position, child)?;
+        self.track_ellipsis(&mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -1359,7 +1392,11 @@ impl Production {
             leaves: state.leaves,
             head_final: state.head_final,
             final_preposition: state.final_preposition,
-            ellipsis_final: self.omission == Omission::Ellipsis || state.ellipsis_final,
+            ellipsis: match self.omission {
+                Omission::Ellipsis(forms) => forms,
+                _ => state.ellipsis,
+            },
+            head_forms: state.head_forms,
             omitted_complement: if self.omission == Omission::Selected {
                 state.extensions
             } else {
@@ -1503,6 +1540,11 @@ impl CompiledGrammar {
                     lexeme: Some(value.lexeme),
                     category: facts.category,
                     features,
+                    forms: self
+                        .homograph_forms
+                        .get(value)
+                        .copied()
+                        .unwrap_or_else(|| form_bit(value.form)),
                 })
             }
             LexicalReading::Numeral {
@@ -1539,6 +1581,7 @@ impl CompiledGrammar {
                     }
                     features
                 },
+                forms: 0,
             }),
             LexicalReading::FlavorWord { .. } => Some(LeafFacts {
                 binding: deckmaste_lexical::Binding::Free,
@@ -1547,6 +1590,7 @@ impl CompiledGrammar {
                 lexeme: None,
                 category: LexicalCategory::FlavorWord,
                 features: [None; MAX_FEATURES],
+                forms: 0,
             }),
         }
     }

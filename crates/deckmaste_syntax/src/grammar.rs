@@ -161,15 +161,18 @@ pub struct ProductionDecl {
     #[serde(default)]
     pub transparent: Vec<Ident>,
     /// The phrase ends in an ellipsis site: its head omits every Complement
-    /// it selects (a stranded auxiliary, CGEL Ch. 17 §7.1, p. 1519). Before
-    /// any punctuation, a Constituent that ends in one is followed only by
-    /// a coordinator or by the head it is a dependent of (a Subject's
-    /// predicate): a dependent right after the site would be the omitted
-    /// Complement, never another host's dependent, as with a bare noun's
-    /// omitted Complement (`english-lexical-analysis.md` §2, same-head
-    /// complement priority).
+    /// it selects (a stranded auxiliary, CGEL Ch. 17 §7.1, p. 1519). The
+    /// list, which may not be empty, names the word forms of the verb that
+    /// heads the omitted Complement. Before any punctuation, a Constituent that ends in one is
+    /// followed only by a coordinator or by the head it is a dependent of (a
+    /// Subject's predicate), and only when no word spelled like that
+    /// follower's lexical head has one of those forms: a phrase right after
+    /// the site that could be the omitted Complement is that Complement, so
+    /// no ellipsis is there (p. 1519), as with a bare noun's omitted
+    /// Complement (`english-lexical-analysis.md` §2, same-head complement
+    /// priority).
     #[serde(default)]
-    pub elliptical: bool,
+    pub elliptical: Option<Vec<deckmaste_lexical::WordForm>>,
     /// Lexical children that cost one more where analysis did not admit
     /// their leaf through the scope of the face whose text is parsed (one of
     /// the face's own names, or a card-scoped spelling such as its Shortened

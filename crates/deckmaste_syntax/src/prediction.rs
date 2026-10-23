@@ -111,6 +111,7 @@ impl Prediction {
                 lexeme: Some(id),
                 category: facts.category,
                 features: [None; MAX_FEATURES],
+                forms: 0,
             };
             let mut mask = vec![0; words];
             prediction.add_tests(grammar, &leaf, Some(facts), &mut mask);

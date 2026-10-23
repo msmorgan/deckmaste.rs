@@ -32,3 +32,20 @@ know, at the site, which word forms the omitted Complement takes, without
 naming grammar features (`docs/decisions/english-v4.md` §4.4, principle 6).
 Witness each fix with a `+` entry and a `!VerbPhrase "can't"` assertion in
 `judgments/stranded_auxiliaries.txt`.
+
+## Landing note
+
+`elliptical` now names the word forms of the omitted Complement's verb
+(StrandedModal: plain; StrandedPerfect: past participle; StrandedBe:
+gerund-participle or past participle). A head or coordinator right after the
+site is refused when a word spelled like its lexical head (through `head`, or a
+coordination's first conjunct) has one of those forms; leaves carry the forms
+of every homograph. The lexical head rather than the first word also catches
+a preposed adverb (*can't then have*). With that, the binary Linked
+Coordinations of Verb Phrases and Clauses take the comma-less *X then Y* again
+(Land Equilibrium's *puts that land onto the battlefield then sacrifices a
+land* is restored in `then_sequencing.txt`); Visions' *You may then have ...*
+keeps one Reading, and has two without this fix.
+
+1. **Census delta** (`xkmntszk`): faces read 32,574 → 32,574; total Readings 315,929 → 313,361; Surplus 132,421 → 131,624; 43 units shrank, none grew (Muse Vortex 3,552 → 1,776, Cass 504 → 288, Myojin of Grim Betrayal 156 → 76, Activated Sleeper 250 → 190, the *can't block it* family 4 → 2); lost faces none.
+2. **Judgment set** (`xkmntszk`): all hold; 4 entries added in `stranded_auxiliaries.txt`, 1 restored in `then_sequencing.txt`.
