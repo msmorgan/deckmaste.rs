@@ -215,6 +215,16 @@ inductive Refusal where
   | cdaGranted
   /-- A Characteristic-Defining Ability sets its values unconditionally (criterion 5). -/
   | cdaConditional
+  /- retention: an exemption from removing Attachments [CR#702.16n,702.16p,303.4c,704.5m] -/
+  /-- A retention qualifies the one clause that removes Attachments already on its host as a
+  state-based action: a protection grant, or a prohibition on attaching ("can't be enchanted")
+  [CR#702.16c,702.16d,303.4c,704.5m]. A conjunction is refused: the exemption is the clause's,
+  not the other clauses'. -/
+  | retentionClause
+  /-- A retention exempts Attachments of its clause's host: "this Aura" on the enchanted
+  permanent, or a description of Auras, Equipment or Fortifications whose "attached to …" reads
+  that host back [CR#702.16n,702.16p]. -/
+  | retentionSubject
   deriving DecidableEq, Repr
 
 end Semantics

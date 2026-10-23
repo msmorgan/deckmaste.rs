@@ -881,6 +881,19 @@ expected child kinds in the incoming `DRS`.
   certificate for arbitrary enacted bodies; the authoring boundary above establishes their trusted origin.
 
 
+### Retention
+
+`StaticSpec.retention spec subject` ("This effect doesn't remove …") exempts `subject` from one
+state-based consequence of `spec` [CR#702.16n,702.16p,303.4c,704.5m]. Beside the
+Characteristic-Defining Ability, it is the other game rule the checker enforces outside the card
+frame, by the owner's ruling (`lean-v3-effect-keeps-existing-attachments`, 3a):
+`retentionClause` refuses a `spec` that is not one clause removing Attachments from its host (a
+protection grant, or a prohibition on attaching; a conjunction is refused, the exemption being one
+clause's), and `retentionSubject` a `subject` that is not "this Aura" (or Equipment, or
+Fortification) on that host, nor a description of Attachments whose "attached to …" reads the
+host back by an anaphor. Applying the exemption, and reading "already attached to" as the effect
+starts to apply [CR#702.16p], are the engine's.
+
 ### Characteristic edits and keyword argument schemas
 
 `StaticSpec.characteristicChange` and `CopyExcept.edits` carry the same typed

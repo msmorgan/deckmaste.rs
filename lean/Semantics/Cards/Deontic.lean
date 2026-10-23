@@ -759,20 +759,53 @@ def castFromGraveyardByDiscardingALand : StaticSpec :=
 theorem okCastFromGraveyardByDiscardingALand :
     StaticSpec.check (DRS.ofList []) castFromGraveyardByDiscardingALand = [] := by decide
 
-/-- Guardian Beast's first sentence: "As long as this creature is untapped, noncreature artifacts
-you control can't be enchanted, they have indestructible, and other players can't gain control of
-them." The artifacts are the subject the three parts share, and "can't gain control of" forbids the
-control change, `gainControlOf`. The card's last sentence, "This effect doesn't remove Auras
-already attached to those artifacts", has no Core AST form yet, so this pins the first sentence
-and the card is not spelled. -/
-def guardianBeastProtection : Ability :=
-  static (onlyWhile
+/-- "Auras already attached to those artifacts" -/
+def aurasAlreadyAttachedToThoseArtifacts : NounPhrase :=
+  allOf (and [aura, attachedTo (those artifact)])
+
+/-- Guardian Beast's protection: "As long as this creature is untapped, noncreature artifacts you
+control can't be enchanted, they have indestructible, and other players can't gain control of
+them. This effect doesn't remove Auras already attached to those artifacts." The artifacts are the
+subject the three clauses share, and "can't gain control of" forbids the control change,
+`gainControlOf`. The exemption is the "can't be enchanted" clause's alone: that clause makes an
+Aura already on such an artifact illegal [CR#303.4c,704.5m], and "already attached" reads the
+host back, as *Benevolent Blessing*'s does. -/
+def guardianBeastProtection : StaticSpec :=
+  onlyWhile
     (conjunction
-      [ cant any (attachTo (allOf aura) them),
+      [ retention (cant any (attachTo (allOf aura) them)) aurasAlreadyAttachedToThoseArtifacts,
         abilityGrant them indestructible,
         cant (bare (and [isPlayer, isOther])) (gainControlOf them) ]
       (bare (and [non isCreature, isArtifact, youControl])))
-    (is thisCreature isUntapped))
-theorem okGuardianBeastProtection :
-    Ability.check (DRS.ofList []) guardianBeastProtection = [] := by decide
+    (is thisCreature isUntapped)
+
+/-- Guardian Beast -/
+def guardianBeast : Spelled := spelled <| singleFacedCard
+  { name := "Guardian Beast", cost := [generic 3, pip .black], types := [.creature],
+    subtypes := [beast],
+    text :=
+      [ static guardianBeastProtection ],
+    power := stat 2, toughness := stat 4 }
+theorem okGuardianBeast : guardianBeast.card.check = [] := guardianBeast.ok
+
+/-- The exemption reaches "can't be enchanted" and not "have indestructible" or "can't gain
+control of" (owner ruling 2026-10-22, 3b): it wraps that clause in the card, and wrapped around
+the whole conjunction it is refused, a conjunction being no one clause that removes Attachments
+and having no one host for the Auras to be attached to. -/
+theorem guardianBeastExemptsOnlyTheEnchantProhibition :
+    (match guardianBeastProtection with
+     | .conditional (.conjunction _ [.retention (.cant .any _ _) _, .characteristicChange _ _,
+         .cant _ _ _]) _ _ => true
+     | _ => false) = true ∧
+    StaticSpec.check (DRS.ofList [])
+      (onlyWhile
+        (retention
+          (conjunction
+            [ cant any (attachTo (allOf aura) them),
+              abilityGrant them indestructible,
+              cant (bare (and [isPlayer, isOther])) (gainControlOf them) ]
+            (bare (and [non isCreature, isArtifact, youControl])))
+          aurasAlreadyAttachedToThoseArtifacts)
+        (is thisCreature isUntapped)) = [.retentionClause, .retentionSubject] := by decide
+
 end Semantics.Cards

@@ -901,6 +901,24 @@ mutual
     layer 4 and a color edit in layer 5, before the other effects there [CR#613.1d,613.1e,613.3];
     a power or toughness edit in layer 7a [CR#613.4a]. -/
     | characteristicDefining (subject : NounPhrase) (edits : List CharacteristicEdit)
+    /-- "This effect doesn't remove <subject>": `spec`, a clause that removes Attachments already
+    on its host, with `subject` exempt from that one state-based consequence of it
+    [CR#702.16n,702.16p,303.4c,704.5m]. `spec` is a protection grant, whose Auras with the quality
+    are put into their owners' graveyards and whose Equipment and Fortifications become
+    unattached [CR#702.16c,702.16d,704.5m,704.5n], or a prohibition on attaching ("can't be
+    enchanted"), which makes an Aura already attached enchant an illegal object
+    [CR#303.4c,704.5m]. It wraps that clause alone, never a conjunction of clauses: *Guardian
+    Beast*'s exemption reaches "can't be enchanted", not "have indestructible". `subject` is
+    "this Aura", or a description of Attachments whose "attached to …" reads the clause's host
+    back ("Auras already attached to those artifacts"). The checker refuses any other clause
+    (`retentionClause`) and subject (`retentionSubject`).
+
+    Applying the exemption is the engine's, as the zero-life exemption is: it covers this
+    effect's removal and no other, so another protection from the same quality still removes the
+    Aura [CR#702.16n,702.16p]. "Already attached to" names the Attachments attached when the
+    effect starts to apply, not those attached later, which the effect keeps off [CR#702.16p];
+    the subject is written as a description of the host's Attachments, and the engine reads it at
+    that point in time. -/
     | retention (spec : StaticSpec) (subject : NounPhrase)
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)

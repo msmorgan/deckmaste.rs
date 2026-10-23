@@ -1312,6 +1312,46 @@ def blackWard : Spelled := spelled <| singleFacedCard
               (hasColor .black)))
           thisAura) ] }
 
+/-- White Ward -/
+def whiteWard : Spelled := spelled <| singleFacedCard
+  { name := "White Ward", cost := [pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (retention
+          (abilityGrant (enchanted creature) (protection (hasColor .white)))
+          thisAura) ] }
+
+/-- Blue Ward -/
+def blueWard : Spelled := spelled <| singleFacedCard
+  { name := "Blue Ward", cost := [pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (retention
+          (abilityGrant (enchanted creature) (protection (hasColor .blue)))
+          thisAura) ] }
+
+/-- Red Ward -/
+def redWard : Spelled := spelled <| singleFacedCard
+  { name := "Red Ward", cost := [pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (retention
+          (abilityGrant (enchanted creature) (protection (hasColor .red)))
+          thisAura) ] }
+
+/-- Green Ward -/
+def greenWard : Spelled := spelled <| singleFacedCard
+  { name := "Green Ward", cost := [pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (retention
+          (abilityGrant (enchanted creature) (protection (hasColor .green)))
+          thisAura) ] }
+
 /-- Cho-Manno's Blessing -/
 def choMannosBlessing : Spelled := spelled <| singleFacedCard
   { name := "Cho-Manno's Blessing", cost := [pip .white, pip .white], types := [.enchantment],

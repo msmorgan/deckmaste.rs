@@ -2128,6 +2128,10 @@ semantic_template qualityDefinition (subject : NounPhrase) (op : QualityOp)
     (payload : QualityPayload) : StaticSpec :=
   .characteristicDefining subject (payload.edits op)
 semantic_template repeatable : ModeChange := .repeatable
+/-- "<spec>. This effect doesn't remove <subject>.": an exemption from the one state-based
+consequence of `spec`, a protection grant or a "can't be enchanted" clause, that would remove
+the Attachments `subject` names from its host [CR#702.16n,702.16p,303.4c,704.5m]
+(`StaticSpec.retention`). -/
 semantic_template retention (spec : StaticSpec) (subject : NounPhrase) : StaticSpec :=
   .retention spec subject
 semantic_template scaled (cost : Cost) (amount : Amount) : Cost := .scaled cost amount

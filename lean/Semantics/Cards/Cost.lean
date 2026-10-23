@@ -769,9 +769,6 @@ def obeliskOfUndoing : Ability :=
   activated (compound [[generic 6], tapSymbol])
     (returnToHand (target (and [isPermanent, youOwn, youControl])))
 theorem okObeliskOfUndoing : Ability.check (DRS.ofList []) obeliskOfUndoing = [] := by decide
-/-- Flickering Ward -/
-def flickeringWardBounce : Ability := activated [pip .white] (returnToHand thisAura)
-theorem okFlickeringWardBounce : Ability.check (DRS.ofList []) flickeringWardBounce = [] := by decide
 /-- Soul Conduit -/
 def soulConduitExchange : Ability :=
   activated (compound [[generic 6], tapSymbol])
@@ -827,16 +824,10 @@ def tattooWard : Spelled := spelled <| singleFacedCard
     subtypes := [aura],
     text :=
       [ enchant isCreature,
-        static (retention
-          (conjunction [ getsPt (enchanted creature) (up
-                1) (up 1),
-              abilityGrant (enchanted creature)
-                (protection isEnchantment) ] (subject :=
-                                                                          some
-                                                                             (enchanted
-                                                                                (.type
-                                                                                   .creature))))
-          thisAura),
+        static (conjunction
+          [ getsPt (enchanted creature) (up 1) (up 1),
+            retention (abilityGrant (enchanted creature) (protection isEnchantment)) thisAura ]
+          (subject := some (enchanted creature))),
         activated (sacrifice thisAura) (destroy (target isEnchantment)) ]
             }
 
@@ -854,6 +845,18 @@ def floatingShield : Spelled := spelled <| singleFacedCard
         activated (sacrifice thisAura)
           (gain (target isCreature) (protection (ofChosen .color)) (some
               untilEndOfTurn)) ] }
+
+/-- Flickering Ward -/
+def flickeringWard : Spelled := spelled <| singleFacedCard
+  { name := "Flickering Ward", cost := [pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (entersChoosing thisAura .color),
+        static (retention
+          (abilityGrant (enchanted creature) (protection (ofChosen .color)))
+          thisAura),
+        activated [pip .white] (returnToHand thisAura) ] }
 
 /-- Ghostfire Blade -/
 def ghostfireBlade : Spelled := spelled <| singleFacedCard
