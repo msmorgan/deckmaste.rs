@@ -955,7 +955,7 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
     refIds := ids }
   let framed := selected.push
     { det := .the, plur := .one, payload := .actor shape } .other false
-  let (after, _) := stepAction fuel .postEvent .obj framed body
+  let (after, _) := withDistributiveSubject subject ids framed (stepAction fuel .postEvent .obj · body)
   let out := dropActorFrame after
   { out with outerReferentIds := out.outerReferentIds.drop 1 }
 
@@ -980,6 +980,22 @@ private theorem sourceIds (fuel : Nat) (drs : DRS) :
       (controllerOf (.firstMention "controllerSacrifices.subject" nestedSubject))).2.1 =
       [drs.nextId + 3] := by rfl
 
+/-- "Its controller" names no distributive group, so the body's "another"/"other" has no group
+member to contrast with. -/
+private theorem controllerNotDistributive (ids : List ReferentId) :
+    (controllerOf (.firstMention "controllerSacrifices.subject" nestedSubject)).distributiveGroup?
+      ids = none := rfl
+
+/-- A clause whose subject names no distributive group steps its rest with no group in view,
+and the referents it leaves are those of that step. -/
+private theorem nonDistributiveReferents (subject : NounPhrase) (ids : List ReferentId)
+    (drs : DRS) (rest : DRS → DRS × List Refusal) (plain : subject.distributiveGroup? ids = none) :
+    (dropActorFrame (withDistributiveSubject subject ids drs rest).1).referents =
+      (dropActorFrame (rest { drs with distributiveSubject := none }).1).referents := by
+  unfold withDistributiveSubject
+  rw [plain]
+  rfl
+
 private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
     let tracked := { drs with
       outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
@@ -987,8 +1003,9 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
     let frame : ActorShape := {
       kind := .player, isYou := false, ascribable := false,
       refIds := [drs.nextId + 3] }
-    let prepared := source.push
-      { det := .the, plur := .one, payload := .actor frame } .other false
+    let prepared := { source.push
+      { det := .the, plur := .one, payload := .actor frame } .other false with
+      distributiveSubject := none }
     (stepAction (fuel + 11) .postEvent .obj drs
       (controllerSacrifices nestedSubject)).1.referents =
       (dropActorFrame (stepAction (fuel + 10) .postEvent .obj prepared
@@ -1001,7 +1018,8 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
         (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject)) from rfl]
   rw [show fuel + 11 = (fuel + 10) + 1 by omega, controllerInstructStep]
   unfold controllerInstructState
-  simp only [sourceCanonical, sourceIds, List.filterMap_cons, List.filterMap_nil,
+  simp only [nonDistributiveReferents _ _ _ _ (controllerNotDistributive _), sourceCanonical,
+    sourceIds, List.filterMap_cons, List.filterMap_nil,
     selectedController, List.foldl_cons, List.foldl_nil, controllerRecord]
   rfl
 

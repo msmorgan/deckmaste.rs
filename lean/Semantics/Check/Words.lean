@@ -526,9 +526,16 @@ structure OwnScopeFrame where
   deriving DecidableEq, Repr
 
 /-- What a bare "another"/"other" contrasts with, as the checker resolved it (`semantics-v3.md`
-§0.1): the nearest earlier mention in scope, a participant of the same clause read forward, or,
-failing both, the Source for an Object or "you" for a Player ([CR#109.5]). -/
+§0.1): the current member of the distributive group its clause's subject names, the nearest
+earlier mention in scope, a participant of the same clause read forward, or, failing those, the
+Source for an Object or "you" for a Player ([CR#109.5]). -/
 inductive ContrastAnchor where
+  /-- The current member of the distributive group mention `id` (step 1): "Attacking creatures
+  you control get +1/+0 … for each other attacking creature" counts, for each affected creature,
+  the attacking creatures other than that creature. The affected set is fixed when the effect
+  begins ([CR#611.2c]), but the amount is a function of each member. -/
+  | member (id : ReferentId)
+  /-- An earlier mention as a whole (step 2). -/
   | mention (id : ReferentId)
   /-- A participant the clause introduces after its agent, by its facts: it takes its id only
   when the clause steps it, after the agent. -/
@@ -580,8 +587,13 @@ structure DRS where
   Anchor. -/
   contrastExcluded : List ReferentId := []
   /-- The participants a clause introduces after its agent, read forward by the agent's bare
-  "another"/"other" (step 2). -/
+  "another"/"other" (step 3). -/
   clauseParticipants : List Referent := []
+  /-- The distributive group the subject of the clause being stepped names ("each …", "all …",
+  a bare plural): a bare "another"/"other" in the rest of that clause contrasts with the group's
+  current member (step 1). `none` outside such a clause, and inside a nested clause whose subject
+  names no such group. -/
+  distributiveSubject : Option ReferentId := none
   /-- Contrast Anchors resolved so far, latest first. -/
   contrastAnchors : List ContrastAnchor := []
   /-- The objects a `withContinuation` body or arm stamped ("you may exile it"), escaping it only
@@ -981,9 +993,9 @@ def sourceZone (types : List CardType) : Option Zone :=
   else none
 
 /-- Whether `b` can be the Contrast Anchor of a bare "another"/"other" of kind `k` whose Head Noun
-names `headTypes` in `headZone`, under the controller restriction `headControl` (steps 1 and 2):
+names `headTypes` in `headZone`, under the controller restriction `headControl` (steps 1 to 3):
 compatible in kind, Card Type, zone and controller; not the
-Source or "you", which are the fallback (step 3); and not a hypothetical a Condition introduced.
+Source or "you", which are the fallback (step 4); and not a hypothetical a Condition introduced.
 A referent a linked ability published is read only by a Participial Description
 (`Referent.linked`). -/
 def Referent.anchorsContrast (k : Kind) (headTypes : List CardType) (headZone : Option Zone)
@@ -1000,15 +1012,23 @@ def Referent.recentOver (a b : Referent) : Bool :=
 /-- Resolve the Contrast Anchor of a bare "another"/"other" of kind `k` whose Head Noun names
 `headTypes` in `headZone` (`semantics-v3.md` §0.1). A mention of the Source coordinated with the
 phrase is its anchor ("this card and up to one other target creature card"). Otherwise: (1) the
-nearest earlier compatible mention in scope, never the described thing (`contrastExcluded`);
-(2) failing that, the first compatible particular the same clause introduces after its agent
-(`clauseParticipants`); (3) otherwise the Source, for an Object head in a zone the Source may be
+current member of the compatible distributive group the clause's subject names
+(`distributiveSubject`): the affected set is fixed as the effect begins ([CR#611.2c]), but the
+amount is a function of each member; (2) the nearest
+earlier compatible mention in scope, never the described thing (`contrastExcluded`); (3) failing
+that, the first compatible particular the same clause introduces after its agent
+(`clauseParticipants`); (4) otherwise the Source, for an Object head in a zone the Source may be
 in and not restricted to a controller other than "you", whatever its Card Types, or "you", for a
 Player head ([CR#109.5]). -/
 def DRS.contrastAnchor? (drs : DRS) (k : Kind) (headTypes : List CardType)
     (headZone : Option Zone) (headControl : Option Bool) : Option ContrastAnchor :=
   match drs.coordinatedSelf with
   | some id => some (.mention id)
+  | none =>
+  let group := drs.distributiveSubject.bind fun id =>
+    if drs.isVisible id && !drs.contrastExcluded.contains id then drs.findById? id else none
+  match group.filter (·.anchorsContrast k headTypes headZone headControl) with
+  | some b => some (.member b.id)
   | none =>
   let earlier := drs.visibleReferents.filter fun b =>
     !drs.contrastExcluded.contains b.id && b.anchorsContrast k headTypes headZone headControl
@@ -1426,7 +1446,9 @@ def dropActorFrame (drs : DRS) : DRS :=
     | b :: bs => if b.isActorFrame then bs else b :: dropFirst bs
   { drs with referents := dropFirst drs.referents }
 
-/-- Close a relative clause while retaining its definite attachment hosts in the outer DRS. -/
+/-- Close a relative clause while retaining its definite attachment hosts in the outer DRS, and
+the Contrast Anchors resolved inside it: "for each other attacking creature" still contrasts
+with something once its counted domain is closed. -/
 def leaveRelative (before after : DRS) : DRS :=
   let hosts := after.referents.filterMap fun r =>
     if r.attachmentHost && r.id ≥ before.nextId then
@@ -1434,7 +1456,8 @@ def leaveRelative (before after : DRS) : DRS :=
     else none
   { before with
     referents := hosts ++ before.referents
-    nextId := max before.nextId after.nextId }
+    nextId := max before.nextId after.nextId
+    contrastAnchors := after.contrastAnchors }
 
 /-- Close a measured domain ("the number of …", "the greatest … among …") as a relative clause
 is closed (`leaveRelative`), keeping the targets announced inside it: they are chosen as the spell
