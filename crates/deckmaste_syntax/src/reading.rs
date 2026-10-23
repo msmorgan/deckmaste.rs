@@ -198,38 +198,44 @@ impl Parse<'_> {
         let mut best = None;
         for &(production, item) in &self.forest.nodes[node].families {
             let own = self.grammar.production_key(production);
-            let tier = self.tier_item(item, memo).map(|(key, n)| (key + own, n));
-            best = least(best, tier);
+            for (_, tier) in self.tier_item(item, memo) {
+                best = least(best, tier.map(|(key, n)| (key + own, n)));
+            }
         }
         memo.nodes.leave(frame, &best);
         best
     }
 
-    fn tier_item(&self, item: usize, memo: &mut TierMemo) -> Tier {
-        if let Some(&tier) = memo.items.get(&item) {
-            return tier;
+    /// An item's cheapest tier for each [`Anchors`] its Derivations leave.
+    fn tier_item(&self, item: usize, memo: &mut TierMemo) -> Vec<(Anchors, Tier)> {
+        if let Some(tiers) = memo.items.get(&item) {
+            return tiers.clone();
         }
         let mark = memo.nodes.mark();
-        let mut best = None;
+        let mut best: BTreeMap<Anchors, Tier> = BTreeMap::new();
         for &(previous, child) in &self.forest.items[item].families {
-            let before = match previous {
+            let befores = match previous {
                 Some(p) => self.tier_item(p, memo),
-                None => Some((RankingKey::default(), 1)),
+                None => vec![(Anchors::default(), Some((RankingKey::default(), 1)))],
             };
             let here = match child {
                 ChildRef::Node(n) => self.tier_node(n, memo),
                 ChildRef::Leaf(l) => Some((self.leaf_key(item, l), 1)),
                 ChildRef::Punct => Some((RankingKey::default(), 1)),
             };
-            let edge = self.edge_key(item, previous, child);
-            if let (Some((k1, n1)), Some((k2, n2))) = (before, here) {
-                best = least(best, Some((k1 + k2 + edge, n1.saturating_mul(n2))));
+            for (anchors, before) in befores {
+                let edge = self.edge_key(item, anchors, previous, child);
+                if let (Some((k1, n1)), Some((k2, n2))) = (before, here) {
+                    let slot = best.entry(self.anchors(item, anchors, child)).or_default();
+                    *slot = least(*slot, Some((k1 + k2 + edge, n1.saturating_mul(n2))));
+                }
             }
         }
+        let tiers: Vec<(Anchors, Tier)> = best.into_iter().collect();
         if memo.nodes.settle(mark) {
-            memo.items.insert(item, best);
+            memo.items.insert(item, tiers.clone());
         }
-        best
+        tiers
     }
 
     /// The key leaf `leaf` adds as the child that `item` took last.
@@ -239,55 +245,35 @@ impl Parse<'_> {
             .leaf_key(it.production, it.dot - 1, self.forest.leaves[leaf].scoped)
     }
 
-    /// The Ranking Key a child adds where an item takes it after `previous`:
-    /// its Right Association words ([`CompiledGrammar::association_words`]).
-    fn edge_key(&self, item: usize, previous: Option<usize>, child: ChildRef) -> RankingKey {
+    /// The Ranking Key a child adds where an item takes it after `previous`,
+    /// whose Derivation left `anchors`: its Right Association words
+    /// ([`CompiledGrammar::association_words`]).
+    fn edge_key(
+        &self,
+        item: usize,
+        anchors: Anchors,
+        previous: Option<usize>,
+        child: ChildRef,
+    ) -> RankingKey {
         let ChildRef::Node(n) = child else {
             return RankingKey::default();
         };
         let it = &self.forest.items[item];
         let node = &self.forest.nodes[n];
-        let names = &self.grammar.productions[it.production].names;
-        let earlier = |name: &str| {
-            names
-                .iter()
-                .position(|n| n.as_str() == name)
-                .filter(|&at| at + 1 < it.dot)
-                .and_then(|at| Some((at, self.item_at_dot(previous?, at + 1))))
-        };
         let child = ChildFacts {
             words: self.words(node.start, node.end),
             coordination: node.summary.coordinator.is_some(),
             head_final: node.summary.head_final,
             high_attachment: self.high_attachment(n),
         };
-        let head = || {
-            let (at, head_item) = earlier("head")?;
-            let head_item = &self.forest.items[head_item];
-            let start = if at == 0 {
-                it.start
-            } else {
-                match head_item.families.first()?.1 {
-                    ChildRef::Node(h) => self.forest.nodes[h].start,
-                    ChildRef::Leaf(l) => self.forest.leaves[l].start,
-                    ChildRef::Punct => return None,
-                }
-            };
-            Some(self.words(start, head_item.end))
-        };
+        let head = || anchors.head.map(|(start, end)| self.words(start, end));
         let first = || {
-            let (at, first_item) = earlier("first")?;
-            let start = if at == 0 {
-                it.start
-            } else {
-                self.forest.items[self.item_at_dot(previous?, at)].end
-            };
-            let first_item = &self.forest.items[first_item];
+            let (start, end) = anchors.first?;
             // Only punctuation and the coordinator, which keep it, follow the
             // first conjunct, so the previous item records whether the first
             // conjunct ends in its head, for this family.
             let head_final = self.forest.items[previous?].state.head_final;
-            Some((self.words(start, first_item.end), head_final))
+            Some((self.words(start, end), head_final))
         };
         self.grammar
             .attachment_key(it.production, it.dot - 1, child, head, first, || {
@@ -305,21 +291,25 @@ impl Parse<'_> {
         )
     }
 
-    /// The item on `item`'s chain whose dot is `dot`, following each item's
-    /// first recorded family. It serves to find where a coordination's first
-    /// conjunct, or a phrase's head, ends, from the item that took a later
-    /// symbol. Where the Constituents between them could vary in extent, a
-    /// family other than the first could divide the text differently;
-    /// `deckmaste_english_v4`'s `ranking_keys` test checks that the forest's
-    /// keys equal those computed from the trees.
-    fn item_at_dot(&self, mut item: usize, dot: usize) -> usize {
-        while self.forest.items[item].dot > dot {
-            match self.forest.items[item].families.first() {
-                Some(&(Some(previous), _)) => item = previous,
-                _ => break,
-            }
+    /// The [`Anchors`] a Derivation leaves once `item` takes `child` after a
+    /// prefix that left `anchors`: the child's extent when it is the head, or
+    /// the first conjunct, whose words a later child's key reads.
+    fn anchors(&self, item: usize, mut anchors: Anchors, child: ChildRef) -> Anchors {
+        let it = &self.forest.items[item];
+        let names = &self.grammar.productions[it.production].names;
+        let at = it.dot - 1;
+        let later = |read: &[&str]| names[at + 1..].iter().any(|n| read.contains(&n.as_str()));
+        let extent = || match child {
+            ChildRef::Node(n) => Some((self.forest.nodes[n].start, self.forest.nodes[n].end)),
+            ChildRef::Leaf(l) => Some((self.forest.leaves[l].start, self.forest.leaves[l].end)),
+            ChildRef::Punct => None,
+        };
+        match names[at].as_str() {
+            "head" if later(&["adjunct", "modifier", "supplement"]) => anchors.head = extent(),
+            "first" if later(&["last"]) => anchors.first = extent(),
+            _ => {}
         }
-        item
+        anchors
     }
 
     /// The words of the text between two chart positions: maximal runs of
@@ -360,7 +350,11 @@ impl Parse<'_> {
         for &(production, item) in &packed.families {
             let p = &grammar.productions[production];
             let own = grammar.production_key(production);
-            for (key, children) in self.item_sequences(item, limit, memo) {
+            for (key, children) in self
+                .item_sequences(item, limit, memo)
+                .into_iter()
+                .flat_map(|(_, sequences)| sequences)
+            {
                 trees.insert((
                     key + own,
                     Reading::Node(ReadingNode {
@@ -379,21 +373,26 @@ impl Parse<'_> {
         trees
     }
 
+    /// An item's `limit` best child sequences for each [`Anchors`] their
+    /// Derivations leave.
     fn item_sequences(
         &self,
         item: usize,
         limit: Option<usize>,
         memo: &mut TreeMemo,
-    ) -> Vec<(RankingKey, Vec<Reading>)> {
+    ) -> Vec<(Anchors, Sequences)> {
         if let Some(sequences) = memo.items.get(&item) {
             return sequences.clone();
         }
         let mark = memo.nodes.mark();
-        let mut out = BTreeSet::new();
+        let mut out: BTreeMap<Anchors, BTreeSet<(RankingKey, Vec<Reading>)>> = BTreeMap::new();
         for &(previous, child) in &self.forest.items[item].families {
             let prefixes = match previous {
                 Some(p) => self.item_sequences(p, limit, memo),
-                None => vec![(RankingKey::default(), Vec::new())],
+                None => vec![(
+                    Anchors::default(),
+                    vec![(RankingKey::default(), Vec::new())],
+                )],
             };
             let lasts: Vec<(RankingKey, Option<Reading>)> = match child {
                 ChildRef::Node(n) => self
@@ -407,16 +406,22 @@ impl Parse<'_> {
                 )],
                 ChildRef::Punct => vec![(RankingKey::default(), None)],
             };
-            let edge = self.edge_key(item, previous, child);
-            for (prefix_key, prefix) in &prefixes {
-                for (last_key, last) in &lasts {
-                    let mut sequence = prefix.clone();
-                    sequence.extend(last.clone());
-                    out.insert((*prefix_key + *last_key + edge, sequence));
+            for (anchors, prefixes) in prefixes {
+                let edge = self.edge_key(item, anchors, previous, child);
+                let group = out.entry(self.anchors(item, anchors, child)).or_default();
+                for (prefix_key, prefix) in &prefixes {
+                    for (last_key, last) in &lasts {
+                        let mut sequence = prefix.clone();
+                        sequence.extend(last.clone());
+                        group.insert((*prefix_key + *last_key + edge, sequence));
+                    }
                 }
             }
         }
-        let sequences = truncate(out, limit);
+        let sequences: Vec<_> = out
+            .into_iter()
+            .map(|(anchors, group)| (anchors, truncate(group, limit)))
+            .collect();
         if memo.nodes.settle(mark) {
             memo.items.insert(item, sequences.clone());
         }
@@ -424,7 +429,20 @@ impl Parse<'_> {
     }
 }
 
-type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(RankingKey, Vec<Reading>)>>;
+/// Child sequences, each with the Ranking Key it adds.
+type Sequences = Vec<(RankingKey, Vec<Reading>)>;
+type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(Anchors, Sequences)>>;
+
+/// The extents, as chart positions, of the children of a Derivation's prefix
+/// that a later child's Ranking Key reads: its head, read by an Adjunct,
+/// Modifier or Supplement, and its first conjunct, read by the last. One
+/// item packs prefixes that may divide its text differently, so the forest's
+/// walks keep a result per `Anchors`, and each key is the one its tree has.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+struct Anchors {
+    head: Option<(usize, usize)>,
+    first: Option<(usize, usize)>,
+}
 
 /// What the Ranking Key reads of a child Constituent.
 #[derive(Debug, Clone, Copy)]
@@ -444,7 +462,7 @@ pub(crate) struct ChildFacts {
 /// A forest node's or item's cheapest tier: its least key and how many
 /// Derivations have it.
 type Tier = Option<(RankingKey, u128)>;
-type TierMemo = ForestMemo<Tier, Tier>;
+type TierMemo = ForestMemo<Tier, Vec<(Anchors, Tier)>>;
 
 /// The lesser of two tiers, adding their counts when their keys are equal.
 fn least(a: Tier, b: Tier) -> Tier {
