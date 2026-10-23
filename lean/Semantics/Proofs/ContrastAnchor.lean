@@ -9,7 +9,8 @@ import Semantics.Cards.Description
 # Semantics.Proofs.ContrastAnchor
 
 What a bare "another"/"other" contrasts with (`semantics-v3.md` §0.1): a mention of the Source
-coordinated with it; else the nearest earlier mention in scope; else a particular of the same
+coordinated with it; else the current member of the distributive group its clause's subject
+names; else the nearest earlier mention in scope; else a particular of the same
 clause read forward; else the Source for an Object or "you" for a Player
 [CR#702.151a,707.11,109.5]. Each pin reads the anchors the checker resolved
 (`DRS.contrastAnchors`, latest first).
@@ -41,6 +42,14 @@ private def framed (types : List CardType) : DRS := { DRS.ofList [] with sourceT
 private def spellOf (card : Spelled) : Action :=
   match card.card with
   | .singleFaced face => match face.characteristics.text with
+    | .spell _ action :: _ => action
+    | _ => .sequentially []
+  | _ => .sequentially []
+
+/-- A split card's right half's first spell ability. -/
+private def rightSpellOf (card : Spelled) : Action :=
+  match card.card with
+  | .split _ right => match right.characteristics.text with
     | .spell _ action :: _ => action
     | _ => .sequentially []
   | _ => .sequentially []
@@ -327,6 +336,53 @@ theorem mirrorweaveAnchorsOnTheTarget :
       (after.1.contrastAnchors.map fun
         | .participant facts => some facts.ty
         | _ => none) = [some [.creature]] := by
+  decide
+
+/-! ## The member of a distributive subject's group -/
+
+/-- "Attacking creatures you control get +1/+0 until end of turn …" -/
+private def attackersYouControl : NounPhrase := bare (and [isAttacking, isCreature, youControl])
+
+/-- "… for each other attacking creature." -/
+private def perOtherAttacker : Delta Amount := up (forEach 1 (and [isAttacking, isCreature, isOther]))
+
+/-- Run (*Hit // Run*): "Attacking creatures you control get +1/+0 until end of turn for each
+other attacking creature." The anchor is the current member of the group the subject names
+(mention 1, "attacking creatures you control"), not that group: other than the whole group, the
+count would be of attackers you do not control. The affected set is fixed as the effect begins
+[CR#611.2c], but the amount is a function of each member. -/
+theorem runAnchorsOnTheMemberNotTheGroup :
+    let after := (stepAction 64 .postEvent .obj (framed [.instant]) (rightSpellOf Cards.hitRun)).1
+    after.contrastAnchors = [.member 1] ∧ after.contrastAnchors ≠ [.mention 1] ∧
+      (after.findById? 1).map (fun ref => (ref.det, ref.ty)) = some (.all, [.creature]) := by
+  decide
+
+/-- An earlier compatible mention in scope (a tapped target attacking creature) and the subject's
+own group mention are both step-2 candidates; the distributive step comes first, so the anchor
+is still the subject's member. -/
+theorem distributiveStepPrecedesNearestMention :
+    let after := (stepAction 64 .postEvent .obj (framed [.instant])
+      (sequentially
+        [ tap (target (and [isAttacking, isCreature])),
+          get attackersYouControl perOtherAttacker (up 0) untilEndOfTurn ])).1
+    after.contrastAnchors = [.member 2] ∧
+      (after.findById? 2).map (fun ref => (ref.det, ref.ty)) = some (.all, [.creature]) := by
+  decide
+
+/-- A probe: "Target creature gets +1/+0 until end of turn for each other attacking creature."
+Its subject names no group, so the anchor is the nearest earlier mention, the target. -/
+theorem nonGroupSubjectKeepsTheNearestMention :
+    let after := (stepAction 64 .postEvent .obj (framed [.instant])
+      (get (target isCreature) perOtherAttacker (up 0) untilEndOfTurn)).1
+    after.contrastAnchors = [.mention 0] ∧
+      (after.findById? 0).map (fun ref => (ref.det, ref.ty)) = some (.target, [.creature]) := by
+  decide
+
+/-- A probe of an instructed clause: "Each player draws a card for each other player." The
+anchor is the drawing player, the member of "each player". -/
+theorem eachPlayerAnchorsOnTheMember :
+    let action := instruct (each isPlayer) (draw (forEach 1 isOtherPlayer))
+    Action.check (DRS.ofList []) action = [] ∧ anchorsOf action = [.member 0] := by
   decide
 
 end Semantics.Proofs.ContrastAnchor

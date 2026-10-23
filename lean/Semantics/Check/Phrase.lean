@@ -849,7 +849,7 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
   | .any | .by _ => (drs, [])
 
 /-- The particulars a clause's rest introduces, in textual order: stepped ahead of the clause's
-agent for its bare "another"/"other" (Contrast Anchor step 2, `semantics-v3.md` §0.1). A
+agent for its bare "another"/"other" (Contrast Anchor step 3, `semantics-v3.md` §0.1). A
 particular is a target, a definite description, or an attachment host ("equipped creature");
 a generic indefinite ("a permanent or player", "each creature") is none. An anaphor resolves to
 an earlier referent and introduces none, so the described thing's anaphors ("enters with … on
@@ -1833,6 +1833,24 @@ def Action.hasRepeatedPayment (action : Action) (fuel : Nat := 32) : Bool :=
   | _ + 1, .pay _ times .paid _ _ => times != .once
   | _, _ => false
 termination_by structural fuel
+
+/-- The distributive group a clause's subject names, when it steps to one referent: "each …",
+"all …", a bare plural or another plural group. A bare "another"/"other" in the rest of the
+clause contrasts with its current member (Contrast Anchor step 1, `semantics-v3.md` §0.1). -/
+def NounPhrase.distributiveGroup? (subject : NounPhrase) (ids : List ReferentId) :
+    Option ReferentId :=
+  if subject.det == some .each || subject.plur == .many then
+    match ids with
+    | [id] => some id
+    | _ => none
+  else none
+
+/-- Step the rest of a clause whose subject `subject` stepped to `ids`, with that subject's
+distributive group (`NounPhrase.distributiveGroup?`) in view, restoring the caller's afterwards. -/
+def withDistributiveSubject {α : Type} (subject : NounPhrase) (ids : List ReferentId) (drs : DRS)
+    (rest : DRS → DRS × α) : DRS × α :=
+  let stepped := rest { drs with distributiveSubject := subject.distributiveGroup? ids }
+  ({ stepped.1 with distributiveSubject := drs.distributiveSubject }, stepped.2)
 
 def finishEachSubject (subject : NounPhrase) (ids : List ReferentId) (drs : DRS) : DRS :=
   if subject.det == some .each then
@@ -3289,7 +3307,7 @@ def stepOps : Nat → StepOps
             else drs1
           let framePlur := if subj.det == some .each then Plurality.many else subj.plur
           let drs2 := memberDrs.push { det := .the, plur := framePlur, payload := .actor shape } .other false
-          let (drs3, e2) := ops.inst phase .obj drs2 body
+          let (drs3, e2) := withDistributiveSubject subj refIds drs2 (ops.inst phase .obj · body)
           let outerIds := drs3.outerReferentIds.headD []
           let currentSubjectIds := (actorShape? drs3).map (·.refIds) |>.getD refIds
           let out := dropActorFrame drs3
@@ -3965,7 +3983,8 @@ def stepOps : Nat → StepOps
         | .characteristicChange subj edits =>
           let (drs1, ids, e1) := stepAgentNounWith ops drs .subj true subj
             (fun d => (stepCharacteristicEditListWith ops d edits).1)
-          let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
+          let (drs2, e2) := withDistributiveSubject subj ids drs1
+            (stepCharacteristicEditListWith ops · edits)
           -- A grant gives no Characteristic-Defining Ability, to the granting object or another
           -- [CR#604.3a]; a copy effect's exception may (`CopyExcept.edits`).
           let granted := edits.any fun

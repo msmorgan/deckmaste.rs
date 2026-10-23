@@ -279,8 +279,9 @@ private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
     ((stepOps (n + 6)).inst .postEvent .obj drs
       (.establish (Templates.modification (target isCreature) .power (.up (.letter .x))) none)).1 =
       let selected := ({ drs with relativeKind := some .object } : DRS).push powerSubject .subj true
-      (introducedLetters .x selected).foldl
-        (fun d ref => d.push ref .other false) selected := by rfl
+      let edited := { selected with distributiveSubject := none }
+      { (introducedLetters .x edited).foldl (fun d ref => d.push ref .other false) edited with
+        distributiveSubject := selected.distributiveSubject } := by rfl
 
 private theorem rankedOlderMaximum (f : Referent → Nat) (rs : List Referent) (clause : Nat)
     (older : ∀ r ∈ rs, f r < clause) :
