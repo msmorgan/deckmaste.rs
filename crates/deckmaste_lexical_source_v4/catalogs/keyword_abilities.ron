@@ -291,12 +291,8 @@
         ],
     ),
     (rule: "[CR#702.144]", name: "Demonstrate", lemma: "demonstrate"),
-    (rule: "[CR#702.145]", name: "Daybound and Nightbound", lemma: "daybound",
-        variants: [
-            // [CR#702.145e]
-            (lemma: "nightbound"),
-        ],
-    ),
+    (rule: "[CR#702.145]", name: "Daybound and Nightbound", lemma: "daybound"),
+    (rule: "[CR#702.145e]", name: "Nightbound", lemma: "nightbound"),
     (rule: "[CR#702.146]", name: "Disturb", lemma: "disturb", parameters: [[Cost]]),
     (rule: "[CR#702.147]", name: "Decayed", lemma: "decayed"),
     (rule: "[CR#702.148]", name: "Cleave", lemma: "cleave", parameters: [[Cost]]),
