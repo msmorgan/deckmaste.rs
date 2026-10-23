@@ -74,30 +74,30 @@ theorem okContinuousClause :
 
 /-- "You become the monarch." -/
 theorem okBecomesMonarch :
-    Action.check (DRS.ofList []) (.gainDesignation .you (.named "monarch") none) = [] := by decide
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "monarch" (.heldBy .player)) none) = [] := by decide
 
 /-- "You become goaded." The Idris pin refutes the scope: goaded is held by an object. -/
 theorem badGoadedPlayer :
-    Action.check (DRS.ofList []) (.gainDesignation .you (.named "goaded") none)
-      = [.designationScope (.named "goaded")] := by
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "goaded" (.heldBy .object)) none)
+      = [.designationScope (.named "goaded" (.heldBy .object))] := by
   decide
 
 /-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
 theorem okBecomesMonstrous :
-    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
+    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "monstrous" (.heldBy .object)) none) = [] := by
   decide
 
 /-- The commander is held by a card, not granted to an object, so the scope and holder
 refusals land. That a rule confers it and no action may is a game rule the checker does not
 assert (`lean-checker-sweep-game-rules`). -/
 theorem badGainsCommander :
-    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander") none)
-      = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object] := by
+    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander" .heldByCard) none)
+      = [.designationScope (.named "commander" .heldByCard), .designationHolder (.named "commander" .heldByCard) .object] := by
   decide
 
 /-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
 theorem okGetsAnEnduringStory :
-    Action.check (DRS.ofList []) (.gainDesignation .you (.named "enduringStory") none) = [] := by
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "enduringStory" (.heldBy .player)) none) = [] := by
   decide
 
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/

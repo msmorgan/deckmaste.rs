@@ -42,8 +42,8 @@ theorem okWhileHoldsCitysBlessing :
         (.and
           [ .compareAmt (.countOf (.described .all (.and [isPermanent, .hasPossessor .controller .you])))
               .atLeast 10,
-            .not (.matches .you (.hasDesignation (.named "citysBlessing") none)) ])
-        (.gainDesignation .you (.named "citysBlessing") (some (.between none none)))) = [] := by
+            .not (.matches .you (.hasDesignation (.named "citysBlessing" (.heldBy .player)) none)) ])
+        (.gainDesignation .you (.named "citysBlessing" (.heldBy .player)) (some (.between none none)))) = [] := by
   decide
 
 /-- "Return the permanent this spell becomes to its owner's hand" [CR#400.7,702.109a]. -/

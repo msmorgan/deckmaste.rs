@@ -782,7 +782,7 @@ theorem badEndureHandedToOpponent :
 is a designation an object holds. Bare, or handed a creature, it checks. -/
 theorem badMonstrosityHandedToOpponent :
     Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (monstrosity 2))
-      = [.kindMismatch .object .player, .designationScope (.named "monstrous")] ∧
+      = [.kindMismatch .object .player, .designationScope (.named "monstrous" (.heldBy .object))] ∧
       Action.check (DRS.ofList []) (monstrosity 2) = [] ∧
       Action.check (DRS.ofList []) (instruct (target isCreature) (monstrosity 2)) = [] := by
   decide

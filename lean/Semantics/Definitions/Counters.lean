@@ -13,8 +13,9 @@ namespace Semantics.Definitions
 /-! ## Counters -/
 
 /-- A counter declaration's name read as its kind (`CounterKind.named`), so a bare
-`p1p1Counter` is the +1/+1 counter's kind [CR#122.1]. Any other kind is written
-`.named "<declaration name>"`. -/
+`p1p1Counter` is the +1/+1 counter's kind [CR#122.1]. A counter is placed on an object or a
+player [CR#122.1]: a kind is an object's unless its declaration names a player as its holder, as
+energy and experience counters do, and poison and rad counters [CR#122.1f,122.1i]. -/
 semantic_definition p1p1Counter : CounterKind := .named "p1p1Counter"
 semantic_definition flyingCounter : CounterKind := .named "flyingCounter"
 semantic_definition m1m1Counter : CounterKind := .named "m1m1Counter"
@@ -71,11 +72,11 @@ semantic_definition dutyCounter : CounterKind := .named "dutyCounter"
 semantic_definition eggCounter : CounterKind := .named "eggCounter"
 semantic_definition elixirCounter : CounterKind := .named "elixirCounter"
 semantic_definition emberCounter : CounterKind := .named "emberCounter"
-semantic_definition energy : CounterKind := .named "energy"
+semantic_definition energy : CounterKind := .named "energy" .player
 semantic_definition enlightenedCounter : CounterKind := .named "enlightenedCounter"
 semantic_definition eonCounter : CounterKind := .named "eonCounter"
 semantic_definition exaltedCounter : CounterKind := .named "exaltedCounter"
-semantic_definition experience : CounterKind := .named "experience"
+semantic_definition experience : CounterKind := .named "experience" .player
 semantic_definition eyeballCounter : CounterKind := .named "eyeballCounter"
 semantic_definition fadeCounter : CounterKind := .named "fadeCounter"
 semantic_definition fateCounter : CounterKind := .named "fateCounter"
@@ -166,14 +167,14 @@ semantic_definition pinCounter : CounterKind := .named "pinCounter"
 semantic_definition plagueCounter : CounterKind := .named "plagueCounter"
 semantic_definition planCounter : CounterKind := .named "planCounter"
 semantic_definition pointCounter : CounterKind := .named "pointCounter"
-semantic_definition poison : CounterKind := .named "poison"
+semantic_definition poison : CounterKind := .named "poison" .player
 semantic_definition polypCounter : CounterKind := .named "polypCounter"
 semantic_definition possessionCounter : CounterKind := .named "possessionCounter"
 semantic_definition pressureCounter : CounterKind := .named "pressureCounter"
 semantic_definition preyCounter : CounterKind := .named "preyCounter"
 semantic_definition pupaCounter : CounterKind := .named "pupaCounter"
 semantic_definition questCounter : CounterKind := .named "questCounter"
-semantic_definition radCounter : CounterKind := .named "radCounter"
+semantic_definition radCounter : CounterKind := .named "radCounter" .player
 semantic_definition rallyCounter : CounterKind := .named "rallyCounter"
 semantic_definition reachCounter : CounterKind := .named "reachCounter"
 semantic_definition refineCounter : CounterKind := .named "refineCounter"

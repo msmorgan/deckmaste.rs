@@ -1680,15 +1680,6 @@ def Subtype.label : Subtype → String
   | .of _ label => label
   | .spell label => label
 
-def Subtype.frame (s : Subtype) : Option FrameFeature :=
-  (subtypeFacts.find? (·.subtype == s)).map (·.frame)
-
-def framesWith (f : FrameFeature) (subs : List Subtype) : Bool := subs.any (·.frame == some f)
-
-def distinctSubtypeFacts : List SubtypeFacts → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
-
 def Delta.amount {α : Type} : Delta α → α
   | .up x => x
   | .down x => x
@@ -1722,28 +1713,16 @@ def Period.eventOrdinalOk : Period → Bool
 /-! ## Designations -/
 
 def DesignationLabel.name : DesignationLabel → String
-  | .named n => n
+  | .named n _ => n
 
-def findDesignation (name : String) : List DesignationFacts → Option DesignationFacts
-  | [] => none
-  | f :: fs => if f.label == name then some f else findDesignation name fs
+def DesignationLabel.scope : DesignationLabel → DesignationScope
+  | .named _ scope => scope
 
-def distinctDesignationLabels : List DesignationFacts → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.label)).elem f.label && distinctDesignationLabels fs
-
-def DesignationLabel.facts (label : DesignationLabel) : Option DesignationFacts :=
-  findDesignation label.name designationTable
-
-def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSome
-
-def DesignationLabel.scope (label : DesignationLabel) : Option DesignationScope :=
-  label.facts.map (·.scope)
 def DesignationLabel.holder (label : DesignationLabel) : Option Kind :=
   match label.scope with
-  | some (.heldBy k) => some k
-  | some .heldByCard => some .object
-  | _ => none
+  | .heldBy k => some k
+  | .heldByCard => some .object
+  | .heldByGame => none
 
 /-- A possessive on a designation ("your Ring-bearer", "your commander") is meaningful only
 where an object holds the designation for a player; a player-held or game-wide designation has
@@ -1752,26 +1731,21 @@ def DesignationLabel.possessorOk (label : DesignationLabel) : Bool :=
   label.holder == some .object
 
 def DesignationLabel.heldByItsCard (label : DesignationLabel) : Bool :=
-  label.scope == some .heldByCard
+  label.scope == .heldByCard
 
 def DesignationLabel.gameWide (label : DesignationLabel) : Bool :=
-  label.scope == some .heldByGame
+  label.scope == .heldByGame
 
 /-- A designation that a player or an object holds. -/
 def designationHolderOk (label : DesignationLabel) : Bool :=
   match label.scope with
-  | some (.heldBy _) => true
+  | .heldBy _ => true
   | _ => false
 
 /-! ## Relations -/
 
 def RelationLabel.name : RelationLabel → String
   | .named n => n
-
-def RelationLabel.facts (label : RelationLabel) : Option RelationFacts :=
-  relationTable.find? (·.label == label.name)
-
-def RelationLabel.known (label : RelationLabel) : Bool := label.facts.isSome
 
 /-! ## Attachment, status, counters -/
 
@@ -1791,17 +1765,14 @@ def NounWord.attachHostTy : NounWord → List CardType
   | .type t | .subtype (.of t _) => [t]
   | _ => []
 
-def distinctCounterLabels : List CounterFacts → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.label)).elem f.label && distinctCounterLabels fs
-
-def counterFactsFor (l : String) : Option CounterFacts := counterFacts.find? (·.label == l)
-def knownCounter (l : String) : Bool := (counterFactsFor l).isSome
-
 def CounterKind.name : CounterKind → String
-  | .named n => n
+  | .named n _ => n
 
-def CounterKind.scope (c : CounterKind) : Kind := (counterFactsFor c.name).elim .object (·.holder)
+/-- What a counter of the kind is placed on: an object or a player [CR#122.1]. -/
+def CounterKind.holder : CounterKind → Kind
+  | .named _ holder => holder
+
+def CounterKind.scope (c : CounterKind) : Kind := c.holder
 
 /-- What kind of entity a projection axis reads [CR#120.3e,120.6,704.5g]. -/
 def ProjAxis.scope : ProjAxis → Kind

@@ -87,10 +87,8 @@ def CreationSpec.localChecks : CreationSpec → List Refusal
   | .token _ _ => []
 
 def CounterKindSource.localChecks (drs : DRS) : CounterKindSource → List Refusal
-  | .printed kind => localRefuse (knownCounter kind.name) .knownCounter
-  | .chosen menu | .distinctChosen menu =>
-    localRefuse (!menu.isEmpty) .nonEmpty ++
-      menu.flatMap (fun kind => localRefuse (knownCounter kind.name) .knownCounter)
+  | .printed _ => []
+  | .chosen menu | .distinctChosen menu => localRefuse (!menu.isEmpty) .nonEmpty
   | .bound =>
     let n := countChoice (.quality .counterKind) drs
     localRefuse (n == 1) (.choiceRef .theChoice (.quality .counterKind) n)

@@ -139,6 +139,79 @@ example : Subtype := Semantics.Primitives.Subtype.of .creature "Dragon"
 #guard_msgs in
 example : Subtype := Semantics.Primitives.Subtype.spell "Adventure"
 
+-- `CounterKind`, `DesignationLabel` and `RelationLabel` are catalog items in the same way
+-- (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`): each value carries its own
+-- columns, a counter's holder and a designation's scope, and is tagged `semantic_expression` and
+-- `internal_expansion`. A card names a declared item; a raw constructor in a card is refused, so
+-- an undeclared counter, designation or relation never reaches the checker, and a misspelled
+-- catalog name is no declaration at all. The raw items below are deliberate: each pins a
+-- refusal. The accepted direction is the witnesses that follow and the corpus.
+
+private def sorceryWith (action : Action) : Card := .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
+      text := [Primitives.Ability.spell none action] } }
+
+private def withCatalogItems : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
+      text := [Primitives.Ability.spell none (putCounters 1 p1p1Counter (target isCreature)),
+        Primitives.Ability.spell none (gainDesignation you monarch),
+        Primitives.Ability.spell none (relate this_ haunting (target isCreature))] } }
+
+theorem catalogItemsRecordAuthorship : withCatalogItems.authoring.onlyAuthored = true :=
+  withCatalogItems.onlyAuthored
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.CounterKind.named] -/
+#guard_msgs in
+example : Spelled := spelled <|
+  sorceryWith (putCounters 1 (CounterKind.named "typoCounter") (target isCreature))
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.DesignationLabel.named] -/
+#guard_msgs in
+example : Spelled := spelled <| sorceryWith (gainDesignation you (.named "dusk" .heldByGame))
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.RelationLabel.named] -/
+#guard_msgs in
+example : Spelled := spelled <|
+  sorceryWith (relate this_ (.named "unrelated") (target isCreature))
+
+/--
+error: Unknown identifier `p1p1Countr`
+---
+error: Definition sorryAx has no authoring evidence
+-/
+#guard_msgs in
+example : Spelled := spelled <| sorceryWith (putCounters 1 p1p1Countr (target isCreature))
+
+/--
+error: Unknown identifier `monarc`
+---
+error: Definition sorryAx has no authoring evidence
+-/
+#guard_msgs in
+example : Spelled := spelled <| sorceryWith (gainDesignation you monarc)
+
+/--
+error: Unknown identifier `hauntng`
+---
+error: Definition sorryAx has no authoring evidence
+-/
+#guard_msgs in
+example : Spelled := spelled <| sorceryWith (relate this_ hauntng (target isCreature))
+
+/-- error: Unknown identifier `Semantics.Primitives.CounterKind.named` -/
+#guard_msgs in
+example : CounterKind := Semantics.Primitives.CounterKind.named "typoCounter"
+
+/-- error: Unknown identifier `Semantics.Primitives.DesignationLabel.named` -/
+#guard_msgs in
+example : DesignationLabel := Semantics.Primitives.DesignationLabel.named "dusk" .heldByGame
+
+/-- error: Unknown identifier `Semantics.Primitives.RelationLabel.named` -/
+#guard_msgs in
+example : RelationLabel := Semantics.Primitives.RelationLabel.named "unrelated"
+
 /-! ## Coercions and the card envelope
 
 `spelled` accepts the authoring coercions: core's `α → Option α`, a written mana cost and an action

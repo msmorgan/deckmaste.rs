@@ -1841,9 +1841,9 @@ def stepCopyExceptWith (ops : StepOps) (drs : DRS) (ce : CopyExcept) : DRS × Li
       CharacteristicEdit.shapeAll eds)
   | .ability ab => (drs, ops.ab (linkedTextContext drs) ab)
   | .thisAbility => (drs, [])
-  | .entersWithCounters amt kind _ =>
+  | .entersWithCounters amt _ _ =>
     let (_, es) := ops.amt drs amt
-    (drs, es ++ refuse kind.known .knownCounter)
+    (drs, es)
 
 def stepCopyExceptListWith (ops : StepOps) (drs : DRS) (ces : List CopyExcept) : DRS × List Refusal :=
   ces.foldl (fun (d, es) c =>
@@ -2629,11 +2629,10 @@ def stepOps : Nat → StepOps
           let n := countChoice (.quality q) drs
           (drs, refuse q.chosenReadOk (.chosenQualityRead q) ++
             (if ref.ok n then [] else [.choiceRef ref (.quality q) n]))
-        | .hasCounters kind =>
+        | .hasCounters _ =>
           -- Objects and players have counters [CR#122.1].
           let headKind := drs.relativeKind.getD .object
-          let knownErrors := kind.toList.flatMap (fun counter => refuse counter.known .knownCounter)
-          (drs, refuse (counterHolderKind headKind) .counterHolderKind ++ knownErrors)
+          (drs, refuse (counterHolderKind headKind) .counterHolderKind)
         | .hasPossessor _ np =>
           let (drs', _, errs) := ops.np drs .other false np
           (drs', errs ++ refuse np.soleHolderOk .soleHolder)
@@ -2649,17 +2648,11 @@ def stepOps : Nat → StepOps
         | .compare axes _ bound =>
           let (out, errors) := ops.amt drs bound
           let kind := drs.relativeKind.getD .object
-          let axisErrors := axes.flatMap fun axis => match axis with
-            | .counter counter => refuse counter.known .knownCounter
-            | _ => []
-          (out, refuse (axesAt kind axes) (.axesAt kind) ++ axisErrors ++ errors)
+          (out, refuse (axesAt kind axes) (.axesAt kind) ++ errors)
         | .superlative op axis domain =>
           let (out, errors) := ops.pred drs domain
           let kind := drs.relativeKind.getD .object
-          let axisErrors := match axis with
-            | .counter counter => refuse counter.known .knownCounter
-            | _ => []
-          (out, refuse op.isExtremal .isExtremal ++ refuse (axis.scope == kind) (.projScope kind) ++ axisErrors ++ errors)
+          (out, refuse op.isExtremal .isExtremal ++ refuse (axis.scope == kind) (.projScope kind) ++ errors)
         | .withMostVotes =>
           let n := countOutcomes .voteHeld drs
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
@@ -3122,7 +3115,6 @@ def stepOps : Nat → StepOps
             | none => (refs.head?).map (·.kind)
           let plural := subj.det == some .each || subj.plur != .one || refs.any (fun r => r.plur != .one)
           let axisErrors := match axis with
-            | .counter kind => refuse kind.known .knownCounter
             | .boundCounter =>
               let n := countChoice (.quality .counterKind) drs
               refuse (n == 1) (.choiceRef .theChoice (.quality .counterKind) n)
@@ -3551,7 +3543,7 @@ def stepOps : Nat → StepOps
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let source := refIds.head?.bind drs1.findById?
           let kind := source.map (·.kind) |>.getD (subj.kindIn drs1 .object)
-          let e1 := e1 ++ refuse (designation.scope == some (.heldBy kind)) (.designationScope designation) ++
+          let e1 := e1 ++ refuse (designation.scope == .heldBy kind) (.designationScope designation) ++
             refuse (designationHolderOk designation) (.designationHolder designation kind)
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed else drs2
@@ -3609,14 +3601,14 @@ def stepOps : Nat → StepOps
           let drs3 := if phase == .postEvent then drs2.push pileRef .other false else drs1
           let e2 := if facesFit faces piles then [] else [.facesFit]
           (drs3, e1 ++ e2)
-        | .relate subj relation cp =>
+        | .relate subj _ cp =>
           let (drs1, ids, e1) := ops.np drs patientRole true subj
           let (drs2, cpIds, e2) := ops.np drs1 .other true cp
           let sourceKind := (ids.head?.bind drs1.findById?).map (·.kind)
           let counterpartKind := (cpIds.head?.bind drs2.findById?).map (·.kind)
             |>.getD (cp.kindIn drs2 .object)
           (drs2, e1 ++ e2 ++ kindCheck .object sourceKind ++
-            kindCheck .object (some counterpartKind) ++ refuse relation.known (.knownRelation relation))
+            kindCheck .object (some counterpartKind))
         | .merge subj cp _ =>
           let (drs1, ids, e1) := ops.np drs patientRole true subj
           let (drs2, cpIds, e2) := ops.np drs1 .other true cp

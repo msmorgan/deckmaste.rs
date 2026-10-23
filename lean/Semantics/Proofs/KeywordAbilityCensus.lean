@@ -20,7 +20,7 @@ def saddleDefinition : List Ability :=
   [ .activated
       (.perform (tap (withTotal (.stat .power) .atLeast 2
         (allOf (.and [isUntapped, and [isCreature, youControl, isOther]])))))
-      (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
+      (.gainDesignation thisPermanent (.named "saddled" (.heldBy .object)) (some untilEndOfTurn)) (some asSorcery) none none none ]
 
 /-- "Saddle 2" with its Definition checks [CR#702.171a]. -/
 theorem okSaddleDefinition :

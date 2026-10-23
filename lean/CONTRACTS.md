@@ -57,14 +57,19 @@ a token's or an emblem's types, power and toughness, subtypes, abilities and
 qualities must be. Their term shapes stay under existing constructors: an empty
 edit list, emblem or color list is `nonEmpty`, an edit that adds or removes an
 empty type line is `lineNonEmpty`, a list naming a value twice is `distinct`, and
-an edit's chosen quality is `qualityRead`. Six stay as kind, plurality or term
+an edit's chosen quality is `qualityRead`. Five stay as kind, plurality or term
 shape: `designationScope` (a designation's holder sort), `facesFit`, and the registry
-and table shape checks `tokenNamed`, `definitionHolder`, `definitionNamed` and
-`definitionScoped`; `manaSymbolOk` and `twoParties`, kept then, are retired with the
-phrase-level game rules below. The
-fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept: the owner
+and table shape checks `tokenNamed`, `definitionHolder` and `definitionNamed`;
+`definitionScoped` went with the designation record's zone, card type and Room half columns
+(`lean-v3-catalog-items-self-contained`), and `manaSymbolOk` and `twoParties`, kept then, are
+retired with the phrase-level game rules below. The
+card-frame rules (`cardLine` through `prototypeFrame`) are kept: the owner
 decided so on 2026-10-08 (§7 ruling 2026-10-06, consequence (d)), because they check
-that a term is a well-formed card, not what an action does. Zone state on referents stays, because references resolve
+that a term is a well-formed card, not what an action does. Twelve remain of the fourteen:
+`chapterFrame` (a chapter ability on a card without the Saga subtype) and `adventureInset` (an
+Adventure inset without the Adventure subtype) are retired with the subtype frame table, because
+a type line that disagrees with its card's text is a card-authoring mistake, not a text-meaning
+error (ruling #2 of 2026-10-22, `lean-v3-card-class-gate-removal`). Zone state on referents stays, because references resolve
 on it. The game-rule checks that remained outside these buckets are retired
 (`lean-v3-authoring-impl-4-checker-dewarting`), so outside the card frame the checker enforces
 reference resolution and kind agreement only. The phrase-level game rules that survived it
@@ -158,7 +163,14 @@ templates and definitions write. `Subtype` is a semantic expression with no prim
 line, is a leaf catalog entry (`Semantics.Definitions.Subtypes`), so *Mishra's Factory* names
 `assemblyWorker` and cannot misspell Assembly-Worker [CR#205.3m]. `spelled` refuses a raw
 `Subtype.of` or `Subtype.spell` in a card, including one built by an ordinary helper definition
-that the card inspection follows. Authored declarations (`semantic_definition`,
+that the card inspection follows. `CounterKind`, `DesignationLabel` and `RelationLabel` are catalog
+items the same way (`internal_expansion` semantic expressions, entries in
+`Semantics.Definitions.Counters`, `.Designations` and `.Relations`), and each value carries its
+own columns, a counter's holder and a designation's scope, so no checker table names them: an
+undeclared counter, designation or relation is refused at the authoring boundary, as a raw
+constructor, and not by the checker. Card fragments and `Proofs/` terms that call the checker
+directly are fixtures and are not checked against any declaration list (owner ruling,
+2026-10-23). Authored declarations (`semantic_definition`,
 `semantic_template`) are trusted, as for every semantic type. Values that are not `spelled`
 cards are not checked: the checker's tables (`Check/Facts.lean`), and the pins that build a raw
 subtype on purpose (`badNamelessSubtype` in `Proofs/Rules.lean`, and the refusal pins in
@@ -1063,11 +1075,11 @@ checker's.
 
 A Relation (`RelationLabel`) is declared in
 `Semantics/Definitions/Relations.lean`, as a designation is in
-`Designations.lean`; `Definition.relation label left right` (`Rules.lean`) is
-the record that gives each side a kind, and `relationTable` (`Check/Facts.lean`,
-hand-maintained) has one row per label. `Action.relate` requires the label to have a row, refusing
-an undeclared one `knownRelation`, and checks both operands as objects, so a
-player operand is refused `kindMismatch`; it does not read the record's sides.
+`Designations.lean`, and `Definition.relation label` (`Rules.lean`) is its record. A card names a
+declared relation or none: the constructor is an `internal_expansion`, so the authoring boundary
+refuses an undeclared one. `Action.relate` checks both operands as objects, so a player operand is
+refused `kindMismatch`; every relation links two objects, and neither the label nor its record
+gives a side another kind.
 `Predicate.related` steps its counterpart and `NounPhrase.counterpart` its
 subject, and neither looks the label up. These are kind and reference checks;
 when a relation ends [CR#702.95e,702.99c] is the engine's.
@@ -1287,18 +1299,18 @@ an `Ability` or an ability-free property (`Conferral`, as a registry definition'
 whether an ability is one an effect could grant (`grantable`) is retired with the grant rules.
 The results of damage are property conferrals, each an `asEvent` over the damage dealt to what
 the row scopes [CR#120.3a,120.3c,120.3e,120.3g,120.3h], so removing abilities leaves them; a
-result's counter is a declared one (`knownCounter`), and which holder the counter registry
-declares for it is not checked. Toxic is one row reading the total toxic value
+result's counter is a declared one when the row is authored (the authoring boundary), and which
+holder the counter's declaration gives it is not checked. Toxic is one row reading the total toxic value
 [CR#702.164b,702.164c].
 
 A counter's kind is a name: `CounterKind.named` carries the counter
 declaration's name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`),
 and "counters with the same name or description are interchangeable"
-[CR#122.1]. `CounterKind.check` is one registry lookup (`knownCounter`: does
-the hand-maintained `counterFacts` table have a row of that name), and
-`CounterKind.scope` reads the holder from the same row for every kind, a +X/+Y
-counter [CR#122.1a] and a keyword counter [CR#122.1b] included; every counter
-declaration has one row. A counter definition
+[CR#122.1], with what the counter is placed on (`holder`, an object unless the declaration
+says a player). Each kind is a declaration in `Semantics/Definitions/Counters.lean`, a +X/+Y
+counter [CR#122.1a] and a keyword counter [CR#122.1b] included, and the constructor is an
+`internal_expansion`, so a card names a declared kind or none; `CounterKind.scope` reads the
+value's own holder. A counter definition
 (`Definition.counter`, `Rules.lean`) states what ONE counter confers, and the
 model applies it once per counter held: the +1/+1 counter's conferral is
 "+1/+1" (`boost`, one `characteristicChange`), a keyword counter's is its keyword
@@ -1325,12 +1337,10 @@ A designation is a name too: `DesignationLabel.named` carries the designation
 declaration's name verbatim (`goaded`, `monarch`, `leftHalfUnlocked`), or, for
 a declaration that lists members, a member's (`day`, `night` [CR#731.1]); the
 phrase a card prints ("the monarch") is the declaration's spelling and never
-reaches the checker. `DesignationLabel.facts` is one registry lookup by name
-(`findDesignation`) in the hand-maintained `designationTable`, which has one row
-per designation, labelled with its name; the row's one column, `scope`, gives
-`holder`, `possessorOk`, `heldByItsCard` and `gameWide`. A designation's zone,
-card type and Room half are its record's (`Definition.designation`), not facts
-columns. A designation
+reaches the checker. The label also carries its `scope` (who holds it), which gives `holder`,
+`possessorOk`, `heldByItsCard` and `gameWide`; each designation is a declaration in
+`Semantics/Definitions/Designations.lean`, and the constructor is an `internal_expansion`, so a
+card names a declared designation or none. A designation
 declaration's bare name means its label, so it reads at a designation
 position; its definition (`Definition.designation`) is a separate record the
 registry holds under the name (ruling 2026-10-10).

@@ -201,19 +201,19 @@ theorem okMustAttackLand :
 /-- "your Ring-bearer": a creature holds the Ring-bearer designation for a player, so the
 possessive is written [CR#701.54e]. -/
 theorem okRingBearerHolder :
-    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "ringBearer") (some .you)) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.hasDesignation (.named "ringBearer" (.heldBy .object)) (some .you)) = [] := by decide
 
 /-- "your monarch": the monarch IS a player, so the designation has no possessor, refused at
 the holder slot, not at the designation [CR#725.1]. -/
 theorem badMonarchHolder :
-    Predicate.checkAt .player (DRS.ofList []) (.hasDesignation (.named "monarch") (some .you))
-      = [.designationPossessorFits (.named "monarch")] := by
+    Predicate.checkAt .player (DRS.ofList []) (.hasDesignation (.named "monarch" (.heldBy .player)) (some .you))
+      = [.designationPossessorFits (.named "monarch" (.heldBy .player))] := by
   decide
 
 /-- "target creature you control that is your Ring-bearer" -/
 theorem okRingBearerOnBattlefield :
     Predicate.checkAt .object (DRS.ofList [])
-      (.and [isCreature, .hasDesignation (.named "ringBearer") (some .you), .in_ battlefield]) = [] := by
+      (.and [isCreature, .hasDesignation (.named "ringBearer" (.heldBy .object)) (some .you), .in_ battlefield]) = [] := by
   decide
 
 /-- "This creature can't attack target planeswalker this turn." -/

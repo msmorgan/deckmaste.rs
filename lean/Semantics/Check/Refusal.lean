@@ -36,8 +36,6 @@ inductive Refusal where
   | axesAt (k : Kind)
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
-  /-- A Relation no declaration declares [CR#702.55b,702.95b,702.99b]. -/
-  | knownRelation (relation : RelationLabel)
   | designationPossessorFits (designation : DesignationLabel)
   /- number -/
   | soleHolder
@@ -131,7 +129,6 @@ inductive Refusal where
   /- tables -/
   | knownAct (v : Deed)
   | knownKeywordTerm
-  | knownCounter
   | linkedFacetNamed
   | costNameable
   | keywordParamFits (k : KeywordLabel)
@@ -167,13 +164,9 @@ inductive Refusal where
   | definitionHolder (k : Kind)
   /-- A registry definition names what it defines; a nameless one is unreachable. -/
   | definitionNamed
-  /-- A designation's zone, card type and room half describe the object holding it, so only an
-  object-held designation [CR#701.15b] writes one. -/
-  | definitionScoped (designation : DesignationLabel)
   /- card frame laws -/
   | cardLine
   | modalFrame
-  | chapterFrame
   | doorFrame
   /-- "The abilities printed below <keyword>" reads a keyword line the card prints
   [CR#702.165a,702.165c]. -/
@@ -181,7 +174,6 @@ inductive Refusal where
   | cardName
   | cardBox
   | cardCost
-  | adventureInset
   | flipHalf
   | levelRange
   | levelerFrame
