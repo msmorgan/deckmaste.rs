@@ -48,15 +48,6 @@ theorem airbendMultipleTargetsUsePerCardLoop :
     Action.check (DRS.ofList [])
       (airbend (.described (.target (upTo 2)) isCreature)) = [] := by decide
 
-theorem selfCounterProhibitionIsValidInstantText :
-    cardTextOk [.instant] [.static (cant any (counter thisSpell))] = true := by decide
-
-theorem otherSpellCounterProhibitionIsNotInstantStaticText :
-    cardTextOk [.instant] [.static (cant any (counter (allOf isSpell)))] = false := by decide
-
-theorem battlefieldProhibitionIsNotInstantStaticText :
-    cardTextOk [.instant] [.static (cant any (untap thisCreature))] = false := by decide
-
 theorem counterAlternativesUseTheirOwnHolderKinds :
     Predicate.checkAt (.join .object .player) (DRS.ofList [])
       (.or [.and [.in_ battlefield, .hasCounters none],

@@ -21,9 +21,11 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.DuringResolution
 
-/-- The halves of a keyword declaration's body. -/
+/-- The halves of a keyword declaration's body, a `byCardClass` pair as both of its halves. -/
 def halves : Ability → List Ability
-  | .keyword _ _ body => body
+  | .keyword _ _ body => body.flatMap fun
+    | .byCardClass onPermanent onInstantOrSorcery => [onPermanent, onInstantOrSorcery]
+    | ab => [ab]
   | _ => []
 
 /-- The trigger events of a keyword's triggered halves, in order. -/
@@ -138,7 +140,11 @@ theorem okResolutionKeywords :
     Ability.check (DRS.ofList []) haunt = [] ∧
       Ability.check (DRS.ofList []) (buyback (.mana [generic 3])) = [] ∧
       Ability.check (DRS.ofList []) rebound = [] ∧
-      cardTextOk [.instant] [haunt, buyback (.mana [generic 3]), rebound] = true := by
+      Card.check
+        (.singleFaced
+          { characteristics :=
+              { name := some "", cost := some [generic 2], types := [.instant],
+                text := [haunt, buyback (.mana [generic 3]), rebound] } }) = [] := by
   decide
 
 end Semantics.Proofs.DuringResolution

@@ -239,23 +239,20 @@ semantic_definition annihilator (amount : Amount) : Ability :=
           (sacrifice (counted (.exactlyOf (.inCaller amount)) isPermanent))) ]
 semantic_definition ascend : Ability :=
   .keyword (.named "ascend") []
-    [ static
-        (onlyIfSo
+    [ byCardClass
+        (static
           (.whileHolds
             (and
               [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast 10,
                 not (is .you (hasDesignation citysBlessing)) ])
-            (gainDesignation .you citysBlessing restOfGame))
-          (is this_ isPermanentType)),
-      spell
-        (doIf (is this_ isInstantOrSorcery)
+            (gainDesignation .you citysBlessing restOfGame)))
+        (spell
           (doIf
             (and
               [ .compareAmt (countOf (and [isPermanent, youControl])) .atLeast 10,
                 not (is .you (hasDesignation citysBlessing)) ])
             (gainDesignation .you citysBlessing restOfGame)
-            none)
-          none) ]
+            none)) ]
 semantic_definition assist : Ability := keyword (.named "assist")
 semantic_definition auraSwap (cost : Cost) : Ability :=
   .keyword (.named "auraSwap") [.cost (.inCaller cost)]
@@ -788,13 +785,14 @@ semantic_definition fuse : Ability := keyword (.named "fuse")
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
-      when (does thisPermanent enter)
-        (if_ := some (keywordCostPaid (.named "gift") this_))
-        (instruct (the isChosenPlayer) (.inCaller promise)),
-      spell
-        (doIf (keywordCostPaid (.named "gift") this_)
-          (instruct (the isChosenPlayer) (.inCaller promise))
-          none) ]
+      byCardClass
+        (when (does thisPermanent enter)
+          (if_ := some (keywordCostPaid (.named "gift") this_))
+          (instruct (the isChosenPlayer) (.inCaller promise)))
+        (spell
+          (doIf (keywordCostPaid (.named "gift") this_)
+            (instruct (the isChosenPlayer) (.inCaller promise))
+            none)) ]
 /-! The licensed phrasings of gift: its templating is not normative ("Gift a card", "Gift a
 tapped Fish"), so each is a Template over `gift` [CR#702.174a,702.174d..702.174i]. -/
 
@@ -845,16 +843,17 @@ semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration :
   gain subject haste duration
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
-    [ when (does thisPermanent die)
-        (sequentially
-          [ exile it,
-            .relate it haunting (target isCreature) ]),
-      when
-        (.causes (.event (does .any (resolve thisSpell)))
-          (does .any (putInto thisSpell graveyard (from_ := stack))))
-        (sequentially
-          [ exile it,
-            .relate it haunting (target isCreature) ]) ]
+    [ byCardClass
+        (when (does thisPermanent die)
+          (sequentially
+            [ exile it,
+              .relate it haunting (target isCreature) ]))
+        (when
+          (.causes (.event (does .any (resolve thisSpell)))
+            (does .any (putInto thisSpell graveyard (from_ := stack))))
+          (sequentially
+            [ exile it,
+              .relate it haunting (target isCreature) ])) ]
 /-- "Hexproof": "This permanent can't be the target of spells or abilities your opponents
 control," and on a player "You can't be the target of …" [CR#702.11b,702.11c], so the body is
 written over its holder (`this_`). -/

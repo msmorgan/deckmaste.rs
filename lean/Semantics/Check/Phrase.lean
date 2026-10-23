@@ -2413,6 +2413,9 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
   | n+1, .inCaller body =>
     Ability.textContextWith ops drs body n
+  -- The card has one half or the other, and the text after it is checked for either, so
+  -- neither half publishes to it.
+  | _+1, .byCardClass .. => drs
   | _+1, _ => drs
 termination_by structural fuel
 
@@ -4228,6 +4231,10 @@ def stepOps : Nat → StepOps
           let (_, e2) := match tm with | some t => stepTimingWith ops drs t | none => (drs, [])
           let (_, e3) := match guard with | some g => ops.cond drs g | none => (drs, [])
           e1 ++ e2 ++ e3
+        -- Both halves, each in the incoming context: the card has one of them, whichever its
+        -- Card Class selects, so each must stand where the other would [CR#110.4,110.4a].
+        | .byCardClass onPermanent onInstantOrSorcery =>
+          ops.ab drs onPermanent ++ ops.ab drs onInstantOrSorcery
     }
 
 def stepPredicate (fuel : Nat) (drs : DRS) (p : Predicate) : DRS × List Refusal :=

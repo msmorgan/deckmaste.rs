@@ -6,9 +6,9 @@ import Semantics.Check.Card
 
 Gift is one definition holding both its abilities [CR#702.174a,702.174b]: the additional cost
 "you may choose an opponent", an enters trigger and a spell ability, each handing the effect to
-"the chosen player", the player chosen as the gift cost was paid [CR#607.2d,607.2i]. Neither half
-carries a card-class guard: each is scoped by its ability category and its event, the trigger by
-its permanent entering and the spell ability by its spell resolving [CR#113.3a,603.4,702.174b]. Bare gift has no spelling; each
+"the chosen player", the player chosen as the gift cost was paid [CR#607.2d,607.2i]. The trigger
+and the spell ability are a `byCardClass` pair, the card's Card Class selecting between them
+[CR#110.4,110.4a,702.174b]; neither carries a card-class guard. Bare gift has no spelling; each
 spelled variant is gift with its effect (`giftACard`, `giftATappedFish`, … in
 `Semantics.Definitions`). These pins hold the two variants printed on both card classes, "Gift a
 card" [CR#702.174e] and "Gift a tapped Fish" [CR#702.174f], on a permanent card and on an
@@ -35,10 +35,11 @@ does not trigger when no gift was promised [CR#603.4]. -/
 def gift (effect : Action) : Ability :=
   .keyword (.named "gift") []
     [ costPart,
-      when (does thisPermanent enter)
-        (if_ := some (costWasPaid giftCost none .this))
-        (instruct (the isChosenPlayer) effect),
-      .spell none (handed effect) ]
+      .byCardClass
+        (when (does thisPermanent enter)
+          (if_ := some (costWasPaid giftCost none .this))
+          (instruct (the isChosenPlayer) effect))
+        (.spell none (handed effect)) ]
 
 /-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/
 def giftACard : Ability := gift (draw 1)
@@ -53,22 +54,34 @@ theorem okVariantsCheck :
     (Ability.check (DRS.ofList []) giftACard, Ability.check (DRS.ofList []) giftATappedFish) = ([], []) := by
   decide
 
+/-- A single-faced card with power and toughness on a creature. -/
+def card (types : List CardType) (text : List Ability) : Card :=
+  .singleFaced
+    { characteristics :=
+        { name := some "", cost := some [generic 2], types, text,
+          power := if types.elem .creature then stat 1 else none,
+          toughness := if types.elem .creature then stat 1 else none } }
+
 /-- "Gift a card" on a permanent card (Scrapshooter) and on an instant (Long River's Pull). -/
 theorem okGiftACardOnBothClasses :
-    (cardTextOk [.creature] [giftACard], cardTextOk [.instant] [giftACard]) = (true, true) := by
+    (Card.check (card [.creature] [giftACard]), Card.check (card [.instant] [giftACard]))
+      = ([], []) := by
   decide
 
 /-- "Gift a tapped Fish" on a permanent card (Starforged Sword) and on an instant (Into the
 Flood Maw). -/
 theorem okGiftATappedFishOnBothClasses :
-    (cardTextOk [.artifact] [giftATappedFish], cardTextOk [.instant] [giftATappedFish])
-      = (true, true) := by
+    (Card.check (card [.artifact] [giftATappedFish]),
+        Card.check (card [.instant] [giftATappedFish]))
+      = ([], []) := by
   decide
 
-/-- The intervening "if" clause of a keyword body's triggered ability, if it has one. -/
+/-- The intervening "if" clause of a keyword body's triggered ability, if it has one, a
+`byCardClass` half included. -/
 def triggerCondition? : Ability → Option (Option Condition)
   | .keyword _ _ body => body.findSome? fun
-    | .triggered _ _ _ _ _ _ condition _ => some condition
+    | .triggered _ _ _ _ _ _ condition _
+    | .byCardClass (.triggered _ _ _ _ _ _ condition _) _ => some condition
     | _ => none
   | _ => none
 

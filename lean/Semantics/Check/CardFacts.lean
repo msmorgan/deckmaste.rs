@@ -15,14 +15,6 @@ def StaticSpec.scopeBody (s : StaticSpec) (fuel : Nat := 64) : StaticSpec :=
   | _, b => b
 termination_by structural fuel
 
-def NounPhrase.namesThis (p : NounPhrase) (fuel : Nat := 64) : Bool :=
-  match fuel, p with
-  | n + 1, .inCaller b | n + 1, .firstMention _ b => b.namesThis n
-  | n + 1, .headed _ b => b.namesThis n
-  | _ + 1, .this => true
-  | _, _ => false
-termination_by structural fuel
-
 def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPhrase :=
   match fuel, action with
   | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
@@ -31,14 +23,6 @@ def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPh
   | _ + 1, .turnOver subject | _ + 1, .clearDamage subject
   | _ + 1, .target subject | _ + 1, .block subject => some subject
   | _, _ => none
-termination_by structural fuel
-
-def Cost.offBattlefield (c : Cost) (fuel : Nat := 64) : Bool :=
-  match fuel, c with
-  | n + 1, .inCaller b | n + 1, .scaled b _ => b.offBattlefield n
-  | _ + 1, .tapSymbol | _ + 1, .untapSymbol | _ + 1, .loyaltySymbol _ => false
-  | n + 1, .compound cs | n + 1, .or cs => cs.all (fun c => c.offBattlefield n)
-  | _, _ => true
 termination_by structural fuel
 
 mutual
@@ -174,6 +158,8 @@ mutual
     | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.namesThisDoor n
     | n + 1, .static spec => spec.namesThisDoor n
     | n + 1, .keyword _ _ body => body.any (fun a => a.namesThisDoor n)
+    | n + 1, .byCardClass onPermanent onInstantOrSorcery =>
+      onPermanent.namesThisDoor n || onInstantOrSorcery.namesThisDoor n
     | _, _ => false
   termination_by structural fuel
 end

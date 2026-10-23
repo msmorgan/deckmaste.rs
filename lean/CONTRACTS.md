@@ -758,7 +758,7 @@ expected child kinds in the incoming `DRS`.
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
 | `StaticParts` | The actual list supplies length; `StaticSpec.conjunction` refuses an empty list, refuses a nested conjunction (`notCoord`) and steps each part in a new clause after the previous one. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` refuses an empty list and steps each cost after the previous one. |
-| `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost (`StaticSpec.altCost` or `PlayPayment.payingInstead`) no longer require `Cost.offBattlefield`; the card-class rule (`classAbilityOk`) still reads it. |
+| `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost (`StaticSpec.altCost` or `PlayPayment.payingInstead`) no longer require `Cost.offBattlefield`; the card-class rule that still read it, and `Cost.offBattlefield` with it, is deleted (`lean-v3-by-card-class`). |
 | `AbilitySeq` | `Ability.checkText` threads the choices and additional-cost results introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
 
 ### Events
@@ -933,19 +933,27 @@ constraint and cost-only alternative. Quality arguments can read the incoming
 context; subject arguments, numbers, costs, and deck conditions retain their
 closed contexts. Argument lists do not publish referents between elements.
 
-### A keyword definition's halves guarded by card class
+### A keyword defined by card class: `byCardClass`
 
 A keyword that means one ability on a permanent and another on an instant or
-sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes one definition
-holding both halves. Where each half is scoped by its ability category and its
-event, both halves are written unguarded (ruling 2026-10-22, gift and haunt): gift's
-permanent half is an entering trigger and its spell half a spell ability
-[CR#113.3a,702.174b], and haunt's are a dies trigger and a trigger on the spell's
-being put into a graveyard during its resolution [CR#603.4,608.2n,702.55a]. Ascend's
-halves keep their card-class guards (`is this_ isPermanentType`,
-`is this_ isInstantOrSorcery`) while the owner rules on them (the ascend STOP of
-`lean-v3-card-class-gate-removal`) [CR#113.6,702.131a,702.131b]. There is no selector
-device.
+sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes its two halves as
+`Ability.byCardClass onPermanent onInstantOrSorcery` (ruling 2026-10-22/23). Gift
+keeps its shared cost before the pair, `byCardClass (when (does thisPermanent enter)
+…) (spell (doIf …))` [CR#702.174a,702.174b]; haunt's pair is its dies trigger and its
+trigger on the spell's being put into a graveyard during its resolution
+[CR#702.55a]; ascend's is a static ability and a spell ability
+[CR#702.131a,702.131b]. No half carries a card-class guard.
+
+- **Engine.** The card has one half, the one its Card Class selects:
+  `onPermanent` on a permanent card, `onInstantOrSorcery` on an instant or sorcery
+  card (`cardClassOf`, `Words.lean`) [CR#110.4,110.4a]. Once
+  `lean-v3-card-type-composite-definition` lands, the class is computed from the
+  card type's fields.
+- **Checker.** Both halves are checked, each in the same incoming context
+  (`Check/Phrase.lean`, the `byCardClass` arm), so a choice an earlier ability
+  publishes (gift's chosen player [CR#607.2d]) resolves in both, and a half wrong on
+  its own is refused whatever the other is. Neither half publishes to the text after
+  the pair, since that text is checked for either class.
 
 "During its resolution" and "as it resolves" (haunt's spell half, buyback, rebound
 [CR#702.27a,702.55a,702.88a]) write the move as caused by the spell's resolution, over
@@ -959,25 +967,21 @@ The move itself is `putInto thisSpell graveyard (from_ := stack)`, so its observ
 point is computed: arrival, as a spell put into a graveyard from the stack is none of
 the look-back zone changes [CR#603.10a].
 
-- Each half is checked as a term on every card, with no class context
-  (`Ability.checkAll [] body`).
-- A keyword ability is admitted on a card of either class: `classAbilityOk` has
-  no keyword gate (ruling 2026-10-22, batch 4, superseding the 2026-08-22 ruling
-  that kept one: a keyword on the wrong card class is a card-authoring mistake,
-  not a text-meaning error). Which class the printed corpus puts a keyword on is
-  observation, not a rule; a CR entry that says its ability functions while the
-  spell is on the stack names no card class, and wither works from any zone
-  [CR#702.56a,702.61a,702.188a,702.80c]. A static ability of an instant or sorcery card
-  that permits casting that very spell as though it had flash, gated by an added cost or not,
-  is admitted (`selfCastAsThoughFlash`, *Ghitu Fire*) [CR#113.6e,601.3c].
-  The parts of its definition are not checked against the class:
+- No ability is checked against the card's class. The card-class lint
+  (`classAbilityOk`, `cardTextOk`, the `cardText` refusal, `typesCombinable`) is
+  deleted (ruling 2026-10-22/23, extending the batch-4 ruling that removed the
+  keyword gate and superseded the 2026-08-22 ruling that kept one): a keyword or
+  ability on the wrong card class is a card-authoring mistake, not a text-meaning
+  error. A kindred card still has another card type [CR#308.1]
+  (`kindredHasAnotherType`, part of `cardLineOk`).
+  The parts of a keyword's definition are not checked against the class:
   the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
   `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are
   retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`),
   and the facts table no longer carries a definition, a regime, `functionsOnStack`,
   `counterEligible` or a card-class column.
-- Pins: `Semantics/Proofs/KeywordByCardClass.lean` (gift's and haunt's unguarded
-  halves and ascend's guarded ones, on both card classes),
+- Pins: `Semantics/Proofs/KeywordByCardClass.lean` (gift's, haunt's and ascend's
+  halves on both card classes, both halves checked, ascend's tree),
   `Semantics/Proofs/GiftVariants.lean` (gift's spelled variants on both card classes)
   and `Semantics/Proofs/DuringResolution.lean` (the resolution cause and computed
   observation point on haunt, buyback and rebound).

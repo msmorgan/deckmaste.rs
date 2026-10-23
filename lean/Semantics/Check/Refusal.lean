@@ -172,7 +172,6 @@ inductive Refusal where
   | definitionScoped (designation : DesignationLabel)
   /- card frame laws -/
   | cardLine
-  | cardText
   | modalFrame
   | chapterFrame
   | doorFrame

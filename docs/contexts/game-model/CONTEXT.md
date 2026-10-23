@@ -681,10 +681,8 @@ where applicable, Alternative Characteristics.
 Whether a card is a Permanent Card or an instant or sorcery card, by its Card
 Types ([CR#110.4,110.4a]). A Keyword Ability that represents different
 abilities "on a permanent" and "on an instant or sorcery spell"
-([CR#702.55a,702.131a,702.131b,702.174b]) holds both in its one definition,
-each scoped by its Ability Category and its event rather than by the Card Class
-([CR#113.3a,603.4,608.2n]); ascend's halves alone are still guarded by Card
-Class ([CR#113.6,702.131a,702.131b]).
+([CR#702.55a,702.131a,702.131b,702.174b]) is written with `byCardClass`, which
+holds both and lets the Card Class select the one the card has.
 _Avoid_: Ability Category, which sorts abilities, not cards
 
 **Object Class** (project term):

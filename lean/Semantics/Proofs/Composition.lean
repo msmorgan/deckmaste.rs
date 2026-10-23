@@ -44,10 +44,6 @@ theorem badThirdCompoundCostAlternative :
     Cost.check (DRS.ofList []) (.or [.mana [generic 1], .mana [generic 2], .compound [.mana [generic 3]]]) =
       [.notCompound] := by decide
 
-theorem okCostAlternativeKeepsSymbolProperties :
-    Cost.offBattlefield (.or [.mana [generic 1], .mana [generic 2], .untapSymbol]) = false := by
-  decide
-
 theorem okOptionalSuccessReadsBody :
     Action.check (DRS.ofList []) (.withContinuation .optional (exile (a (and [isCreature, youControl])))
       (some (putInto it battlefield)) none) = [] := by decide
