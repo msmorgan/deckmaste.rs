@@ -34,5 +34,5 @@ landing lists the load report before and after.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on mtykwkqy → zllmwulo): faces read 28,801 → 28,801; total Readings 245,825 → 245,825; Surplus 106,859 → 106,859; no unit changed; lost faces: none.
+Judgment set (zllmwulo): 3,052 enforced and 206 pending, all holding.

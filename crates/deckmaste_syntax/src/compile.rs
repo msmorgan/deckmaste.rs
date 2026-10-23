@@ -172,8 +172,10 @@ struct Binder<'a> {
     out: CompiledGrammar,
     closed_words: BTreeMap<Ident, LexemeId>,
     class_names: BTreeMap<Ident, usize>,
-    /// The Productions that set each (feature, value) on their mother.
-    setters: BTreeMap<(usize, u16), BTreeSet<Ident>>,
+    /// The holders of each (feature, value) that Productions set on their
+    /// mother: each such Production, or the lexemes its lexical `head` names
+    /// ([`Binder::setter_holders`]).
+    setters: BTreeMap<(usize, u16), BTreeSet<String>>,
     /// The Productions that require each (feature, value) of a child.
     valuers: BTreeMap<(usize, u16), BTreeSet<Ident>>,
     /// Pairs of distinct features some equation equates.
@@ -1185,16 +1187,18 @@ impl<'a> Binder<'a> {
         }
     }
 
-    /// Reports, as findings, a declared feature with fewer than two values
-    /// and a feature value with fewer than two holders
-    /// (`english-lexical-analysis.md` §3, `english-v4.md` §4.4). A value's
-    /// holders are the lexemes whose feature bundles carry it and the
-    /// Productions that set it on their mother; a value that has none is a
-    /// default, held through the Productions that require it of a child
-    /// leaving the feature unvalued. A value the engine projects
-    /// from inflection is held by every word form inflected for it, and a
-    /// feature equated with another shares that feature's holders of a value
-    /// of the same name.
+    /// Reports, as findings, a declared feature with no value and a feature
+    /// value with fewer than two holders (`english-lexical-analysis.md` §3,
+    /// `english-v4.md` §4.4). A feature may declare one value, a privative
+    /// one, whose unvalued feature is the unmarked default; the value is still
+    /// a finding unless it has two or more holders. A value's holders are the
+    /// lexemes whose feature bundles carry it and those that hold it through
+    /// a Production setting it on its mother ([`Binder::setter_holders`]); a
+    /// value that has none is a default, held through the Productions that
+    /// require it of a child leaving the feature unvalued. A value the engine
+    /// projects from inflection is held by every word form inflected for it.
+    /// Features equated with one another share their holders of a value of
+    /// the same name, and that value is reported once, naming them all.
     fn report_holders(&mut self) {
         let out = &mut self.out;
         let mut lexical: BTreeMap<(usize, u16), BTreeSet<String>> = BTreeMap::new();
@@ -1233,15 +1237,22 @@ impl<'a> Binder<'a> {
             }
         };
         let mut warnings = Vec::new();
+        let mut reported: BTreeSet<(usize, &str)> = BTreeSet::new();
         for (feature, name) in out.features.iter().enumerate() {
             let domain = &out.values[feature];
-            if domain.len() < 2 {
+            if domain.is_empty() {
                 warnings.push(format!(
-                    "feature `{name}` has {} value(s); a feature needs two or more",
-                    domain.len()
+                    "feature `{name}` has no value; a feature needs one or more"
                 ));
             }
             for value_name in domain {
+                // Linked features are reported once, under the first of them.
+                let first = *linked[feature]
+                    .first()
+                    .expect("a feature is linked to itself");
+                if !reported.insert((first, value_name.as_str())) {
+                    continue;
+                }
                 // The same value under every feature equated with this one.
                 let keys: Vec<(usize, u16)> = linked[feature]
                     .iter()
@@ -1260,13 +1271,12 @@ impl<'a> Binder<'a> {
                     .iter()
                     .filter_map(|key| lexical.get(key))
                     .flatten()
-                    .cloned()
                     .chain(
                         keys.iter()
                             .filter_map(|key| self.setters.get(key))
-                            .flatten()
-                            .map(ToString::to_string),
+                            .flatten(),
                     )
+                    .cloned()
                     .collect();
                 if holders.is_empty() {
                     holders = keys
@@ -1277,8 +1287,13 @@ impl<'a> Binder<'a> {
                         .collect();
                 }
                 if holders.len() < 2 {
+                    let names = keys
+                        .iter()
+                        .map(|&(f, _)| format!("`{}`", out.features[f]))
+                        .collect::<Vec<_>>()
+                        .join("/");
                     warnings.push(format!(
-                        "feature value `{name}` `{value_name}` has {} holder(s) ({}); a value \
+                        "feature value {names} `{value_name}` has {} holder(s) ({}); a value \
                          needs two or more",
                         holders.len(),
                         holders.into_iter().collect::<Vec<_>>().join(", ")
@@ -1289,22 +1304,70 @@ impl<'a> Binder<'a> {
         out.report.warnings.extend(warnings);
     }
 
-    /// Resolves a draft's equations into variables and adds it.
-    fn add(&mut self, mut draft: Draft) -> Result<(), LoadError> {
+    /// Who holds a value a Production sets on its mother. Where its `head`
+    /// is a lexical leaf that names its lexemes (a Closed Word, a Lexical
+    /// Class, a keyword's Parameter pattern, or the lexemes that declare a
+    /// Subcategorization Frame), the holders are those lexemes: a Production
+    /// lifting a class, or derived from a frame or catalog parameter
+    /// pattern, gives each of them the value. Otherwise it is the Production.
+    fn setter_holders(&self, draft: &Draft) -> BTreeSet<String> {
+        let lexemes: BTreeSet<String> = match draft.children.iter().find(|c| c.name == "head") {
+            Some(Child {
+                symbol: Symbol::Leaf(test),
+                ..
+            }) => match test {
+                Test::Word(id) => BTreeSet::from([id.to_string()]),
+                Test::Words(words) => words.iter().map(ToString::to_string).collect(),
+                Test::Class(class) => self.out.classes[*class]
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
+                Test::Frame(frame) | Test::FreeFrame(frame) | Test::PrepositionFrame(frame) => self
+                    .out
+                    .lexemes
+                    .iter()
+                    .filter(|(_, facts)| match test {
+                        Test::Frame(_) => facts.frames.contains(frame),
+                        Test::FreeFrame(_) => {
+                            facts.frames.contains(frame) && facts.binding == Binding::Free
+                        }
+                        _ => facts.preposition_frames.contains(frame),
+                    })
+                    .map(|(id, _)| id.to_string())
+                    .collect(),
+                _ => BTreeSet::new(),
+            },
+            _ => BTreeSet::new(),
+        };
+        if lexemes.is_empty() {
+            BTreeSet::from([draft.id.to_string()])
+        } else {
+            lexemes
+        }
+    }
+
+    /// Records who holds each value a draft sets or requires, and the
+    /// features its equations link, for the load report.
+    fn record_holders(&mut self, draft: &Draft) {
         let feature_of = |path: &Path| match *path {
             Path::Mother(f) | Path::Child(_, f) => f,
         };
+        let holders = self.setter_holders(draft);
         for (path, target) in &draft.equations {
             match target {
                 Target::Value(value) => {
-                    let valuers = match path {
-                        Path::Mother(_) => &mut self.setters,
-                        Path::Child(..) => &mut self.valuers,
-                    };
-                    valuers
-                        .entry((feature_of(path), *value))
-                        .or_default()
-                        .insert(draft.id);
+                    let key = (feature_of(path), *value);
+                    match path {
+                        Path::Mother(_) => {
+                            self.setters
+                                .entry(key)
+                                .or_default()
+                                .extend(holders.iter().cloned());
+                        }
+                        Path::Child(..) => {
+                            self.valuers.entry(key).or_default().insert(draft.id);
+                        }
+                    }
                 }
                 Target::Path(other) if feature_of(other) != feature_of(path) => {
                     self.links.insert((feature_of(path), feature_of(other)));
@@ -1316,8 +1379,13 @@ impl<'a> Binder<'a> {
             self.setters
                 .entry((feature, value))
                 .or_default()
-                .insert(draft.id);
+                .extend(holders.iter().cloned());
         }
+    }
+
+    /// Resolves a draft's equations into variables and adds it.
+    fn add(&mut self, mut draft: Draft) -> Result<(), LoadError> {
+        self.record_holders(&draft);
         if let Some(head) = draft.children.iter().position(|c| c.name == "head") {
             for &feature in &self.out.category_features[draft.lhs] {
                 if self.carries(&draft.children[head].symbol, feature) {

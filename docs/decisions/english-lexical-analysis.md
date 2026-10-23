@@ -177,7 +177,12 @@ subordinators, auxiliaries, pronouns, negators, the interrogative adverb *how*;
 CGEL, Ch. 10 §7, p. 902) may be referenced directly, by
 lexeme id, never by a string. A direct reference is used when exactly one
 lexeme can fill a slot; a typed class is used when two or more can. A class
-with one member, or a feature with one holder, is reported as a finding.
+with one member, or a feature value with one holder, is reported as a finding.
+A feature may declare a single, privative, value: leaving the feature unvalued
+is the unmarked default, and the marked value is still a finding unless it has
+two or more holders. A value's holders are counted as they are: the members of
+a class a Production lifts, the lexemes that declare the Frame or Parameter
+pattern that projects it, and once across features equated with one another.
 
 Unknown ids, class names and values are load errors.
 
