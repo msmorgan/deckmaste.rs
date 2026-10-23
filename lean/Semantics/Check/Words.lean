@@ -1604,10 +1604,13 @@ def Period.eventOrdinalOk : Period → Bool
 /-! ## Designations -/
 
 def DesignationLabel.name : DesignationLabel → String
-  | .named n _ => n
+  | .named n _ _ => n
 
 def DesignationLabel.scope : DesignationLabel → DesignationScope
-  | .named _ scope => scope
+  | .named _ scope _ => scope
+
+def DesignationLabel.sole : DesignationLabel → Bool
+  | .named _ _ sole => sole
 
 def DesignationLabel.holder (label : DesignationLabel) : Option Kind :=
   match label.scope with

@@ -34,6 +34,11 @@ theorem designationScopesAreDeclared :
     (monarch.scope, citysBlessing.scope, commander.scope, day.scope, night.scope)
       = (.heldBy .player, .heldBy .player, .heldByCard, .heldByGame, .heldByGame) := by decide
 
+/-- Only the monarch [CR#725.3] and the initiative [CR#726.3] are held by at most one player at a
+time; the city's blessing is each player's own [CR#702.131c]. -/
+theorem designationSoleHoldersAreDeclared :
+    (monarch.sole, initiative.sole, citysBlessing.sole) = (true, true, false) := by decide
+
 /-- A designation's holder follows from its scope: a permanent is goaded [CR#701.15b], a player
 is the monarch [CR#725.1], a card is a commander, and day and night are the game's
 [CR#731.1]. -/

@@ -225,6 +225,22 @@ theorem okDefiniteSuperlative :
 theorem badBareDefinite :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (the isCreature) = [.uniquifying] := by decide
 
+/-- "the monarch draws a card": only one player can be the monarch at a time [CR#725.3]. -/
+theorem okTheMonarch :
+    Action.check (DRS.ofList [])
+      (instruct (the (and [isPlayer, .hasDesignation monarch none])) (draw 1)) = [] := by decide
+
+/-- "the initiative holder": only one player can have the initiative at a time [CR#726.3]. -/
+theorem okTheInitiativeHolder :
+    NounPhrase.checkAt (some .player) (DRS.ofList [])
+      (the (and [isPlayer, .hasDesignation initiative none])) = [] := by decide
+
+/-- "the player with the city's blessing": several players can each have it, so `the` is
+refused. -/
+theorem badTheCitysBlessing :
+    NounPhrase.checkAt (some .player) (DRS.ofList [])
+      (the (and [isPlayer, .hasDesignation citysBlessing none])) = [.uniquifying] := by decide
+
 /-- "the player with the highest life total" -/
 theorem okPlayerStatSuperlative :
     Predicate.checkAt .player (DRS.ofList []) (.superlative .max (.playerStat .lifeTotal) .anyPlayer) = [] := by
