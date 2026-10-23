@@ -137,6 +137,10 @@ mutual
     | thisWay
     /-- The event that triggered the enclosing ability [CR#603.2]. -/
     | triggering
+    /-- The described object's own current existence, the span `Period.thisObject` names: "artifact
+    spells you cast", "if you cast it from your hand" read the casting or activation of the object
+    as it is now, not of an earlier object it was before a zone change [CR#400.7]. -/
+    | thisObject
 
   /-- A historical action clause ("if you sacrificed a creature this turn", "each card exiled
   this way", "creatures that attacked this turn"), used by `Condition.did`, `Predicate.did`,
@@ -227,8 +231,6 @@ mutual
     | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
     | hasKeyword (keyword : KeywordTerm)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
-    | castBy (caster : NounPhrase) (rank : Option (Ordinal × Option Period))
-    | castFrom (zone : Location)
     /-- The spell was a card holding `designation` before it was cast: "if this spell was
     foretold" reads a spell that was a foretold card before it was cast, even one cast for a cost
     other than a foretell cost [CR#702.143c]. -/
@@ -303,7 +305,6 @@ mutual
     put on the stack, or one on it [CR#113.7,603.3]. A Saga, a dungeon or a Siege that is the
     source of one stays [CR#704.5s,704.5t,704.5v]. -/
     | triggeredNotLeftStack
-    | activatedBy (activator : NounPhrase)
     | targets (subject : NounPhrase) (extent : TargetExtent)
 
   inductive DetPhrase where

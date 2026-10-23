@@ -219,7 +219,8 @@ semantic_definition aftermath : Ability :=
           (cast this_ (from_ := some (not graveyard)))),
       static
         (replace (would thisSpell (leave stack))
-          (doIf (is thisSpell (.castFrom graveyard)) (instead (exile thisSpell)))) ]
+          (doIf (is thisSpell (did any (cast which (from_ := graveyard)) thisObject))
+            (instead (exile thisSpell)))) ]
 semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
     [ static
@@ -1317,7 +1318,7 @@ semantic_definition rebound : Ability :=
         (replace
           (.causedBy (.event (does .any (resolve thisSpell)))
             (.would .any (putInto thisSpell graveyard (from_ := stack))))
-          (doIf (is thisSpell (.castFrom yourHand))
+          (doIf (is thisSpell (did any (cast which (from_ := yourHand)) thisObject))
             (instead
               (sequentially
                 [ exile thisSpell,
@@ -1681,7 +1682,8 @@ hand. Its delayed trigger is created as the permanent is put onto the battlefiel
 resolves [CR#608.3g,603.7d], as blitz's is. -/
 semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
-    [ static (onlyWhile (altCost this_ (some (.inCaller cost))) (is this_ (castFrom yourHand))),
+    [ static (onlyWhile (altCost this_ (some (.inCaller cost)))
+        (is this_ (did any (cast which (from_ := yourHand)) thisObject))),
       static
         (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
           (doIf (keywordCostPaid (.named "warp") thisPermanent)

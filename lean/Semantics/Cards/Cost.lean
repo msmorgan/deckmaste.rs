@@ -143,7 +143,8 @@ def urzasFilter : Spelled := spelled <| singleFacedCard
 
 def emeraldMedallion : Spelled := spelled <| singleFacedCard
   { name := "Emerald Medallion", cost := [generic 2], types := [.artifact],
-    text := [static (spellsCost (and [hasColor .green, isSpell, castBy you]) (less 1))] }
+    text := [static (spellsCost (and [hasColor .green, isSpell, did you (cast which) thisObject])
+        (less 1))] }
 
 /-- Highspire Bell-Ringer -/
 def highspireBellRinger : Spelled := spelled <| singleFacedCard
@@ -151,21 +152,24 @@ def highspireBellRinger : Spelled := spelled <| singleFacedCard
     subtypes := [djinn, monk],
     text :=
       [ flying,
-        static (costShift (the (and [isSpell, nthCastBy (.nth 2) you .turn])) (less
-            1)) ],
+        static (costShift
+          (the (and [ isSpell,
+                      did you (cast which) thisObject (ordinal := some (.nth 2, some .turn)) ]))
+          (less 1)) ],
     power := stat 1, toughness := stat 4 }
 
 def foundryInspector : Spelled := spelled <| singleFacedCard
   { name := "Foundry Inspector", cost := [generic 3], types := [.artifact, .creature],
     subtypes := [construct],
-    text := [static (spellsCost (and [isArtifact, isSpell, castBy you]) (less 1))],
+    text := [static (spellsCost (and [isArtifact, isSpell, did you (cast which) thisObject])
+        (less 1))],
     power := stat 3, toughness := stat 2 }
 
 def daruWarchief : Spelled := spelled <| singleFacedCard
   { name := "Daru Warchief", cost := [generic 2, pip .white, pip .white], types := [.creature],
     subtypes := [human, soldier],
     text :=
-      [ static (spellsCost (and [soldier, isSpell, castBy you]) (less 1)),
+      [ static (spellsCost (and [soldier, isSpell, did you (cast which) thisObject]) (less 1)),
         static (getsPt (allOf (and [soldier, isCreature, youControl]))
           (up 1) (up 2)) ],
     power := stat 1, toughness := stat 1 }
@@ -175,15 +179,18 @@ def grandArbiter : Spelled := spelled <| singleFacedCard
     supertypes := [.legendary], types := [.creature],
     subtypes := [human, advisor],
     text :=
-      [ static (spellsCost (and [hasColor .white, isSpell, castBy you]) (less 1)),
-        static (spellsCost (and [hasColor .blue, isSpell, castBy you]) (less 1)),
-        static (spellsCost (and [isSpell, castBy yourOpponents]) (more 1)) ],
+      [ static (spellsCost (and [hasColor .white, isSpell, did you (cast which) thisObject])
+          (less 1)),
+        static (spellsCost (and [hasColor .blue, isSpell, did you (cast which) thisObject])
+          (less 1)),
+        static (spellsCost (and [isSpell, did yourOpponents (cast which) thisObject]) (more 1)) ],
     power := stat 2, toughness := stat 3 }
 
 def goblinElectromancer : Spelled := spelled <| singleFacedCard
   { name := "Goblin Electromancer", cost := [pip .blue, pip .red], types := [.creature],
     subtypes := [goblin, wizard],
-    text := [static (spellsCost (and [isInstantOrSorcery, isSpell, castBy you]) (less 1))],
+    text := [static (spellsCost (and [isInstantOrSorcery, isSpell,
+        did you (cast which) thisObject]) (less 1))],
     power := stat 2, toughness := stat 2 }
 
 def arcaneMelee : Spelled := spelled <| singleFacedCard
@@ -193,13 +200,15 @@ def arcaneMelee : Spelled := spelled <| singleFacedCard
 def manaMatrix : Spelled := spelled <| singleFacedCard
   { name := "Mana Matrix", cost := [generic 6], types := [.artifact],
     text :=
-      [ static (spellsCost (and [or [isInstant, isEnchantment], isSpell, castBy you]) (less 2)) ] }
+      [ static (spellsCost (and [or [isInstant, isEnchantment], isSpell,
+          did you (cast which) thisObject]) (less 2)) ] }
 
 def auraOfSilence : Spelled := spelled <| singleFacedCard
   { name := "Aura of Silence", cost := [generic 1, pip .white, pip .white],
     types := [.enchantment],
     text :=
-      [ static (spellsCost (and [or [isArtifact, isEnchantment], isSpell, castBy yourOpponents])
+      [ static (spellsCost (and [or [isArtifact, isEnchantment], isSpell,
+          did yourOpponents (cast which) thisObject])
           (more 2)),
         activated (sacrifice thisEnchantment)
           (destroy (target (or [isArtifact, isEnchantment]))) ] }
@@ -231,7 +240,7 @@ def saheelisEmblem : Action :=
   getEmblem
     [ static (getsPt (allOf (and [isArtifact, isCreature, youControl]))
         (up 1) (up 1)),
-      static (spellsCost (and [isArtifact, isSpell, castBy you]) (less 1)) ]
+      static (spellsCost (and [isArtifact, isSpell, did you (cast which) thisObject]) (less 1)) ]
 theorem okSaheelisEmblem : Action.check (DRS.ofList []) saheelisEmblem = [] := by decide
 
 def jaceBeleren : Spelled := spelled <| singleFacedCard
@@ -441,7 +450,8 @@ theorem okAmoeboidChangelingTypeAbilities :
 def fluctuator : Spelled := spelled <| singleFacedCard
   { name := "Fluctuator", cost := [generic 2], types := [.artifact],
     text :=
-      [ static (costShift (allOf (and [abilityHead (.keyword Definitions.cycling), activatedBy you]))
+      [ static (costShift (allOf (and [abilityHead (.keyword Definitions.cycling),
+          did you (activate which) thisObject]))
           (less 2)) ] }
 
 /-- Boom Scholar -/
@@ -466,12 +476,12 @@ def kopalaWardenOfWaves : Spelled := spelled <| singleFacedCard
     subtypes := [merfolk, wizard],
     text :=
       [ static (costShift
-          (allOf (and [ isSpell, castBy yourOpponents,
+          (allOf (and [ isSpell, did yourOpponents (cast which) thisObject,
                          targeting (a (and [isCreature, merfolk, youControl]))
                            .someTarget ]))
           (more 2)),
         static (costShift
-          (allOf (and [ abilityHead .anyActivated, activatedBy yourOpponents,
+          (allOf (and [ abilityHead .anyActivated, did yourOpponents (activate which) thisObject,
                          targeting (a (and [isCreature, merfolk, youControl]))
                            .someTarget ]))
           (more 2)) ],
@@ -483,8 +493,10 @@ def titheTaker : Spelled := spelled <| singleFacedCard
     subtypes := [human, soldier],
     text :=
       [ static (partScope .turn you
-          (conjunction [ spellsCost (and [isSpell, castBy yourOpponents]) (more 1),
-              costShift (allOf (and [ abilityHead .anyActivated, activatedBy yourOpponents,
+          (conjunction [ spellsCost (and [isSpell, did yourOpponents (cast which) thisObject])
+              (more 1),
+              costShift (allOf (and [ abilityHead .anyActivated,
+                  did yourOpponents (activate which) thisObject,
                                     not isManaAbility ]))
                 (more 1) ])),
         afterlife 1 ],
@@ -520,7 +532,8 @@ def powerArtifact : Spelled := spelled <| singleFacedCard
 /-- Fervent Champion -/
 def ferventChampionEquipDiscount : Ability :=
   static (costShift
-    (allOf (and [abilityHead (.keyword equip), activatedBy you, targeting thisCreature .someTarget]))
+    (allOf (and [abilityHead (.keyword equip), did you (activate which) thisObject,
+        targeting thisCreature .someTarget]))
     (less 3))
 theorem okFerventChampionEquipDiscount : Ability.check (DRS.ofList []) ferventChampionEquipDiscount = [] := by decide
 
@@ -542,8 +555,9 @@ def bureauHeadmaster : Spelled := spelled <| singleFacedCard
   { name := "Bureau Headmaster", cost := [pip .red, pip .white], types := [.creature],
     subtypes := [human, assassin],
     text :=
-      [ static (spellsCost (and [isSpell, equipment, castBy you]) (less 1)),
-        static (costShift (allOf (and [abilityHead (.keyword equip), activatedBy you]))
+      [ static (spellsCost (and [isSpell, equipment, did you (cast which) thisObject]) (less 1)),
+        static (costShift (allOf (and [abilityHead (.keyword equip),
+            did you (activate which) thisObject]))
             (less 1)) ],
     power := stat 2, toughness := stat 2 }
 
@@ -629,7 +643,8 @@ def patricianGeist : Spelled := spelled <| singleFacedCard
       [ flying,
         static (getsPt (allOf (and [spirit, youControl, isOther]))
           (up 1) (up 1)),
-        static (spellsCost (and [isSpell, castBy you, castFrom yourGraveyard]) (less 1)) ],
+        static (spellsCost (and [isSpell,
+            did you (cast which (from_ := yourGraveyard)) thisObject]) (less 1)) ],
     power := stat 2, toughness := stat 2 }
 
 def shatteredEgo : Spelled := spelled <| singleFacedCard
@@ -745,7 +760,8 @@ def sugarCoat : Spelled := spelled <| singleFacedCard
 
 /-- Doc Aurlock, Grizzled Genius -/
 def docAurlockCost : StaticSpec :=
-  spellsCost (and [isSpell, castBy you, or [castFrom yourGraveyard, castFrom exileZone]])
+  spellsCost
+    (and [isSpell, did you (cast which (from_ := some (or [yourGraveyard, exileZone]))) thisObject])
     (less 2)
 theorem okDocAurlockCost : StaticSpec.check (DRS.ofList []) docAurlockCost = [] := by decide
 /-- Obelisk of Undoing -/
@@ -866,7 +882,8 @@ def academyJourneymage : Spelled := spelled <| singleFacedCard
 def alabasterLeech : Spelled := spelled <| singleFacedCard
   { name := "Alabaster Leech", cost := [pip .white], types := [.creature],
     subtypes := [leech],
-    text := [static (spellsCost (and [isSpell, hasColor .white, castBy you]) (moreBySymbols (symbols [pip .white])))],
+    text := [static (spellsCost (and [isSpell, hasColor .white, did you (cast which) thisObject])
+        (moreBySymbols (symbols [pip .white])))],
     power := stat 1, toughness := stat 3 }
 
 /-- Edgewalker -/
@@ -874,7 +891,7 @@ def edgewalker : Spelled := spelled <| singleFacedCard
   { name := "Edgewalker", cost := [generic 1, pip .white, pip .black], types := [.creature],
     subtypes := [human, cleric],
     text :=
-      [ static (spellsCost (and [cleric, isSpell, castBy you])
+      [ static (spellsCost (and [cleric, isSpell, did you (cast which) thisObject])
           (lessBySymbols (symbols [pip .white, pip .black]) (coloredOnly := true))) ],
     power := stat 2, toughness := stat 2 }
 
@@ -952,7 +969,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| singleFacedCard
     supertypes := [.legendary], types := [.creature], subtypes := [sphinx],
     text :=
       [ flying,
-        static (spellsCost (and [sphinx, isSpell, castBy you]) (less 2)),
+        static (spellsCost (and [sphinx, isSpell, did you (cast which) thisObject]) (less 2)),
         whenever
           (does (eitherOf thisCreature
             (a (and [sphinx, youControl, isOther]))) enter)

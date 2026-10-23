@@ -951,7 +951,7 @@ def ashZealot : Spelled := spelled <| singleFacedCard
       [ firstStrike,
         haste,
         whenever (does (a isPlayer) (cast (a
-          (and [isSpell, castFrom graveyard]))))
+          (and [isSpell, did any (cast which (from_ := graveyard)) thisObject]))))
           (instruct thisCreature (dealDamage 3 (that player))) ],
     power := stat 2, toughness := stat 2 }
 
@@ -1429,7 +1429,8 @@ def laquatussDisdain : Spelled := spelled <| singleFacedCard
   { name := "Laquatus's Disdain", cost := [generic 1, pip .blue], types := [.instant],
     text :=
       [ spell (sequentially
-          [ counter (target (and [isSpell, castFrom graveyard])), draw 1 ]) ] }
+          [ counter (target (and [isSpell, did any (cast which (from_ := graveyard)) thisObject])),
+              draw 1 ]) ] }
 
 /-- Stifle -/
 def stifle : Spelled := spelled <| singleFacedCard

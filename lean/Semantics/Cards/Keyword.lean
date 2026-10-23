@@ -149,12 +149,14 @@ def adelbertSteiner : Spelled := spelled <| singleFacedCard
 def inspiringStatuary : Spelled := spelled <| singleFacedCard
   { name := "Inspiring Statuary", cost := [generic 3], types := [.artifact],
     text :=
-      [ static (abilityGrant (allOf (and [non isArtifact, isSpell, castBy you])) improvise) ] }
+      [ static (abilityGrant (allOf (and [non isArtifact, isSpell,
+          did you (cast which) thisObject])) improvise) ] }
 
 def chiefEngineer : Spelled := spelled <| singleFacedCard
   { name := "Chief Engineer", cost := [generic 1, pip .blue], types := [.creature],
     subtypes := [vedalken, artificer],
-    text := [static (abilityGrant (allOf (and [isArtifact, isSpell, castBy you])) convoke)],
+    text := [static (abilityGrant (allOf (and [isArtifact, isSpell,
+        did you (cast which) thisObject])) convoke)],
     power := stat 1, toughness := stat 3 }
 
 def firesongAndSunspeaker : Ability :=
@@ -179,7 +181,8 @@ def prismariTheInspiration : Spelled := spelled <| singleFacedCard
     text :=
       [ flying,
         ward (payLife 5),
-        static (abilityGrant (allOf (and [isInstantOrSorcery, isSpell, castBy you])) storm) ],
+        static (abilityGrant (allOf (and [isInstantOrSorcery, isSpell,
+            did you (cast which) thisObject])) storm) ],
     power := stat 7, toughness := stat 7 }
 
 def tomakulHonorGuard : Spelled := spelled <| singleFacedCard
@@ -1082,7 +1085,7 @@ def archfiendsVessel : Spelled := spelled <| singleFacedCard
         when (does thisCreature enter)
           (if_ := some (or
             [ did it (enter (from_ := yourGraveyard)) triggering,
-              is it (and [castBy you, castFrom yourGraveyard]) ]))
+              is it (did you (cast which (from_ := yourGraveyard)) thisObject) ]))
           (triggerReflexively (exile it)
             (createToken
               { characteristics :=
@@ -1097,7 +1100,8 @@ def containmentPriest : Spelled := spelled <| singleFacedCard
     text :=
       [ flash,
         static (replace
-                  (would (a (and [isCreature, isNontoken, not (castBy any)])) enter)
+                  (would (a (and [isCreature, isNontoken,
+                      not (did any (cast which) thisObject)])) enter)
                   (instead (exile it))) ],
     power := stat 2, toughness := stat 2 }
 

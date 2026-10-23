@@ -31,7 +31,10 @@ theorem bracketedKindMismatchIsRefused :
 /-- "Counter target spell [that wasn't cast from a hand]." -/
 theorem okBracketedDescription :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (target (.and [isSpell, .bracketed (.not (.castFrom (.zone .hand none)))])) = [] := by decide
+      (target (.and [isSpell,
+        .bracketed (.not (did any (cast which (from_ := some (.zone .hand none))) thisObject))])) =
+      [] := by
+  decide
 
 /-- "[Draw a card.]": an action checks as its contents. -/
 theorem okBracketedAction : Action.check (DRS.ofList []) (.bracketed (draw 1)) = [] := by
