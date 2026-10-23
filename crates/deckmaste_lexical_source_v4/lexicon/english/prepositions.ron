@@ -18,7 +18,7 @@
 // this turn*, *the life you lost when it entered*). A preterite Complement of
 // *whenever* is well-formed English too, so the syncretic *cast* there has a
 // preterite Reading beside the present one, and semantics chooses
-// (docs/decisions/english-v4.md §4.4, item 10).
+// (docs/decisions/english-v4.md §4.4, principle 1).
 [
     // *a creature card directly above it*
     (lemma: "above", frames: [(complement: NP, hosts: Nominal)]),

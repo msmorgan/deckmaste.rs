@@ -6,7 +6,7 @@
 # `strata --check`. Evidence is the printed card disagreeing with its Oracle
 # text, or a missed template update: the printed card keeps an older template
 # that Oracle has since replaced, with the count of current Oracle texts that
-# carry the new wording (owner ruling, 2026-10-20). A sibling card alone is
+# carry the new wording. A sibling card alone is
 # supporting evidence only.
 
 card: Agency Outfitter
@@ -42,4 +42,4 @@ evidence: Missed template update. The printed card (RAV 72, Scryfall image ae3eb
 card: Spellshift
 oracle: Then the player shuffles.
 corrected: Then that player shuffles.
-evidence: Botched template update (owner ruling, 2026-10-22). The printed card (PLC 47, Scryfall image f5c897a6-5835-42ac-8cc7-e8d9fc1e7c77) reads "Then he or she shuffles his or her library", whose pronoun refers back to "That player". Oracle's gender-neutral update replaced it with "the player" rather than the current template "that player shuffles", which supported Oracle texts use in 54 places.
+evidence: Botched template update. The printed card (PLC 47, Scryfall image f5c897a6-5835-42ac-8cc7-e8d9fc1e7c77) reads "Then he or she shuffles his or her library", whose pronoun refers back to "That player". Oracle's gender-neutral update replaced it with "the player" rather than the current template "that player shuffles", which supported Oracle texts use in 54 places.

@@ -84,7 +84,7 @@ gives how many ambiguous units have a cheapest tier of one, the tiers' sum over
 ambiguous units, and the largest tier. Ranking never changes which Readings
 exist: verdicts, Readings and Surplus do not depend on it. These figures are a
 reported statistic, never an acceptance gate (`docs/decisions/english-v4.md`
-§4.4, item 7).
+§4.4, principle 4).
 
 `COMPLETED_STRATUM` is the highest Stratum whose gate is met. A unit at or below
 it that is not read is a regression, unless [`deferred.txt`](deferred.txt) names

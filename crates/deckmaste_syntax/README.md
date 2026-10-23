@@ -247,7 +247,7 @@ adjunct whose object a relative clause binds).
 ## The lexicon-to-syntax interface
 
 The engine never names a grammar feature, value or Category
-(`docs/decisions/english-v4.md` §4.4, item 4), with one exception: the lexicon
+(`docs/decisions/english-v4.md` §4.4, principle 6), with one exception: the lexicon
 feature-bundle mapping table, the single declared interface through which
 lexical facts reach the grammar's features. It is `PROJECTED` in
 `compile.rs` (the grammar features the engine projects onto leaves: `Number`,
@@ -271,7 +271,7 @@ Gap kinds and its reserved child names are not grammar names.
 environment's declared properties, including Catalog entries. Empty and
 singleton classes are reported. The grammar never enumerates their members.
 Binding reports features the same way (`english-lexical-analysis.md` §3,
-`english-v4.md` §4.4): a feature with no value, and a value with fewer than
+`english-v4.md` §4.4, principle 3): a feature with no value, and a value with fewer than
 two holders. A feature may declare one, privative, value, which is reported
 only by its holders. A value's holders are the lexemes that carry it and those
 that hold it through a Production setting it on its mother: the lexemes its

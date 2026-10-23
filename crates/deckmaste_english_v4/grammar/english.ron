@@ -23,7 +23,7 @@
         // The Number each conjunct of an *and*-coordination of nominals has,
         // which a determiner selects; the coordination itself is plural.
         "ConjunctNumber": ["Singular", "Plural"],
-        // Oracle text has no first person (owner ruling).
+        // Oracle text has no first person.
         "Person": ["Second", "Third"],
         "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         // A to-infinitival Clause is marked by its subordinator; a relative
@@ -86,8 +86,8 @@
         "PronounKind": ["Personal", "Existential", "Relative"],
         // `FreeChoice` has one holder, *any*, and that is the whole class, as
         // `Serial` is *time*. Determined and DeterminedModifiedQuantity
-        // exclude it, two kept admission gates (`docs/decisions/english-v4.md`
-        // §4.4, item 10): Determined's routes *any* to FreeChoiceDetermined,
+        // exclude it, two admission gates (`docs/decisions/english-v4.md`
+        // §4.5): Determined's routes *any* to FreeChoiceDetermined,
         // TransparentQuantity and TemporalQuantity, which carry number
         // transparency (CGEL, Ch. 5 §3.3, pp. 349–351: never *any number of
         // target creatures becomes*); and with
@@ -101,8 +101,8 @@
         // (*another three bodies*; set (c) [69–70]), where *a* does so only
         // with *further* or *additional*, read by DeterminedModifiedQuantity.
         // The two also part in temporal location: *another day*, never *a
-        // day* (Ch. 8 §6.3, p. 698), a kept gate on TemporalLocation
-        // (`docs/decisions/english-v4.md` §4.4, item 10).
+        // day* (Ch. 8 §6.3, p. 698), an admission gate on TemporalLocation
+        // (`docs/decisions/english-v4.md` §4.5).
         // `Targeting` has one holder, the Targeting Marker *target* (project
         // term, `docs/contexts/oracle-english/CONTEXT.md`): a determinative
         // that only determines a nominal, so it is kept apart from
@@ -165,7 +165,7 @@
         "AdjunctGapClause": (category: Some("Clause"), features: ["VerbForm"], gap: true),
         // A finite clause that opens with its Subject, as a bare relative's
         // does: no preposed adjunct comes before it (CGEL, Ch. 12 §3.5.5,
-        // p. 1055). A kept gate (ADR english-v4.md §4.4 item 10): "Bare
+        // p. 1055). An admission gate (ADR english-v4.md §4.5): "Bare
         // relatives always have the subject in initial position", so the
         // Category restates the Clause Productions that open with the Subject
         // and omits those that front an adjunct.
@@ -211,8 +211,8 @@
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         // A temporal nominal bounded by a relative clause (*next time you cast a
-        // spell*). A kept admission gate (`docs/decisions/english-v4.md` §4.4,
-        // item 10), a formation rule: a Noun Phrase is a temporal Adjunct only
+        // spell*). An admission gate (`docs/decisions/english-v4.md` §4.5),
+        // a formation rule: a Noun Phrase is a temporal Adjunct only
         // in restricted forms (CGEL, Ch. 8 §6.3, p. 698), and a temporal
         // nominal in one takes a *when*-less adverbial relative clause, then at
         // most a temporal bound, and no other postmodifier (*the next time
@@ -234,8 +234,8 @@
         "TargetedOblique": (category: Some("PrepositionPhrase"), features: ["Number", "NounKind"]),
         "TargetedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "NounKind", "Countability"]),
         "BareNominalComplement": (category: Some("Nominal")),
-        // A genitive's possessor: a Noun Phrase that ends in its head. A kept
-        // admission gate (`docs/decisions/english-v4.md` §4.4, item 10), a
+        // A genitive's possessor: a Noun Phrase that ends in its head. An
+        // admission gate (`docs/decisions/english-v4.md` §4.5), a
         // register formation rule: English has the phrasal genitive (*the King
         // of England's daughter*; CGEL, Ch. 5 §16.6, p. 479), but Oracle never
         // postmodifies a possessor, and fronts the player noun instead "to
@@ -296,8 +296,8 @@
         "PostmodifierConjunct": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "PostmodifierCoordination": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind", "Polarity"]),
-        // An asyndetic chain of premodifiers. A kept admission gate
-        // (`docs/decisions/english-v4.md` §4.4, item 10), a register formation
+        // An asyndetic chain of premodifiers. An admission gate
+        // (`docs/decisions/english-v4.md` §4.5), a register formation
         // rule: Oracle sets off with commas only independent *non-*
         // premodifiers of one head (`docs/oracle-style-guide.md` §6,
         // Determiners and modifier order), so the chain never holds an
@@ -1501,7 +1501,7 @@
         // *reduce* and *increase* select (*reduced by {2}*, *increased by
         // two*; Ch. 8 §5.2, p. 692): both Readings are well-formed, and
         // semantics rejects the agent one by type (`docs/decisions/english-v4.md`
-        // §4.4, item 10). A *by* gerund is a means Adjunct (p. 1428).
+        // §4.4, principle 1). A *by* gerund is a means Adjunct (p. 1428).
         // Voice is a verb's: another head's phrase takes its Voice from the
         // head (a declared Adjectival Passive). A passive is headed by a past
         // participle. An auxiliary verb derives no
@@ -1636,8 +1636,8 @@
         // the coordination's function alone (CGEL, Ch. 15 §3.1, p. 1323,
         // rule [1]), and a number fills no Noun Phrase Complement slot, so
         // never *is dealt [3] or [more damage]*. Numbers alone are an Amount
-        // coordination (*2 or 3*). A kept admission gate
-        // (`docs/decisions/english-v4.md` §4.4, item 10).
+        // coordination (*2 or 3*). An admission gate
+        // (`docs/decisions/english-v4.md` §4.5).
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),

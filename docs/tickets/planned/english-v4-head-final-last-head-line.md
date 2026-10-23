@@ -45,7 +45,7 @@ census, every Reading count, Surplus and the cheapest tier identical, and
 The forest key must equal the tree key (`ranking_keys`). That is engine
 consistency, not a ranking gate.
 
-## Acceptance (round 9: `docs/decisions/english-v4.md` §4.4, item 9)
+## Acceptance (`docs/decisions/english-v4.md` §4.4, principles 4 and 5)
 
 - No face is lost.
 - Every judgment's positive assertions hold.
@@ -54,8 +54,8 @@ consistency, not a ranking gate.
 - No pathological forest explosion on real cards.
 
 The landing reports the cheapest-tier figures and the judgment-set S/A/P/F,
-but they are not gates (item 7). No Attachment Class, Production Cost tweak or
-residual ticket is added to win a rank (item 8).
+but they are not gates (principle 4). No Attachment Class, Production Cost
+tweak or residual ticket is added to win a rank.
 
 Standard constraints apply.
 

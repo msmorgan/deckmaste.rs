@@ -70,11 +70,11 @@ endorsed constituent structure is admitted, and a `!` assertion or a `*` entry
 that a form is not. No entry fails because a well-formed alternative ties
 with the endorsed Reading or ranks ahead of it: the Ranking Key is a heuristic
 traversal and presentation order, not a correctness gate
-(`docs/decisions/english-v4.md` §4.4, round 9). Assert a count only when the
+(`docs/decisions/english-v4.md` §4.4, principle 4). Assert a count only when the
 count is the claim: exactly one Reading, or exactly the set of analyses each
 of which is endorsed. Where English grammar admits a dispreferred analysis
 beside the intended one, assert the intended analysis, not that the other
-analysis is absent (`docs/decisions/english-v4.md` §4.4).
+analysis is absent.
 
 ## What a negative entry may claim
 
