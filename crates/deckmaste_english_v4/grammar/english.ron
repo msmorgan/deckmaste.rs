@@ -647,9 +647,11 @@
         // combat phase after this phase, followed by an additional main
         // phase*; CGEL, Ch. 14 §9.1, p. 1265; Ch. 15 §5.1, p. 1350). It
         // supplements one conjunct, never a whole coordination (*X is …,
-        // rounded down, and Y is …, rounded up*).
+        // rounded down, and Y is …, rounded up*). Like the engine's comma-set
+        // post-adjuncts, it is outside any relative clause (CGEL, Ch. 12 §4,
+        // p. 1058), so its head Clause passes up no Gap.
         (name: "ParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
-            equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], transparent: ["head"], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
+            equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], uncoordinated: ["head"], heavy: ["supplement"], cost: 3),
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
@@ -1318,8 +1320,12 @@
             equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Agree("$.Number", "clause.Number"), Agree("marker.Number", "clause.Number"), Exclude("marker.Case", "Accusative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectGap", lhs: "SubjectGapClause", rhs: [Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Finite"), Require("head.Person", "Third"), Exclude("head.Inflection", "Irrealis"), Require("$.Gap", "NP")]),
+        // With a floated *each*, as without it, a subject-gap relative excludes
+        // the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88). That form is
+        // third person singular only, so the plural Requirement keeps it out
+        // too; the Exclude states SubjectGap's rule here as well.
         (name: "FloatedEachSubjectGap", lhs: "SubjectGapClause", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
-            equations: [Require("head.VerbForm", "Finite"), Require("head.Number", "Plural"), Require("head.Person", "Third"), Require("$.Gap", "NP")]),
+            equations: [Require("head.VerbForm", "Finite"), Require("head.Number", "Plural"), Require("head.Person", "Third"), Exclude("head.Inflection", "Irrealis"), Require("$.Gap", "NP")]),
         // *whose*: the relative phrase is the Subject or fills an object Gap.
         (name: "GenitiveRelativePhrase", lhs: "RelativeNounPhrase", rhs: [Lex("determiner", Pronoun), Cat("head", "Nominal")],
             equations: [Require("determiner.PronounKind", "Relative"), Carry("determiner.Case", "Genitive")]),
