@@ -30,7 +30,16 @@ now allows.
   changed unit is explained. Nothing new admitted; no face or endorsed
   analysis lost.
 
+## Resolution
+
+Owner ruling round 13, item 3: the Negative* half lands alone (−4 Categories,
+−6 duplicated Productions); `Polarity` is two-valued, `["Affirmative",
+"Negative"]`, since the lexicon already gives auxiliaries `Affirmative`.
+SubjectInitialClause and its 5 restated Productions stay: category fission is
+the required form here; a head-propagated feature cannot express the listing
+without a new engine field.
+
 Standard constraints apply.
 
-1. **Census delta**: not yet measured.
-2. **Judgment set**: not yet measured.
+1. **Census delta** (`xpqpupwk` → `lkwknrrq`, full corpus; the Negative* half only): faces read 28,801 → 28,801; total Readings 245,781 → 245,781, Surplus 106,817 → 106,817, no unit changed. Lost faces: none.
+2. **Judgment set** (`lkwknrrq`): 3,052 enforced, 206 pending; all hold.
