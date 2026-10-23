@@ -54,3 +54,23 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+*X, then Y* is a Linked Coordination: an engine Coordination with no
+Coordinator (`link:`), whose Linked Conjunct (LinkedClause, LinkedVerbPhrase)
+is marked by its initial connective, an Adjunct in the new `Linking` position
+(CGEL, Ch. 15 §2.10, pp. 1319–1320), set off by the comma before it. Clauses
+of like or mixed moods and Verb Phrases sharing a Subject or modal link,
+binary and serial; a chain has one tree, its serial (`Summary::link`); *then*
+may scope over a coordination by a Coordinator (Vampiric Tutor also keeps
+*[A, then B] and C*); and a Clause Complement of a preposition is never a
+Linked Coordination (`unlinked`). *Then* is also central (*may then*). An
+adverb before a bare imperative is its Clause's front Adjunct only
+(`CentralPosition`; *secretly* and *simultaneously* gain a front position),
+which removes the *also* duplicate. `then_sequencing.txt`'s *Then draw a card
+and discard a card* now has two Readings, the scopes the instead-tail change
+admits for a comma-less preposed Adjunct. `card_noun_premodifier.txt:11` still
+fails on *[card or Gate] card*, which its stratum-6 sentence without *then*
+admits too.
+
+1. **Census delta** (`xonulypx` → `nsmwosmr`, full corpus): faces read 30,426 → 32,574; total Readings 280,596 → 315,929; Surplus 117,211 → 132,421; 2,212 units changed (2,207 newly read, 1 grown, 4 shrunk). Lost faces: none.
+2. **Judgment set** (`nsmwosmr`): 3,103 enforced, 272 pending; all hold.

@@ -232,6 +232,8 @@ struct Draft {
     /// The coordinator a correlative coordination's serial tail must end with.
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
+    /// Children that are not, nor are headed by, a Linked Coordination.
+    unlinked: Vec<usize>,
     scoped: Vec<usize>,
     /// A binary coordination with a delimiter before its coordinator.
     delimits: bool,
@@ -252,6 +254,8 @@ struct Draft {
     omits_complement: bool,
     /// It ends in an ellipsis site (`ProductionDecl::elliptical`).
     elliptical: bool,
+    /// A Linked Coordination's identity (`Production::link`).
+    link: Option<LexemeId>,
 }
 
 /// What a Valence schema declares its derived phrases carry, beyond their
@@ -314,6 +318,7 @@ impl Draft {
             requires_coordination: None,
             paired_coordinator: None,
             uncoordinated: Vec::new(),
+            unlinked: Vec::new(),
             scoped: Vec::new(),
             delimits: false,
             tail: false,
@@ -325,6 +330,7 @@ impl Draft {
             internalised: None,
             omits_complement: false,
             elliptical: false,
+            link: None,
         }
     }
 
@@ -382,19 +388,20 @@ impl<'a> Binder<'a> {
             if let SchemaDecl::Coordination {
                 category,
                 coordinators,
+                link,
                 ..
             } = schema
             {
+                if coordinators.is_some() == link.is_some() {
+                    return Err(invalid(format!(
+                        "coordination of `{category}` names exactly one of `coordinators` and `link`"
+                    )));
+                }
                 let declaration = declared
                     .get(category)
                     .cloned()
                     .ok_or_else(|| invalid(format!("unknown category `{category}`")))?;
-                let tail = Ident::new(&serial_tail(
-                    &grammar.schemas,
-                    schema,
-                    category,
-                    coordinators,
-                ));
+                let tail = Ident::new(&serial_tail(&grammar.schemas, schema, category));
                 declared.insert(Ident::new(&format!("{tail}+")), declaration.clone());
                 declared.insert(Ident::new(&format!("{tail}++")), declaration.clone());
                 declared.insert(tail, declaration);
@@ -975,6 +982,14 @@ impl<'a> Binder<'a> {
                 .ok_or_else(|| context(invalid(format!("unknown uncoordinated child `{name}`"))))?;
             draft.uncoordinated.push(child);
         }
+        for name in &declaration.unlinked {
+            let child = draft
+                .children
+                .iter()
+                .position(|c| c.name == *name)
+                .ok_or_else(|| context(invalid(format!("unknown unlinked child `{name}`"))))?;
+            draft.unlinked.push(child);
+        }
         for name in &declaration.scoped {
             let child = draft
                 .children
@@ -1511,6 +1526,7 @@ impl<'a> Binder<'a> {
         production.predicative = draft.predicative;
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
+        production.unlinked = draft.unlinked;
         production.scoped = draft.scoped;
         production.delimits = draft.delimits;
         production.tail = draft.tail;
@@ -1528,6 +1544,7 @@ impl<'a> Binder<'a> {
         } else {
             crate::step::Omission::None
         };
+        production.link = draft.link;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -2723,6 +2740,7 @@ impl<'a> Binder<'a> {
         let SchemaDecl::Coordination {
             category,
             coordinators,
+            link,
             cost,
             delimiter,
             delimited,
@@ -2734,6 +2752,11 @@ impl<'a> Binder<'a> {
         };
         let conjoin = Conjoin::new(self, schema)?;
         let serials = serial_shapes.unwrap_or(conjoin.unlike.is_none());
+        let Some(coordinators) = coordinators else {
+            let link = link.as_deref().expect("a coordination names its link");
+            return self
+                .linked_coordination(&conjoin, link, *cost, *delimiter, *delimited, serials);
+        };
         let coordinator = self.coordinator_test(coordinators)?;
         let mut drafts = Vec::new();
         // The whole coordination, plain and after each correlative marker
@@ -2856,6 +2879,96 @@ impl<'a> Binder<'a> {
     }
 }
 
+impl Binder<'_> {
+    /// The drafts of a Linked Coordination schema, which has no Coordinator:
+    /// the Conjunct after each link is of the `link` Category, marked by its
+    /// own initial connective (*Draw a card, then discard a card*; CGEL,
+    /// Ch. 15 §2.10, pp. 1319–1320). Its shapes are the binary (only with the
+    /// delimiter when `delimited`) and the serial, whose middle Conjuncts are
+    /// ordinary ones that may begin with the connective as well (*A, B, then
+    /// C*; *A, then B, then C*): the serial reads every such chain, so there
+    /// is no polysyndetic shape. Its identity is its serial tail's name:
+    /// no Conjunct is, or is headed by, a Linked Coordination of the same
+    /// identity (`Summary::link`), so each chain has one tree.
+    fn linked_coordination(
+        &self,
+        conjoin: &Conjoin,
+        link: &str,
+        cost: u32,
+        delimiter: Option<char>,
+        only_delimited: bool,
+        serials: bool,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let marked = Symbol::Cat {
+            binding: None,
+            category: self.category(link)?,
+            prepositions: None,
+            host: None,
+        };
+        let identity = Ident::new(&conjoin.tail_name);
+        let id = |shape: &str| format!("Coordination:{}/{shape}", conjoin.tail_name);
+        let mut drafts = Vec::new();
+        // Binary: X Y, or X , Y.
+        let mut binaries = Vec::new();
+        if !only_delimited {
+            binaries.push(("binary", None));
+        }
+        if let Some(mark) = delimiter {
+            binaries.push(("binary-delimited", Some(mark)));
+        }
+        for (shape, mark) in binaries {
+            let mut draft = Draft::new(id(shape), conjoin.lhs, cost);
+            let a = draft.child("first", conjoin.conjunct(), GapRule::Shared);
+            if let Some(mark) = mark {
+                draft.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+                draft.delimits = true;
+            }
+            let b = draft.child("last", marked.clone(), GapRule::Shared);
+            draft.coordinator = Some(b);
+            draft.link = Some(identity);
+            draft.distinct_coordinator = vec![a, b];
+            draft.unlike = conjoin.unlike.map(|f| (a, b, f));
+            conjoin.close(self, &mut draft, &[a, b], Edge::Whole { last: true })?;
+            drafts.push(draft);
+        }
+        if !serials {
+            return Ok(drafts);
+        }
+        // Serial: X , X , Y — the whole, and its tail of one or more links.
+        let mut serial = Draft::new(id("serial"), conjoin.lhs, cost);
+        let a = serial.child("first", conjoin.conjunct(), GapRule::Shared);
+        serial.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        let t = serial.child("rest", conjoin.tail(), GapRule::Shared);
+        serial.coordinator = Some(t);
+        serial.link = Some(identity);
+        serial.distinct_coordinator = vec![a];
+        serial.unlike = conjoin.unlike.map(|f| (a, t, f));
+        conjoin.close(self, &mut serial, &[a, t], Edge::Whole { last: false })?;
+        drafts.push(serial);
+        let mut more = Draft::new(id("serial-more"), conjoin.tail_id, 0);
+        let a = more.child("first", conjoin.conjunct(), GapRule::Shared);
+        more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        let t = more.child("rest", conjoin.tail(), GapRule::Shared);
+        more.coordinator = Some(t);
+        more.link = Some(identity);
+        more.distinct_coordinator = vec![a];
+        conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
+        conjoin.carry_unlike(&mut more, t);
+        drafts.push(more);
+        let mut end = Draft::new(id("serial-end"), conjoin.tail_id, 0);
+        let a = end.child("first", conjoin.conjunct(), GapRule::Shared);
+        end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        let b = end.child("last", marked, GapRule::Shared);
+        end.coordinator = Some(b);
+        end.link = Some(identity);
+        end.distinct_coordinator = vec![a, b];
+        conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
+        conjoin.carry_unlike(&mut end, b);
+        drafts.push(end);
+        Ok(drafts)
+    }
+}
+
 /// Which part of a coordination a draft builds.
 #[derive(Clone, Copy)]
 enum Edge {
@@ -2894,7 +3007,6 @@ impl Conjoin {
     fn new(binder: &Binder<'_>, schema: &SchemaDecl) -> Result<Self, LoadError> {
         let SchemaDecl::Coordination {
             category,
-            coordinators,
             unshared,
             equations,
             proximate,
@@ -2967,7 +3079,7 @@ impl Conjoin {
             }
             resolutions.push((feature, binder.value(feature, value)?));
         }
-        let tail_name = serial_tail(&binder.grammar.schemas, schema, category, coordinators);
+        let tail_name = serial_tail(&binder.grammar.schemas, schema, category);
         let tail_id = binder.out.category_id(&tail_name).ok_or_else(|| {
             invalid(format!(
                 "coordination of `{category}` needs a category `{tail_name}`"
@@ -3371,19 +3483,16 @@ fn equation_path(equation: &Equation) -> &str {
 }
 
 /// The engine-owned serial tail Category of a coordination schema: by its
-/// coordinators, numbered after the first schema with the same ones.
-fn serial_tail(
-    schemas: &[SchemaDecl],
-    schema: &SchemaDecl,
-    category: &str,
-    coordinators: &str,
-) -> String {
+/// coordinators (or Linked Conjunct Category), numbered after the first
+/// schema with the same ones.
+fn serial_tail(schemas: &[SchemaDecl], schema: &SchemaDecl, category: &str) -> String {
+    let coordinators = schema.joined_by().unwrap_or_default();
     let earlier = schemas
         .iter()
         .take_while(|s| !std::ptr::eq(*s, schema))
         .filter(|s| {
-            matches!(s, SchemaDecl::Coordination { category: c, coordinators: k, .. }
-                if c == category && k == coordinators)
+            matches!(s, SchemaDecl::Coordination { category: c, .. }
+                if c == category && s.joined_by() == Some(coordinators))
         })
         .count();
     if earlier == 0 {

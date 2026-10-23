@@ -113,7 +113,10 @@
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
-        "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Bounding"],
+        // `Linking` is the position of a connective that marks a Linked
+        // Coordination, initial in its Linked Conjunct (CGEL, Ch. 15 §2.10,
+        // pp. 1319–1320).
+        "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Bounding", "Linking"],
         // A Clause whose front position holds a dependent set off by a comma
         // (*If you do, ...*, *Once each turn, ...*). Front dependents that
         // share one comma are siblings in one Production (*Then if ...*,
@@ -125,6 +128,14 @@
         // over the first conjunct or the whole (*Once each turn, C1, and
         // C2*), never split between the two.
         "FrontPosition": ["Occupied"],
+        // A Verb Phrase that begins with a central Adjunct (*also gains
+        // trample*). A bare imperative has no Subject, so its front and
+        // central positions coincide: an adverb before it is its Clause's
+        // front Adjunct (*Also draw a card*, *Then [draw a card and discard
+        // a card]*), as a chain of bare imperatives is coordinated Clauses,
+        // and never also a central Adjunct of its Verb Phrase: one tree per
+        // analysis (`english-lexical-analysis.md` §2).
+        "CentralPosition": ["Occupied"],
         "Inflection": ["Invariant", "IndependentGenitive", "Singular", "Plural", "Plain", "Present", "Preterite", "Irrealis", "GerundParticiple", "PastParticiple"],
     },
     categories: {
@@ -183,7 +194,13 @@
         "SubjectInitialClause": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
         // A participle premodifying a nominal (*attacking creature*).
         "Participle": (category: Some("VerbPhrase"), features: ["Inflection", "Polarity"]),
-        "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive"], gap: true),
+        "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive", "CentralPosition"], gap: true),
+        // The Linked Conjunct of a Linked Coordination: a Clause or Verb
+        // Phrase marked by its initial linking connective, its Adjunct
+        // (*Draw a card, [then discard a card]*; *Each player discards a
+        // card, [then draws a card]*; CGEL, Ch. 15 §2.10, pp. 1319–1320).
+        "LinkedClause": (category: Some("Clause"), features: ["VerbForm", "ClauseMarking", "Inflection", "FrontPosition"], gap: true),
+        "LinkedVerbPhrase": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive", "CentralPosition"], gap: true),
         // Existential *there* and the predicate it is subject of (CGEL, Ch. 16
         // §6.1, p. 1391).
         "DummyPronoun": (category: Some("NounPhrase"), features: ["Number", "Person"]),
@@ -444,7 +461,7 @@
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -522,7 +539,7 @@
         (name: "GroupedNumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(true))], equations: [Agree("$.QuantityNumber", "head.Number")]),
         // A multiplying or bounding adverb modifies a quantity (*up to
         // twice X target cards*).
-        (name: "AdverbModifiedAmount", lhs: "Amount", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "Amount")], equations: [Exclude("modifier.AdjunctPosition", "Central"), Exclude("modifier.AdjunctPosition", "End")]),
+        (name: "AdverbModifiedAmount", lhs: "Amount", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "Amount")], equations: [Exclude("modifier.AdjunctPosition", "Central"), Exclude("modifier.AdjunctPosition", "End"), Exclude("modifier.AdjunctPosition", "Linking")]),
         (name: "UnsignedMeasureAmount", lhs: "SignedAmount", rhs: [Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
         (name: "PositiveMeasureAmount", lhs: "SignedAmount", rhs: [Mark('+', Prefix), Cat("head", "Amount")], equations: []),
         (name: "NegativeMeasureAmount", lhs: "SignedAmount", rhs: [Mark('-', Prefix), Cat("head", "Amount")], equations: []),
@@ -654,8 +671,10 @@
         (name: "SentencePrefixedModalHeader", lhs: "ModalHeader", rhs: [Cat("first", "Sentence"), Cat("head", "ModalHeader")]),
 
         // Sentences: a bare imperative or a declarative clause.
+        // An adverb before a bare imperative is its Clause's front Adjunct,
+        // never a central one of its Verb Phrase (CentralPosition).
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
-            equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked")]),
+            equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked"), Exclude("head.CentralPosition", "Occupied")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
         // Restated as RelativeSubjectPredicate (a SubjectInitialClause, for
         // bare relatives); a change to one must be made to the other.
@@ -723,6 +742,19 @@
             equations: [Require("$.AdjunctPosition", "Central")]),
         (name: "FrontAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "FrontAdverb")],
             equations: [Require("$.AdjunctPosition", "Front")]),
+        (name: "LinkingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "LinkingAdverb")],
+            equations: [Require("$.AdjunctPosition", "Linking")]),
+        // A Linked Conjunct: its linking connective is its Adjunct, never a
+        // Coordinator, whether it is the sole link (*Draw a card, then
+        // discard a card*) or follows one (*and then discard a card*, a front
+        // Adjunct). It may scope over a coordination by a Coordinator (*then
+        // [shuffle and put that card on top]*; CGEL, Ch. 15 §2.10, pp.
+        // 1319–1320; `docs/oracle-style-guide.md` §3, Commas and the serial
+        // comma; §10, Sequence).
+        (name: "LinkedClause", lhs: "LinkedClause", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "Clause")],
+            equations: [Require("adjunct.AdjunctPosition", "Linking")], transparent: ["head"]),
+        (name: "LinkedVerbPhrase", lhs: "LinkedVerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
+            equations: [Require("adjunct.AdjunctPosition", "Linking")], transparent: ["head"]),
         // A front adverbial set off by a comma (*Once each turn, ...*).
         (name: "FrontAdverbial", lhs: "Clause", rhs: [Cat("adjunct", "AdverbPhrase"), Punct(','), Cat("head", "Clause")],
             equations: [Require("adjunct.AdjunctPosition", "Front"), Require("$.FrontPosition", "Occupied")], transparent: ["head"], cost: 2),
@@ -745,7 +777,7 @@
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
-            equations: [Require("adjunct.AdjunctPosition", "Central")], transparent: ["head"]),
+            equations: [Require("adjunct.AdjunctPosition", "Central"), Require("$.CentralPosition", "Occupied")], transparent: ["head"]),
 
         // Auxiliaries take a verb phrase complement through which a Gap passes.
         (name: "AuxiliaryParticiple", lhs: "AuxiliaryComplement", rhs: [Cat("head", "VerbPhrase")], transparent: ["head"]),
@@ -933,7 +965,7 @@
             equations: [Require("head.NounKind", "Temporal")], cost: 2),
         (name: "TemporalAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "TemporalNounPhrase")], transparent: ["head"], cost: 2),
         (name: "MannerAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "NounPhrase")], equations: [Carry("adjunct.NounKind", "Manner")], transparent: ["head"], cost: 2),
-        (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal")]),
+        (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal"), Exclude("head.AdjunctPosition", "Linking")]),
         (name: "NumericCountPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.QuantityNumber", "head.Number")]),
         (name: "NumericMassPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
         (name: "CardinalCountPremodifier", lhs: "QuantifiedNominal", rhs: [Numeral("modifier", Cardinal), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.Number", "head.Number")]),
@@ -1538,8 +1570,13 @@
         // Clause Complements of a Preposition (CGEL, Ch. 7 §1, pp. 599–600):
         // a finite Clause (*when this creature enters*), or a reducible
         // verbless Clause without its Subject (*if able*; Ch. 14 §10(b), p. 1267).
+        // A sole connective links instructions and main clauses, never
+        // subordinate ones (CGEL, Ch. 15 §2.10, p. 1320; `docs/oracle-style-
+        // guide.md` §10, Sequence: "`Then` orders instructions"): *until
+        // [they exile a nonland card], then you may cast it*, never *until
+        // [they exile a nonland card, then you may cast it]*.
         (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")],
-            equations: [Require("head.VerbForm", "Finite")]),
+            equations: [Require("head.VerbForm", "Finite")], unlinked: ["head"]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
 
         // Interrogative content clauses: closed (*whether ...*), with an
@@ -1691,17 +1728,27 @@
         // Coordinated Verb Phrases share Voice and VerbKind, so an auxiliary
         // that selects them sees a value (*it has attacked or blocked* is no
         // passive perfect).
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive"]),
+        // A coordination begins where its first conjunct does
+        // (CentralPosition).
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")]),
         // An active and a passive Verb Phrase coordinate too (*enters
         // or is put into a graveyard*), leaving Voice and VerbKind unvalued;
         // past participles do not, since a participle's Voice is what selects
         // it (*attacked or blocked by this creature* is passive throughout).
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"], equations: [Exclude("first.VerbForm", "PastParticiple")], unlike: Some("Voice"), serial: Some(true)),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition"), Exclude("first.VerbForm", "PastParticiple")], unlike: Some("Voice"), serial: Some(true)),
         // A gerund-participle and then a past participle (*blocking or
         // blocked by this creature*).
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")], proximate: ["VerbKind", "Voice"]),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "VerbForm", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition"), Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")], proximate: ["VerbKind", "Voice"]),
         // Contrastive *but* joins predicates (*you control but don't own*).
-        Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["Inflection", "AdjectivalPassive"]),
+        Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")]),
+        // A Linked Coordination of Verb Phrases sharing a Subject or modal
+        // (*Each player discards a card, then draws a card*; *may search
+        // ..., put ..., then shuffle*), set off by the comma before its
+        // connective (`docs/oracle-style-guide.md` §3, Commas and the serial
+        // comma: "before `then` within a sequence"). Its Conjuncts may each
+        // begin with the connective (*loses ..., then discards ..., then
+        // sacrifices ...*).
+        Coordination(category: "VerbPhrase", link: Some("LinkedVerbPhrase"), unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")], delimiter: Some(','), delimited: true),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
         // *"A" and "B"*; *"A," "B," and "C."*
         Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
@@ -1713,6 +1760,15 @@
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        // Linked Coordinations of Clauses, imperative or declarative, of
+        // like or mixed moods as the Coordinator's are (*Draw a card, then
+        // discard a card*; *Tap it, then you may sacrifice an artifact*;
+        // *Search ..., put it into your hand, then shuffle*), set off by the
+        // comma before the connective (`docs/oracle-style-guide.md` §3,
+        // Commas and the serial comma; §10, Sequence).
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), delimited: true),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.
         // Every conjunct but the last shares its Determination, and the

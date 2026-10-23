@@ -1058,7 +1058,10 @@ the verb and perhaps some or all of its dependents (CGEL, Ch. 8 §20.1,
 pp. 779–780; Ch. 6 §7.1, p. 575). An Adverb that modifies an adjective, adverb,
 determinative or numeral inside its phrase, rather than a Clause, has a
 phrasal position instead, outside this three-way contrast (CGEL, Ch. 6 §5.1,
-pp. 562–563).
+pp. 562–563). A connective that marks a Linked Coordination has a linking
+position, initial in its Linked Conjunct (CGEL, Ch. 15 §2.10, pp. 1319–1320).
+In a bare imperative, which has no Subject, front and central position
+coincide.
 
 **Connective Adjunct**:
 An Adjunct relating its Clause to surrounding text or context, such as
@@ -1170,6 +1173,18 @@ attributes, postmodifiers, predicate Adjuncts (*second from the top or on the
 bottom*) and an Object with keyword phrases (*base power and toughness 4/4,
 flying, and haste*).
 _Avoid_: mixed coordination
+
+**Linked Coordination** (project term):
+A Coordination without a Coordinator, whose non-initial Conjunct is marked
+instead by a connective adverb initial in it, its Adjunct: *Draw a card,
+[then discard a card]*. The connective is the sole linking item of CGEL,
+Ch. 15 §2.10, pp. 1319–1320; after a Coordinator it is an Adjunct only (*and
+then discard a card*). It links main clauses and Verb Phrases, never
+subordinate clauses.
+_Avoid_: treating *then* as a Coordinator
+
+**Linked Conjunct** (project term):
+The Conjunct of a Linked Coordination that its connective marks.
 
 **Delimited Polysyndetic Coordination** (project term):
 A polysyndetic Coordination, with a Coordinator before every non-initial

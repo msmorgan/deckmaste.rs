@@ -221,6 +221,9 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
+    /// Children that may not be, nor be headed by, a Linked Coordination
+    /// (`Summary::link`).
+    pub unlinked: Vec<usize>,
     /// Lexical children that cost one more where their leaf was not admitted
     /// through the face's scope (`ProductionDecl::scoped`).
     pub scoped: Vec<usize>,
@@ -249,6 +252,11 @@ pub(crate) struct Production {
     pub auxiliary: Option<usize>,
     /// The Complements its phrase omits at its right edge.
     pub omission: Omission,
+    /// The identity of the Linked Coordination it builds, which has no
+    /// Coordinator leaf: it stands for one as the coordination's own
+    /// (`Summary::coordinator`) and keeps each chain to one tree
+    /// (`Summary::link`).
+    pub link: Option<LexemeId>,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -398,6 +406,7 @@ pub(crate) fn resolve(
         predicative: None,
         paired_coordinator: None,
         uncoordinated: Vec::new(),
+        unlinked: Vec::new(),
         scoped: Vec::new(),
         delimits: false,
         tail: false,
@@ -408,6 +417,7 @@ pub(crate) fn resolve(
         unlike: None,
         auxiliary: None,
         omission: Omission::None,
+        link: None,
         id,
         lhs,
         rhs,
@@ -457,6 +467,7 @@ pub(crate) fn resolve(
             adjunct_extension: None,
             internal_comma: false,
             unwritten_period: false,
+            headed_link: None,
         },
     })
 }
@@ -550,6 +561,12 @@ pub(crate) struct Summary {
     /// It ends in the final period of a quotation, which is not written
     /// (`chart::quotations`): no other period follows it there.
     pub unwritten_period: bool,
+    /// The identity of the Linked Coordination it is, or that its head line
+    /// ends in through `head` children (*then [draw a card, then discard a
+    /// card]*). No Conjunct of a Linked Coordination carries the
+    /// coordination's own: a chain linked by one connective has one tree,
+    /// its serial (`Production::link`).
+    pub link: Option<LexemeId>,
 }
 
 /// A lexical leaf as a child sees it.
@@ -628,6 +645,8 @@ pub(crate) struct State {
     /// The last child so far ends in a period not written
     /// (`Summary::unwritten_period`).
     pub unwritten_period: bool,
+    /// The `head` child's `Summary::link`.
+    headed_link: Option<LexemeId>,
 }
 
 impl Production {
@@ -1111,6 +1130,21 @@ impl Production {
         !host.is_some_and(|kind| summary.hosts & crate::frames::host_bit(kind) == 0)
     }
 
+    /// Records the Linked Coordination that child `position`, the head, is
+    /// or is headed by (`Summary::link`), or `None` if the child may not be
+    /// one: an `unlinked` child, or a Conjunct of a Linked Coordination of the
+    /// same identity.
+    fn track_link(&self, next: &mut State, position: usize, summary: &Summary) -> Option<()> {
+        if self.head == Some(position) {
+            next.headed_link = summary.link;
+        }
+        let same_chain = self.link == summary.link && self.distinct_coordinator.contains(&position);
+        if summary.link.is_some() && (self.unlinked.contains(&position) || same_chain) {
+            return None;
+        }
+        Some(())
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -1209,6 +1243,7 @@ impl Production {
                 if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
                     return None;
                 }
+                self.track_link(&mut next, position, summary)?;
                 // A comma that no bracket closes stays inside every phrase
                 // that contains it, to the end of its sentence.
                 if summary.internal_comma {
@@ -1341,7 +1376,7 @@ impl Production {
             },
             last_resolved,
             extensions: state.extensions,
-            coordinator: state.coordinator,
+            coordinator: self.link.or(state.coordinator),
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
@@ -1358,6 +1393,7 @@ impl Production {
                 || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
+            link: self.link.or(state.headed_link),
         })
     }
 }

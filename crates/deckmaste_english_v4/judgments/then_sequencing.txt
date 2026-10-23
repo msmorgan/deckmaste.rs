@@ -15,9 +15,21 @@
 + Then draw a card. => AdverbPhrase "Then" as Adjunct of draw; readings 1
 + Then that player shuffles. => AdverbPhrase "Then" as Adjunct of shuffle; NounPhrase "that player" as Subject of shuffle; readings 1
 + Otherwise, draw a card. => AdverbPhrase "Otherwise" as Adjunct of draw; readings 1
-+ Also draw a card. => AdverbPhrase "Also" as Adjunct of draw
++ Also draw a card. => AdverbPhrase "Also" as Adjunct of draw; readings 1
 + Then if you control a creature, draw a card. => AdverbPhrase "Then" as Adjunct of draw; PrepositionPhrase "if you control a creature" as Adjunct of draw; readings 1
-+ Then draw a card and discard a card. => AdverbPhrase "Then"; Clause "draw a card and discard a card"; readings 1
++ Then draw a card and discard a card. => AdverbPhrase "Then"; Clause "draw a card and discard a card" || AdverbPhrase "Then"; Clause "Then draw a card"; readings 2
 * Then that player shuffle.
 * Then draws a card.
 + You choose which creatures block this turn and how those creatures block. => Clause "how those creatures block"; !AdverbPhrase "how"; readings 2
++ <card=Vampiric Tutor> Search your library for a card, then shuffle and put that card on top. => Clause "then shuffle and put that card on top"; AdverbPhrase "then"; Clause "shuffle and put that card on top"; Clause "shuffle"; Clause "put that card on top"
++ <card=Pox> Each player loses a third of their life, then discards a third of the cards in their hand, then sacrifices a third of the creatures they control of their choice, then sacrifices a third of the lands they control of their choice. => VerbPhrase "loses a third of their life"; AdverbPhrase "then"#1 as Adjunct of discard; AdverbPhrase "then"#2 as Adjunct of sacrifice; AdverbPhrase "then"#3 as Adjunct of sacrifice; VerbPhrase "then sacrifices a third of the lands they control of their choice"
++ <card=Living Death> Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield. => VerbPhrase "exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield"; VerbPhrase "then sacrifices all creatures they control"; VerbPhrase "then puts all cards they exiled this way onto the battlefield"
++ <card=Windfall> Each player discards their hand, then draws cards equal to the greatest number of cards a player discarded this way. => NounPhrase "Each player"; VerbPhrase "discards their hand, then draws cards equal to the greatest number of cards a player discarded this way"; AdverbPhrase "then" as Adjunct of draw
++ Draw a card, then discard a card, then draw a card. => Clause "Draw a card"; Clause "then discard a card"; Clause "then draw a card"; readings 1
++ <card=Elder Brain> Whenever this creature attacks a player, exile all cards from that player's hand, then they draw that many cards. => Clause "exile all cards from that player's hand"; Clause "then they draw that many cards"; NounPhrase "they" as Subject of draw
++ <card=Visions> Look at the top five cards of target player's library. You may then have that player shuffle that library. => AdverbPhrase "then" as Adjunct of have; readings 1
++ They exile cards from the top of their library until they exile a nonland card, then you may cast that card. => PrepositionPhrase "until they exile a nonland card"; Clause "then you may cast that card"; !Clause "they exile a nonland card, then you may cast that card"
++ <card=Breaking Wave> Simultaneously untap all tapped creatures and tap all untapped creatures. => AdverbPhrase "Simultaneously"; Clause "untap all tapped creatures and tap all untapped creatures" || AdverbPhrase "Simultaneously"; Clause "Simultaneously untap all tapped creatures"; readings 2
++ When this creature enters, secretly choose an opponent. => AdverbPhrase "secretly" as Adjunct of choose; readings 1
++ Each player secretly chooses an opponent. => AdverbPhrase "secretly" as Adjunct of choose; readings 1
+* Draw a card, then discards a card.
