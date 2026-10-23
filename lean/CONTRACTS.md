@@ -346,11 +346,17 @@ attacking creatures" reads the creatures that got +X/+0 (`measuredDomainIsNotAnA
 coordinated indefinite (`NounPhrase.existentialMention`), for the consequent
 (`Referent.existentialDomain`); a `doIf` with no other branch, and a replacement's condition
 (`Replacement.onlyIf`), close it after the consequent (`semantics-v3.md` §1.3, box 2;
-`replacementConditionClosesItsExistentialDomain`). That domain ranks below ordinary mentions for a plural
-pronoun (`D′` and `AC>R1`) and for the groups "the rest" and "the other" are taken from
-(`preferOrdinary` in `resolveCandidates`, `countGroups`, `countedGroupSize`): it is read only
-where no ordinary candidate is in scope (`flowStateThemAndTheRestReadTheCardsLookedAt`,
-`purgingScytheThemReadsTheTiedCreatures`). The subject of a property test (`Condition.matches`)
+`replacementConditionClosesItsExistentialDomain`). The domain a replacement's condition
+publishes (`Referent.replacementDomain`, `markReplacementDomain`) ranks below ordinary mentions
+for a plural pronoun (`D′` and `AC>R1`) and for the groups "the rest" and "the other" are taken
+from (`preferOrdinary` in `resolveCandidates`, `countGroups`, `countedGroupSize`): it is read only
+where no ordinary candidate is in scope (`flowStateThemAndTheRestReadTheCardsLookedAt`). Any
+other existential's domain ranks as an ordinary mention, the nearest
+(`okJuxtaposeThemReadsTheTiedPermanents`, `purgingScytheThemReadsTheTiedCreatures`). A
+self-replacement's replacement (`Action.replace`) starts from what the replaced action read,
+without the referents it introduced but its targets (`replacementStart`;
+`selfReplacementReadsWhatTheReplacedActionRead`, `okFblthpSelfReplacement`); after it, later text reads the replacement's referents first, then
+the replaced action's. The subject of a property test (`Condition.matches`)
 is definite, except that a coordination may hold an indefinite conjunct, read existentially
 (`onlyACoordinatedTestSubjectHoldsAnIndefinite`, `titaniaThemReadsTitaniaAndArgoth`).
 

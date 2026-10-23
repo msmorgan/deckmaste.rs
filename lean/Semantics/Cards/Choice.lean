@@ -1416,4 +1416,50 @@ theorem loxodonPeacekeeperThemReadsTheTiedPlayers :
     (resolveCandidates (.word .player) .many (nextClause after)).map (·.det) = [.count] := by
   decide
 
+/-- "The permanent of `kind` `who` controls with the greatest mana value." -/
+private def greatestManaValue (kind : Predicate) (who : NounPhrase) : NounPhrase :=
+  the (and [kind, controlledBy who,
+            superlative .max (.stat .manaValue) (and [kind, controlledBy who])])
+
+/-- Juxtapose's last sentence: "If two or more permanents a player controls are tied for
+greatest, their controller chooses one of them." -/
+private def juxtaposeTie : Action :=
+  doIf (thereAre (counted (orMore 2)
+          (and [isPermanent, controlledBy (a isPlayer),
+                tiedFor .max (.stat .manaValue) (and [isPermanent, controlledBy (that player)])])))
+    (instruct (controllerOf them) (choose (someOf (exactly 1) them)))
+
+/-- Juxtapose: "You and target player exchange control of the creature you each control with the
+greatest mana value. Then exchange control of artifacts the same way. If two or more permanents
+a player controls are tied for greatest, their controller chooses one of them." "The same way"
+is written out as the second exchange. -/
+def juxtapose : Spelled := spelled <| singleFacedCard
+  { name := "Juxtapose", cost := [generic 3, pip .blue], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ exchange (controlOf (greatestManaValue isCreature you)
+              (greatestManaValue isCreature (target isPlayer))),
+            exchange (controlOf (greatestManaValue isArtifact you)
+              (greatestManaValue isArtifact (that player))),
+            juxtaposeTie ]) ] }
+theorem okJuxtapose : juxtapose.card.check = [] := juxtapose.ok
+
+/-- In *Juxtapose*, "them" reads the tied permanents the counted existential introduces
+(`.count`), even after an ordinary plural mention of artifacts ("artifacts you control get
++1/+1"): an existential that is no replacement's condition ranks as the nearest mention (owner
+ruling 2026-10-22, batch 4). -/
+theorem okJuxtaposeThemReadsTheTiedPermanents :
+    let tied := thereAre (counted (orMore 2)
+      (and [isPermanent, controlledBy (a isPlayer),
+            tiedFor .max (.stat .manaValue) (and [isPermanent, controlledBy (that player)])]))
+    let artifacts := (stepAction 512 .postEvent .obj (DRS.ofList [])
+      (get (bare (and [isArtifact, youControl])) (up 1) (up 1) untilEndOfTurn)).1
+    let after := (stepCondition 512 (nextClause artifacts) tied).1
+    Action.check (DRS.ofList [])
+        (sequentially [get (bare (and [isArtifact, youControl])) (up 1) (up 1) untilEndOfTurn,
+          juxtaposeTie]) = [] ∧
+      (artifacts.findById? 1).map (·.det) = some .all ∧
+      (resolveCandidates .bare .many (nextClause after)).map (·.det) = [.count] := by
+  decide
+
 end Semantics.Cards

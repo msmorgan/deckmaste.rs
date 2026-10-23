@@ -598,6 +598,9 @@ def fblthp : Spelled := spelled <| singleFacedCard
               (instead (draw 2)))),
         when (does (a isSpell) (target this_)) (shuffleInto this_) ],
     power := stat 1, toughness := stat 1 }
+/-- *Fblthp, the Lost*'s self-replacement "draw a card. If …, draw two cards instead" checks: a
+regression guard on the replacement's starting state [CR#614.15]. -/
+theorem okFblthpSelfReplacement : fblthp.card.check = [] := fblthp.ok
 
 /-- Frost Walker -/
 def frostWalker : Spelled := spelled <| singleFacedCard

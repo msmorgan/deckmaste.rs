@@ -84,34 +84,63 @@ theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 /-- Flow State: "Look at the top three cards of your library. Put one of them into your hand and
 the rest on the bottom of your library in any order. If there is an instant card and a sorcery
 card in your graveyard, instead put two of them into your hand and the rest on the bottom of
-your library in any order." The existential publishes its coordinated domain, which ranks below
-the cards looked at (owner ruling 2026-10-22), so "them" and "the rest" read those cards. -/
+your library in any order." A self-replacement [CR#614.15]: the replacement reads what the
+replaced action read, the cards looked at, not the part and remainder it would have made. The
+domain its existential condition publishes ranks below those cards (owner ruling 2026-10-22,
+batch 4), so "them" and "the rest" read the cards looked at. -/
 def flowState : Spelled := spelled <| singleFacedCard
   { name := "Flow State", cost := [generic 1, pip .blue], types := [.sorcery],
     text :=
       [ spell (sequentially
           [ lookAt (topSlice 3),
-            doIf (thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
-                                 (a (and [isSorcery, cardIn yourGraveyard]))))
-              (sequentially
-                [ putInto (someOf (exactly 2) them) hand,
-                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])
+            replace
               (sequentially
                 [ putInto (someOf (exactly 1) them) hand,
-                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]) ]) ] }
+                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])
+              (doIf (thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
+                                    (a (and [isSorcery, cardIn yourGraveyard]))))
+                (instead (sequentially
+                  [ putInto (someOf (exactly 2) them) hand,
+                    putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]))) ]) ] }
 theorem okFlowState : flowState.card.check = [] := flowState.ok
 
-/-- In *Flow State*'s consequent, "them" reads the three cards looked at (referent 1, in the
-library), not the instant and sorcery cards the existential published, and they are the one
-group "the rest" is taken from. -/
+/-- In *Flow State*'s replacement, "them" reads the three cards looked at (referent 1, in the
+library), not the instant and sorcery cards the existential published nor the part and remainder
+of the replaced action, and they are the one group "the rest" is taken from. -/
 theorem flowStateThemAndTheRestReadTheCardsLookedAt :
     let looked := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice 3))).1
+    let replaced := (stepAction 512 .preEvent .obj looked (sequentially
+      [ putInto (someOf (exactly 1) them) hand,
+        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])).1
     let instantAndSorcery := thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
       (a (and [isSorcery, cardIn yourGraveyard])))
-    let after := nextClause (stepCondition 512 (nextClause looked) instantAndSorcery).1
+    let start := nextClause (replacementStart looked replaced)
+    let after :=
+      nextClause (markReplacementDomain start (stepCondition 512 start instantAndSorcery).1)
     (resolveCandidates .bare .many after).map (fun ref => (ref.id, ref.zone)) =
         [(1, some .library)] ∧
       countGroups .object after = 1 ∧ countedGroupSize .object after = some 3 := by
+  decide
+
+/-- "Look at the top three cards of your library. Put one of them into your hand and the rest on
+the bottom of your library in any order. Instead, put two of them into your hand and the rest on
+the bottom of your library in any order": the replacement reads what the replaced action read
+[CR#614.15]. It is not refused `theRestFits`, and its "them" reads the cards looked at (referent
+1), not the replaced action's remainder. -/
+theorem selfReplacementReadsWhatTheReplacedActionRead :
+    let putOne := sequentially
+      [ putInto (someOf (exactly 1) them) hand,
+        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+    let putTwo := sequentially
+      [ putInto (someOf (exactly 2) them) hand,
+        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+    let looked := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice 3))).1
+    let replaced := (stepAction 512 .preEvent .obj looked putOne).1
+    let start := nextClause (replacementStart looked replaced)
+    Action.check (DRS.ofList [])
+        (sequentially [lookAt (topSlice 3), replace putOne (instead putTwo)]) = [] ∧
+      (resolveCandidates .bare .many start).map (·.id) = [1] ∧
+      countGroups .object start = 1 ∧ countParts .object start = 0 := by
   decide
 
 def revealFourPartition : Action :=
