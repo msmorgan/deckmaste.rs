@@ -672,16 +672,16 @@ theorem flashSacrificeRidesThePermission :
       .static (.can (.actor .you) (cast thisSpell)
         { asThough := some (asThoughHadFlash it), rider := some sacrificedAtCleanup }) := rfl
 
-/-- Each of the nine cards carries the sentence as the permission's rider, its first ability,
+/-- Each of the ten cards carries the sentence as the permission's rider, its first ability,
 and no sibling static [CR#113.2c]. -/
 theorem flashSacrificeCardsCarryTheRider :
     [ Semantics.Cards.armorOfThorns, Semantics.Cards.graveServitude,
-      Semantics.Cards.lightningReflexes, Semantics.Cards.mysticVeil, Semantics.Cards.parapet,
-      Semantics.Cards.relicWard, Semantics.Cards.soar, Semantics.Cards.spiderClimb,
-      Semantics.Cards.wardOfLights ].map (fun c => match c.card with
+      Semantics.Cards.lightningReflexes, Semantics.Cards.mysticVeil, Semantics.Cards.necromancy,
+      Semantics.Cards.parapet, Semantics.Cards.relicWard, Semantics.Cards.soar,
+      Semantics.Cards.spiderClimb, Semantics.Cards.wardOfLights ].map (fun c => match c.card with
         | .singleFaced face => face.characteristics.text.head?
         | _ => none) =
-      List.replicate 9 (some asThoughFlashSacrificedAtCleanup) := rfl
+      List.replicate 10 (some asThoughFlashSacrificedAtCleanup) := rfl
 
 theorem okMysticVeil : Semantics.Cards.mysticVeil.card.check = [] := Semantics.Cards.mysticVeil.ok
 

@@ -591,4 +591,84 @@ def wardOfLights : Spelled := spelled <| singleFacedCard
           (abilityGrant (enchanted creature) (protection (ofChosen .color)))
           thisAura) ] }
 
+/-! ## Enchant creature put onto the battlefield with this
+
+Each one's entering ability gives it an enchant ability naming the creature that ability puts
+onto the battlefield, puts the creature there, attaches the Aura to it, and creates a delayed
+trigger that sacrifices the creature when the Aura leaves [CR#603.7a,603.7c]. The granted enchant ability is linked to the ability that grants it, so "put
+onto the battlefield with [this object]" reads the creature that ability puts, though a later step
+puts it [CR#607.1a,607.2c]. -/
+
+/-- "creature card in a graveyard" -/
+def creatureCardInAGraveyard : Predicate := and [isCreature, isCard, in_ graveyard]
+
+/-- "creature put onto the battlefield with <source>" [CR#607.2c] -/
+def creaturePutOntoTheBattlefieldWith (source : NounPhrase) : Predicate :=
+  and [isCreature, did (by_ source) (putOntoBattlefield which)]
+
+/-- "When <source> leaves the battlefield, that creature's controller sacrifices it." -/
+def sacrificedWhenItLeaves (source : NounPhrase) : Action :=
+  delay (does source (leave battlefield)) (instruct (controllerOf (that creature)) (sacrifice it))
+
+/-- "it loses 'enchant creature card in a graveyard' and gains 'enchant creature put onto the
+battlefield with this Aura.'" -/
+def swapsEnchantForLinkedEntry : Action :=
+  establish (conjunction
+    [ abilityLoss it [written (enchant creatureCardInAGraveyard)],
+      abilityGrant it (enchant (creaturePutOntoTheBattlefieldWith thisAura)) ]
+    (subject := some it))
+
+/-- Necromancy -/
+def necromancy : Spelled := spelled <| singleFacedCard
+  { name := "Necromancy", cost := [generic 2, pip .black], types := [.enchantment],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        when (does thisEnchantment enter)
+          (sequentially
+            [ establish (conjunction
+                [ addSubtype it aura,
+                  abilityGrant it (enchant (creaturePutOntoTheBattlefieldWith this_)) ]
+                (subject := some it)),
+              putOntoBattlefieldUnderYourControl (target creatureCardInAGraveyard),
+              attachTo thisEnchantment it,
+              sacrificedWhenItLeaves thisEnchantment ])
+          (if_ := some (is it (in_ battlefield))) ] }
+
+/-- Animate Dead -/
+def animateDead : Spelled := spelled <| singleFacedCard
+  { name := "Animate Dead", cost := [generic 1, pip .black], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant creatureCardInAGraveyard,
+        when (does thisAura enter)
+          (sequentially
+            [ swapsEnchantForLinkedEntry,
+              returnTo (enchanted (.ofType .card .creature)) battlefield [under you],
+              attachTo thisAura it,
+              sacrificedWhenItLeaves thisAura ])
+          (if_ := some (is it (in_ battlefield))),
+        static (getsPt (enchanted creature) (down 1) (up 0)) ] }
+
+/-- Dance of the Dead -/
+def danceOfTheDead : Spelled := spelled <| singleFacedCard
+  { name := "Dance of the Dead", cost := [generic 1, pip .black], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant creatureCardInAGraveyard,
+        when (does thisAura enter)
+          (sequentially
+            [ swapsEnchantForLinkedEntry,
+              putInto (enchanted (.ofType .card .creature)) battlefield
+                (riders := [entersAs .tapped, under you]),
+              attachTo thisAura it,
+              sacrificedWhenItLeaves thisAura ])
+          (if_ := some (is it (in_ battlefield))),
+        static (conjunction
+          [ getsPt (enchanted creature) (up 1) (up 1),
+            doesntUntap it (controllerOf it) ]
+          (subject := some (enchanted creature))),
+        at_ (beginningOfPossessed .upkeep (controllerOf (enchanted creature)))
+          (instruct (that player) (may (pay [generic 1, pip .black] .once)
+            (some (untap (that creature))))) ] }
+
 end Semantics.Cards
