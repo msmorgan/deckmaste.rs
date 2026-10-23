@@ -117,9 +117,9 @@ pub struct CategoryDecl {
 ///   - the host words counted for Right Association (`reading.rs`);
 ///   - wrapping by a function Category (`reading.rs`, `locate`);
 ///   - comma scope: a dependent set off before the head by a comma, which
-///     contains no unclosed comma (`step.rs`, `set_off_before_head`), and a
-///     comma-set post-dependent after a first head (`step.rs`,
-///     `comma_scope_excludes`).
+///     contains no unclosed delimiting comma (`step.rs`,
+///     `set_off_before_head`), and a comma-set post-dependent after a first
+///     head (`step.rs`, `comma_scope_excludes`).
 /// - `first`, `last`, `rest`:
 ///   - the head line;
 ///   - conjunct balance and the coordination Attachment Class (`reading.rs`);

@@ -44,3 +44,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+Census delta (measured on `lypnpvlm` → `wvqmwpsx`, after `english-v4-s7-then-coordination`): faces read 32,575 → 32,576 (Mishra, Claimed by Gix: 0 → 24 Readings, the only unit that changed); total Readings 315,929 → 315,953 and Surplus 132,421 → 132,429. Lost faces: none.
+Judgment set (`wvqmwpsx`): 3,104 enforced and 273 pending, all enforced holding; of the pending, `comma_scope.txt:17` and `:18` (Mishra) newly hold and no other outcome changed.

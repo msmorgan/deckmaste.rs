@@ -542,17 +542,21 @@ pub(crate) struct Summary {
     /// (*Yesterday Ed was taken ill and the lecture's been cancelled*; CGEL,
     /// Ch. 15 §1.3.4, pp. 1285–1286), so it may be that initial conjunct.
     pub preposed_predicate: bool,
-    /// It contains a comma that no bracket closes: it is, or has at any depth,
-    /// a coordination delimited before its coordinator (*[it's an artifact,
-    /// and it has flying]*) or the host of a comma-set post-dependent
-    /// (*[this creature dies, if …]*, *[X is half …, rounded down]*). Such a
-    /// comma runs to the end of its sentence, and a dependent set off before
-    /// its head by a comma ends at that comma, so it never contains one: an
-    /// intervening *if* follows the trigger condition, never inside it
-    /// (`docs/oracle-style-guide.md` §3, Commas and the serial comma; §8,
+    /// It contains a delimiting comma that no bracket closes: it is, or has at
+    /// any depth, the host of a comma-set post-dependent (*[this creature
+    /// dies, if …]*, *[X is half …, rounded down]*). Only a stronger indicator
+    /// absorbs such a comma's closing mark (CGEL, Ch. 20 §3.2.5, p. 1745
+    /// [25]), so it runs to the end of its sentence, and a dependent set off
+    /// before its head by a comma ends at that comma, so it never contains
+    /// one: an intervening *if* follows the trigger condition, never inside
+    /// it (`docs/oracle-style-guide.md` §3, Commas and the serial comma; §8,
     /// Intervening if; [CR#603.4]). A dependent after its head, which runs to
     /// the end of its sentence, may contain one (*unless [its controller pays
-    /// {X}, where X is …]*).
+    /// {X}, where X is …]*). The comma of a coordination delimited before its
+    /// coordinator separates coordinates rather than delimiting one, and
+    /// needs no closing mark (CGEL, Ch. 20 §3.1, pp. 1736–1737 [3]–[4];
+    /// §3.2.1, p. 1739), so it sets no bit (*If [A are attacking, and you
+    /// both own and control them], …*).
     pub internal_comma: bool,
     /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
@@ -1388,9 +1392,7 @@ impl Production {
                         && kind == HostKind::Predicate
                         && !self.set_off_before_head(adjunct)
                 }),
-            internal_comma: state.internal_comma
-                || self.delimits
-                || self.hosts_comma_set_dependent(),
+            internal_comma: state.internal_comma || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
             link: self.link.or(state.headed_link),
