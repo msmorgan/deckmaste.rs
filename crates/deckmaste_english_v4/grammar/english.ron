@@ -366,6 +366,7 @@
         "Outside": "prep:outside",
         "After": "prep:after",
         "As": "prep:as",
+        "DegreeAs": "adv:as",
         "Plus": "prep:plus",
         "Minus": "prep:minus",
         "The": "det:the",
@@ -798,6 +799,13 @@
         (name: "PhrasalAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "PhrasalAdverb")], equations: [Require("$.AdjunctPosition", "Phrasal")]),
         (name: "BoundingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "BoundingAdverb")], equations: [Require("$.AdjunctPosition", "Bounding")]),
         (name: "DegreeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "That"), Class("head", "DegreeQuantifier")], equations: [Require("$.ComplementKind", "Intransitive")]),
+        // Scalar equality: *as much / as many* (CGEL, Ch. 13 §§4.1.2,
+        // 4.3, pp. 1126, 1130). The secondary term may be implicit (§1.2,
+        // p. 1102). DegreePartitive supplies its partitive oblique; the
+        // existing NP multipliers can modify the resulting phrase (§4.4.1,
+        // p. 1131; Ch. 5 §12(c), p. 434). Degree *as* modifies the
+        // determinative, never an arbitrary Noun Phrase.
+        (name: "EquativeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "DegreeAs"), Class("head", "DegreeQuantifier")], equations: [Require("$.ComplementKind", "Intransitive")]),
         // A modified degree determinative as a fused head (*that many*, *the
         // most*); a coordination fuses only as a FusedQuantity, whose conjuncts
         // can each head alone. Like a fused cardinal, it is a count quantity
