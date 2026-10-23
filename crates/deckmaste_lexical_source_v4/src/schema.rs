@@ -208,7 +208,6 @@ pub enum NounKind {
     Ordinary,
     Temporal,
     Manner,
-    Locative,
 }
 
 /// A noun with its number paradigm and optional Complement frames.

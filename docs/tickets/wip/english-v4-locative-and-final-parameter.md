@@ -27,5 +27,5 @@ longer lists `FinalParameter::Name` or `Locative`.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `tuwswozz` → this landing): faces 32,828 → 32,828; Readings 245,781 → 245,781; Surplus 106,817 → 106,817; strata.json byte-identical, so no unit changed; lost faces: none.
+Judgment set: all judgments pass (deckmaste_english_v4 tests green).

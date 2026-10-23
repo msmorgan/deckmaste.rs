@@ -794,18 +794,16 @@ impl Sources {
             // the keyword on its line: an em-dash cost ends in a period of its
             // own and may be followed by an associated instruction; an
             // em-dash ability runs to the end of the line.
-            if let Some(last) = parameters.last() {
-                let kind = match last {
-                    KeywordParameter::Amount => "Amount",
-                    KeywordParameter::Cost => "Cost",
-                    KeywordParameter::DashCost | KeywordParameter::DashNonManaCost => "SetOffCost",
-                    KeywordParameter::DashCondition => "SetOffCondition",
-                    KeywordParameter::Quality(_) | KeywordParameter::QualityBefore => "Quality",
-                    KeywordParameter::Name(_) => "Name",
-                    KeywordParameter::DashAbility => "SetOffAbility",
-                    KeywordParameter::DashPowerToughness => "SetOffMeasure",
-                    KeywordParameter::DashKeyword => "SetOffKeyword",
-                };
+            // Only the kinds the grammar reads are projected.
+            let kind = match parameters.last() {
+                Some(KeywordParameter::Cost) => Some("Cost"),
+                Some(KeywordParameter::DashCost | KeywordParameter::DashNonManaCost) => {
+                    Some("SetOffCost")
+                }
+                Some(KeywordParameter::DashAbility) => Some("SetOffAbility"),
+                _ => None,
+            };
+            if let Some(kind) = kind {
                 parts.push(ParameterPart::Feature("FinalParameter".into(), kind.into()));
             }
             parts

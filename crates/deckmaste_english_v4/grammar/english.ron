@@ -11,7 +11,7 @@
         // cost ends in a period of its own, and an associated instruction may
         // follow it on the line; a set-off ability runs to the end of the
         // line (style guide §3 "Periods", §14 "Keyword abilities").
-        "FinalParameter": ["Amount", "Cost", "SetOffCost", "SetOffCondition", "Quality", "Name", "SetOffAbility", "SetOffMeasure", "SetOffKeyword"],
+        "FinalParameter": ["Cost", "SetOffCost", "SetOffAbility"],
         "Number": ["Singular", "Plural"],
         // The Number of a noun's *of* oblique, or of a determinative's
         // Complement (*all but one*, *more than one*).
@@ -46,9 +46,9 @@
         // (*three times X*; Ch. 5 §12, p. 434).
         "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
-        "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
+        "NounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
         // The NounKind of a head's *of* oblique.
-        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
+        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
         "Determination": ["Bare", "Overt"],
         // The Determination of a determinative's Complement (*than one*).
         "ObliqueDetermination": ["Bare", "Overt"],
@@ -155,7 +155,6 @@
         // A compound locative determinative, which a Preposition Phrase may
         // postmodify (*anywhere else*).
         "LocativeHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
-        "LocativeNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A Noun Phrase's DeterminativeDistribution is its determiner's: an
         // *and*-coordination of distributive ones is singular (*each dog and
         // each cat has*; CGEL, Ch. 5 §18.4, p. 508).
@@ -401,7 +400,7 @@
         Pred: "Predicative",
         AdjP: "AdjectivePhrase",
         AdvP: "Adverbial",
-        LocativeNP: "LocativeNounPhrase",
+        LocativeNP: "LocativeHead",
         MeasureNP: "MeasureNounPhrase",
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
@@ -1105,10 +1104,9 @@
         // A measure noun counted unit by unit (*for each mana spent*).
         (name: "DistributiveMeasure", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.NounKind", "head.NounKind"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         (name: "FusedPhrase", lhs: "NounPhrase", rhs: [Cat("head", "FusedNounPhrase")]),
-        (name: "LocativePhrase", lhs: "LocativeNounPhrase", rhs: [Cat("head", "FusedNounPhrase")], equations: [Require("head.NounKind", "Locative")]),
         (name: "LocativeFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "LocativeHead")]),
         (name: "PartitiveFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "PartitiveHead")]),
-        (name: "FusedLocative", lhs: "LocativeHead", rhs: [Word("head", "Anywhere")], equations: [Require("$.NounKind", "Locative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "FusedLocative", lhs: "LocativeHead", rhs: [Word("head", "Anywhere")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
         (name: "NounConjunct", lhs: "NounPremodifierConjunct", rhs: [Cat("head", "NounPremodifier")], cost: 0),
