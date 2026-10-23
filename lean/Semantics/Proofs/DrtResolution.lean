@@ -62,10 +62,12 @@ theorem demonstrativeExcludesPronounReferentBeforeRecency :
       { referents := [isCreature 1 1 .obj, { isCreature 2 2 .subj with pronounResolved := true }],
         currentClause := 2 } = [1] := by decide
 
-theorem demonstrativeRefusesWhenEveryCandidateExcluded :
+/-- Step `C` is a preference: with `A` excluding the clause-mate, the pronoun's referent is the
+only candidate left, so the demonstrative corefers with it (*Saw in Half*). -/
+theorem demonstrativeKeepsPronounReferentWhenNoOtherCandidate :
     winners (.word (.type .creature))
       { referents := [{ isCreature 1 1 .obj with pronounResolved := true }, isCreature 2 2 .subj],
-          currentClause := 2, pendingRoles := [(2, .subj)] } true = [] := by decide
+          currentClause := 2, pendingRoles := [(2, .subj)] } true = [1] := by decide
 
 theorem reflexiveSelectsClauseMateSubject :
     (resolveReflexive .one

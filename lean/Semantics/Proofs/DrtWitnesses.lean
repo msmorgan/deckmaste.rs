@@ -28,6 +28,22 @@ theorem kalitasSelectsTokenThenDestroyedCreature :
       (result.findById? 1).map (·.pronounResolved) = some false ∧
       (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
+/-- Kalitas's "Its power is equal to that creature's power" spelled literally, with the
+possessor "its" beside "that creature": "its" takes the token and "that creature" still takes the
+destroyed creature, because another candidate remains (step `C` as a preference, not a possessor
+exemption). Read with `it` alone, only the token is resolved. -/
+theorem kalitasLiteralPossessorStillDisjoint :
+    let body (other : NounPhrase) : Action := .sequentially [
+      destroy (target isCreature),
+      create 1
+        (.written { characteristics :=
+            { colors := [.black], types := [.creature], subtypes := [vampire] } }),
+      .doIf (compareAmt (powerOf it) .eq (powerOf other)) (draw 1) none]
+    Action.check (DRS.ofList []) (body (that (.type .creature))) = [] ∧
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (body (that (.type .creature)))).1.resolvedIds
+        = [1, 2] ∧
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (body it)).1.resolvedIds = [2] := by decide
+
 private def destroyedCreature : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) (destroy (target isCreature))).1
 
