@@ -770,9 +770,10 @@ def deathMaskDuplicant : Spelled := spelled <| singleFacedCard
       [ imprint
           (activated [generic 1] (exile (target (and [isCreature, in_ yourGraveyard])))),
         alsoForKeywords
-          (static (onlyWhile (abilityGrant thisCreature flying)
-            (exists_ (and [in_ (exiledWith thisCreature), hasKeyword flying]))))
-          [ fear, firstStrike, doubleStrike, haste, landwalkAbilities,
+          (fun k => static (onlyWhile
+            (keywordGrant thisCreature k (and [in_ (exiledWith thisCreature), hasKeyword k]))
+            (exists_ (and [in_ (exiledWith thisCreature), hasKeyword k]))))
+          [ flying, fear, firstStrike, doubleStrike, haste, landwalkAbilities,
             protectionAbilities, trample ] ],
     power := stat 5, toughness := stat 5 }
 

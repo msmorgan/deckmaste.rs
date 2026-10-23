@@ -68,7 +68,7 @@ def classAbilityOk (c : CardClass) (a : Ability) (fuel : Nat := 64) : Bool :=
   match fuel, a with
   | 0, _ => false
   | _ + 1, .keyword k _ _ => keywordCardOk c k
-  | n + 1, .alsoForKeywords a _ | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
+  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
     classAbilityOk c a n
   | _ + 1, .spell _ _ => c == .instantOrSorceryCard
   | _ + 1, .activated cost _ _ _ _ _ => c == .permanentCard || cost.offBattlefield
@@ -90,7 +90,6 @@ def chapterLineOk (subs : List Subtype) (ab : Ability) (fuel : Nat := 64) : Bool
       | _ => true
     | .italicHead _ ab => chapterLineOk subs ab n
     | .inCaller ab | .qualified ab _ _ _ _ => chapterLineOk subs ab n
-    | .alsoForKeywords ab _ => chapterLineOk subs ab n
     | _ => true
 termination_by structural fuel
 
@@ -141,7 +140,7 @@ def Ability.printedAfterKeywords (a : Ability) (fuel : Nat := 64) : List Keyword
   | _ + 1, .activated _ i _ _ _ _ | _ + 1, .triggered _ _ _ _ _ _ _ i
   | _ + 1, .spell _ i => i.printedAfterKeywords
   | _ + 1, .static se => se.printedAfterKeywords
-  | n + 1, .italicHead _ a | n + 1, .alsoForKeywords a _ | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
+  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
     a.printedAfterKeywords n
   | _, _ => []
 termination_by structural fuel
@@ -156,7 +155,6 @@ def Ability.printsKeyword (k : KeywordLabel) (ab : Ability) (fuel : Nat := 64) :
   | n + 1 => match ab with
     | .keyword k' _ _ => k' == k
     | .italicHead _ ab => ab.printsKeyword k n
-    | .alsoForKeywords ab _ => ab.printsKeyword k n
     | _ => false
 termination_by structural fuel
 
@@ -233,7 +231,6 @@ def Ability.keywordWantsModes (ab : Ability) (fuel : Nat := 64) : Bool :=
   | n + 1 => match ab with
     | .keyword k _ _ => (keywordFactsFor k).elim false (·.wantsModes)
     | .italicHead _ ab => ab.keywordWantsModes n
-    | .alsoForKeywords ab _ => ab.keywordWantsModes n
     | .inCaller ab | .qualified ab _ _ _ _ => ab.keywordWantsModes n
     | _ => false
 termination_by structural fuel
@@ -247,7 +244,6 @@ def Ability.writesModes (ab : Ability) (fuel : Nat := 64) : Bool :=
       | .chooseModes _ _ => true
       | _ => false
     | .italicHead _ ab => ab.writesModes n
-    | .alsoForKeywords ab _ => ab.writesModes n
     | .inCaller ab | .qualified ab _ _ _ _ => ab.writesModes n
     | _ => false
 termination_by structural fuel
@@ -259,7 +255,6 @@ def Ability.writesModeChoice (ab : Ability) (fuel : Nat := 64) : Bool :=
   | n + 1 => match ab with
     | .static (.modeChoice _) => true
     | .italicHead _ ab => ab.writesModeChoice n
-    | .alsoForKeywords ab _ => ab.writesModeChoice n
     | .inCaller ab | .qualified ab _ _ _ _ => ab.writesModeChoice n
     | _ => false
 termination_by structural fuel
@@ -276,7 +271,6 @@ def Ability.hasModes (ab : Ability) (fuel : Nat := 64) : Bool :=
       | .chooseModes _ _ => true
       | _ => false
     | .italicHead _ ab => ab.hasModes n
-    | .alsoForKeywords ab _ => ab.hasModes n
     | .inCaller ab | .qualified ab _ _ _ _ => ab.hasModes n
     | _ => false
 termination_by structural fuel

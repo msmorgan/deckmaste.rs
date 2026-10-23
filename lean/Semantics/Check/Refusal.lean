@@ -158,8 +158,6 @@ inductive Refusal where
   | lineNonEmpty
   | counterHolderKind
   | qualityRead
-  | keywordExtendable
-  | keywordListOk
   | notWordHeaded
   /- rules tables -/
   /-- A predefined token is named, because an effect creates it by that name [CR#111.10]. -/

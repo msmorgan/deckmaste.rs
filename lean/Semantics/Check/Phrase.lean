@@ -1500,7 +1500,7 @@ keyword, whatever its definition writes. -/
 def Ability.writesDefining (ability : Ability) (fuel : Nat := 64) : Bool :=
   match fuel, ability with
   | n + 1, .static spec => spec.writesDefining n
-  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ | n + 1, .alsoForKeywords a _ =>
+  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
     a.writesDefining n
   | _, _ => false
 termination_by structural fuel
@@ -2304,7 +2304,7 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | _+1, .static spec => staticTextContextWith ops drs spec
   | n+1, .keyword _ _ body =>
     body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
-  | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
+  | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
   | n+1, .inCaller body =>
     Ability.textContextWith ops drs body n
   | _+1, _ => drs
@@ -4109,9 +4109,6 @@ def stepOps : Nat → StepOps
         | .thatAbility ref =>
           let count := countChoice (.quality .ability) drs
           refuse (ref.ok count) (.choiceRef ref (.quality .ability) count)
-        | .alsoForKeywords inner keywords =>
-          ops.ab drs inner ++ refuse inner.keywordExtendable .keywordExtendable ++
-            refuse (keywordListOk inner keywords) .keywordListOk
         | .italicHead word inner =>
           let plain := match inner with | .italicHead .. => false | _ => true
           let wordErrors := match word with

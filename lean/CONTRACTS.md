@@ -753,7 +753,7 @@ expected child kinds in the incoming `DRS`.
 | `Instructions` | The length is the actual list length; `sequentially` refuses an empty list (`nonEmpty`) and steps each member in a new clause after the previous output. No independent length value remains. |
 | `SimInstructions` | The length is the actual list length; `simultaneously` refuses an empty list and withholds earlier siblings' outcomes from later siblings. |
 | `KeywordParam` | `checkKeywordParamsWith` steps each argument against the keyword's schema (`keywordSchemaFor`). |
-| `AbilityLost` | `stepCharacteristicEditWith` steps each carried keyword term or chosen-ability reference. |
+| `AbilityLost` | `stepAbilitySelectionWith` steps each carried keyword term (`knownKeywordTerm`) or written ability (in the granted context). |
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
 | `StaticParts` | The actual list supplies length; `StaticSpec.conjunction` refuses an empty list, refuses a nested conjunction (`notCoord`) and steps each part in a new clause after the previous one. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` refuses an empty list and steps each cost after the previous one. |
