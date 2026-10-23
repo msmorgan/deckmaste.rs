@@ -559,6 +559,31 @@ theorem thisWayReadsWhatTheEventMoved :
       (sequentially [destroy (target isCreature), doIf (did you die thisWay) (draw 1)]) =
       [.kindLte .player (Kind.join .object .pile), .thisWayUngrounded] := by decide
 
+/-- "Destroy target creature. If that creature dies this way, …": a definite noun phrase as the
+subject of the move a lookback reads is the moved patient, read as the permanent it was, as "it"
+is (`semantics-v3.md`, the historical read) [CR#700.4,608.2h]. -/
+theorem okThatCreatureDiesThisWay :
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isCreature), doIf (did (that creature) die thisWay) (draw 1)]) =
+      [] := by decide
+
+/-- The subject's historical read keeps its noun: the destroyed creature is no artifact, so "If
+that artifact dies this way" finds no antecedent. Where nothing moved the creature the lookback
+reads no event, and after the lookback the dead creature is no current creature, so "Untap that
+creature" finds none. -/
+theorem thatNounDiesThisWayStaysBounded :
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isCreature), doIf (did (that artifact) die thisWay) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [tap (target isCreature), doIf (did (that creature) die thisWay) (draw 1)]) =
+      [.thisWayUngrounded] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [destroy (target isCreature),
+          doIf (did (that creature) die thisWay) (untap (that creature))]) =
+      [.anaphor (.word (.type .creature)) .one 0] := by decide
+
 /-- A trigger event's expansion is read layer by layer: "Whenever you sacrifice a creature, if it
 died …" reads the sacrificed creature's move to a graveyard [CR#603.2,701.21a]. -/
 theorem triggeringReadsWhatItsEventMoved :

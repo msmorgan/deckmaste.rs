@@ -737,4 +737,32 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| singleFacedCard
                     doIf (is itCard isPermanentCard) (putOntoBattlefield itCard) ]) ]) ],
     power := stat 6, toughness := stat 6 }
 
+/-- Kalitas, Bloodchief of Ghet: "{B}{B}{B}, {T}: Destroy target creature. If that creature dies
+this way, create a black Vampire creature token. Its power is equal to that creature's power and
+its toughness is equal to that creature's toughness." "That creature" in the lookback is the
+destroyed creature, read as the permanent it was. -/
+def kalitasBloodchiefOfGhet : Spelled := spelled <| singleFacedCard
+  { name := "Kalitas, Bloodchief of Ghet", cost := [generic 5, pip .black, pip .black],
+    supertypes := [.legendary], types := [.creature], subtypes := [vampire, warrior],
+    text :=
+      [ lifelink,
+        activated (compound [[pip .black, pip .black, pip .black], tapSymbol])
+          (sequentially
+            [ destroy (target isCreature),
+              doIf (did (that creature) die thisWay)
+                (createToken (creatureTokenOf (powerOf (that creature))
+                  (toughnessOf (that creature)) [.black] [vampire])) ]) ],
+    power := stat 5, toughness := stat 5 }
+
+/-- Kaervek's Purge: "Destroy target creature with mana value X. If that creature dies this way,
+Kaervek's Purge deals damage equal to the creature's power to the creature's controller." -/
+def kaerveksPurge : Spelled := spelled <| singleFacedCard
+  { name := "Kaervek's Purge", cost := [.variable, pip .black, pip .red], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ destroy (target (and [isCreature, hasManaValue .eq (letter .x)])),
+            doIf (did (that creature) die thisWay)
+              (instruct this_
+                (dealDamage (powerOf (that creature)) (controllerOf (that creature)))) ]) ] }
+
 end Semantics.Cards

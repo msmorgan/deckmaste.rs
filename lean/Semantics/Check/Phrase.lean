@@ -1236,6 +1236,22 @@ def eventOrdinalRefusals : Option (Ordinal × Option Period) → List Refusal
   | some (ordinal, per) => refuse ordinal.ok .ordinalNonZero ++
     per.toList.flatMap fun period => refuse period.eventOrdinalOk (.eventOrdinalPeriod period)
 
+/-- Whether a move from `from_` observed at `at_` reads its battlefield patient as the permanent it
+was: a departure-observed move whose written origin includes the battlefield [CR#603.6c,603.10a]
+(`Location.observedOnDeparture` classes the Observation Point). -/
+def Location.readsDepartedPermanent (from_ : Location) (at_ : ObservationPoint) : Bool :=
+  at_ == .departure && match from_.positiveZones? with
+    | some zones => zones.any (fun zone => zone.sort == some .battlefield)
+    | none => false
+
+/-- Whether a lookback's subject is the patient of a move that reads the permanent it was
+("that creature dies this way" [CR#700.4]): its subject is then read as the `.move` arm reads a
+written patient, against the departed participants (`semantics-v3.md`, the historical read). -/
+def Action.subjectReadsDepartedPermanent (action : Action) : Bool :=
+  match action.scopeBody with
+  | .move .actor from_ _ at_ _ => Location.readsDepartedPermanent from_ at_
+  | _ => false
+
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
   | { subj, action, within, ordinal } =>
@@ -1244,7 +1260,14 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | .enact verb _ _ (some zone) =>
         refuse (zone.sort.any (fun z => (actLociOf verb).elem z)) .lookbackLocus
       | _ => []
-    let (drs1, e1) := stepEventSubjectWith ops drs subj .postEvent action
+    -- A subject the move moves ("that creature dies") reads the participants introduced before
+    -- the clause as the permanents they were, as a patient written inside the move does.
+    let subjectContext := if action.subjectReadsDepartedPermanent then
+      { drs with historicalMoveFrom := some .battlefield
+                 historicalReferentIds := drs.referents.map (·.id) } else drs
+    let (drs1, e1) := stepEventSubjectWith ops subjectContext subj .postEvent action
+    let drs1 := { drs1 with historicalMoveFrom := drs.historicalMoveFrom
+                            historicalReferentIds := drs.historicalReferentIds }
     let subjectKind : Option Kind := match subj with
       | .actor _ => (actorShape? drs1).map (·.kind)
       | .by np => some (np.kindIn drs .object)
@@ -3417,10 +3440,7 @@ def stepOps : Nat → StepOps
         | .move subj from_ to at_ riders =>
           -- The move's own Observation Point (`Location.observedOnDeparture` for the put and
           -- return Templates) decides whether its battlefield patient is the permanent it was.
-          let historicalOrigin := at_ == .departure && match from_.positiveZones? with
-            | some zones => zones.any (fun zone => zone.sort == some .battlefield)
-            | none => false
-          let readContext := if drs.actionPattern && historicalOrigin then
+          let readContext := if drs.actionPattern && Location.readsDepartedPermanent from_ at_ then
             { drs with historicalMoveFrom := some .battlefield } else drs
           let (selected, refIds, e1) := ops.np readContext patientRole true subj
           let drs1 := { selected with historicalMoveFrom := drs.historicalMoveFrom }
