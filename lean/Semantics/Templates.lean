@@ -981,12 +981,16 @@ A deontic rule constrains a clause: `cant`, `can` (permission [CR#101.2]), `must
 unspecified-agent passive is `any`, an explicit-agent passive is `by_ np`. A quantifier rides the
 noun phrase (`counted (moreThan 1) isSpell`), a rate or window rides `timing`. -/
 
-/-- "<subj> can't <action>" [CR#101.2] -/
+/-- "<subj> can't <action>" [CR#101.2]. `causedBy` restricts the prohibition to an event that
+cause causes, as `causedBy` does a would-clause: "damage doesn't cause you to lose life" is
+`cant you (loseLife anyAmount) (causedBy := byEvent (does (a isSource) (dealDamage anyAmount you)))`
+[CR#120.3a]. -/
 semantic_template cant (subj : Subject) (action : Action)
     (timing : Option Timing := none)
     (asThough : Option AsThough := none)
-    (except : Option DeonticExcept := none) : StaticSpec :=
-  .cant subj action { timing, asThough, except }
+    (except : Option DeonticExcept := none)
+    (causedBy : Option Causing := none) : StaticSpec :=
+  .cant subj action { timing, asThough, except, cause := causedBy }
 /-- "<subj> can <action>": a permission [CR#101.2]. -/
 semantic_template can (subj : Subject) (action : Action)
     (timing : Option Timing := none)

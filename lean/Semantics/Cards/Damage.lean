@@ -580,6 +580,24 @@ def phyrexianUnlife : Spelled := spelled <| singleFacedCard
                   (putCounters (theOutcome .damageDealt) poison you))))
             (compareAmt (lifeTotalOf you) .atMost 0)) ] }
 
+/-- "As long as you're the monarch, damage doesn't cause you to lose life": a prohibition of the
+life loss damage dealt to you causes, not a replacement, since nothing happens instead
+[CR#120.3a,614.1a]. The damage is still dealt and its other results still happen, so combat
+damage still makes its creature's controller the monarch, which the reminder text says
+[CR#120.3f,725.2]. -/
+def archonOfCoronation : Spelled := spelled <| singleFacedCard
+  { name := "Archon of Coronation", cost := [generic 4, pip .white, pip .white],
+    types := [.creature], subtypes := [archon],
+    text :=
+      [ flying,
+        when (does thisCreature enter) (gainDesignation you monarch),
+        static
+          (onlyWhile
+            (cant you (loseLife anyAmount)
+              (causedBy := byEvent (does (a isSource) (dealDamage anyAmount you))))
+            (is you (hasDesignation monarch))) ],
+    power := stat 5, toughness := stat 5 }
+
 def templeAltisaur : Spelled := spelled <| singleFacedCard
   { name := "Temple Altisaur", cost := [generic 4, pip .white], types := [.creature],
     subtypes := [dinosaur],

@@ -130,6 +130,9 @@ inductive Refusal where
   | knownKeywordTerm
   | linkedFacetNamed
   | eventHead
+  /-- A deontic rule names a cause (`DeonticMods.cause`) but is no prohibition: only `cant`
+  forbids an event by what causes it. -/
+  | deonticCause
   | verbedVoiceOk
   /-- A handoff names neither a player nor an object. -/
   | handoffPerformer

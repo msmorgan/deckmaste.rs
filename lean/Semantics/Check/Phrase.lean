@@ -4187,13 +4187,19 @@ def stepOps : Nat → StepOps
         | .modeChoice mc => stepModeChangeWith ops drs mc
         | .cant subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
-          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
+          -- A cause-qualified prohibition steps its cause first, as `WouldClause.causedBy` does,
+          -- so the prohibited clause reads what the cause introduces.
+          let (drs0, e0) := match mods.cause with
+            | some cause => stepCausingWith ops drs cause
+            | none => (drs, [])
+          let (drs1, e1) := stepEventSubjectWith ops drs0 subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
-          (publishProhibitionSources drs drs4, headErr ++ e1 ++ e2 ++ e3 ++ e4)
+          (publishProhibitionSources drs drs4, headErr ++ e0 ++ e1 ++ e2 ++ e3 ++ e4)
         | .must subj action mods | .can subj action mods =>
-          let headErr := if action.deonticHeadOk then [] else [.eventHead]
+          let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
+            refuse mods.cause.isNone .deonticCause
           let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
@@ -4211,7 +4217,8 @@ def stepOps : Nat → StepOps
               causedEvents := permitted ++ drs4.causedEvents },
             headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .gatedBy cost subj action mods =>
-          let headErr := if action.deonticHeadOk then [] else [.eventHead]
+          let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
+            refuse mods.cause.isNone .deonticCause
           let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
