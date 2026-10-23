@@ -113,6 +113,7 @@ pub struct CategoryDecl {
 ///   - the head line (`step.rs`, `Production::head_line`), shared with `first`,
 ///     `last` and `rest`;
 ///   - the Reading head lexeme (`reading.rs`, `head_word`);
+///   - the Linked Coordination it is headed by (`step.rs`, `Summary::link`);
 ///   - the host words counted for Right Association (`reading.rs`);
 ///   - wrapping by a function Category (`reading.rs`, `locate`);
 ///   - comma scope: a dependent set off before the head by a comma, which
@@ -180,6 +181,11 @@ pub struct ProductionDecl {
     /// one level up is the same analysis (a chain of bare imperatives).
     #[serde(default)]
     pub uncoordinated: Vec<Ident>,
+    /// Children that neither are nor are headed by a Linked Coordination: a
+    /// subordinate clause, which a sole connective never links (CGEL, Ch. 15
+    /// §2.10, p. 1320).
+    #[serde(default)]
+    pub unlinked: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {
@@ -367,7 +373,18 @@ pub enum SchemaDecl {
     /// when the Category may contain a Gap.
     Coordination {
         category: Ident,
-        coordinators: Ident,
+        /// The Closed Word or Lexical Class of its Coordinators. Exactly one
+        /// of `coordinators` and `link` is given.
+        #[serde(default, deserialize_with = "bare_some")]
+        coordinators: Option<Ident>,
+        /// A Linked Coordination, which has no Coordinator: the Category of
+        /// its Linked Conjunct, the one after each link, marked by its own
+        /// initial connective adverb instead (*Draw a card, then discard a
+        /// card*; CGEL, Ch. 15 §2.10, pp. 1319–1320). Its serial middle
+        /// Conjuncts are ordinary ones, which may begin with the connective
+        /// too (*A, then B, then C*).
+        #[serde(default)]
+        link: Option<Ident>,
         #[serde(default = "default_cost")]
         cost: u32,
         /// Features the conjuncts need not share, which the coordination
@@ -412,6 +429,24 @@ pub enum SchemaDecl {
         #[serde(default)]
         unlike: Option<Ident>,
     },
+}
+
+/// An optional name written bare (`coordinators: "And"`).
+fn bare_some<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<Ident>, D::Error> {
+    Ident::deserialize(deserializer).map(Some)
+}
+
+impl SchemaDecl {
+    /// A Coordination's Coordinators or, for a Linked Coordination, its
+    /// Linked Conjunct Category: what names its serial tail.
+    pub(crate) fn joined_by(&self) -> Option<&str> {
+        match self {
+            Self::Coordination {
+                coordinators, link, ..
+            } => coordinators.as_deref().or(link.as_deref()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

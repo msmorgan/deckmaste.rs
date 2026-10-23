@@ -66,13 +66,26 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Six canonicalizations are approved:
+of the text.** Seven canonicalizations are approved:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
-- the grouping within a chain joined by the same coordinator;
+- the grouping within a chain joined by the same coordinator, or linked by
+  the same connective (*A, then B, then C* is one chain, never *[A, then B],
+  then C* nor *A, then [B, then C]*);
 - clause versus verb-phrase coordination of bare imperatives, where nothing
   distinguishes them;
+- **adverbs before a bare imperative:** a bare imperative has no Subject, so
+  its front and central positions coincide. An adverb before it is the front
+  Adjunct of its Clause, outermost over its Verb Phrase and that phrase's
+  dependents (*Also [put a +1/+1 counter on that creature if …]*, *Then [draw
+  a card and discard a card]*), never also a central Adjunct of the Verb
+  Phrase, below or above its post-verbal dependents: the sites differ in no
+  meaning, and the front one is the one a coordination of bare imperatives,
+  coordinated Clauses, also has. An adverb found there therefore has a front
+  position (*secretly*, *simultaneously*). The canonical site is built
+  structurally: a Verb Phrase that begins with a central Adjunct heads no
+  imperative, and a coordination begins where its first conjunct does;
 - **same-head complement priority:** when a head's selected subcategorization
   frame licenses a preposition phrase as a complement, that same head instance
   does not also attach the same preposition phrase as an unselected adjunct.
@@ -136,6 +149,14 @@ Settled analyses:
   A core multiword term (*mana value*) never splits, nor does a term with a
   part that is not an ordinary word (the measure in *+1/+1 counter*).
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
+- *Then* after a comma marks a Linked Coordination (Oracle English glossary):
+  it is an Adjunct of its Linked Conjunct, never a Coordinator, and the
+  Conjunct may be a coordination by a Coordinator (*then [shuffle and put
+  that card on top]*; CGEL, Ch. 15 §2.10, pp. 1319–1320). A sole connective
+  links instructions and main clauses or Verb Phrases, never subordinate
+  clauses (`docs/oracle-style-guide.md` §10, Sequence; CGEL p. 1320 on
+  *so*): *until [they exile a nonland card], then you may cast it*, never
+  *until [they exile a nonland card, then you may cast it]*.
 - A locative or temporal Preposition Phrase right after an existential's
   Displaced Subject is its Extension, a Complement of *be* (CGEL, Ch. 16
   §6.2.1, p. 1394), never also the Displaced Subject's postmodifier or an

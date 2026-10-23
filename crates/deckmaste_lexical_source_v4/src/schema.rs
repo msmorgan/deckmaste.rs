@@ -360,6 +360,10 @@ pub enum AdverbPosition {
     /// Bounding a quantity: its determinative or numeral (*at least two*,
     /// *exactly one*; CGEL p. 1129).
     Bounding,
+    /// Initial in a non-initial Conjunct, the sole marker of its
+    /// Coordination (*Draw a card, then discard a card*; CGEL, Ch. 15 §2.10,
+    /// pp. 1319–1320).
+    Linking,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

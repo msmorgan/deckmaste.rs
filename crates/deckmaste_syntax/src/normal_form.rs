@@ -146,8 +146,11 @@ impl CompiledGrammar {
             Reading::Node(inner) if inner.production == id => split(inner).1,
             Reading::Node(_) => None,
         });
+        // A Linked Coordination has no coordinator leaf: its serial tail is
+        // the one inner coordination without one.
         let same = |other: Option<&LexicalReading>| match (&own, other) {
             (Some(LexicalReading::Word(a)), Some(LexicalReading::Word(b))) => a.lexeme == b.lexeme,
+            (None, None) => true,
             _ => false,
         };
         let mut conjuncts = Vec::new();

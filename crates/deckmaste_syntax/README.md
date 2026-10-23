@@ -181,7 +181,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   selects in its place (locative *on the battlefield* after *be*). Optional
   `equations` constrain the `head` (host) and the adjunct (a depictive
   gerund-participial of a lexical verb only).
-- `Coordination { category, coordinators, unshared, equations, proximate, resolve, delimiter, delimited, serial }`:
+- `Coordination { category, coordinators, link, unshared, equations, proximate, resolve, delimiter, delimited, serial }`:
   binary (only with the delimiter when `delimited`) and Oxford-comma serial
   coordination (`serial` overrides the default: like conjuncts only; a plain serial ends with
   one of its own coordinators), a delimited polysyndetic chain
@@ -226,6 +226,15 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Nor is such a constituent the host of a comma-set post-dependent (a head
   followed by a comma and its dependent): the fronted dependent attaches
   outermost, *Pre, [Clause, Post]*.
+  A schema names its `coordinators` or, for a Linked Coordination, its `link`:
+  the Category of the Conjunct after each link, which has no Coordinator but
+  is marked by its own initial connective (*Draw a card, [then discard a
+  card]*; CGEL, Ch. 15 §2.10, pp. 1319–1320). It has the binary shapes and
+  the serial, whose middle Conjuncts are ordinary ones that may begin with
+  the connective too (*A, then B, then C*), and no polysyndetic shape or
+  Right Node Raising. Its identity, by its serial tail, stands for a
+  Coordinator: no Conjunct of it is, or is headed through `head` children by,
+  a Linked Coordination of the same identity, so each chain has one tree.
   A coordination delimited before its coordinator (*A, and B*) and the host of
   a comma-set post-dependent contain a comma that runs to the end of the
   sentence, and every phrase that contains one carries it up
@@ -327,7 +336,9 @@ require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
 more than one, as a single postpositive participle differs from a participial
 clause, or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
-imperative Clauses). A child can be `unextended`: it does not end, through
+imperative Clauses), or `unlinked`, neither a Linked Coordination nor headed
+by one through `head` children (a subordinate clause, which a sole connective
+never links). A child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that its Production, or a
 sibling with the same children up to and including it, selects as a `PP`
 Complement right after it (an existential's Extension is a Complement of
@@ -352,7 +363,7 @@ share.
 `normal_form(reading)` identifies only the approved canonicalizations the
 engine derives: every grouping of a chain joined by one coordinator becomes one
 node listing its conjuncts and then the coordinator (with no features of its
-own); a Production over a coordination of its `uncoordinated` child becomes
+own), a Linked Coordination's chain likewise without one; a Production over a coordination of its `uncoordinated` child becomes
 the coordination of that Production over each conjunct (clause versus
 verb-phrase coordination of bare imperatives); an Adjunct Production over an
 uncoordinated auxiliary Verb Phrase becomes the auxiliary over that Production

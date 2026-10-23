@@ -138,9 +138,12 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
             SchemaDecl::Coordination {
                 category,
                 coordinators,
+                link,
                 ..
             } => {
-                names.extend([category.as_str(), coordinators.as_str()]);
+                names.push(category.as_str());
+                names.extend(coordinators.as_deref());
+                names.extend(link.as_deref());
             }
         }
     }
