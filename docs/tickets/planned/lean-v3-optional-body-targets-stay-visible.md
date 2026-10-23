@@ -29,7 +29,7 @@ lean-v3-historical-read-from-recorded-zone-change):
 
 The same bodies without `may` check clean.
 
-## Proposal (proposed, not ruled)
+## Proposal (approved 2026-10-23, see Ruling)
 
 A target is chosen as the spell or ability is put on the stack [CR#601.2c,603.3d,115.1], before
 it resolves and independently of whether the optional action is later taken. So a target written
@@ -55,6 +55,27 @@ Pins of that ruling and its neighbours, by what they become:
   (an optional target inside a player loop exports no plural group). Whether a target announced
   in an optional body inside `doForEach` is a loop-local the loop abstracts is a decision this
   ticket must take with the owner.
+
+## Ruling (owner, 2026-10-23)
+
+Approved. A target written inside an optional body becomes an ordinary referent after it: it is
+chosen as the spell or ability goes on the stack, independent of whether the optional action is
+taken [CR#601.2c,603.3d,115.1]. Non-target referents the body touches stay participial-only.
+
+Inside a per-player loop (`doForEach`), the target is an ordinary loop-local, so the pin
+`SelectionEvidence.ordinaryLocalsAndOptionalTargetsRemainClosed` keeps its third conjunct (an
+optional target inside a player loop exports no plural group). This closes the open decision under
+"To reconcile" above.
+
+## Change
+
+- In the `.withContinuation .optional` arm of `lean/Semantics/Check/Phrase.lean`
+  (`continuationStamped`, `DRS.participialOnly`), a target announced in the body is introduced as
+  an ordinary referent after the arm, not stamped participial-only; every other stamp stays
+  participial-only.
+- Inside `doForEach`, the target is a loop-local the loop abstracts; no plural group is exported.
+- Update `docs/decisions/semantics-v3.md` §1.5 (Participial Descriptions paragraph): "what the body
+  acted on, other than the targets it announced".
 
 ## Witnesses (data/derived/cards.jsonl)
 
@@ -104,3 +125,7 @@ Pins of that ruling and its neighbours, by what they become:
 - The three probes above become pins that check clean.
 - A negative: "you may exile a creature you control" (no target) keeps
   `optionalBodyObjectEscapesOnlyToParticipialReads`.
+- `SelectionEvidence.ordinaryLocalsAndOptionalTargetsRemainClosed` keeps all three conjuncts
+  unchanged (ruling 2026-10-23).
+- The three probes are checked on both sides of `may`: the target is read when the player acts and
+  when the player does not.

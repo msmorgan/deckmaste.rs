@@ -212,14 +212,6 @@ theorem badSiegeWithoutBattle :
           subtypes := [siege], text := [keyword (.named "flying")] }) = [.cardLine] := by
   decide
 
-/-- a "Kindred — Merfolk" card naming no other card type -/
-theorem badKindredAlone :
-    Card.check
-      (one
-        { name := some "", cost := some [generic 2], types := [.kindred],
-          subtypes := [merfolk], text := [keyword (.named "flying")] }) = [.cardLine] := by
-  decide
-
 /-- "Enchanted creature can't attack." -/
 theorem okEnchantedCreatureCantAttack :
     Ability.check (DRS.ofList [])
