@@ -357,7 +357,8 @@ auxiliary); a Preposition Phrase attached as a Predicate adjunct to a head
 with a longer frame selecting it becomes that frame's complement; and a
 comma-set post-dependent of a Clause that begins with a fronted dependent
 becomes a post-dependent of that Clause's head, *Pre, [Clause, Post]* for
-*[Pre, Clause], Post* (fronted dependent outermost). It endorses
+*[Pre, Clause], Post* (fronted dependent outermost), the moved host taking
+from its new head the features it shared with the fronted Clause. It endorses
 nothing; it lets two sets of Readings be compared under exactly those
 equivalences.
 

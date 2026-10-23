@@ -729,9 +729,9 @@ fn normal_form_identifies_a_fronted_dependent_outermost() {
     })
     .unwrap();
     let host = node(&front.children[1]);
-    let clause = node(&host.children[0]);
+    // The fronting Production's features: its head's, and its own
+    // `FrontPosition`.
     let fronted = Reading::Node(ReadingNode {
-        features: clause.features.clone(),
         children: vec![front.children[0].clone(), host.children[0].clone()],
         ..front.clone()
     });

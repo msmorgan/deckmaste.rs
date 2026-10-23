@@ -9,3 +9,6 @@
 + Draw a card once each turn. => AdverbPhrase "once" as Adjunct of draw; NounPhrase "each turn" as Adjunct of draw
 + Activate only once each turn. => AdverbPhrase "only once" as Adjunct of activate; NounPhrase "each turn" as Adjunct of activate
 + This ability triggers only once each turn. => AdverbPhrase "only once" as Adjunct of trigger; NounPhrase "each turn" as Adjunct of trigger
++ Once each turn, draw a card. => AdverbPhrase "Once each turn" as Adjunct of draw; readings 1
++ Once each turn, you may draw a card. => AdverbPhrase "Once each turn" as Adjunct of may; readings 1
++ Once each turn, you may draw a card, and you may discard a card. => AdverbPhrase "Once each turn"; Clause "you may draw a card, and you may discard a card" || AdverbPhrase "Once each turn" as Adjunct of may; Clause "Once each turn, you may draw a card"; readings 2

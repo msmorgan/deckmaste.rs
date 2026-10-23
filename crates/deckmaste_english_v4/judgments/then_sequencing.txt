@@ -12,3 +12,12 @@
 + Tap it, then you may sacrifice an artifact or creature. => Clause "Tap it"; Clause "you may sacrifice an artifact or creature"
 + When this creature enters, scry 1, then scry 2, then scry 3. => Clause "scry 1"; Clause "scry 2"; Clause "scry 3"
 + Draw a card and then discard a card. => AdverbPhrase "then" as Adjunct of discard; readings 1
++ Then draw a card. => AdverbPhrase "Then" as Adjunct of draw; readings 1
++ Then that player shuffles. => AdverbPhrase "Then" as Adjunct of shuffle; NounPhrase "that player" as Subject of shuffle; readings 1
++ Otherwise, draw a card. => AdverbPhrase "Otherwise" as Adjunct of draw; readings 1
++ Also draw a card. => AdverbPhrase "Also" as Adjunct of draw
++ Then if you control a creature, draw a card. => AdverbPhrase "Then" as Adjunct of draw; PrepositionPhrase "if you control a creature" as Adjunct of draw; readings 1
++ Then draw a card and discard a card. => AdverbPhrase "Then"; Clause "draw a card and discard a card"; readings 1
+* Then that player shuffle.
+* Then draws a card.
++ You choose which creatures block this turn and how those creatures block. => Clause "how those creatures block"; !AdverbPhrase "how"; readings 2

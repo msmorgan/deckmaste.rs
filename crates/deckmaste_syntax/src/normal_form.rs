@@ -98,8 +98,30 @@ impl CompiledGrammar {
         if !self.productions[*self.by_id.get(&front.production)?].fronts() {
             return None;
         }
+        let head = front.children.last()?;
+        // The host inherited from `front` each feature they share. Its new
+        // head is `front`'s head, so it takes those from there instead and
+        // drops one only `front`'s own Production valued (a front position).
+        let Reading::Node(head_node) = head else {
+            return None;
+        };
+        let features = node
+            .features
+            .iter()
+            .filter_map(|(&feature, &value)| {
+                if front.features.get(&feature) == Some(&value) {
+                    head_node.features.get(&feature).map(|&v| (feature, v))
+                } else {
+                    Some((feature, value))
+                }
+            })
+            .collect();
+        let node = &ReadingNode {
+            features,
+            ..node.clone()
+        };
         let mut hosted = children.to_vec();
-        hosted[0] = front.children.last()?.clone();
+        hosted[0] = head.clone();
         let inner = self.front_outermost(node, &hosted).unwrap_or_else(|| {
             Reading::Node(ReadingNode {
                 children: hosted,
