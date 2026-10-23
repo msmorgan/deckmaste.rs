@@ -65,6 +65,15 @@
         // DeterminedModifiedQuantity's, neither Production builds a second
         // tree of an analysis FreeChoiceDetermined or AgreeingModifiedQuantity
         // builds (`docs/decisions/english-lexical-analysis.md` §2).
+        // `IndefiniteArticle` (*a*) and `SingularOrQuantified` (*another*) each
+        // have one holder, and each is the whole of its class. *A* alone
+        // selects a singular head (CGEL, Ch. 5 §3.4, p. 353, set (a) [67]);
+        // *another* is the one word that also selects a quantified plural
+        // (*another three bodies*; set (c) [69–70]), where *a* does so only
+        // with *further* or *additional*, read by DeterminedModifiedQuantity.
+        // The two also part in temporal location: *another day*, never *a
+        // day* (Ch. 8 §6.3, p. 698), a kept gate on TemporalLocation
+        // (`docs/decisions/english-v4.md` §4.4, item 10).
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
@@ -843,8 +852,12 @@
         (name: "DeterminedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Agree("determiner.Number", "head.QuantityNumber"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         (name: "SingularOrQuantifiedDetermination", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Require("determiner.DeterminativeDistribution", "SingularOrQuantified"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         (name: "DistributiveQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "determiner.Number"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
-        (name: "DeterminedModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "ModifiedQuantifiedNominal")], equations: [Exclude("determiner.DeterminativeDistribution", "Dependent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
-        (name: "AgreeingModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "ModifiedQuantifiedNominal")], equations: [Agree("determiner.Number", "head.QuantityNumber"), Exclude("determiner.DeterminativeDistribution", "IndefiniteArticle"), Exclude("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
+        // A singular determinative over a quantified plural, which *a* selects
+        // only with *further* or *additional* (*an additional two creatures*;
+        // CGEL, Ch. 5 §3.4, p. 353, [69–70]). A determiner agreeing with its
+        // quantity is AgreeingModifiedQuantity's.
+        (name: "DeterminedModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "ModifiedQuantifiedNominal")], equations: [Exclude("determiner.DeterminativeDistribution", "Dependent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.DeterminativeDistribution", "Distributive"), Require("head.QuantityNumber", "Plural"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
+        (name: "AgreeingModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "ModifiedQuantifiedNominal")], equations: [Agree("determiner.Number", "head.QuantityNumber"), Exclude("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         (name: "DistributiveModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "ModifiedQuantifiedNominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "determiner.Number"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         // A maximum quantity: a Preposition Phrase in Determiner function (*up
         // to two target creatures*; CGEL, Ch. 5 §7.1, p. 357), or the fused
@@ -1341,12 +1354,11 @@
             equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Agree("$.Number", "clause.Number"), Agree("marker.Number", "clause.Number"), Exclude("marker.Case", "Accusative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectGap", lhs: "SubjectGapClause", rhs: [Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Finite"), Require("head.Person", "Third"), Exclude("head.Inflection", "Irrealis"), Require("$.Gap", "NP")]),
-        // With a floated *each*, as without it, a subject-gap relative excludes
-        // the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88). That form is
-        // third person singular only, so the plural Requirement keeps it out
-        // too; the Exclude states SubjectGap's rule here as well.
+        // The plural Requirement already keeps out the irrealis *were*, which
+        // is third person singular only (CGEL, Ch. 3 §1.5, pp. 85–88), so this
+        // needs no Exclude of SubjectGap's.
         (name: "FloatedEachSubjectGap", lhs: "SubjectGapClause", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
-            equations: [Require("head.VerbForm", "Finite"), Require("head.Number", "Plural"), Require("head.Person", "Third"), Exclude("head.Inflection", "Irrealis"), Require("$.Gap", "NP")]),
+            equations: [Require("head.VerbForm", "Finite"), Require("head.Number", "Plural"), Require("head.Person", "Third"), Require("$.Gap", "NP")]),
         // *whose*: the relative phrase is the Subject or fills an object Gap.
         (name: "GenitiveRelativePhrase", lhs: "RelativeNounPhrase", rhs: [Lex("determiner", Pronoun), Cat("head", "Nominal")],
             equations: [Require("determiner.PronounKind", "Relative"), Carry("determiner.Case", "Genitive")]),
