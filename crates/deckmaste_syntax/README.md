@@ -70,10 +70,9 @@ It has no proc macros and no generated code: a grammar is data.
 8. `constituents(reading, lexicon)` lists a Reading's Constituents in preorder
    with their spans in its realization, their mother, their head lexeme (through
    `head` children) and their name in the mother's Production. A child's name
-   is its grammatical function: `subject`, `head`, `object`, `complement`,
-   `predicative_complement` (from the Frame Slot's relation in derived valence
-   phrases), `modifier` (an unselected dependent of a nominal) or `adjunct` (of
-   a predicate). A phrase shared by Right Node Raising also bears, in each
+   is its grammatical function (`predicative_complement` comes from the Frame
+   Slot's relation in derived valence phrases); the names the engine inspects
+   are listed on `ProductionDecl` in `src/grammar.rs`. A phrase shared by Right Node Raising also bears, in each
    conjunct, the function of the Frame Slot whose Gap it fills
    (`Constituent::also`), as does the head of a function Category it is. A
    `modifier` after its phrase's `object` is postposed out of it, and also

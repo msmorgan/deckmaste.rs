@@ -132,8 +132,6 @@
         "DummyPronoun": (category: Some("NounPhrase"), features: ["Number", "Person"]),
         "ExistentialPredicate": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Inflection", "ComplementKind"]),
         "FusedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"]),
-        // A compound locative determinative, which a Preposition Phrase may
-        // postmodify (*anywhere else*).
         // A symbol sequence as a Noun Phrase, which a Preposition Phrase may
         // postmodify (*{X} in its mana cost*).
         "SymbolHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
@@ -147,6 +145,8 @@
         // A slash measure as a Noun Phrase (*gets +2/+2*), taken only where a
         // head selects one: never a general Object or bare singular term.
         "MeasureNounPhrase": (category: Some("NounPhrase")),
+        // A compound locative determinative, which a Preposition Phrase may
+        // postmodify (*anywhere else*).
         "LocativeHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         "LocativeNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A Noun Phrase's DeterminativeDistribution is its determiner's: an
@@ -154,7 +154,7 @@
         // each cat has*; CGEL, Ch. 5 §18.4, p. 508).
         // A noun's Amount Complement is a Nominal dependent, so a slash
         // Measure is shared only by coordinated Nominals (*base power and
-        // toughness 4/4*): a Noun Phrase never passes up a Measure Gap, or
+        // toughness 4/4*): a Noun Phrase never passes up a Measure Gap.
         "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true, closed_gaps: ["Measure"]),
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
@@ -205,11 +205,11 @@
         "GenitiveNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
         "GenitiveNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
         "NumericalDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
-        // A determinative that can head a fused Noun Phrase alone (*choose
-        // one*, *choose both*), and a coordination of such (*one or more*).
         // An ordinal's position from an end (*third from the top*), which
         // describes where a card is put, never a nominal.
         "PositionPhrase": (category: Some("AdjectivePhrase")),
+        // A determinative that can head a fused Noun Phrase alone (*choose
+        // one*, *choose both*), and a coordination of such (*one or more*).
         "FusableDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability", "NounKind"]),
         "FusedQuantity": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative's partitive oblique has a Number of its own (*each of
@@ -1120,6 +1120,13 @@
         // A distributive determiner over an *and*-coordination of singular
         // nominals makes a singular Noun Phrase (*each creature and
         // planeswalker you control gets ...*; CGEL, Ch. 5 §18.4, p. 508).
+        // The nominal child is named `nominal`, not `head`, to keep it out of
+        // implicit head agreement: the Noun Phrase takes Number from its
+        // distributive determiner (singular), while the *and*-coordination
+        // it determines is plural, and Countability, Determination and
+        // NounKind are set here, not copied from the coordination. It
+        // forgoes the head lexeme in Readings and the head line (CGEL, Ch. 5
+        // §18.4, p. 508).
         (name: "DistributiveCoordinationDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("nominal", "Nominal")],
             equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Carry("nominal.ConjunctNumber", "Singular"), Require("nominal.Number", "Plural"), Agree("$.Number", "determiner.Number"),
                 Agree("determiner.Countability", "nominal.Countability"), Agree("$.NounKind", "nominal.NounKind"), Agree("$.Countability", "nominal.Countability"),
@@ -1142,6 +1149,11 @@
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("head.NounDistribution", "Quantity"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "FreeChoiceQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("head.NounDistribution", "Quantity"), Require("head.ComplementKind", "Intransitive"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
+        // The nominal child is named `quantity`, not `head`, to keep it out of
+        // implicit head agreement: Number and NounKind come from the
+        // quantity's oblique (`ObliqueNumber`, `ObliqueNounKind`), not from
+        // the quantificational noun itself (CGEL, Ch. 5 §3.3, pp. 349-351). It
+        // forgoes the head lexeme in Readings and the head line.
         (name: "TransparentQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.NounDistribution", "Quantity"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Agree("$.Number", "quantity.ObliqueNumber"), Agree("$.NounKind", "quantity.ObliqueNounKind"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A Number-transparent quantificational noun gives the Targeting
@@ -1155,7 +1167,10 @@
         (name: "TargetedNounPhrase", lhs: "TargetedNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Carry("determiner.DeterminativeDistribution", "Targeting"), Carry("determiner.Number", "Singular"), Require("head.Number", "Plural"), Require("head.Determination", "Overt"), Agree("determiner.Countability", "head.Countability")]),
         // A free-choice quantity of serial *times* is a frequency Adjunct
-        // (*pay {1}{G} any number of times*).
+        // (*pay {1}{G} any number of times*). As TransparentQuantity, the
+        // nominal child is `quantity`, not `head`: Number comes from the
+        // oblique, and NounKind is `Temporal` from the oblique, so the
+        // head lexeme and the head line are forgone.
         (name: "TemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Carry("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],

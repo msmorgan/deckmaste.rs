@@ -96,6 +96,40 @@ pub struct CategoryDecl {
 }
 
 /// One authored Production.
+///
+/// # Reserved child names (the contract)
+///
+/// A child's name is its grammatical function (`Production::names`), and the
+/// engine keys behaviour on the names below. Any other name is inert. A
+/// Production that names its semantic head something else forgoes every
+/// `head` item, so renaming a head to dodge implicit agreement also loses its
+/// head lexeme in Readings and its place in the head line: comment each such
+/// rename in the grammar.
+///
+/// - `head`:
+///   - implicit agreement with the mother on every feature both carry
+///     (`compile.rs`, `add`; see `Equation`);
+///   - Preposition and extension inheritance (`step.rs`, `resolve`);
+///   - the head line (`step.rs`, `Production::head_line`), shared with
+///     `first`, `last` and `rest`;
+///   - the Reading head lexeme (`reading.rs`, `head_word`);
+///   - the host words counted for Right Association (`reading.rs`);
+///   - wrapping by a function Category (`reading.rs`, `locate`).
+/// - `first`, `last`, `rest`:
+///   - the head line;
+///   - conjunct balance and the coordination Attachment Class
+///     (`reading.rs`);
+///   - the fronted-scope rule (`step.rs`, `comma_scope_excludes`).
+/// - `adjunct`, `modifier`: unselected dependents, counted for Right
+///   Association and the preposed-dependent Attachment Class (`reading.rs`).
+///   `adjunct` also marks the post-verbal Adjunct host that an auxiliary
+///   Verb Phrase never is (`step.rs`, `post_adjunct_host`).
+/// - `supplement`: reversed Right Association (`reading.rs`).
+/// - `complement`: carries a delimited Clause coordination up to its
+///   comma-set post-dependent (`step.rs`, `accept`).
+/// - `object`, `shared`: the Reading functions of postposed Modifiers
+///   (`object`) and of Right Node Raising (`shared`) (`reading.rs`,
+///   `locate`).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProductionDecl {
@@ -150,6 +184,9 @@ pub(crate) fn default_cost() -> u32 {
 }
 
 /// One right-hand-side element. Every element but `Punct` names its child.
+///
+/// A child's name is its grammatical function; the engine reserves some names
+/// (see `ProductionDecl`).
 #[derive(Debug, Clone, Deserialize)]
 pub enum SymbolDecl {
     /// A Constituent of a Category.
@@ -183,7 +220,7 @@ pub enum SymbolDecl {
 
 /// A feature equation over `$.Feature` (the mother) or `child.Feature` paths.
 /// A child named `head` implicitly agrees with the mother on every feature both
-/// carry.
+/// carry; see the reserved child names on `ProductionDecl`.
 #[derive(Debug, Clone, Deserialize)]
 pub enum Equation {
     Agree(Ident, Ident),

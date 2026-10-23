@@ -50,3 +50,8 @@ updated to the round-9 list in the same change. That includes
 Stratum 7. `english-v4-agency-outfitter-coordination-ranking` is recast as the
 grammatical admission fix of its lead 1: Right Node Raising must take the
 right edge of a conjunct.
+
+Closed: resolved by owner round 9; each ruled fix is its own ticket, and integration moves this one to done.
+
+Census delta (measured on `okprvpoz` -> this landing): documentation and comment changes only; faces read 28,801, total Readings 245,825 and Surplus 106,859 before and after; lost faces: none.
+Judgment set (measured on `okprvpoz`): not affected; `cargo xtask english-v4 strata --check` passes and the crate tests pass.
