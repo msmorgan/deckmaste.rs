@@ -3868,6 +3868,17 @@ def stepOps : Nat → StepOps
           let (drs3, e3) := match ifNot with
             | some b => ops.inst phase .obj (nextClause withTargets) b
             | none => (drs, [])
+          -- So is a target an arm announces, as the arm is part of the same ability, whichever
+          -- arm later runs [CR#601.2c,603.3d,115.1] (owner ruling 2026-10-23): it is an ordinary
+          -- referent after the whole `may`, read as announced. Each arm is stepped before its
+          -- event from where it starts.
+          let armTargets := fun (start : DRS) (arm : Option Action) => match policy, arm with
+            | .optional, some b =>
+              (ops.inst .preEvent .obj (nextClause start) b).1.referents.filter
+                fun ref => ref.id >= start.nextId && ref.det == .target
+            | _, _ => []
+          let didTargets := armTargets drs1 ifDid
+          let notTargets := armTargets withTargets ifNot
           let policyErrors := match policy with
             | .optional => []
             | .required => refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure ++
@@ -3886,22 +3897,37 @@ def stepOps : Nat → StepOps
           -- An earlier object, an announced target among them, keeps its id, and both paths
           -- stamping it escape it once; what an arm introduced takes a fresh id, as the two arms
           -- number from the same `nextId`.
+          -- The two arms number from overlapping ids, so each arm's targets take fresh ids past
+          -- both arms, and a stamp an arm left on its own target escapes under the target's.
           let armsNextId := max drs2.nextId drs3.nextId
+          let didIds := didTargets.zipIdx.map fun (ref, index) => (ref.id, armsNextId + index)
+          let notIds := notTargets.zipIdx.map fun (ref, index) =>
+            (ref.id, armsNextId + didTargets.length + index)
+          let armTargetsOut := (didTargets ++ notTargets).zipIdx.map fun (ref, index) =>
+            { ref with id := armsNextId + index }
+          let armStamp := fun (ids : List (Nat × Nat)) (ref : Referent) =>
+            (ids.find? (·.1 == ref.id)).map fun (_, id) => { ref with id := id }
           let earlier := fun (ref : Referent) => ref.id < drs.nextId || targetIds.contains ref.id
           -- A target's stamp, or its moved successor's, escapes under the target's id.
           let before := { withTargets with nextId := drs.nextId }
-          let fromBody := continuationStamped before drs2
-          let fromOther := (continuationStamped before drs3).filter fun ref =>
-            !earlier ref || !fromBody.any (·.id == ref.id)
+          let didStamped := continuationStamped
+            { before with referents := didTargets ++ before.referents } drs2
+          let notStamped := continuationStamped
+            { before with referents := notTargets ++ before.referents } drs3
+          let armStamped := didStamped.filterMap (armStamp didIds) ++
+            notStamped.filterMap (armStamp notIds)
+          let fromBody := didStamped.filter fun ref => (armStamp didIds ref).isNone
+          let fromOther := notStamped.filter fun ref => (armStamp notIds ref).isNone &&
+            (!earlier ref || !fromBody.any (·.id == ref.id))
           let stamped := fromBody ++ fromOther
           let introduced := stamped.filter (!earlier ·)
           let renumbered := introduced.zipIdx.map fun (ref, index) =>
-            { ref with id := armsNextId + index }
+            { ref with id := armsNextId + armTargetsOut.length + index }
           ({ drs with
-              referents := shortfalls ++ targets ++ drs.referents
-              participialOnly := stamped.filter earlier ++ renumbered ++
+              referents := shortfalls ++ armTargetsOut ++ targets ++ drs.referents
+              participialOnly := stamped.filter earlier ++ armStamped ++ renumbered ++
                 drs.participialOnly
-              nextId := armsNextId + introduced.length
+              nextId := armsNextId + armTargetsOut.length + introduced.length
               nextSelectionScope := max drs2.nextSelectionScope drs3.nextSelectionScope
               selectionEvidence := evidence
               -- The body and its arms wrote their events whether or not the player chooses to

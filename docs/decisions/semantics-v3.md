@@ -576,7 +576,12 @@ that happened). The exception is what the body acted on other than the targets i
 target written in an optional body is chosen as the spell or ability is put on the stack, whether
 or not the player acts `[CR#601.2c,603.3d,115.1]`, so it is an ordinary referent after the body and
 in its "if you don't" arm, read as announced, while the body's stamp on it stays participial-only;
-inside a per-player loop it is a loop-local the loop abstracts (owner ruling 2026-10-23); no span also reads those a linked ability published
+inside a per-player loop it is a loop-local the loop abstracts (owner ruling 2026-10-23). A target
+written in either arm escapes the same way, as the arms are part of the same ability: it is an
+ordinary referent after the whole `may`, whichever arm runs, while the arm's stamp on it stays
+participial-only; a "when you do" reflexive trigger is a separate ability that chooses its own
+targets `[CR#603.12,603.3d]`, and its targets do not escape (owner ruling 2026-10-23); no span also reads
+those a linked ability published
 `[CR#607.2a]`, where a singular `the` reads a published group `[CR#607.3]`. `Reach.verbed`,
 `VerbedMarking` and `theVerbed` are retired; "it"/"them"/"that card" are ordinary pronouns.
 Linked and self-linked abilities share one authored AST (`deckmaste_spelling` needs one AST per
