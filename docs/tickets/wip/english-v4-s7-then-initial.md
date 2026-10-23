@@ -47,3 +47,17 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+A front Adverb Phrase without a comma now precedes a Clause (*Then draw a
+card*, *Then that player shuffles*). Front dependents sharing one comma stay
+siblings in one Production (*Once each turn, ...*, *Then if ...*): the new
+Clause feature `FrontPosition`, valued by every comma-set fronting Production
+and taken by a Clause coordination from its first conjunct, keeps the
+comma-less schema off such a Clause, so *Once [each turn, ...]* is no second
+tree. Reading Normal Form now re-derives a moved host's head-inherited
+features (fronted dependent outermost). Interrogative *how* is no longer a
+front adverb. Remove Enchantments (138 × 68), Muse Vortex (1 × 37 × 48) and
+Legion's End (116 × 9) are products of independent per-sentence counts.
+
+1. **Census delta** (`wznlvsyl` → `oktrlqmo`, full corpus): faces read 29,932 → 30,365; total Readings 258,466 → 277,002; Surplus 113,785 → 116,303; 443 units changed (439 newly read, 4 grown). Lost faces: none.
+2. **Judgment set** (`oktrlqmo`): 3,081 enforced, 242 pending; all hold.

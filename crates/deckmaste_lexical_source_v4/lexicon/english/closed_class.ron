@@ -129,7 +129,10 @@
     // Interrogative *how* belongs to CGEL's closed interrogative class (Ch. 10
     // §7, p. 902): *how those creatures block*; *how many cards*.
     adverbs: [
-        (lemma: "how", positions: [Front, Bounding]),
+        // Clause-initial *how* marks an interrogative clause, which the
+        // grammar reads by the word itself; it is never a front Adjunct of a
+        // declarative Clause (CGEL, Ch. 11 §5.1, pp. 972–973).
+        (lemma: "how", positions: [Bounding]),
         // Degree *as* grades a scalar head (CGEL, Ch. 13 §4.3, p. 1130).
         // It has no clause position or general phrasal distribution: the
         // grammar combines it with the degree determinatives it modifies.

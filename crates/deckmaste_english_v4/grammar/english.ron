@@ -114,6 +114,17 @@
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
         "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Bounding"],
+        // A Clause whose front position holds a dependent set off by a comma
+        // (*If you do, ...*, *Once each turn, ...*). Front dependents that
+        // share one comma are siblings in one Production (*Then if ...*,
+        // *Once during each of your turns, ...*), so a front Adverb Phrase
+        // without a comma never also precedes such a Clause: one tree per
+        // analysis (`english-lexical-analysis.md` §2). A Clause coordination
+        // takes it from its first conjunct, where its front position is:
+        // front dependents sharing one comma are siblings whether they scope
+        // over the first conjunct or the whole (*Once each turn, C1, and
+        // C2*), never split between the two.
+        "FrontPosition": ["Occupied"],
         "Inflection": ["Invariant", "IndependentGenitive", "Singular", "Plural", "Plain", "Present", "Preterite", "Irrealis", "GerundParticiple", "PastParticiple"],
     },
     categories: {
@@ -155,7 +166,7 @@
         "Sentences": (),
         // A Clause's Inflection is its finite verb's: an independent clause
         // excludes the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88).
-        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection"], gap: true),
+        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection", "FrontPosition"], gap: true),
         // A subject relative agrees with its antecedent in number; an
         // adverbial relative modifies a temporal nominal.
         "RelativeClause": (features: ["Number", "NounKind", "ClauseMarking"]),
@@ -700,7 +711,7 @@
             equations: [Require("$.AdjunctPosition", "Front")]),
         // A front adverbial set off by a comma (*Once each turn, ...*).
         (name: "FrontAdverbial", lhs: "Clause", rhs: [Cat("adjunct", "AdverbPhrase"), Punct(','), Cat("head", "Clause")],
-            equations: [Require("adjunct.AdjunctPosition", "Front")], transparent: ["head"], cost: 2),
+            equations: [Require("adjunct.AdjunctPosition", "Front"), Require("$.FrontPosition", "Occupied")], transparent: ["head"], cost: 2),
         // A comma-set passive participial Supplement (*there is an additional
         // combat phase after this phase, followed by an additional main
         // phase*; CGEL, Ch. 14 §9.1, p. 1265; Ch. 15 §5.1, p. 1350). It
@@ -868,7 +879,7 @@
             equations: [Require("head.NounKind", "Temporal"), Agree("head.Number", "modifier.Number"), Agree("head.NounKind", "modifier.NounKind")]),
         (name: "RelativeTimePostmodifier", lhs: "RelativeTemporalNominal", rhs: [Cat("head", "RelativeTemporalNominal"), Cat("modifier", "TemporalNounPhrase")], cost: 2),
         // A preposed temporal Noun Phrase (*This turn, ...*; *The next time ..., ...*).
-        (name: "PreposedTemporalAdjunct", lhs: "Clause", rhs: [Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], transparent: ["head"]),
+        (name: "PreposedTemporalAdjunct", lhs: "Clause", rhs: [Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("$.FrontPosition", "Occupied")], transparent: ["head"]),
         // A preposed Preposition Phrase and temporal Noun Phrase set off by
         // one comma (*For one spell this turn, ...*). The Preposition Phrase
         // has a Noun Phrase Complement: a Clause Complement runs to the comma
@@ -881,7 +892,7 @@
         // entered this turn, ...*), ranks first there: the second of two
         // preposed dependents violates an Attachment Class
         // (`docs/decisions/english-v4.md` §4.3).
-        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
+        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP"), Require("$.FrontPosition", "Occupied")], transparent: ["head"], cost: 2),
         // Two preposed Preposition Phrases set off by one comma, a delayed
         // trigger's timing and its duration (*At the beginning of each of
         // your upkeeps for the rest of the game, ...*; oracle-style-guide §8,
@@ -893,7 +904,7 @@
         // *at the beginning of combat on your turn* (oracle-style-guide §11,
         // Turn-structure names): the second of two preposed dependents
         // violates an Attachment Class (`docs/decisions/english-v4.md` §4.3).
-        (name: "PreposedPrepositionPair", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
+        (name: "PreposedPrepositionPair", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP"), Require("$.FrontPosition", "Occupied")], transparent: ["head"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],
@@ -1126,10 +1137,12 @@
         // each search ...*; CGEL, Ch. 5 §10.1.1, p. 428).
         (name: "AuxiliaryFloatedEach", lhs: "VerbPhrase", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Plain")], transparent: ["head"], cost: 2),
-        // A preposed adverb and Preposition Phrase set off by one comma (*Once
-        // during each of your turns, ...*).
+        // Two front dependents before one comma (*Then if ...*, *Once during
+        // each of your turns, ...*); the adverb is an Adjunct of the Clause,
+        // not a modifier of the Preposition Phrase (OSG §10, Sequence;
+        // §11, This, next, and each).
         (name: "PreposedAdverbAndPreposition", lhs: "Clause", rhs: [Cat("adjunct", "AdverbPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Punct(','), Cat("head", "Clause")],
-            equations: [Require("adjunct.AdjunctPosition", "Front")], transparent: ["head"], cost: 2),
+            equations: [Require("adjunct.AdjunctPosition", "Front"), Require("$.FrontPosition", "Occupied")], transparent: ["head"], cost: 2),
         // A verbal cost with a passive participial Supplement (*Pay half your
         // life, rounded up:*).
         (name: "SupplementedVerbalCost", lhs: "NonManaCost", rhs: [Cat("head", "VerbPhrase"), Punct(','), Cat("supplement", "VerbPhrase")],
@@ -1588,7 +1601,15 @@
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1),
         Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 1, equations: [Exclude("head.ComplementKind", "NP")]),
-        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 1),
+        Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 1, equations: [Require("$.FrontPosition", "Occupied")]),
+        // A front Adverb Phrase without a comma (*Then draw a card*, *Then
+        // that player shuffles*): connective *then* is an ordering connective
+        // (CGEL, Ch. 8 §19, p. 778 [9ii]; `docs/oracle-style-guide.md`
+        // checklist 10 and §10, Sequence). Before a front dependent set off
+        // by a comma it shares that comma, in FrontAdverbial
+        // (*Once each turn, ...*) or PreposedAdverbAndPreposition (*Then if
+        // ...*), never also here (FrontPosition).
+        Adjunct(host: "Clause", adjunct: "AdverbPhrase", side: Before, host_kind: Predicate, cost: 2, equations: [Require("adjunct.AdjunctPosition", "Front"), Exclude("head.FrontPosition", "Occupied")]),
         // An intransitive Preposition Phrase preposed without a comma, before
         // an imperative or before a declarative's Subject (*The next time you
         // would draw a card this turn, instead put ...*; *If this spell was
@@ -1614,7 +1635,7 @@
         Adjunct(host: "KeywordLineItem", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         Adjunct(host: "IndexedNominal", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         // A preposed gerund-participial adjunct (*Starting with you, ...*).
-        Adjunct(host: "Clause", adjunct: "Gerund", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),
+        Adjunct(host: "Clause", adjunct: "Gerund", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2, equations: [Require("$.FrontPosition", "Occupied")]),
         // A depictive gerund-participial adjunct (*put it onto the battlefield
         // attacking*), of a lexical verb: after an auxiliary, a
         // gerund-participial is the progressive's (*the player it is
@@ -1639,14 +1660,14 @@
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
         // *"A" and "B"*; *"A," "B," and "C."*
         Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it
         // doesn't untap ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.
         // Every conjunct but the last shares its Determination, and the
