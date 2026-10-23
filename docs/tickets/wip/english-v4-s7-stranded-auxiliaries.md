@@ -57,3 +57,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (uqqlrvzt): faces read 30,389 → 30,425; total Readings 278,082 → 280,528; Surplus 116,513 → 117,144; 80 units changed, the largest Muse Vortex 1,776 → 3,552 (spurious, `english-v4-s7-stranded-auxiliary-predicate-priority`); lost faces none.
+2. **Judgment set** (uqqlrvzt): all hold; 26 entries added in `stranded_auxiliaries.txt`, none rewritten or retired. `instead_replacement.txt:27` stays pending on `english-v4-s7-then-coordination`: its stranded conditional now reads.

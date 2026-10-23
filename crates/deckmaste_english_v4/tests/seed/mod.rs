@@ -292,11 +292,29 @@ pub fn lexicon() -> Lexicon {
             .insert("PronounKind".into(), "Relative".into());
         lexemes.push(relative);
     }
+    auxiliaries(&mut lexemes);
+    Lexicon::new(lexemes).expect("seed lexicon")
+}
+
+/// The auxiliary verbs beside *be* and *have*, and the lexical class of all of
+/// them.
+fn auxiliaries(lexemes: &mut Vec<Lexeme>) {
+    use Number::Singular;
+    use Person::Third;
+    use SourceKind::Core;
+    use WordForm::Present;
+    use WordForm::Preterite;
+
     for (word, third, preterite) in [
         ("'ve", "'s", None),
         ("haven't", "hasn't", Some("hadn't")),
         ("'re", "'s", None),
         ("aren't", "isn't", Some("weren't")),
+        ("can", "can", Some("could")),
+        ("can't", "can't", Some("couldn't")),
+        ("may", "may", Some("might")),
+        ("must", "must", None),
+        ("will", "will", Some("would")),
     ] {
         let mut auxiliary = verb(word, Core);
         auxiliary
@@ -306,14 +324,19 @@ pub fn lexicon() -> Lexicon {
         set(&mut auxiliary, Present, Some(Third), Some(Singular), third);
         match preterite {
             Some(preterite) => set(&mut auxiliary, Preterite, None, None, preterite),
-            None => auxiliary.binding = Binding::Suffix,
+            None if word.starts_with('\'') => auxiliary.binding = Binding::Suffix,
+            None => {}
         }
         lexemes.push(auxiliary);
     }
     // Auxiliary verbs are a lexical class of their own.
-    for lexeme in &mut lexemes {
+    for lexeme in lexemes.iter_mut() {
         if lexeme.category == Category::Verb
-            && ["be", "have", "'ve", "haven't", "'re", "aren't"].contains(&lexeme.lemma.as_str())
+            && [
+                "be", "have", "'ve", "haven't", "'re", "aren't", "can", "can't", "may", "must",
+                "will",
+            ]
+            .contains(&lexeme.lemma.as_str())
         {
             lexeme
                 .properties
@@ -321,7 +344,6 @@ pub fn lexicon() -> Lexicon {
                 .insert("VerbKind".into(), "Auxiliary".into());
         }
     }
-    Lexicon::new(lexemes).expect("seed lexicon")
 }
 
 #[must_use]

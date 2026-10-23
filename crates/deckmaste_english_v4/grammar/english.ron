@@ -415,6 +415,11 @@
         "BeVerb": ["verb:be", "verb:'re", "verb:aren't"],
         // Perfect *have* and its contracted and negative forms.
         "HaveVerb": ["verb:have", "verb:'ve", "verb:haven't"],
+        // Auxiliaries stranded before the ellipsis site of their Complement
+        // (CGEL, Ch. 17 §7.1, pp. 1519–1523). *Do* has its intransitive
+        // pro-form frame; a reduced clitic never stands in this stressed
+        // position (Ch. 18 §6.1, p. 1614).
+        "StrandableAuxiliary": ["verb:be", "verb:aren't", "verb:have", "verb:haven't", "verb:can", "verb:can't", "verb:may", "verb:must", "verb:will"],
         // Comparative determinatives: they select a *than* Complement (*more
         // than one*; CGEL, Ch. 13 §2.1, p. 1104), and a measure phrase
         // modifies them (*{1} less*).
@@ -640,6 +645,13 @@
         // An imperative or declarative Clause, with any preposed adjunct
         // (*When this creature enters, choose one —*).
         (name: "ChoiceHeader", lhs: "ModalHeader", rhs: [Cat("head", "Clause"), Mark('—', Free)], equations: [Exclude("head.Inflection", "Irrealis")]),
+        // A reflexive trigger [CR#603.12] begins a new sentence after the
+        // instruction it depends on, and a modal header can be one (*You may pay
+        // {E}{E}. When you do, choose one —*; `docs/oracle-style-guide.md`
+        // §8, Delayed and reflexive triggers; §10, Modal choices). Right
+        // recursion gives a sentence sequence one grouping, as
+        // SentenceSequence does.
+        (name: "SentencePrefixedModalHeader", lhs: "ModalHeader", rhs: [Cat("first", "Sentence"), Cat("head", "ModalHeader")]),
 
         // Sentences: a bare imperative or a declarative clause.
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
@@ -737,6 +749,14 @@
 
         // Auxiliaries take a verb phrase complement through which a Gap passes.
         (name: "AuxiliaryParticiple", lhs: "AuxiliaryComplement", rhs: [Cat("head", "VerbPhrase")], transparent: ["head"]),
+        // A finite auxiliary stranded before the ellipsis site of its
+        // Complement heads its Verb Phrase alone (CGEL, Ch. 17 §7.1,
+        // p. 1519: *If you can't, ...*, *each opponent who can't*). Only a
+        // coordinator, punctuation or the head it is a dependent of follows
+        // the site: a dependent right after it would be the Complement, and
+        // Oracle retains no dependent in the reduced Verb Phrase (p. 1520).
+        (name: "StrandedAuxiliary", lhs: "VerbPhrase", rhs: [Class("head", "StrandableAuxiliary")],
+            equations: [Require("head.VerbForm", "Finite"), Require("$.Voice", "Active")], elliptical: true),
         (name: "Progressive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "GerundParticiple"), Agree("$.Voice", "complement.Voice")],
             transparent: ["complement"]),

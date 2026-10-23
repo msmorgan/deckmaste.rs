@@ -69,7 +69,6 @@ All Hallow's Eve | At the beginning of your upkeep, if this card is exiled with 
 Chrome Replicator | When this creature enters, if you control two or more nonland, nontoken permanents with the same name as one another, create a 4/4 colorless Construct artifact creature token.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 Chaos Defiler | Battle Cannon — When this creature enters or dies, for each opponent, choose a nonland permanent that player controls. Destroy one of them chosen at random.
-Immard, the Stormcleaver | Whenever Immard, the Stormcleaver enters or attacks, put a charge counter on it or remove one from it. When you remove a counter this way, choose one —
 
 Everything Comes to Dust | Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments.
 Squee's Revenge | Choose a number. Flip a coin that many times or until you lose a flip, whichever comes first. If you win all the flips, draw two cards for each flip.

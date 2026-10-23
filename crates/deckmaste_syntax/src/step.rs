@@ -157,6 +157,17 @@ pub(crate) enum Symbol {
 }
 
 /// A compiled Production.
+/// The Complements a Production's phrase omits at its right edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Omission {
+    None,
+    /// A noun's bare phrase omits the Complements its head's frames select
+    /// (`Summary::omitted_complement`).
+    Selected,
+    /// It ends in an ellipsis site (`ProductionDecl::elliptical`).
+    Ellipsis,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
@@ -236,9 +247,8 @@ pub(crate) struct Production {
     /// of perfect *have* or of passive or progressive *be*
     /// (`Summary::auxiliary`).
     pub auxiliary: Option<usize>,
-    /// A noun's bare phrase, which omits the Complements its head's frames
-    /// select (`Summary::omitted_complement`).
-    pub omits_complement: bool,
+    /// The Complements its phrase omits at its right edge.
+    pub omission: Omission,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -397,7 +407,7 @@ pub(crate) fn resolve(
         foreign_coordinators: Vec::new(),
         unlike: None,
         auxiliary: None,
-        omits_complement: false,
+        omission: Omission::None,
         id,
         lhs,
         rhs,
@@ -428,6 +438,7 @@ pub(crate) fn resolve(
             head_final: false,
             final_preposition: None,
             omitted_complement: 0,
+            ellipsis_final: false,
             after_unlike_omissions: false,
             conjunct_omitted: None,
             unlike_omissions: false,
@@ -481,6 +492,10 @@ pub(crate) struct Summary {
     /// Complement, never a dependent of another host
     /// (`english-lexical-analysis.md` §2, same-head complement priority).
     pub omitted_complement: u16,
+    /// It ends in an ellipsis site, through its last child
+    /// (`ProductionDecl::elliptical`): before any punctuation, only a head it
+    /// is a dependent of follows it.
+    pub ellipsis_final: bool,
     /// It is a coordination whose conjuncts omit unlike Complements, the last
     /// conjunct's `omitted_complement`: a Preposition Phrase right after it
     /// may be a dependent of the whole coordination, which cannot share it as
@@ -578,6 +593,9 @@ pub(crate) struct State {
     /// The Complements omitted by the bare noun phrase the last child so far
     /// ends in (`Summary::omitted_complement`).
     omitted_complement: u16,
+    /// The last child so far ends in an ellipsis site
+    /// (`Summary::ellipsis_final`).
+    ellipsis_final: bool,
     /// The last child so far is a coordination with unlike omissions
     /// (`Summary::unlike_omissions`).
     after_unlike_omissions: bool,
@@ -739,6 +757,30 @@ impl Production {
             }
             ChildView::Leaf(_) => next.final_preposition = None,
             ChildView::Punct => {}
+        }
+        Some(())
+    }
+
+    /// Whether the phrase so far ends in an ellipsis site, or `None` if child
+    /// `position` comes right after one and is neither the head the phrase
+    /// ending in it is a dependent of nor a coordinator
+    /// (`ProductionDecl::elliptical`). Punctuation ends the site's reach.
+    fn track_ellipsis_final(
+        &self,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        match child {
+            ChildView::Punct => next.ellipsis_final = false,
+            _ if next.ellipsis_final
+                && self.head != Some(position)
+                && self.coordinator != Some(position) =>
+            {
+                return None;
+            }
+            ChildView::Node(summary) => next.ellipsis_final = summary.ellipsis_final,
+            ChildView::Leaf(_) => next.ellipsis_final = false,
         }
         Some(())
     }
@@ -1102,6 +1144,7 @@ impl Production {
         self.track_head_final(&mut next, position, child);
         self.track_final_preposition(grammar, &mut next, position, child)?;
         self.track_omitted_complement(grammar, &mut next, position, child)?;
+        self.track_ellipsis_final(&mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -1277,7 +1320,8 @@ impl Production {
             leaves: state.leaves,
             head_final: state.head_final,
             final_preposition: state.final_preposition,
-            omitted_complement: if self.omits_complement {
+            ellipsis_final: self.omission == Omission::Ellipsis || state.ellipsis_final,
+            omitted_complement: if self.omission == Omission::Selected {
                 state.extensions
             } else {
                 state.omitted_complement

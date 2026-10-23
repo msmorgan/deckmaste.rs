@@ -250,6 +250,8 @@ struct Draft {
     internalised: Option<usize>,
     /// A noun's bare phrase, which omits its head's Complements.
     omits_complement: bool,
+    /// It ends in an ellipsis site (`ProductionDecl::elliptical`).
+    elliptical: bool,
 }
 
 /// What a Valence schema declares its derived phrases carry, beyond their
@@ -322,6 +324,7 @@ impl Draft {
             unlike: None,
             internalised: None,
             omits_complement: false,
+            elliptical: false,
         }
     }
 
@@ -984,6 +987,7 @@ impl<'a> Binder<'a> {
                 })?;
             draft.scoped.push(child);
         }
+        draft.elliptical = declaration.elliptical;
         self.equations(&mut draft, &declaration.equations)
             .map_err(context)?;
         Ok(draft)
@@ -1517,7 +1521,13 @@ impl<'a> Binder<'a> {
             .foreign_coordinators
             .clone_from(&draft.foreign_coordinators);
         production.unlike = draft.unlike;
-        production.omits_complement = draft.omits_complement;
+        production.omission = if draft.elliptical {
+            crate::step::Omission::Ellipsis
+        } else if draft.omits_complement {
+            crate::step::Omission::Selected
+        } else {
+            crate::step::Omission::None
+        };
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
