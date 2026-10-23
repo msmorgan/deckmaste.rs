@@ -83,8 +83,9 @@ effect writes, including token qualities [CR#111.3].
 
 `Rules.lean` is the rules-as-data a plugin authors beside its cards: an
 `SbaRule` [CR#704.1], a `ConferralRule` [CR#306.5b], and a `PredefinedToken`
-catalog entry [CR#111.10]. The results of damage [CR#120.3] are conferral rows
-that confer a property, not an ability. Each row is scoped by a `Predicate`
+catalog entry [CR#111.10]. The results of damage [CR#120.3] are conferrals
+of a property, not an ability: to a player, a table row; to a creature,
+planeswalker or battle, on that card type's `Definition.cardType` row. Each row is scoped by a `Predicate`
 instead of printed on a face, and `Check/Rules` checks it with the same
 functions a card's text obeys — the row's own obligations are only what the
 scope adds: the kind it may bind, and that a damage result's counter is a

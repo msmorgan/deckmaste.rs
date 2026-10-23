@@ -31,6 +31,11 @@ Decided (2026-10-13, owner; `semantics-v3.md` §§3.6, 3.8; archived
   lives in the table. [CR#702.2c] (combat damage assignment) is a named residue
   for the engine.
 
+**Narrowed (2026-10-23):** `ProjAxis.markedDamage` exists, and the [CR#704.5g] row landed in
+`lean-v3-card-type-conferral-rows` as `lethalDamage` on the creature `Definition.cardType` row
+(`Definitions/CardTypeRules.lean`), with "destroy" as the instruction. What remains is the
+[CR#704.5h] row, which goes on the same creature row.
+
 Do: add the axis and the event with their citations, thread both through every
 exhaustive read in `Check/`, pin the two rows as `SbaRule`s in
 `Proofs/Rules.lean` beside the three that already prove, mirror both in

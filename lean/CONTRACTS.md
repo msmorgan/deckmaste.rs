@@ -143,7 +143,9 @@ types (`Semantics.Definitions.CardTypes`) are the one catalog below the stack: e
 `semantic_definition` in `namespace Semantics` (`CardType.creature`) over `Semantics.Words`
 alone, because the checker compares card types by value and reads their fields (`permanent`,
 `stats`, `instantOrSorcery`); what a card type confers is its `Definition.cardType` row
-(`Semantics.Definitions.CardTypeRules`), above Templates. The other leaf
+(`Semantics.Definitions.CardTypeRules`), above Templates, and what a rules-defined subtype
+confers is its `Definition.subtype` row (`Semantics.Definitions.SubtypeRules`, Siege and Saga),
+beside it. The other leaf
 catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are
 spelled over primitives only, except that `.Subtypes` is spelled over the raw `Subtype`
 constructors, which have no primitive; `Semantics.Definitions.Phrasings` holds the Templates that
@@ -1357,9 +1359,9 @@ declaration's bare name means its label, so it reads at a designation
 position; its definition (`Definition.designation`) is a separate record the
 registry holds under the name (ruling 2026-10-10).
 
-The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
-grammar projects no marked damage and has no "since state-based actions were
-last checked" lookback. `Stat.loyalty` and `Stat.defense` read by zone:
+The lethal-damage state-based action [CR#704.5g] is a `stateBased` conferral
+on the creature row, reading `statOf .markedDamage`; the deathtouch one
+[CR#704.5h] has no row yet. `Stat.loyalty` and `Stat.defense` read by zone:
 counters on the battlefield [CR#306.5c,310.4c], the printed number elsewhere
 [CR#306.5a,310.4a]. The state-based and damage rows read the counters
 directly; the entry conferrals [CR#306.5b,310.4b] read the stat,

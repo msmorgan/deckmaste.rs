@@ -106,7 +106,8 @@ inductive Definition where
   needs a reading this one is not. -/
   | counter (kind : CounterKind) (confers : List Conferral)
   /-- A subtype [CR#205.3] and the rules its type rule defines for it, empty for the subtypes
-  that are inert vocabulary. -/
+  that are inert vocabulary. The rows with rules are declared beside the values
+  (`Semantics.Definitions.SubtypeRules`). -/
   | subtype (subtype : Subtype) (rules : List Conferral)
   /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
   ability and confers nothing, so the node carries columns rather than conferrals. The label is
