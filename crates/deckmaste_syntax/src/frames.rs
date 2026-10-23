@@ -82,6 +82,10 @@ pub enum SlotFill {
     Gerund,
     KeywordPhrase,
     QuotedAbility,
+    /// A word cited rather than used, as *left or right* in *choose left or
+    /// right*: a metalinguistic Noun Phrase (CGEL, Ch. 5 §8.2, p. 401),
+    /// taken only where a head selects one.
+    Mention,
     Nominal,
     /// A numeral or variable naming how many, as in *scry 2* or *scry X*.
     Amount,
@@ -117,6 +121,7 @@ pub enum SlotKind {
     Gerund,
     KeywordPhrase,
     QuotedAbility,
+    Mention,
     Nominal,
     Amount,
     Cost,
@@ -143,6 +148,7 @@ impl SlotFill {
             Self::Gerund => SlotKind::Gerund,
             Self::KeywordPhrase => SlotKind::KeywordPhrase,
             Self::QuotedAbility => SlotKind::QuotedAbility,
+            Self::Mention => SlotKind::Mention,
             Self::Nominal => SlotKind::Nominal,
             Self::Amount => SlotKind::Amount,
             Self::Cost => SlotKind::Cost,
@@ -189,6 +195,7 @@ impl Frame {
                     SlotFill::NP
                         | SlotFill::KeywordPhrase
                         | SlotFill::QuotedAbility
+                        | SlotFill::Mention
                         | SlotFill::MeasureNP
                 )]
             ),

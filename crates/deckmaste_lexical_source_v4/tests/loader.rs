@@ -5,6 +5,7 @@ use deckmaste_lexical_source_v4::Sources;
 use deckmaste_lexical_source_v4::schema::AnchorWord;
 use deckmaste_lexical_source_v4::schema::FrameSpec;
 use deckmaste_lexical_source_v4::schema::NounDecl;
+use deckmaste_lexical_source_v4::schema::ScopedName;
 use deckmaste_lexical_source_v4::schema::VerbEntry;
 
 fn verb(lemma: &str, frames: Vec<FrameSpec>) -> VerbEntry {
@@ -103,6 +104,8 @@ fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
         .introduced_names
         .retain(|name| name.name == "Marit Lage");
     sources.anchor_words.clear();
+    sources.vote_options.clear();
+    sources.cited_names.clear();
     let none = AttestedShortenings::default();
     sources.environment(card_names, &none).unwrap();
 
@@ -132,4 +135,25 @@ fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
         .unwrap_err()
         .to_string();
     assert!(error.contains("is a card name"), "{error}");
+
+    // A vote option or a cited name is no card name either.
+    for push in [
+        |sources: &mut Sources| sources.vote_options.push(scoped("Dark Depths")),
+        |sources: &mut Sources| sources.cited_names.push(scoped("Dark Depths")),
+    ] {
+        let mut stray = sources.clone();
+        push(&mut stray);
+        let error = stray
+            .environment(card_names, &none)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("is a card name"), "{error}");
+    }
+}
+
+fn scoped(name: &str) -> ScopedName {
+    ScopedName {
+        name: name.to_owned(),
+        cards: vec!["Citadel Siege".to_owned()],
+    }
 }

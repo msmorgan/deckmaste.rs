@@ -42,6 +42,7 @@ use crate::schema::KeywordAbility;
 use crate::schema::KeywordAction;
 use crate::schema::NounDecl;
 use crate::schema::PrepositionEntry;
+use crate::schema::ScopedName;
 use crate::schema::StemClass;
 use crate::schema::SubtypeFamily;
 use crate::schema::Subtypes;
@@ -64,7 +65,7 @@ pub enum SourceError {
 }
 
 /// Every data file of this crate, by path, embedded at build time.
-pub const FILES: [(&str, &str); 18] = [
+pub const FILES: [(&str, &str); 20] = [
     (
         CLOSED_CLASS,
         include_str!("../lexicon/english/closed_class.ron"),
@@ -101,6 +102,8 @@ pub const FILES: [(&str, &str); 18] = [
         include_str!("../catalogs/introduced_names.ron"),
     ),
     (ANCHOR_WORDS, include_str!("../catalogs/anchor_words.ron")),
+    (VOTE_OPTIONS, include_str!("../catalogs/vote_options.ron")),
+    (CITED_NAMES, include_str!("../catalogs/cited_names.ron")),
 ];
 
 pub(crate) const CLOSED_CLASS: &str = "lexicon/english/closed_class.ron";
@@ -121,6 +124,8 @@ const TURN_PARTS: &str = "catalogs/turn_parts.ron";
 const TOKENS: &str = "catalogs/tokens.ron";
 const INTRODUCED_NAMES: &str = "catalogs/introduced_names.ron";
 const ANCHOR_WORDS: &str = "catalogs/anchor_words.ron";
+const VOTE_OPTIONS: &str = "catalogs/vote_options.ron";
+const CITED_NAMES: &str = "catalogs/cited_names.ron";
 /// The card-name catalog, relative to the repository root.
 pub const CARD_NAMES: &str = "data/gen/catalogs/card-names.txt";
 /// The shortened spellings each card's own text uses for it [CR#201.5c],
@@ -164,6 +169,8 @@ pub struct Sources {
     pub tokens: Vec<Token>,
     pub introduced_names: Vec<IntroducedName>,
     pub anchor_words: Vec<AnchorWord>,
+    pub vote_options: Vec<ScopedName>,
+    pub cited_names: Vec<ScopedName>,
 }
 
 /// A Lexicon and the Subcategorization Frames of its Lexemes.
@@ -242,6 +249,8 @@ impl Sources {
             tokens: parse(TOKENS)?,
             introduced_names: parse(INTRODUCED_NAMES)?,
             anchor_words: parse(ANCHOR_WORDS)?,
+            vote_options: parse(VOTE_OPTIONS)?,
+            cited_names: parse(CITED_NAMES)?,
         })
     }
 
@@ -559,6 +568,16 @@ impl Sources {
             );
             builder.push(card_scoped(lexeme, &introduced.cards));
         }
+        for (path, prefix, names) in [
+            (VOTE_OPTIONS, "vote_option", &self.vote_options),
+            (CITED_NAMES, "cited_name", &self.cited_names),
+        ] {
+            for scoped in names {
+                let id = format!("{prefix}:{}", scoped.name);
+                let lexeme = exact(&id, &scoped.name, Category::Catalog, catalog(path, &scoped.name));
+                builder.push(card_scoped(lexeme, &scoped.cards));
+            }
+        }
         Ok(())
     }
 
@@ -622,11 +641,16 @@ impl Sources {
                 )));
             }
         }
-        for introduced in &self.introduced_names {
-            if cards.contains(&names::card_name_id(&introduced.name)) {
+        let scoped = self
+            .introduced_names
+            .iter()
+            .map(|introduced| ("introduced name", &introduced.name))
+            .chain(self.vote_options.iter().map(|option| ("vote option", &option.name)))
+            .chain(self.cited_names.iter().map(|cited| ("cited name", &cited.name)));
+        for (kind, name) in scoped {
+            if cards.contains(&names::card_name_id(name)) {
                 return Err(SourceError::Invalid(format!(
-                    "introduced name `{}` is a card name, already in scope everywhere",
-                    introduced.name
+                    "{kind} `{name}` is a card name, already in scope everywhere"
                 )));
             }
         }

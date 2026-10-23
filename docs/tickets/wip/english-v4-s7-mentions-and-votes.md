@@ -56,3 +56,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (lxkplpry): faces read 32,584 → 32,656; total Readings 313,415 → 314,375; Surplus 131,654 → 132,070; 74 units gained, 37 read units changed count, the largest Selvala's Stampede 16 → 192, Seize the Spotlight 8 → 48 and Tivit, Seller of Secrets 4 → 40 (a mentioned option beside the word's use: *votes for wild or free*, *chooses fame or fortune*); lost faces none. Artificial Evolution stays unread: a Mention as Predicative Complement (*can't be Wall*) multiplied *becomes night* and *is red* forests, so it was not added.
+2. **Judgment set** (lxkplpry): all hold, `vocabulary_batch_2.txt:96–97` included; 17 entries added in `mentions_and_votes.txt`, none rewritten or retired.

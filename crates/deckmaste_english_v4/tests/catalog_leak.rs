@@ -15,7 +15,11 @@ use deckmaste_syntax::grammar::SymbolDecl;
 /// Grammatical terms that happen to spell a catalog item, each the standard
 /// name of a grammatical concept rather than a use of the catalog word.
 // Case is the nominative/accusative/genitive distinction in english-v4 §1.
-const GRAMMATICAL_TERMS: [&str; 1] = ["case"];
+// *Free* (free-choice *any*, CGEL, Ch. 5 §7.5, p. 381), *past* (the past
+// participle), *present* (the present tense) and *time* (a relative of time)
+// name grammatical concepts; the catalog words they spell are vote options
+// [CR#701.38b].
+const GRAMMATICAL_TERMS: [&str; 5] = ["case", "free", "past", "present", "time"];
 
 #[test]
 fn the_grammar_names_only_core_closed_class_lexemes() {

@@ -20,11 +20,6 @@ Dance of the Manse | Return up to X target artifact and/or non-Aura enchantment 
 Ballroom Brawlers | Whenever this creature attacks, this creature and up to one other target creature you control both gain your choice of first strike or lifelink until end of turn.
 Keen Duelist | At the beginning of your upkeep, you and target opponent each reveal the top card of your library. You each lose life equal to the mana value of the card revealed by the other player. You each put the card you revealed into your hand.
 Storyweave | • Put two lore counters on target Saga you control. The next time one or more enchantment creatures you control enter this turn, each enters with two additional +1/+1 counters on it.
-Bite of the Black Rose | Will of the council — Starting with you, each player votes for sickness or psychosis. If sickness gets more votes, creatures your opponents control get -2/-2 until end of turn. If psychosis gets more votes or the vote is tied, each opponent discards two cards.
-Lieutenants of the Guard | Council's dilemma — When this creature enters, starting with you, each player votes for strength or numbers. Put a +1/+1 counter on this creature for each strength vote and create a 1/1 white Soldier creature token for each numbers vote.
-Capital Punishment | Council's dilemma — Starting with you, each player votes for death or taxes. Each opponent sacrifices a creature of their choice for each death vote and discards a card for each taxes vote.
-Trial of a Time Lord | IV — Starting with you, each player votes for innocent or guilty. If guilty gets more votes, the owner of each card exiled with this Saga puts that card on the bottom of their library.
-Abundant Harvest | Choose land or nonland. Reveal cards from the top of your library until you reveal a card of the chosen kind. Put that card into your hand and the rest on the bottom of your library in a random order.
 Midnight Crusader Shuttle | Midnight Entity — Whenever this Vehicle attacks, defending player faces a villainous choice — That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn. If you gain control of a creature this way, tap it, and it's attacking that player.
 Triumphant Chomp | Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.
 Gorex, the Tombshell | Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand.
@@ -73,27 +68,9 @@ Burakos, Party Leader | Burakos is also a Cleric, Rogue, Warrior, and Wizard.
 Tajuru Paragon | Tajuru Paragon is also a Cleric, Rogue, Warrior, and Wizard.
 Veteran Adventurer | Veteran Adventurer is also a Cleric, Rogue, Warrior, and Wizard.
 
-Storage Matrix | As long as this artifact is untapped, each player chooses artifact, creature, or land during their untap step. That player can untap only permanents of the chosen type this step.
-Stenn, Paranoid Partisan | As Stenn enters, choose a card type other than creature or land.
-Mystic Barrier | When this enchantment enters and at the beginning of your upkeep, choose left or right.
-Teyo, Geometric Tactician | −2: Choose left or right. Until your next turn, each player may attack only the nearest opponent in the last chosen direction and planeswalkers controlled by that opponent.
-Orchard Elemental | Council's dilemma — When this creature enters, starting with you, each player votes for sprout or harvest. Put two +1/+1 counters on this creature for each sprout vote. You gain 3 life for each harvest vote.
-Order of Succession | Choose left or right. Starting with you and proceeding in the chosen direction, each player chooses a creature controlled by the next player in that direction. Each player gains control of the creature they chose.
-Virtus's Maneuver | For each player, choose friend or foe. Each friend returns a creature card from their graveyard to their hand. Each foe sacrifices a creature of their choice.
-Cloud Key | As this artifact enters, choose artifact, creature, enchantment, instant, or sorcery.
-Dawn-Blessed Pennant | As this artifact enters, choose Elemental, Elf, Faerie, Giant, Goblin, Kithkin, Merfolk, or Treefolk.
-Pramikon, Sky Rampart | As Pramikon enters, choose left or right.
-Aminatou, the Fateshifter | −6: Choose left or right. Each player gains control of all nonland permanents other than Aminatou controlled by the next player in the chosen direction.
-Season of Gathering | {P}{P} — Choose artifact or enchantment. Destroy all permanents of the chosen type.
-Winding Way | Choose creature or land. Reveal the top four cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest into your graveyard.
-Eclipsed Realms | As this land enters, choose Elemental, Elf, Faerie, Giant, Goblin, Kithkin, Merfolk, or Treefolk.
-Turnabout | Choose artifact, creature, or land. Tap all untapped permanents of the chosen type target player controls, or untap all tapped permanents of that type that player controls.
-Zndrsplt's Judgment | For each player, choose friend or foe. Each friend creates a token that's a copy of a creature they control. Each foe returns a creature they control to its owner's hand.
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
 Teferi's Realm | At the beginning of each player's upkeep, that player chooses artifact, creature, land, or non-Aura enchantment. All nontoken permanents of that type phase out.
-Archon of Valor's Reach | As this creature enters, choose artifact, enchantment, instant, sorcery, or planeswalker.
 Grizzled Wolverine | {R}: This creature gets +2/+0 until end of turn. Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn.
-Messenger Jays | Council's dilemma — When this creature enters, starting with you, each player votes for feather or quill. Put a +1/+1 counter on this creature for each feather vote and draw a card for each quill vote. For each card drawn this way, discard a card.
 Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blue Camarid, black Thrull, red Goblin, or green Saproling.
 
 Wild Shape | Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability.
@@ -102,4 +79,3 @@ Lush Growth | Enchanted land is a Mountain, Forest, and Plains.
 Cut Down | Destroy target creature with total power and toughness 5 or less.
 Meek Attack | {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature.
 
-Fatespinner | At the beginning of each opponent's upkeep, that player chooses draw step, main phase, or combat phase. The player skips each instance of the chosen step or phase this turn.
