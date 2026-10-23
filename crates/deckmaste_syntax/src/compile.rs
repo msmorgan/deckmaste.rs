@@ -1695,8 +1695,16 @@ impl<'a> Binder<'a> {
                     drafts.extend(clustered);
                 }
                 let postposed = postposed.as_deref().map(|p| self.category(p)).transpose()?;
+                // A verb's interleaved Adjunct is a Predicate's; a noun's
+                // interleaved Modifier, before the Complement it selects, a
+                // Nominal's (CGEL, Ch. 5 §15, p. 454 [12]–[13]).
+                let host = if *head == LexicalCategory::Verb {
+                    HostKind::Predicate
+                } else {
+                    HostKind::Nominal
+                };
                 let mut ordered =
-                    self.valence_order(drafts.clone(), interleaved.as_deref(), *heavy_shift)?;
+                    self.valence_order(drafts.clone(), interleaved.as_deref(), *heavy_shift, host)?;
                 if let Some(modifier) = postposed {
                     ordered.extend(self.postposed_modifiers(&drafts, modifier));
                 }
@@ -2528,6 +2536,7 @@ impl<'a> Binder<'a> {
         drafts: Vec<Draft>,
         adjunct: Option<&str>,
         heavy: bool,
+        host: HostKind,
     ) -> Result<Vec<Draft>, LoadError> {
         let adjunct = adjunct.map(|name| self.category(name)).transpose()?;
         let mut ordered = Vec::new();
@@ -2608,22 +2617,35 @@ impl<'a> Binder<'a> {
                     .retain(|joint| joint.iter().all(|(i, _, _)| *i < split));
                 prefix.carried.retain(|(i, _, _)| *i < split);
                 prefix.predicative = prefix.predicative.filter(|&i| i < split);
-                let a = prefix.child(
-                    "adjunct",
-                    symbol(adjunct, Some(HostKind::Predicate)),
-                    GapRule::Closed,
-                );
-                prefix.host_check = Some((0, a, HostKind::Predicate));
+                // A Nominal's unselected dependent is its Modifier.
+                let function = match host {
+                    HostKind::Nominal => "modifier",
+                    _ => "adjunct",
+                };
+                let a = prefix.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
+                prefix.host_check = Some((0, a, host));
                 prefix.cost += 2;
+                // The interleaved dependent agrees with the phrase in each
+                // feature they both carry, as a postposed Modifier does.
+                let shared: Vec<usize> = self.out.category_features[adjunct]
+                    .iter()
+                    .copied()
+                    .filter(|f| self.out.category_features[category].contains(f))
+                    .collect();
+                for &feature in &shared {
+                    prefix
+                        .equations
+                        .push((Path::Mother(feature), Target::Path(Path::Child(a, feature))));
+                }
                 out.push(prefix);
                 let mut more = Draft::new(format!("{}/prefix{split}/more", draft.id), category, 2);
                 more.child("head", symbol(category, None), GapRule::Transparent);
-                more.child(
-                    "adjunct",
-                    symbol(adjunct, Some(HostKind::Predicate)),
-                    GapRule::Closed,
-                );
-                more.host_check = Some((0, 1, HostKind::Predicate));
+                more.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
+                more.host_check = Some((0, 1, host));
+                for &feature in &shared {
+                    more.equations
+                        .push((Path::Mother(feature), Target::Path(Path::Child(1, feature))));
+                }
                 out.push(more);
                 let mut suffix = draft.clone();
                 suffix.id = Ident::new(&format!("{}/interleaved{split}", draft.id));

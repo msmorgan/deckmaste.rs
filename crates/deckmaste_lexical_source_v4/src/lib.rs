@@ -381,11 +381,7 @@ impl Sources {
         }
         for entry in &self.prepositions {
             let id = format!("prep:{}", entry.lemma);
-            builder.preposition(
-                &entry.lemma,
-                &entry.frames,
-                core(PREPOSITIONS, &id),
-            );
+            builder.preposition(&entry.lemma, &entry.frames, core(PREPOSITIONS, &id));
         }
         for entry in &self.verbs {
             let id = format!("verb:{}", entry.lemma);
@@ -414,11 +410,7 @@ impl Sources {
                 builder.adjective("status_adj", &adjective.entry(), &source);
             }
             for preposition in &status.prepositions {
-                builder.preposition(
-                    &preposition.lemma,
-                    &preposition.frames,
-                    source.clone(),
-                );
+                builder.preposition(&preposition.lemma, &preposition.frames, source.clone());
             }
         }
         for part in &self.turn_parts {
@@ -498,6 +490,17 @@ impl Sources {
                 frames: Vec::new(),
             };
             builder.noun(&id, &entry, catalog(COUNTERS, &id));
+            // A counter's name is its kind, the first base of its Compound
+            // Noun [CR#122.1]; a Word-Part Coordination shares the head word
+            // with earlier bases (*a +1/+1, first strike, or vigilance
+            // counter*; CGEL, Ch. 15 §3.1(g), p. 1325).
+            builder
+                .lexemes
+                .last_mut()
+                .expect("just pushed")
+                .properties
+                .classes
+                .insert("SharedHeadCompound".into());
             if counter.kind.starts_with(['+', '-'])
                 || counter.kind.starts_with(|c: char| c.is_ascii_digit())
             {

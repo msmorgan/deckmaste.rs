@@ -1171,8 +1171,18 @@ Adjective Phrase and a Preposition Phrase in predicative function (CGEL,
 Ch. 15 §3.2, pp. 1326–1329). In Oracle English it joins depictives,
 attributes, postmodifiers, predicate Adjuncts (*second from the top or on the
 bottom*) and an Object with keyword phrases (*base power and toughness 4/4,
-flying, and haste*).
+flying, and haste*), or keyword phrases with a slash measure naming counter
+kinds (*from among flying, first strike, ..., and +1/+1*; [CR#122.1a,122.1b]).
 _Avoid_: mixed coordination
+
+**Word-Part Coordination**:
+A Coordination whose non-final Conjuncts are first bases of Compound Nouns
+alone, sharing the head word of the last Conjunct, a whole Compound Noun
+(CGEL, Ch. 15 §3.1(g), p. 1325: *Sydney- or Melbourne-based companies*), as in
+*a +1/+1, first strike, or vigilance counter*. A counter's first base is its
+name: a keyword or a slash measure ([CR#122.1a,122.1b]). The last Compound
+Noun stays one Lexeme.
+_Avoid_: coordinated premodifiers of *counter* (that splits the Compound Noun)
 
 **Linked Coordination** (project term):
 A Coordination without a Coordinator, whose non-initial Conjunct is marked
