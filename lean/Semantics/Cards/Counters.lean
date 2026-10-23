@@ -766,10 +766,11 @@ def urborgScavengers : Spelled := spelled <| singleFacedCard
             [ exile (target (cardIn graveyard)),
               putCounters 1 p1p1Counter thisCreature ]),
         alsoForKeywords
-          (static (onlyWhile (abilityGrant thisCreature flying)
-            (exists_ (and [in_ (exiledWith thisCreature), hasKeyword flying]))))
-          (["firstStrike", "doubleStrike", "deathtouch", "haste", "hexproof", "indestructible",
-            "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ],
+          (fun k => static (onlyWhile
+            (keywordGrant thisCreature k (and [in_ (exiledWith thisCreature), hasKeyword k]))
+            (exists_ (and [in_ (exiledWith thisCreature), hasKeyword k]))))
+          [ flying, firstStrike, doubleStrike, deathtouch, haste, hexproofAbilities,
+            indestructible, lifelink, menace, reach, trample, vigilance ] ],
     power := stat 2, toughness := stat 2 }
 
 def sengirVampire : Spelled := spelled <| singleFacedCard

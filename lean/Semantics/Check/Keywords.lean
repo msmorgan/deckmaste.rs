@@ -94,8 +94,6 @@ def KeywordSchema.shapes (schema : KeywordSchema) : List KeywordParamShape := sc
 
 def keywordCosts (k : KeywordLabel) : Bool :=
   (keywordSchemas k).any (fun schema => schema.any (·.shape == .cost))
-def keywordParamless (k : KeywordLabel) : Bool :=
-  (keywordSchemas k).any List.isEmpty
 
 def KeywordFamily.ok (c : KeywordFamily) : Bool :=
   match keywordFactsFor c.word with
@@ -109,11 +107,6 @@ def KeywordTerm.known : KeywordTerm → Bool
   | .the k => knownKeyword k
   | .anyIn c => c.ok
   | .theWith k _ => (keywordSchemas k).any (fun schema => schema.shapes == [.number])
-
-def KeywordTerm.bare : KeywordTerm → Bool
-  | .the k => keywordParamless k
-  | .anyIn c => c.ok
-  | .theWith _ _ => false
 
 def allKnownKeywordTerms : List KeywordTerm → Bool
   | [] => true

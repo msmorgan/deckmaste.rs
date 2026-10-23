@@ -1973,6 +1973,14 @@ semantic_template activatedOnlyOnceIf (cost : Cost) (action : Action) (limit : U
 /-- "<subject> has <ability>" -/
 semantic_template abilityGrant (subject : NounPhrase) (ability : Ability) : StaticSpec :=
   .characteristicChange subject [.addedAbilities [ability]]
+/-- "<subject> has <term>", for a term a "the same is true for" list names. A keyword named bare is
+granted itself; a family term ("landwalk", "protection", "hexproof") grants each variant of it
+that the objects `holders` describes have, "the <term> abilities of those objects" [CR#702.1c]. -/
+semantic_template keywordGrant (subject : NounPhrase) (term : KeywordTerm)
+    (holders : Predicate) : StaticSpec :=
+  match term with
+  | .the label => abilityGrant subject (keyword label)
+  | _ => abilityGrantSelected subject (allOf holders) (.specified [.term term])
 /-- "<subject> has all <classes> abilities of <source> [except <except>]" -/
 semantic_template abilityGrantFrom (subject source : NounPhrase)
     (classes : List AbilityClass := []) (except : Option Predicate := none) : StaticSpec :=
@@ -1989,9 +1997,30 @@ semantic_template addsTarget (subject : NounPhrase) (description : Predicate) : 
 semantic_template allInstead (cost : Option Cost := none) (condition : Option Condition := none) :
     ModeChange :=
   .allInstead cost condition
-semantic_template alsoForKeywords (ability : Ability) (keywords : List KeywordTerm := []) :
-    Ability :=
-  .alsoForKeywords ability keywords
+/-- "<the ability, for the first keyword>. The same is true for <the other keywords>.": one ability
+[CR#113.2c] that does, for each keyword in Oracle order, what `body` writes for it. A triggered
+`body` makes one triggered ability under the first keyword's trigger, whose action runs each
+keyword's action `sequentially`; a static `body` makes one static ability whose parts are each
+keyword's (`conjunction`). Only the first keyword's trigger is read. Any other `body`, a mix of
+triggered and static, or an empty list joins nothing: an empty `conjunction`, refused `nonEmpty`.
+A keyword with variants grants each of them through `keywordGrant` [CR#702.1c]. -/
+semantic_template alsoForKeywords (body : KeywordTerm → Ability)
+    (keywords : List KeywordTerm := []) : Ability :=
+  let parts := keywords.map body
+  let actions := parts.filterMap fun
+    | .triggered _ _ _ _ _ _ _ action => some action
+    | _ => none
+  let specs := parts.filterMap fun
+    | .static spec => some spec
+    | _ => none
+  match parts with
+  | .triggered event alternatives while_ joins timing limit intervening _ :: _ =>
+    if actions.length == parts.length then
+      .triggered event alternatives while_ joins timing limit intervening (.sequentially actions)
+    else .static (.conjunction none [])
+  | .static _ :: _ =>
+    .static (.conjunction none (if specs.length == parts.length then specs else []))
+  | _ => .static (.conjunction none [])
 semantic_template altCost (subject : NounPhrase) (cost : Option Cost := none) : StaticSpec :=
   .altCost subject cost
 semantic_template asEvent (event : GameEvent) (does : Action) : StaticSpec := .asEvent event does

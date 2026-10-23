@@ -1161,6 +1161,8 @@ def iymrithDesertDoom : Spelled := spelled <| singleFacedCard
 
 def protectionAbilities : KeywordTerm := .anyIn ⟨protection, none⟩
 def landwalkAbilities : KeywordTerm := .anyIn ⟨landwalk, none⟩
+/-- Hexproof and each "hexproof from [quality]" [CR#702.11d]. -/
+def hexproofAbilities : KeywordTerm := .anyIn ⟨hexproof, none⟩
 /-- Shay Cormac -/
 def wardAbilities : KeywordTerm := .anyIn ⟨ward, none⟩
 /-- Tolaria, Shelkin Brownie -/
@@ -1174,9 +1176,10 @@ def cairnWanderer : Spelled := spelled <| singleFacedCard
     text :=
       [ changeling,
         alsoForKeywords
-          (static (onlyWhile (abilityGrant thisCreature flying)
-            (exists_ (and [isCreature, in_ graveyard, hasKeyword flying]))))
-          [ fear, firstStrike, doubleStrike, deathtouch, haste,
+          (fun k => static (onlyWhile
+            (keywordGrant thisCreature k (and [isCreature, in_ graveyard, hasKeyword k]))
+            (exists_ (and [isCreature, in_ graveyard, hasKeyword k]))))
+          [ flying, fear, firstStrike, doubleStrike, deathtouch, haste,
             landwalkAbilities, lifelink, protectionAbilities, reach, trample,
             shroud, vigilance ] ],
     power := stat 4, toughness := stat 4 }
@@ -1225,11 +1228,14 @@ def escapedShapeshifter : Spelled := spelled <| singleFacedCard
     types := [.creature], subtypes := [shapeshifter],
     text :=
       [ alsoForKeywords
-          (static (onlyWhile (abilityGrant thisCreature flying)
+          (fun k => static (onlyWhile
+            (keywordGrant thisCreature k
+              (and [ isCreature, anOpponentControls, hasKeyword k,
+                     not (named "Escaped Shapeshifter") ]))
             (exists_
-               (and [ isCreature, anOpponentControls, hasKeyword flying,
-                             not (named "Escaped Shapeshifter") ]))))
-          [firstStrike, trample, protectionFromAnyColor] ],
+              (and [ isCreature, anOpponentControls, hasKeyword k,
+                     not (named "Escaped Shapeshifter") ]))))
+          [flying, firstStrike, trample, protectionFromAnyColor] ],
     power := stat 3, toughness := stat 4 }
 
 /-- Ancestral Blade -/

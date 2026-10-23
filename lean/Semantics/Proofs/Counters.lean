@@ -724,4 +724,17 @@ theorem theNthEncodesTheCounterThreshold :
           (countersPut hourCounter (theNth (.nth 12)) thisArtifact)) = 0 :=
   ⟨rfl, by decide⟩
 
+/-- Required pin: *Urborg Scavengers*' "This creature has flying as long as a card exiled with it
+has flying. The same is true for …" is one static ability [CR#113.2c], a `conjunction` of 12
+parts: flying and the 11 the same is true for. The card has two lines. -/
+theorem urborgScavengersIsOneStatic :
+    (match Cards.urborgScavengers.card with
+      | .singleFaced face =>
+        face.characteristics.text.length == 2 &&
+          match (face.characteristics.text[1]? : Option Ability) with
+          | some (.static (.conjunction none parts)) => parts.length == 12
+          | _ => false
+      | _ => false) = true := by
+  decide
+
 end Semantics.Proofs.Counters

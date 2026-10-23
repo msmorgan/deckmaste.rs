@@ -1,5 +1,8 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Cost
+import Semantics.Cards.Counters
+import Semantics.Cards.Turn
 
 /-!
 # Semantics.Proofs.Keyword
@@ -188,38 +191,49 @@ theorem okActivatedTurnLimit :
       = [] := by
   decide
 
+/-- "As long as a card exiled with this creature has <k>, this creature has <k>." -/
+def exiledHas (k : KeywordTerm) : StaticSpec :=
+  .conditional (keywordGrant thisCreature k (.and [.in_ (.exiledWith thisCreature), .hasKeyword k]))
+    (exists_ (.and [.in_ (.exiledWith thisCreature), .hasKeyword k])) .asLongAs
+
+/-- `exiledHas` as the ability a line prints. -/
+def whileExiledHas (k : KeywordTerm) : Ability := .static (exiledHas k)
+
 /-- "As long as a card exiled with this creature has flying, this creature has flying." -/
-def flyingWhileExiledFlying : Ability :=
-  .static
-    (.conditional (Templates.abilityGrant thisCreature (keyword (.named "flying")))
-      (exists_ (.and [.in_ (.exiledWith thisCreature), .hasKeyword (.the (.named "flying"))])) .asLongAs)
+def flyingWhileExiledFlying : Ability := whileExiledHas (.the (.named "flying"))
 
-/-- "The same is true for menace and trample." -/
+/-- "As long as a card exiled with this creature has flying, this creature has flying. The same is
+true for menace and trample.": one static ability whose parts are the three grants
+[CR#113.2c], checked clean. -/
 theorem okKeywordListOverGrant :
-    Ability.check (DRS.ofList []) (.alsoForKeywords flyingWhileExiledFlying [.the (.named "menace"), .the (.named "trample")])
-      = [] := by
-  decide
+    alsoForKeywords whileExiledHas
+        [.the (.named "flying"), .the (.named "menace"), .the (.named "trample")]
+      = .static (.conjunction none [exiledHas (.the (.named "flying")),
+          exiledHas (.the (.named "menace")), exiledHas (.the (.named "trample"))]) ∧
+    Ability.check (DRS.ofList []) (alsoForKeywords whileExiledHas
+        [.the (.named "flying"), .the (.named "menace"), .the (.named "trample")]) = [] :=
+  ⟨rfl, by decide⟩
 
-/-- "Creatures you control get +1/+1. The same is true for menace and trample." The Idris pin
-refutes the extension; the keyword list has no base keyword to repeat either. -/
-theorem badKeywordListOnPlainLine :
-    Ability.check (DRS.ofList [])
-      (.alsoForKeywords (.static (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1)))
-        [.the (.named "menace"), .the (.named "trample")]) = [.keywordExtendable, .keywordListOk] := by
-  decide
-
+/-- An empty keyword list joins nothing: the expansion's empty `conjunction` is refused
+`nonEmpty`. -/
 theorem badEmptyKeywordList :
-    Ability.check (DRS.ofList []) (.alsoForKeywords flyingWhileExiledFlying []) = [.keywordListOk] := by decide
+    Ability.check (DRS.ofList []) (alsoForKeywords whileExiledHas []) = [.nonEmpty] := by decide
 
-theorem badKeywordListRepeatingBase :
+/-- A body that is static for one keyword and of another kind for the next has no one ability to
+join into: the expansion is an empty `conjunction`, refused `nonEmpty`. -/
+theorem badMixedKeywordBodies :
     Ability.check (DRS.ofList [])
-      (.alsoForKeywords flyingWhileExiledFlying [.the (.named "menace"), .the (.named "flying"), .the (.named "trample")])
-      = [.keywordListOk] := by
+      (alsoForKeywords
+        (fun k => if k == .the (.named "flying") then whileExiledHas k else .mayBeginOnBattlefield)
+        [.the (.named "flying"), .the (.named "menace")]) = [.nonEmpty] := by
   decide
 
+/-- "… The same is true for ward.": ward has no bare form, so the grant the expansion writes for
+it is refused by the keyword's own parameter schema. -/
 theorem badParameterisedKeywordInList :
-    Ability.check (DRS.ofList []) (.alsoForKeywords flyingWhileExiledFlying [.the (.named "ward")])
-      = [.keywordListOk] := by
+    Ability.check (DRS.ofList [])
+        (alsoForKeywords whileExiledHas [.the (.named "flying"), .the (.named "ward")])
+      = [.keywordParamFits (.named "ward")] := by
   decide
 
 /-- "the number of basic land types among lands you control" -/
@@ -395,6 +409,80 @@ theorem badNonKeywordAbilityInKeywordList :
     Action.check (DRS.ofList [])
         (choose (a (qualityFrom .ability (abilitiesAmong [flying, landfall flying])))) =
       [.knownKeywordTerm] := by
+  decide
+
+/-! ### "The same is true for …" on the printed cards -/
+
+/-- A card's line `i`. -/
+private def lineOf (card : Spelled) (i : Nat) : Option Ability :=
+  match card.card with
+  | .singleFaced face => face.characteristics.text[i]?
+  | _ => none
+
+/-- The characteristic edits of each part a "the same is true for" line joins: each static
+part's, or each `sequentially` step's. -/
+private def partEdits : Ability → List (List CharacteristicEdit)
+  | .static (.conjunction _ parts) => parts.map fun
+    | .conditional (.characteristicChange _ edits) _ _ => edits
+    | _ => []
+  | .triggered _ _ _ _ _ _ _ (.sequentially steps) => steps.map fun
+    | .doIf _ (.establish (.characteristicChange _ edits) _) _ => edits
+    | _ => []
+  | _ => []
+
+/-- How a part grants its keyword: `some (some t)` for the family term `t`, through
+`addedSelectionOf` over all of the objects a predicate describes; `some none` for one bare keyword,
+through `addedAbilities`; `none` for anything else, a family term inside `addedAbilities`
+among it. -/
+private def grantForm : List CharacteristicEdit → Option (Option KeywordTerm)
+  | [.addedSelectionOf (.described .all _) (.specified [.term (.anyIn family)])] =>
+    some (some (.anyIn family))
+  | [.addedAbilities [.keyword _ [] []]] => some none
+  | _ => none
+
+/-- The grant form of each part of a card's line `i`. -/
+private def grantForms (card : Spelled) (i : Nat) : List (Option (Option KeywordTerm)) :=
+  ((lineOf card i).map partEdits).getD [] |>.map grantForm
+
+/-- The parts of a card's static line `i`. -/
+private def staticParts (card : Spelled) (i : Nat) : List StaticSpec :=
+  match lineOf card i with
+  | some (.static (.conjunction _ parts)) => parts
+  | _ => []
+
+/-- Required pin: *Death-Mask Duplicant* and *Cairn Wanderer* gain "all landwalk and protection
+abilities" of the cards their conditions find (their rulings of 2004-12-01 and 2007-10-01): each
+family term is granted through `addedSelectionOf` over those objects with a `.term (anyIn …)`
+selection, each other keyword is granted bare, and no `addedAbilities` holds a family term
+[CR#702.1c]. Death-Mask Duplicant's landwalk part reads off exactly the objects its condition
+finds. -/
+theorem familyTermsGrantThroughAddedSelectionOf :
+    grantForms Cards.deathMaskDuplicant 1 =
+        [ some none, some none, some none, some none, some none,
+          some (some Cards.landwalkAbilities), some (some Cards.protectionAbilities), some none ] ∧
+      grantForms Cards.cairnWanderer 1 =
+        [ some none, some none, some none, some none, some none, some none,
+          some (some Cards.landwalkAbilities), some none, some (some Cards.protectionAbilities),
+          some none, some none, some none, some none ] ∧
+      (staticParts Cards.deathMaskDuplicant 1)[5]? =
+        some (onlyWhile
+          (abilityGrantSelected thisCreature
+            (allOf (and [in_ (exiledWith thisCreature), hasKeyword Cards.landwalkAbilities]))
+            (.specified [.term Cards.landwalkAbilities]))
+          (exists_ (and [in_ (exiledWith thisCreature), hasKeyword Cards.landwalkAbilities]))) :=
+  ⟨by decide, by decide, rfl⟩
+
+/-- Required pin: hexproof is a family term on *Odric, Lunarch Marshal*, *Bleeding Effect* and
+*Urborg Scavengers*: "hexproof from [quality]" is a hexproof ability [CR#702.11d], so each grants
+the hexproof variants the objects its condition finds have [CR#702.1c] (Odric's ruling of
+2020-01-24), and every other keyword bare. -/
+theorem odricGrantsHexproofVariants :
+    (grantForms Cards.odricLunarchMarshal 0).all Option.isSome ∧
+      (grantForms Cards.odricLunarchMarshal 0).filterMap (·.bind id) = [Cards.hexproofAbilities] ∧
+      (grantForms Cards.bleedingEffect 0).all Option.isSome ∧
+      (grantForms Cards.bleedingEffect 0).filterMap (·.bind id) = [Cards.hexproofAbilities] ∧
+      (grantForms Cards.urborgScavengers 1).all Option.isSome ∧
+      (grantForms Cards.urborgScavengers 1).filterMap (·.bind id) = [Cards.hexproofAbilities] := by
   decide
 
 end Semantics.Proofs.Keyword

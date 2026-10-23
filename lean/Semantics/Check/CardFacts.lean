@@ -171,7 +171,7 @@ mutual
       (match wh with | some (.whileDoing ev) => ev.namesThisDoor n | _ => false) ||
       joins.any (fun j => j.event.namesThisDoor n || j.alternatives.any (fun e => e.namesThisDoor n)) ||
       i.namesThisDoor n
-    | n + 1, .italicHead _ a | n + 1, .alsoForKeywords a _ | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.namesThisDoor n
+    | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.namesThisDoor n
     | n + 1, .static spec => spec.namesThisDoor n
     | n + 1, .keyword _ _ body => body.any (fun a => a.namesThisDoor n)
     | _, _ => false
@@ -195,39 +195,6 @@ private theorem nestedDoorReferenceIsFound :
 
 private theorem unrelatedUnlockIsNotThisDoor :
     (Action.sequentially []).namesThisDoor = false := by decide
-
-def Ability.grantedKeyword : Ability → Option KeywordLabel
-  | .keyword k [] _ => if keywordParamless k then some k else none
-  | _ => none
-
-def StaticSpec.keyword (spec : StaticSpec) (fuel : Nat := 64) : Option KeywordLabel :=
-  match fuel, spec with
-  | n + 1, .inCaller body | n + 1, .conditional body _ _ => body.keyword n
-  | _ + 1, .characteristicChange _ [.addedAbilities [ability]] => ability.grantedKeyword
-  | _, _ => none
-termination_by structural fuel
-
-def Action.keyword (action : Action) (fuel : Nat := 64) : Option KeywordLabel :=
-  match fuel, action with
-  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.keyword n
-  | n + 1, .establish spec _ => spec.keyword n
-  -- "… gain first strike until end of turn if …": the grant under a trailing "if" (Odric).
-  | n + 1, .doIf _ body none => body.keyword n
-  | _, _ => none
-termination_by structural fuel
-
-def Ability.lineKeyword : Ability → Option KeywordLabel
-  | .static spec => spec.keyword
-  | .triggered _ _ _ _ _ _ _ action => action.keyword
-  | _ => none
-
-def Ability.keywordExtendable (ability : Ability) : Bool := ability.lineKeyword.isSome
-
-def keywordListOk (ability : Ability) (keywords : List KeywordTerm) : Bool :=
-  match ability.lineKeyword with
-  | none => false
-  | some base => !keywords.isEmpty && keywords.all KeywordTerm.bare &&
-    keywords.eraseDups.length == keywords.length && !keywords.contains (.the base)
 
 /-- The general category an ability belongs to [CR#113.3]: instructions followed while an
 instant or sorcery spell resolves, a statement that is simply true, a trigger condition with an

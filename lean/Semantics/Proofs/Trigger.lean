@@ -327,24 +327,47 @@ theorem gatebreakerTriggersOnThisArtifactEntering :
     firstTriggerEvent Cards.tezzeretsGatebreaker = some (.does (.actor thisArtifact) enter) :=
   rfl
 
-/-- Whether a card's first ability, under its "The same is true for …", is a trigger with no
-intervening "if" whose effect is conditional. -/
+/-- Whether a card's first ability, its "… The same is true for …" line, is a trigger with no
+intervening "if" whose action runs one step per keyword `sequentially`, each step conditional. -/
 private def conditionIsInTheEffect (card : Spelled) : Bool :=
   match card.card with
   | .singleFaced face =>
     match (face.characteristics.text.head? : Option Ability) with
-    | some (.alsoForKeywords (.triggered _ _ _ _ _ _ none (.doIf _ _ none)) _) => true
+    | some (.triggered _ _ _ _ _ _ none (.sequentially steps)) =>
+      !steps.isEmpty && steps.all fun
+        | .doIf _ _ none => true
+        | _ => false
     | _ => false
   | _ => false
 
 /-- Required pin: *Odric, Lunarch Marshal*'s "creatures you control gain first strike until end of
 turn if a creature you control has first strike" prints its "if" after the effect, so it is not an
-intervening "if" [CR#603.4] and the condition is part of the effect; so are *Bleeding Effect*'s
-and *Concerted Effort*'s. -/
+intervening "if" [CR#603.4] and the condition is part of the effect: each `sequentially` step is a
+`doIf`; so are *Bleeding Effect*'s and *Concerted Effort*'s. -/
 theorem trailingIfIsInTheEffect :
     conditionIsInTheEffect Cards.odricLunarchMarshal = true ∧
       conditionIsInTheEffect Cards.bleedingEffect = true ∧
       conditionIsInTheEffect Cards.concertedEffort = true := by
+  decide
+
+/-- The number of keywords a card's lines grant through one triggered ability each, with the
+number of lines: `some (lines, steps)` when the card is single-faced and every line is a trigger
+whose action runs `sequentially`. -/
+private def triggeredSteps (card : Spelled) : Option (Nat × List Nat) :=
+  match card.card with
+  | .singleFaced face =>
+    let text := face.characteristics.text
+    let steps := text.filterMap fun
+      | .triggered _ _ _ _ _ _ _ (.sequentially steps) => some steps.length
+      | _ => none
+    if steps.length == text.length then some (text.length, steps) else none
+  | _ => none
+
+/-- Required pin: *Odric, Lunarch Marshal* has one ability (its rulings of 2016-04-08 speak of
+"Odric's ability" [CR#113.2c]): a single triggered ability whose action runs `sequentially` over
+its 13 keywords, first strike and the 12 the same is true for. -/
+theorem odricIsOneAbility :
+    triggeredSteps Cards.odricLunarchMarshal = some (1, [13]) := by
   decide
 
 end Semantics.Proofs.Trigger

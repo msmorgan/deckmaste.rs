@@ -2,6 +2,7 @@ import Semantics
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
+import Semantics.Cards.Keyword
 
 /-!
 # Semantics.Cards.Turn
@@ -272,13 +273,15 @@ def odricLunarchMarshal : Spelled := spelled <| singleFacedCard
     subtypes := [human, soldier],
     text :=
       [ alsoForKeywords
-          (at_ (beginningOfPossessed .combat eachPlayer)
+          (fun k => at_ (beginningOfPossessed .combat eachPlayer)
             (doOnlyIf
               (establishThroughout
-                (abilityGrant (allOf (and [isCreature, youControl])) firstStrike) untilEndOfTurn)
-              (exists_ (and [isCreature, youControl, hasKeyword firstStrike]))))
-          (["flying", "deathtouch", "doubleStrike", "haste", "hexproof", "indestructible",
-            "lifelink", "menace", "reach", "skulk", "trample", "vigilance"].map (fun k => .the (.named k))) ],
+                (keywordGrant (allOf (and [isCreature, youControl])) k
+                  (and [isCreature, youControl, hasKeyword k]))
+                untilEndOfTurn)
+              (exists_ (and [isCreature, youControl, hasKeyword k]))))
+          [ firstStrike, flying, deathtouch, doubleStrike, haste, hexproofAbilities,
+            indestructible, lifelink, menace, reach, skulk, trample, vigilance ] ],
     power := stat 3, toughness := stat 3 }
 
 def bleedingEffect : Spelled := spelled <| singleFacedCard
@@ -286,13 +289,15 @@ def bleedingEffect : Spelled := spelled <| singleFacedCard
     types := [.enchantment],
     text :=
       [ alsoForKeywords
-          (at_ (beginningOfYour .combat)
+          (fun k => at_ (beginningOfYour .combat)
             (doOnlyIf
-              (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) flying)
+              (establishThroughout
+                (keywordGrant (allOf (and [isCreature, youControl])) k
+                  (and [isCreature, in_ yourGraveyard, hasKeyword k]))
                 untilEndOfTurn)
-              (exists_ (and [isCreature, in_ yourGraveyard, hasKeyword flying]))))
-          (["firstStrike", "doubleStrike", "deathtouch", "hexproof", "indestructible",
-            "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ] }
+              (exists_ (and [isCreature, in_ yourGraveyard, hasKeyword k]))))
+          [ flying, firstStrike, doubleStrike, deathtouch, hexproofAbilities, indestructible,
+            lifelink, menace, reach, trample, vigilance ] ] }
 
 def fettergeist : Spelled := spelled <| singleFacedCard
   { name := "Fettergeist", cost := [generic 2, pip .blue], types := [.creature],
@@ -374,13 +379,14 @@ def concertedEffort : Spelled := spelled <| singleFacedCard
     types := [.enchantment],
     text :=
       [ alsoForKeywords
-          (at_ (beginningOfPossessed .upkeep eachPlayer)
+          (fun k => at_ (beginningOfPossessed .upkeep eachPlayer)
             (doOnlyIf
-              (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) flying)
+              (establishThroughout
+                (keywordGrant (allOf (and [isCreature, youControl])) k
+                  (and [isCreature, youControl, hasKeyword k]))
                 untilEndOfTurn)
-              (exists_ (and [isCreature, youControl, hasKeyword flying]))))
-          [ fear, firstStrike, doubleStrike,
-            .anyIn ⟨landwalk, none⟩, .anyIn ⟨protection, none⟩,
+              (exists_ (and [isCreature, youControl, hasKeyword k]))))
+          [ flying, fear, firstStrike, doubleStrike, landwalkAbilities, protectionAbilities,
             trample, vigilance ] ] }
 
 /-- Land Tax -/

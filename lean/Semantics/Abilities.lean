@@ -1315,8 +1315,6 @@ mutual
     | spell (timing : Option Timing) (action : Action)
     /-- "You may begin the game with this on the battlefield" (the Leylines). -/
     | mayBeginOnBattlefield
-    /-- "The same is true for first strike, double strike, …" (Odric). -/
-    | alsoForKeywords (ability : Ability) (keywords : List KeywordTerm)
     /-- An italic head before an ability: an ability word or a flavor word. -/
     | italicHead (word : ItalicWord) (ability : Ability)
     /-- "that ability", read off an ability chosen earlier in the same text. -/
