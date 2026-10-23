@@ -289,6 +289,55 @@ theorem okVesuvanShapeshifterCopyDuration :
       vesuvanShapeshifterCopyDuration = [] := by
   decide
 
+/-- "if a player cast two or more spells last turn": the greatest number of spells any one player
+cast last turn is at least two. The count is per player: `aggregateOver .max isPlayer` takes each
+player's own `eventCount` (their `they`) and the greatest of them, so two players casting one
+spell each does not satisfy it. A `DidClause.ordinal` ("cast a second spell") names no per-player
+period (`Period` has none), and a counted patient ("cast two or more spells") counts spells, not
+casting events [CR#601.2a]. -/
+def aPlayerCastTwoOrMoreLastTurn : Condition :=
+  compareAmt
+    (aggregateOver .max isPlayer (eventCount (cast (a isSpell)) they lastTurn)) .atLeast 2
+theorem okAPlayerCastTwoOrMoreLastTurn :
+    Condition.check (DRS.ofList []) aPlayerCastTwoOrMoreLastTurn = [] := by decide
+
+/-- The per-player reading is the aggregate's domain binding: the same count with no domain to
+bind `they` finds no player to read. -/
+theorem badEventCountWithoutPlayerDomain :
+    Condition.check (DRS.ofList [])
+      (compareAmt (eventCount (cast (a isSpell)) they lastTurn) .atLeast 2) =
+      [.anaphor (.word .player) .one 0] := by decide
+
+/-- A counted patient of a casting refuses: one casting casts one spell [CR#601.2a]. -/
+theorem badCountedCastPatientLastTurn :
+    Condition.check (DRS.ofList [])
+      (did (a isPlayer) (cast (counted (orMore 2) isSpell)) lastTurn) = [.singular] := by decide
+
+/-- Afflicted Deserter // Werewolf Ransacker -/
+def afflictedDeserter : Spelled := spelled <| .transforming
+  { characteristics :=
+    { name := "Afflicted Deserter", cost := [generic 3, pip .red], types := [.creature],
+      subtypes := [human, werewolf],
+      text :=
+        [ at_ (beginningOfEach .upkeep)
+            (if_ := some (not (did any (cast (a isSpell)) lastTurn)))
+            (transform thisCreature) ],
+      power := stat 3, toughness := stat 2 } }
+  { characteristics :=
+    { name := "Werewolf Ransacker", types := [.creature], subtypes := [werewolf],
+      text :=
+        [ whenever
+            (transformsInto thisCreature "Werewolf Ransacker")
+            (sequentially
+              [ may (destroy (target isArtifact)),
+                doIf (did (that artifact) (putInto theActor graveyard) thisWay)
+                  (instruct thisCreature (dealDamage 3 (controllerOf (that artifact)))) ]),
+          at_ (beginningOfEach .upkeep)
+            (if_ := some aPlayerCastTwoOrMoreLastTurn)
+            (transform thisCreature) ],
+      power := stat 5, toughness := stat 4 } }
+theorem okAfflictedDeserter : afflictedDeserter.card.check = [] := afflictedDeserter.ok
+
 /-- Arlinn Kord // Arlinn, Embraced by the Moon -/
 def arlinnKord : Spelled := spelled <| .transforming
   { characteristics :=

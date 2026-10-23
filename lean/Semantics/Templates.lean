@@ -1633,6 +1633,10 @@ semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound :
 
 /-- "<subj> <action>s": an action event, in the voice `subj` carries. -/
 semantic_template does (subj : Subject) (action : Action) : GameEvent := .does subj action
+/-- "<subject> transforms into <name>": the transform deed whose result is the named face, done by
+anyone [CR#701.27a,701.27e]. -/
+semantic_template transformsInto (subject : NounPhrase) (name : NameSource) : GameEvent :=
+  .does .any (.enact (.action "transform") (.turnOver subject) (some (named name)) none)
 /-- "if <subj> would <action>": the event a replacement watches [CR#614.1]. -/
 semantic_template would (subj : Subject) (action : Action) : WouldClause := .would subj action
 /-- "if <clause> or <clause> would happen": any of several events [CR#614.1]. -/
