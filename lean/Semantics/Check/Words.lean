@@ -455,6 +455,9 @@ structure DRS where
   /-- The current action describes an event or permission pattern. -/
   actionPattern : Bool := false
   characteristicRead : Bool := false
+  /-- A keyword's quality argument, or the body of a keyword with one, is "each <value>"
+  (`Predicate.eachKind`), the only place it stands [CR#702.16h,702.16i]. -/
+  eachKindQuality : Bool := false
   historicalReferentIds : List ReferentId := []
   historicalMoveFrom : Option Zone := none
   groupSizeScope : Option (List ReferentId) := none

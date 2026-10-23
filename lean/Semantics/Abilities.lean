@@ -229,6 +229,13 @@ mutual
     | counterKindOn (subject : NounPhrase)
     | ofChosen (ref : ChoiceRef) (sort : QualitySort)
     | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
+    /-- "each <value of `axis`> [among <domain>]" as a keyword's quality: "protection from each
+    color", "protection from each color among permanents you control". It is shorthand for one
+    ability per value, each with that value as its quality, and they behave as separate
+    abilities [CR#702.16h,702.16i]. With a domain, the values are those its objects have, read
+    continuously as a static ability's text is [CR#611.3a]. It stands only as the whole quality
+    of a keyword (`eachKindPlacement`). -/
+    | eachKind (axis : KindAxis) (domain : Option NounPhrase)
     | hasKeyword (keyword : KeywordTerm)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
     /-- The spell was a card holding `designation` before it was cast: "if this spell was

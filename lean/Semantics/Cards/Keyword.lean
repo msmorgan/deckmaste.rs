@@ -1425,6 +1425,29 @@ def benevolentBlessing : Spelled := spelled <| singleFacedCard
           (allOf (and [ or [aura, equipment],
                          youControl, attachedTo it ]))) ] }
 
+/-- Spectra Ward -/
+def spectraWard : Spelled := spelled <| singleFacedCard
+  { name := "Spectra Ward", cost := [generic 3, pip .white, pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (conjunction
+          [ getsPt (enchanted creature) (up 2) (up 2),
+            retention (abilityGrant (enchanted creature) (protection (eachKind .color)))
+              (allOf aura) ]
+          (subject := some (enchanted creature))) ] }
+
+/-- Pledge of Loyalty -/
+def pledgeOfLoyalty : Spelled := spelled <| singleFacedCard
+  { name := "Pledge of Loyalty", cost := [generic 1, pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ enchant isCreature,
+        static (retention
+          (abilityGrant (enchanted creature)
+            (protection (eachKind .color (some (allOf (and [isPermanent, youControl]))))))
+          thisAura) ] }
+
 /-- Wall of Shards -/
 def wallOfShards : Spelled := spelled <| singleFacedCard
   { name := "Wall of Shards", cost := [generic 1, pip .white], supertypes := [.snow],

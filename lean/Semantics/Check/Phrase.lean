@@ -1773,7 +1773,7 @@ def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (params : List KeywordPar
   params.flatMap fun param =>
     match param with
     | .cost c => (ops.cost (enterOwnScope drs) c).2
-    | .quality p => (ops.pred drs p).2
+    | .quality p => (ops.pred { drs with eachKindQuality := p.isEachKind } p).2
     | .subject p => (ops.pred (enterOwnScope drs) p).2
     | .number a => (ops.amt (enterOwnScope drs) a).2
     | .deckCondition condition => checkDeckConditionWith ops condition
@@ -2635,6 +2635,11 @@ def stepOps : Nat → StepOps
         | .ofYourChoice q dom =>
           let (out, errs) := sortedDomainCheckWith ops drs (.quality q) dom
           (out, refuse q.chosenReadOk (.chosenQualityRead q) ++ errs)
+        | .eachKind _ dom =>
+          let (out, errors) := match dom with
+            | some d => let (d', _, e) := ops.np drs .other false d; (d', e)
+            | none => (drs, [])
+          (out, errors ++ refuse drs.eachKindQuality .eachKindPlacement)
         | .ofChosen ref q =>
           let n := countChoice (.quality q) drs
           (drs, refuse q.chosenReadOk (.chosenQualityRead q) ++
@@ -4405,7 +4410,8 @@ def stepOps : Nat → StepOps
         match ab with
         | .inCaller body => ops.ab (enterCaller drs) body
         | .keyword _ params body =>
-          checkKeywordParamsWith ops drs params ++ checkTextWith ops (enterOwnScope drs) body
+          let bodyDrs := { drs with eachKindQuality := params.any (·.isEachKind) }
+          checkKeywordParamsWith ops drs params ++ checkTextWith ops (enterOwnScope bodyDrs) body
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)

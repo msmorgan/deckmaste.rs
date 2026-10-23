@@ -9,6 +9,10 @@ consequence of a clause that removes Attachments already on its host
 [CR#702.16n,702.16p,303.4c,704.5m], and its two laws: the clause is one that removes Attachments
 (`retentionClause`), and the subject names Attachments of that clause's host (`retentionSubject`).
 Applying the exemption is the engine's; these pins are on the terms.
+
+The last section pins "protection from each …" (`Predicate.eachKind`), one protection ability per
+value [CR#702.16h,702.16i], and the exemption that reaches each of them (*Spectra Ward*, *Pledge
+of Loyalty*).
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions Semantics.Cards
@@ -102,6 +106,101 @@ theorem exemptionReadsTheEffectsOwnHost :
     let out := (stepStaticSpec 64 before guardianBeastProtection).1
     (resolveCandidates (.word (.type .artifact)) .many out).map (·.id) = governed ∧
       governed ≠ [0] := by
+  decide
+
+/-! ## "Protection from each …": one ability per value -/
+
+/-- The first `retention` a single-faced card's static abilities write, a member of a conjunction
+included. -/
+private def memberRetentionOf? (card : Spelled) : Option StaticSpec :=
+  match card.card with
+  | .singleFaced face => face.characteristics.text.findSome? fun
+    | .static (.retention spec subject) => some (.retention spec subject)
+    | .static (.conjunction _ parts) => parts.findSome? fun
+      | .retention spec subject => some (.retention spec subject)
+      | _ => none
+    | _ => none
+  | _ => none
+
+/-- The clause a retention exempts from removing Attachments. -/
+private def exemptClause? : Option StaticSpec → Option StaticSpec
+  | some (.retention spec _) => some spec
+  | _ => none
+
+/-- The abilities a grant adds. -/
+private def grantedAbilities : StaticSpec → List Ability
+  | .characteristicChange _ edits => edits.flatMap fun
+    | .addedAbilities abilities => abilities
+    | _ => []
+  | _ => []
+
+/-- The five colors [CR#105.1], each "protection from" it. -/
+private def protectionFromEachOfFiveColors : List (KeywordLabel × Predicate) :=
+  [Color.white, .blue, .black, .red, .green].map fun color => (.named "protection", hasColor color)
+
+/-- "Protection from each color" is five protection abilities, each from a different color
+[CR#702.16h,105.1]. -/
+theorem protectionFromEachColorIsFiveAbilities :
+    (protection (eachKind .color)).keywordInstances? = some protectionFromEachOfFiveColors ∧
+    [Color.white, .blue, .black, .red, .green].eraseDups.length = 5 ∧
+    Ability.check emptyContext (protection (eachKind .color)) = [] :=
+  ⟨rfl, by decide, by decide⟩
+
+/-- *Spectra Ward*: "Enchanted creature gets +2/+2 and has protection from each color. This effect
+doesn't remove Auras." The exemption is the grant's conjunction member, beside `getsPt`; it
+wraps the grant as a whole, the one protection ability whose quality is "each color", so it
+reaches each of the five abilities that grant is ("this effect" [CR#702.16h,702.16n]). -/
+theorem spectraWardExemptsAurasFromEachColor :
+    memberRetentionOf? spectraWard =
+      some (retention (abilityGrant (enchanted creature) (protection (eachKind .color)))
+        (allOf aura)) ∧
+    (exemptClause? (memberRetentionOf? spectraWard)).map
+        (fun spec => (grantedAbilities spec).flatMap (·.keywordInstances?.getD [])) =
+      some protectionFromEachOfFiveColors ∧
+    ((exemptClause? (memberRetentionOf? spectraWard)).map (·.removesAttachments)).getD false
+      = true :=
+  ⟨rfl, rfl, by decide⟩
+
+/-- *Pledge of Loyalty*: "Enchanted creature has protection from each color among permanents you
+control. This effect doesn't remove this Aura." The set of colors is a description of the
+permanents you control, not a list fixed when the effect begins: a static ability's effect
+applies at each moment to whatever its text indicates [CR#611.3a,702.16i], so the bench names no
+fixed instances and the engine reads the colors as it applies. The exemption wraps the whole
+grant. -/
+theorem pledgeOfLoyaltyReadsItsColorsContinuously :
+    memberRetentionOf? pledgeOfLoyalty =
+      some (retention
+        (abilityGrant (enchanted creature)
+          (protection (eachKind .color (some (allOf (and [isPermanent, youControl]))))))
+        thisAura) ∧
+    (match exemptClause? (memberRetentionOf? pledgeOfLoyalty) with
+     | some spec =>
+       spec.removesAttachments &&
+         (grantedAbilities spec).all (fun ability =>
+           ability.keywordInstances?.isNone &&
+             match ability with
+             | .keyword _ [.quality q] _ =>
+               match q.eachKindOf? with
+               | some (.color, some (.described .all _)) => true
+               | _ => false
+             | _ => false)
+     | none => false) = true :=
+  ⟨rfl, by decide⟩
+
+/-- "Each <value>" stands only as the whole quality of a keyword (`eachKindPlacement`): not
+conjoined into one ("protection from each color creature"), nor as an object description ("each
+color" as the creatures a grant reaches). Its axis may be open, with a domain or without, as
+"each possible quality the listed characteristic could have" is any characteristic's
+[CR#702.16h,702.16i]: "protection from each mana value among artifacts you control". -/
+theorem eachKindLaws :
+    (let refusals := Ability.check emptyContext (protection (and [eachKind .color, isCreature]))
+     !refusals.isEmpty && refusals.all (· == .eachKindPlacement)) = true ∧
+    StaticSpec.check emptyContext (abilityGrant (allOf (eachKind .color)) flying)
+      = [.eachKindPlacement] ∧
+    Ability.check emptyContext
+      (protection (eachKind (.value .manaValue) (some (allOf (and [isArtifact, youControl])))))
+      = [] ∧
+    Ability.check emptyContext (protection (eachKind (.subtype .creature .any))) = [] := by
   decide
 
 end Semantics.Proofs.Retention
