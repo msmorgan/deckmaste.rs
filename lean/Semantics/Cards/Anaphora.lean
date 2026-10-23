@@ -842,19 +842,4 @@ def tuktukScrapper : Spelled := spelled <| singleFacedCard
     power := stat 2, toughness := stat 2 }
 theorem okTuktukScrapper : tuktukScrapper.card.check = [] := tuktukScrapper.ok
 
-/-- Werewolf Ransacker's trigger (*Afflicted Deserter // Werewolf Ransacker*): "Whenever this
-creature transforms into Werewolf Ransacker, you may destroy target artifact. If that artifact is
-put into a graveyard this way, this creature deals 3 damage to that artifact's controller." The
-whole card lands with `lean-v3-counted-cast-lookback-singular`. -/
-theorem okWerewolfRansackerTrigger :
-    Ability.check (DRS.ofList [])
-      (whenever
-        (.does .any (.enact (.action "transform") (.turnOver thisCreature)
-          (some (named "Werewolf Ransacker")) none))
-        (sequentially
-          [ may (destroy (target isArtifact)),
-            doIf (did (that artifact) (putInto .actor graveyard) thisWay)
-              (instruct thisCreature (dealDamage 3 (controllerOf (that artifact)))) ])) = [] := by
-  decide
-
 end Semantics.Cards
