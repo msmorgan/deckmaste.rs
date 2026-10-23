@@ -13,6 +13,15 @@ card-authoring mistake, not a text-meaning error, so the checker does not refuse
 `onPermanentCard`, `onInstantOrSorceryCard` and `keywordCardOk`. The ruling also says to remove
 ascend's hand-written card-class guard; that part is a STOP, below.
 
+Further rulings (owner, 2026-10-22):
+
+- The 2026-08-22 ruling is superseded: any doc that cites it (`lean/CONTRACTS.md`, an ADR) says
+  so.
+- The six gate pins below are deleted, not rewritten to accept, and the "the gate is gone" pins
+  that `lean-v3-facts-from-declarations` Step 1 planned are not added.
+- Ascend's guards are untouched in this landing; the STOP below stands while the owner rules.
+- This ticket lands with `lean-v3-facts-from-declarations` Step 1, in that ticket's workspace.
+
 ## Verified (2026-10-22, this workspace; paths under `lean/Semantics/`)
 
 - `keywordCardOk`: `Check/Card.lean:29-31`, reached from `classAbilityOk`'s keyword arm

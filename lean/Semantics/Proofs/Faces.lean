@@ -114,14 +114,6 @@ theorem badSelfCastWithoutFlashOnSorcery :
               spell (draw 1) ] }) = [.cardText] := by
   decide
 
-/-- "Flying" -/
-theorem badKeywordOnInstant :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .red], types := [.instant],
-          text := [keyword (.named "flying")] }) = [.cardText] := by
-  decide
-
 /-- "{T}: Draw a card." -/
 theorem badTapSorcery :
     Card.check
@@ -219,14 +211,6 @@ theorem okProtectionOnPermanentCard :
   decide
 
 /-- "Protection from red" -/
-theorem badProtectionOnInstant :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .white], types := [.instant],
-          text := [keywordQuality (.named "protection") (.colorIs .red)] }) = [.cardText] := by
-  decide
-
-/-- "Protection from red" -/
 theorem okProtectionFromAColor :
     Ability.check (DRS.ofList []) (keywordQuality (.named "protection") (.colorIs .red)) = [] := by decide
 
@@ -243,14 +227,6 @@ theorem okEquipOnEquipment :
         { name := some "", cost := some [generic 1], types := [.artifact],
           subtypes := [equipment],
           text := [keywordCosting (.named "equip") (.mana [generic 2])] }) = [] := by
-  decide
-
-/-- "Equip {2}" -/
-theorem badEquipOnSorcery :
-    Card.check
-      (one
-        { name := some "", cost := some [generic 1], types := [.sorcery],
-          text := [keywordCosting (.named "equip") (.mana [generic 2])] }) = [.cardText] := by
   decide
 
 /-- "each of up to two target creatures" -/
@@ -495,14 +471,6 @@ theorem okCumulativeUpkeepOnPermanent :
           text := [keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])] }) = [] := by
   decide
 
-/-- "Cumulative upkeep {2}" -/
-theorem badCumulativeUpkeepOnSpell :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .blue], types := [.sorcery],
-          text := [keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])] }) = [.cardText] := by
-  decide
-
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
 theorem okRenownWithRenownDefinition : Ability.check (DRS.ofList []) (renown 1) = [] := by
   decide
@@ -559,23 +527,6 @@ theorem okUnearthOnPermanentCard :
           subtypes := [zombie],
           text := [keywordCosting (.named "unearth") (.mana [pip .black])], power := stat 2,
           toughness := stat 2 }) = [] := by
-  decide
-
-/-- "Unearth {B}" -/
-theorem badUnearthOnSpellCard :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .black], types := [.instant],
-          text := [keywordCosting (.named "unearth") (.mana [pip .black])] }) = [.cardText] := by
-  decide
-
-/-- "Flashback {2}{U}" -/
-theorem badFlashbackOnPermanentCard :
-    Card.check
-      (one
-        { name := some "", cost := some [generic 2, pip .blue], types := [.artifact],
-          text := [keywordCosting (.named "flashback") (.mana [generic 2, pip .blue])] })
-      = [.cardText] := by
   decide
 
 /-- "for each attacking creature you control. You gain that much life." -/
