@@ -47,25 +47,6 @@ theorem okSpellAbilityOnInstant :
           text := [spell (draw 1)] }) = [] := by
   decide
 
-/-- "Draw a card." -/
-theorem badSpellAbilityOnPermanent :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .blue], types := [.creature],
-          text := [spell (draw 1)], power := stat 1, toughness := stat
-              1 })
-      = [.cardText] := by
-  decide
-
-/-- "Creatures you control get +1/+1." -/
-theorem badStaticOnSorcery :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [static (getsPt (allOf (and [isCreature, youControl])) (.up 1) (.up 1))] })
-      = [.cardText] := by
-  decide
-
 /-- "Cast this spell only during the declare attackers step. Draw a card." -/
 theorem okCastWindowOnSpell :
     Card.check
@@ -73,20 +54,6 @@ theorem okCastWindowOnSpell :
         { name := some "", cost := some [pip .blue], types := [.instant],
           text := [spell (draw 1) (some (duringPart .declareAttackers none))] })
       = [] := by
-  decide
-
-/-- The same sentence spelled as a static permitting the cast. A spell that "may be cast only
-[before/after]" a point in combat states its window [CR#506.8], which is
-`okCastWindowOnSpell`'s window slot, not a static ability of the spell card. -/
-theorem badCastWindowAsDeonticStatic :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .blue], types := [.instant],
-          text :=
-            [ static
-                (partScope .declareAttackers none
-                  (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
-              spell (draw 1) ] }) = [.cardText] := by
   decide
 
 /-- Ghitu Fire: "You may cast this spell as though it had flash if you pay {2} more to cast it.
@@ -101,25 +68,6 @@ theorem okGhituFire :
             [ static (gatedBy [generic 2] you (cast thisSpell) (asThough := asThoughHadFlash it)),
               spell (instruct thisSpell (dealDamage (letter .x) (target isAnyTarget))) ] })
       = [] := by
-  decide
-
-/-- The same permission without "as though it had flash" is no permission to cast this spell
-earlier than it could be: still refused on a spell card. -/
-theorem badSelfCastWithoutFlashOnSorcery :
-    Card.check
-      (one
-        { name := some "", cost := some [pip .red], types := [.sorcery],
-          text :=
-            [ static (gatedBy [generic 2] you (cast thisSpell)),
-              spell (draw 1) ] }) = [.cardText] := by
-  decide
-
-/-- "{T}: Draw a card." -/
-theorem badTapSorcery :
-    Card.check
-      (one
-        { name := some "Impossible Tap Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [activatedAbility .tapSymbol (draw 1)] }) = [.cardText] := by
   decide
 
 /-- a creature card printed with no power or toughness -/
@@ -140,14 +88,6 @@ theorem badDuplicateSupertype :
       (one
         { name := some "", cost := some [pip .blue], supertypes := [.legendary, .legendary],
           types := [.creature], power := stat 1, toughness := stat 1 }) = [.distinct] := by
-  decide
-
-/-- "Land Creature Instant" -/
-theorem badMixedPermanentSpellLine :
-    Card.check
-      (one
-        { name := some "", types := [.land, .creature, .instant], power := stat 1,
-          toughness := stat 1 }) = [.cardLine] := by
   decide
 
 /-- a card printed with an empty type line -/
@@ -312,15 +252,6 @@ theorem okLoyaltyOnPlaneswalker :
       (one
         { jace with text := [activatedAbility (.loyaltySymbol (.up 1)) (draw 1)],
                     loyalty := stat 3 }) = [] := by
-  decide
-
-/-- "[+1]: Draw a card." -/
-theorem badLoyaltySorcery :
-    Card.check
-      (one
-        { name := some "Impossible Loyalty Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [activatedAbility (.loyaltySymbol (.up 1)) (draw 1)] }) = [.cardText] :=
-              by
   decide
 
 /-- "a token that's a copy of target creature, except it's an artifact" -/

@@ -2072,6 +2072,10 @@ semantic_template Replacement.doIf (condition : Condition) (replacement : Replac
   .onlyIf condition replacement
 semantic_template italicHead (word : ItalicWord) (ability : Ability) : Ability :=
   .italicHead word ability
+/-- `onPermanent` on a permanent card and `onInstantOrSorcery` on an instant or sorcery card: a
+keyword the rules define by Card Class [CR#110.4,110.4a]. -/
+semantic_template byCardClass (onPermanent onInstantOrSorcery : Ability) : Ability :=
+  .byCardClass onPermanent onInstantOrSorcery
 semantic_template itsManaCost : Cost := .itsManaCost
 /-! ## Play payments and ballots -/
 

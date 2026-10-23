@@ -106,16 +106,17 @@ are not gated.
   `CardType.isInstantOrSorcery` (`:1824`); `normalizeTypes` (`:25-27`, the canonical order);
   `Stat.comparedType` (`:38-42`: power/toughness need creature, loyalty planeswalker, defense
   battle); `boxSuitsTypes` (`Check/Card.lean:198-201`) and `cardBoxOk` (`:210-214`);
-  `anyPermanentType`/`anyInstantOrSorceryType`/`typesCombinable` (`:22-27`), `cardClassOf`
-  (`:17-19`), `flipHalfOk` (`:320`), `:384`.
+  `anyPermanentType` and `kindredHasAnotherType` (`Check/Card.lean`), `cardClassOf`
+  (`Words.lean`, moved there by `lean-v3-by-card-class`), `flipHalfOk`, the shared-line case of
+  `Card.check`.
 - **Layering**: Siege's rules need templates but `Definitions/Subtypes.lean` imports only
   `Semantics.Primitives` (`:1`) and `Check.lean:13` imports it. After
   `lean-v3-template-helpers-into-definitions` the Definitions layer sits above Templates, so
   `Subtypes.lean` may import `Templates`; check that `Check.lean:13` still builds, or drop that
   import (nothing in `Check/` should read a catalog item; the checker reads the fields).
 - **Card Class must be computable from the fields.** Card Class (glossary term; permanent card vs
-  instant-or-sorcery card [CR#110.4,110.4a]) is today `cardClassOf` (`Check/Card.lean:17-19`) over
-  `isInstantOrSorcery`. `permanent : Bool` alone does not separate kindred (not a permanent, not
+  instant-or-sorcery card [CR#110.4,110.4a]) is today `cardClassOf` (`Words.lean`), a match on
+  the instant and sorcery constructors. `permanent : Bool` alone does not separate kindred (not a permanent, not
   an instant or sorcery) from instant and sorcery, so add spell timing (`asInstant` / `asSorcery` /
   none) or an explicit instant-or-sorcery field. The implementer chooses; say which and why in the
   landing.
@@ -138,11 +139,9 @@ are not gated.
 2. Replace the hardcoded knowledge above by field reads: `CardType.permanent` becomes the field;
    `Stat.comparedType` and `boxSuitsTypes` read `stats`; `normalizeTypes` takes its order from the
    declared list; `isInstantOrSorcery` is derived from the Card Class field(s) above.
-   **`cardClassOf` and the `CardClass` type are NOT deleted** with the checker's card-class lint
-   (`lean-v3-card-class-gate-removal`): they move into the model next to `CardType`
-   (`Words.lean`), computed from the fields, because a planned `byCardClass` ability will select
-   by them. `byCardClass` is pending an owner go-ahead; treat it only as a pending dependency and
-   do not implement it here.
+   **`cardClassOf` and the `CardClass` type stay** (already in `Words.lean` next to `CardType`,
+   moved by `lean-v3-by-card-class`); `cardClassOf` becomes computed from the fields, because
+   `Ability.byCardClass` (landed by `lean-v3-by-card-class`) selects by it.
 3. Every `match` on a card-type constructor (`| .kindred | .instant …`, `Check/Words.lean:1820-1826`)
    and every pattern use becomes a field read or an equality test; grep `\.(creature|artifact|land|
    enchantment|instant|sorcery|planeswalker|battle|kindred|dungeon)` in `Check/` and fix each.
@@ -170,8 +169,8 @@ are not gated.
   [CR#110.4,304.1,307.1,308.1,309.2]; the other six are), `stats` per type (creature `[power,
   toughness]` [CR#302.4], planeswalker `[loyalty]` [CR#306.5], battle `[defense]` [CR#310.4]), a
   raw `CardType` constructor in a `spelled` card is refused (`Proofs/Authoring.lean`).
-- **Kept, must pass unchanged**: the `cardLineOk` / `typesCombinable` / `boxSuitsTypes` pins in
-  `Proofs/Faces.lean` (`badCreatureCardNoPt`, `badSpellAbilityOnPermanent`, …) and every card bench.
+- **Kept, must pass unchanged**: the `cardLineOk` / `kindredHasAnotherType` / `boxSuitsTypes` pins
+  in `Proofs/Faces.lean` (`badCreatureCardNoPt`, `badKindredAlone`, …) and every card bench.
 - **Retired**: whatever remains of `Proofs/Tables.lean`, with the reason "its tables are gone".
 - `lean/scripts/build` (`lake build --wfail`), `cargo xtask lean check` if plugin definitions
   change, the CR citation gates; `cargo test -p xtask -p deckmaste_semantics_v2` only if

@@ -76,16 +76,26 @@ theorem okBothHalvesReadChosenPlayer :
     Ability.checkText (DRS.ofList []) [costPart, permanentHalf, spellHalf] = [] := by
   decide
 
+/-- Gift's definition: its cost, then its two halves as a `byCardClass` pair. -/
+def giftBody : Ability :=
+  .keyword (.named "gift") [] [costPart, .byCardClass permanentHalf spellHalf]
+
 /-- Gift's definition holding its cost and both halves is carried on a permanent card. -/
 theorem okPermanentClassReadsChosenPlayer :
-    cardTextOk [.creature] [.keyword (.named "gift") [] [costPart, permanentHalf, spellHalf]] =
-      true := by
+    Card.check
+      (.singleFaced
+        { characteristics :=
+            { name := some "", cost := some [generic 2], types := [.creature],
+              text := [giftBody], power := stat 1, toughness := stat 1 } }) = [] := by
   decide
 
 /-- Gift's definition holding its cost and both halves is carried on an instant card. -/
 theorem okSpellClassReadsChosenPlayer :
-    cardTextOk [.instant] [.keyword (.named "gift") [] [costPart, permanentHalf, spellHalf]] =
-      true := by
+    Card.check
+      (.singleFaced
+        { characteristics :=
+            { name := some "", cost := some [generic 2], types := [.instant],
+              text := [giftBody] } }) = [] := by
   decide
 
 /-- Required pin: inside gift's own body, the halves read its cost's choice

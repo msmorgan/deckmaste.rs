@@ -8,11 +8,6 @@ The laws over the keyword shapes and registry rows supplied by `Check.Facts`.
 
 namespace Semantics
 
-/-- A card is a permanent card or an instant or sorcery card by its types [CR#110.4a]. -/
-inductive CardClass where
-  | permanentCard | instantOrSorceryCard
-  deriving DecidableEq, Repr
-
 def distinctKeywordWords : List KeywordFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.word)).elem f.word && distinctKeywordWords fs

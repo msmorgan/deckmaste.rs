@@ -15,69 +15,11 @@ inductive FaceSide where
   | front | back
   deriving DecidableEq, Repr
 
-def cardClassOf : List CardType → CardClass
-  | [] => .permanentCard
-  | t :: ts => if t.isInstantOrSorcery then .instantOrSorceryCard else cardClassOf ts
-
 def anyPermanentType (tys : List CardType) : Bool := tys.any CardType.permanent
-def anyInstantOrSorceryType (tys : List CardType) : Bool := tys.any CardType.isInstantOrSorcery
-def hasNonKindredType (tys : List CardType) : Bool := tys.any (· != .kindred)
 
-def typesCombinable (tys : List CardType) : Bool :=
-  !(anyPermanentType tys && anyInstantOrSorceryType tys) && (!tys.elem .kindred || hasNonKindredType tys)
-
-/-- A permission to cast this very spell as though it had flash, gated by an added cost or not:
-an ability that modifies how its own object is cast functions in any zone it could be cast from
-and on the stack [CR#113.6e], and a player may begin to cast a spell as though it had flash when
-the permission is conditioned on an added cost [CR#601.3c]. -/
-def selfCastAsThoughFlash (action : Action) (mods : DeonticMods) : Bool :=
-  (match action.scopeBody with
-   | .procedure .cast subject _ _ _ _ => subject.namesThis
-   | _ => false) &&
-  (match mods.asThough with
-   | some (.condition (.matches _ (.hasKeyword (.the (.named "flash"))))) => true
-   | _ => false)
-
-def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bool :=
-  match fuel, s with
-  | n + 1, .inCaller b => b.onInstantOrSorceryCardOk n
-  | _ + 1, .altCost .this _ | _ + 1, .costShift .this _ | _ + 1, .addedCost _ _ _
-  | _ + 1, .modeChoice _ => true
-  | _ + 1, .can _ action mods | _ + 1, .gatedBy _ _ action mods =>
-    selfCastAsThoughFlash action mods
-  | _ + 1, .cant _ action _ =>
-    match action.scopeBody with
-    | .enact (.action "counter") body _ _ => body.canonicalPatient.any (·.namesThis)
-    | _ => false
-  | _ + 1, .replace event _ _ _ _ =>
-    match event with
-    | .would _ action =>
-      match action.scopeBody with
-      | .move src _ _ _ _ => src.namesThis
-      | _ => false
-    | .wouldAny _ | .causedBy .. | .nthOccurrence .. => false
-  | n + 1, .conditional se _ _ => se.onInstantOrSorceryCardOk n
-  | _, _ => false
-termination_by structural fuel
-
-/-- Whether an ability may stand in the text of a card of class `c`. A keyword ability is admitted
-on either class: which class the printed corpus puts a keyword on is observation, not a rule, and
-wither, for one, functions whatever zone its object deals damage from [CR#702.80c]. -/
-def classAbilityOk (c : CardClass) (a : Ability) (fuel : Nat := 64) : Bool :=
-  match fuel, a with
-  | 0, _ => false
-  | _ + 1, .keyword .. => true
-  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
-    classAbilityOk c a n
-  | _ + 1, .spell _ _ => c == .instantOrSorceryCard
-  | _ + 1, .activated cost _ _ _ _ _ => c == .permanentCard || cost.offBattlefield
-  | _ + 1, .static se => c == .permanentCard || se.onInstantOrSorceryCardOk
-  | _ + 1, .mayBeginOnBattlefield | _ + 1, .thatAbility _ => c == .permanentCard
-  | _ + 1, .triggered .. => true
-termination_by structural fuel
-
-def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
-  text.all (fun a => classAbilityOk (cardClassOf tys) a)
+/-- Each kindred card has another card type [CR#308.1]. -/
+def kindredHasAnotherType (tys : List CardType) : Bool :=
+  !tys.elem .kindred || tys.any (· != .kindred)
 
 def chapterLineOk (subs : List Subtype) (ab : Ability) (fuel : Nat := 64) : Bool :=
   match fuel with
@@ -141,6 +83,8 @@ def Ability.printedAfterKeywords (a : Ability) (fuel : Nat := 64) : List Keyword
   | _ + 1, .static se => se.printedAfterKeywords
   | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ =>
     a.printedAfterKeywords n
+  | n + 1, .byCardClass onPermanent onInstantOrSorcery =>
+    onPermanent.printedAfterKeywords n ++ onInstantOrSorcery.printedAfterKeywords n
   | _, _ => []
 termination_by structural fuel
 
@@ -221,7 +165,7 @@ def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
   hasAnyTypeCharacteristic c.supertypes c.types c.subtypes
 
 def Characteristics.cardLineOk (c : Characteristics) : Bool :=
-  c.lineNonEmpty && typesDistinct c.types && typesCombinable c.types &&
+  c.lineNonEmpty && typesDistinct c.types && kindredHasAnotherType c.types &&
     subsFitLine c.subtypes c.types
 
 def Ability.keywordWantsModes (ab : Ability) (fuel : Nat := 64) : Bool :=
@@ -282,10 +226,10 @@ def modalFrameOk (text : List Ability) : Bool :=
 /-- The text laws a shared-line half shares with a face; a door header belongs to a Room's
 shared line, so the door-frame law is a face's alone. -/
 def halfTextLaws (line : Characteristics) (text : List Ability) : List Refusal :=
-  refuse (cardTextOk line.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
+  refuse (modalFrameOk text) .modalFrame ++
     refuse (chapterFrameOk line.subtypes text) .chapterFrame ++ printedAfterLaws text
 
-/-- The laws a text obeys on a type line: class fit, modal frame, chapter frame, door frame. -/
+/-- The laws a text obeys on a type line: modal frame, chapter frame, door frame. -/
 def textLaws (line : Characteristics) (text : List Ability) : List Refusal :=
   halfTextLaws line text ++ refuse (doorFrameOk text) .doorFrame
 

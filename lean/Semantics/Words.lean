@@ -28,6 +28,22 @@ inductive CardType where
   | dungeon
   deriving DecidableEq, Repr
 
+/-- A card's Card Class: a permanent card or an instant or sorcery card, by its card types
+[CR#110.4,110.4a]. A keyword the rules define one way on a permanent and another on an instant or
+sorcery spell selects its half by it (`Ability.byCardClass`). -/
+inductive CardClass where
+  | permanentCard | instantOrSorceryCard
+  deriving DecidableEq, Repr
+
+/-- The Card Class of a card with card types `tys`: an instant or sorcery card if any of them is
+instant or sorcery, and otherwise a permanent card [CR#110.4,110.4a]. A kindred card reads by its
+other card type [CR#308.1]; a dungeon card, neither class, reads as a permanent card until the
+card type's own fields decide it (`lean-v3-card-type-composite-definition`). -/
+def cardClassOf : List CardType → CardClass
+  | [] => .permanentCard
+  | .instant :: _ | .sorcery :: _ => .instantOrSorceryCard
+  | _ :: ts => cardClassOf ts
+
 /-- A rules procedure: one a card can instruct a player to carry out during resolution, activating
 an ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land or as
 a spell [CR#701.18a,701.18b]; or a spell's or ability's resolution [CR#608.1,608.2], which no

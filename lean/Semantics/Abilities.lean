@@ -1327,6 +1327,13 @@ mutual
     [CR#702.169b..702.169d]. -/
     | qualified (ability : Ability) (timing : Option Timing) (limit : Option UsageLimit)
         (guard : Option Condition) (from_ : Option Zone)
+    /-- One of two abilities by the Card Class of the card that has it: `onPermanent` on a
+    permanent card, `onInstantOrSorcery` on an instant or sorcery card [CR#110.4,110.4a]. A
+    keyword the rules define one way "on a permanent" and another "on an instant or sorcery
+    spell" writes its two halves here [CR#702.55a,702.131a,702.131b,702.174b]. The checker checks
+    both, each in the same incoming context; the engine keeps the one the card's Card Class
+    (`cardClassOf`) selects and the card has only that one. -/
+    | byCardClass (onPermanent : Ability) (onInstantOrSorcery : Ability)
 end
 
 /-! The Coordinations as their Coordinator spells them, usable as patterns. -/
