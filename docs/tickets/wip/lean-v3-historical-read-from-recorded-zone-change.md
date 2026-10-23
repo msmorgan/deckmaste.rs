@@ -61,17 +61,39 @@ with no matching event stays ungrounded, as now.
   (`:1281`); the `.move` arm's `readContext` (`:3474`). Both consult the matched event when
   `from_` has no positive zones.
 
+## Decisions taken in the landing
+
+1. **"Writes no origin" is `.anyLocation` (`Location.writesNoOrigin`), not "`positiveZones?` is
+   `none`".** A negated origin ("from anywhere other than the battlefield", `.not`) also has no
+   positive zones, but it is a written origin, and the ruling says a written origin decides alone.
+   `writtenOriginStillDecides` pins it.
+2. **The recorded path ignores the Observation Point.** The put Template marks a move that writes
+   no origin `.arrival`, and the Observation Point classes a trigger pattern [CR#603.6c,603.10a],
+   not the event a "this way" reads back, whose recorded Zone Change says where the object was.
+   So both the `.arrival` and `.departure` forms read historically.
+3. **When several matched events record different origins, a battlefield origin wins**
+   (`DRS.thisWayRecordedOrigin`). The events record no referent, so the read cannot tell which
+   event moved the named object; "that artifact" still constrains the read by its noun.
+
 ## Tests
 
-- `okTuktukScrapperThatArtifactPutIntoAGraveyardThisWay` and `okWerewolfRansackerThatArtifact…`:
-  *Tuktuk Scrapper* and *Werewolf Ransacker* (Afflicted Deserter // Werewolf Ransacker) spelled in
-  full, with the damage clause reading the destroyed artifact's controller.
-- The Problem's probes become pins: `did (that artifact) (putGy .arrival) thisWay` and the
-  `.departure` variant, after `destroy (target isArtifact)`, check clean.
-- `thatArtifactMilledThisWayStaysRefused`: a negative where the matched event's recorded origin is
-  not the battlefield (an artifact card milled, then "if that artifact is put into a graveyard this
-  way") stays refused.
-- `writtenOriginStillDecides`: a lookback with a written non-battlefield origin is not overridden
-  by a recorded battlefield event.
-- `fromAnywhereIsNotLeavesTheBattlefield` [CR#603.6c]: an existing pin on the trigger rule keeps
-  passing (name the pin found by grep in the landing).
+- `Lookback.okThatArtifactPutIntoAGraveyardThisWay`: after `destroy (target isArtifact)`, `did
+  (that artifact) …` in the `.arrival` and `.departure` forms, `did it …`, and `did you (putInto
+  (that artifact) graveyard) thisWay` (the `.move` arm's patient read) check clean.
+- `Lookback.thatArtifactMilledThisWayStaysRefused`: exile, then put from exile into a graveyard
+  (the artifact once left the battlefield, but the matched event's recorded origin is exile), and a
+  mill, stay refused.
+- `Lookback.writtenOriginStillDecides`: a written hand origin, and a written `.not battlefield`
+  origin, are not overridden by the recorded destroy.
+- [CR#603.6c]: the existing pin `EventPatterns.anywhereAndBattlefieldHaveDifferentObservation`
+  (the "from anywhere" pattern is observed on arrival) is unaffected. It pins the Observation
+  Point, not a read, so the landing adds `Lookback.fromAnywhereIsNotLeavesTheBattlefield`: a
+  lookback over this turn that writes "from anywhere" takes no recorded origin and still refuses
+  "that artifact".
+- The witness cards moved out: every witness writes "you may destroy target artifact", and a
+  target in an optional body is invisible after it, which
+  [lean-v3-optional-body-targets-stay-visible](../planned/lean-v3-optional-body-targets-stay-visible.md)
+  carries (*Tuktuk Scrapper*, the *Werewolf Ransacker* trigger). *Werewolf Ransacker*'s upkeep
+  ability also refuses `singular`, which
+  [lean-v3-counted-cast-lookback-singular](../planned/lean-v3-counted-cast-lookback-singular.md)
+  carries with the whole *Afflicted Deserter // Werewolf Ransacker* card.
