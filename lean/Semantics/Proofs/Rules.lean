@@ -9,8 +9,7 @@ tables — so the sentences here are the Comprehensive Rules' own, and the bench
 rows `plugins/builtin/rules` and `plugins/builtin/tokens` actually write.
 
 Each `ok…` fixes the empty refusal list for a real row; each `bad…` fixes the complete list a
-malformed one earns. `distinctPredefinedTokens` is asserted over the catalog the same way
-`Proofs/Tables.lean` asserts the checker's own label tables.
+malformed one earns. `distinctPredefinedTokens` is asserted over the predefined-token catalog.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -268,28 +267,51 @@ lookup key. -/
 theorem badNamelessSubtype :
     Definition.check (.subtype (.of .creature "") []) = [.definitionNamed] := by decide
 
-/-- Artifact is a card type [CR#205.2a] and a permanent type [CR#110.4]. This registry row
-needs no intrinsic conferral. -/
-def artifactTypeDefinition : Definition := .cardType .artifact true []
-theorem okArtifactType : Definition.check artifactTypeDefinition = [] := by decide
+/-! ## The card types' rows
 
-/-- [CR#508.1a] A creature is a Combatant: the creature-like combat rules apply to it. The role is
-a quality, not an ability [CR#113.12]. -/
-def creatureTypeDefinition : Definition := .cardType .creature true [combatant]
-theorem okCreatureType : Definition.check creatureTypeDefinition = [] := by decide
+Each card type's declared `Definition.cardType` row (`Semantics.Definitions.CardTypeRules`) checks.
+-/
 
-/-- [CR#305.1] "A player who has priority may play a land card from their hand during a main
-phase of their turn when the stack is empty." -/
-def landTypeDefinition : Definition := .cardType .land true [playableFrom yourHand asSorcery]
-theorem okLandType : Definition.check landTypeDefinition = [] := by decide
+/-- [CR#302.1,508.1a] A creature card may be cast as a sorcery, and a creature is a Combatant. -/
+theorem okCreatureType : Definition.check creatureType = [] := by decide
 
-/-- [CR#304.1] "A player who has priority may cast an instant card from their hand." -/
-def instantTypeDefinition : Definition :=
-  .cardType .instant false [castableFrom yourHand asInstant]
-theorem okInstantType : Definition.check instantTypeDefinition = [] := by decide
+/-- [CR#301.1] An artifact card may be cast as a sorcery. -/
+theorem okArtifactType : Definition.check artifactType = [] := by decide
+
+/-- [CR#305.1] A land card may be played as a sorcery. -/
+theorem okLandType : Definition.check landType = [] := by decide
+
+/-- [CR#303.1] An enchantment card may be cast as a sorcery. -/
+theorem okEnchantmentType : Definition.check enchantmentType = [] := by decide
+
+/-- [CR#304.1] An instant card may be cast whenever its owner has priority. -/
+theorem okInstantType : Definition.check instantType = [] := by decide
+
+/-- [CR#307.1] A sorcery card may be cast as a sorcery. -/
+theorem okSorceryType : Definition.check sorceryType = [] := by decide
+
+/-- [CR#306.1] A planeswalker card may be cast as a sorcery. -/
+theorem okPlaneswalkerType : Definition.check planeswalkerType = [] := by decide
+
+/-- [CR#310.1] A battle card may be cast as a sorcery. -/
+theorem okBattleType : Definition.check battleType = [] := by decide
+
+/-- [CR#308.1] Kindred confers nothing of its own. -/
+theorem okKindredType : Definition.check kindredType = [] := by decide
 
 /-- [CR#309.2c] "Dungeon cards are not permanents. They can't be cast." -/
-theorem okDungeonType : Definition.check (.cardType .dungeon false []) = [] := by decide
+theorem okDungeonType : Definition.check dungeonType = [] := by decide
+
+/-- The rows are the declared card types, one each, in the declared order. -/
+theorem cardTypeRowsAreDeclared :
+    cardTypeDefinitions.map (fun
+      | .cardType type _ => some type
+      | _ => none) = cardTypes.map some := by decide
+
+/-- A card type is written as a word [CR#205.2a]; the registry refuses a nameless one. -/
+theorem badNamelessCardType :
+    Definition.check (.cardType { name := "", permanent := true } []) = [.definitionNamed] := by
+  decide
 
 /-! ## The rules-defined subtypes (ruling 2026-10-10, `semantics-v2-subtype-rules`) -/
 

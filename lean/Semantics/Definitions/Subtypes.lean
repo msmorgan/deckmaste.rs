@@ -1,4 +1,5 @@
 import Semantics.Primitives
+import Semantics.Definitions.CardTypes
 
 /-!
 # Semantics.Definitions.Subtypes

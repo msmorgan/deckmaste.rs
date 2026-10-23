@@ -1,4 +1,4 @@
-import Semantics.Words
+import Semantics.Definitions.CardTypes
 
 /-!
 # Semantics.Check.Words
@@ -21,10 +21,10 @@ inductive Determiner where
 
 /-! ## Card types and stats -/
 
-/-- Canonical order for remembered type facts; order in the written modifiers is immaterial. -/
+/-- Canonical order for remembered type facts, the declared order (`cardTypes`); order in the
+written modifiers is immaterial. -/
 def normalizeTypes (types : List CardType) : List CardType :=
-  [ .creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle,
-    .kindred, .dungeon ].filter (· ∈ types)
+  cardTypes.filter (· ∈ types)
 
 def mergeTypes (left right : List CardType) : List CardType :=
   normalizeTypes (left ++ right)
@@ -32,13 +32,10 @@ def mergeTypes (left right : List CardType) : List CardType :=
 def commonTypes (left right : List CardType) : List CardType :=
   normalizeTypes (left.filter (· ∈ right))
 
-/-- Each characteristic stat's required card type, if any [CR#208.3,306.5,310.4,310.4a]. -/
-def Stat.comparedType : Stat → Option CardType
-  | .power => some .creature
-  | .toughness => some .creature
-  | .manaValue => none
-  | .loyalty => some .planeswalker
-  | .defense => some .battle
+/-- Whether one of `types` has `stat`, read off the types' own `stats`: power and toughness for a
+creature [CR#302.4], loyalty for a planeswalker [CR#306.5], defense for a battle [CR#310.4]. -/
+def typesHaveStat (types : List CardType) (stat : Stat) : Bool :=
+  types.any (·.stats.elem stat)
 
 def QualitySort.chosenReadOk : QualitySort → Bool
   | .color => true
@@ -85,8 +82,7 @@ def KindAxis.closed : KindAxis → Bool
   | .cardType => true
   | .permanentType => true
   | .color => true
-  | .subtype .land .basicOnly => true
-  | .subtype _ _ => false
+  | .subtype host scope => host == .land && scope == .basicOnly
   | .value _ => false
   | .counterKind => false
   | .colorPair => true
@@ -889,7 +885,7 @@ def controlFits : Option Bool → Option Bool → Bool
 /-- The Source's zone as its Card Types tell it: an instant or sorcery is a spell on the stack;
 any other Source may function from more than one zone, so its zone is unknown. -/
 def sourceZone (types : List CardType) : Option Zone :=
-  if !types.isEmpty && types.all (fun t => t == .instant || t == .sorcery) then some .stack
+  if !types.isEmpty && types.all (·.instantOrSorcery) then some .stack
   else none
 
 /-- Whether `b` can be the Contrast Anchor of a bare "another"/"other" of kind `k` whose Head Noun
@@ -1567,7 +1563,7 @@ def Subtype.type : Subtype → Option CardType
 
 def Subtype.fits : Subtype → CardType → Bool
   | .of host _, t => host == t
-  | .spell _, t => t == .instant || t == .sorcery
+  | .spell _, t => t.instantOrSorcery
 
 def Subtype.label : Subtype → String
   | .of _ label => label
@@ -1684,17 +1680,6 @@ def ProjAxis.multiValued : ProjAxis → Bool
   | .chapter | .keywordNumber _ => true
   | _ => false
 
-def ProjAxis.type : ProjAxis → Option CardType
-  | .stat c => c.comparedType
-  | _ => none
-
-def allAxisType (t : CardType) : List ProjAxis → Bool
-  | [] => true
-  | a :: as =>
-    match a.type with
-    | none => false
-    | some u => t == u && allAxisType t as
-
 def axesAt (k : Kind) : List ProjAxis → Bool
   | [] => false
   | as => as.all (·.scope == k)
@@ -1715,14 +1700,6 @@ def subsFitLine : List Subtype → List CardType → Bool
   | [], _ => true
   | s :: ss, tys =>
     (tys.any s.fits || (s.fits .creature && tys.elem .kindred)) && subsFitLine ss tys
-
-def CardType.permanent : CardType → Bool
-  | .kindred | .instant | .sorcery | .dungeon => false
-  | _ => true
-
-def CardType.isInstantOrSorcery : CardType → Bool
-  | .instant | .sorcery => true
-  | _ => false
 
 /-- Which status values a description can be written with ("tapped creature"). -/
 def Status.word : Status → Bool

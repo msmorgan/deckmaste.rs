@@ -7,9 +7,10 @@ The vocabulary: every leaf type a phrase, trigger, effect, or card is written fr
 `idris/src/Experimental/Words.idr`, syntax only.
 
 A type is here iff a constructor field mentions it. The checker's own vocabulary (the
-antecedent stack, obligation witnesses, the facts tables, event names, static kinds) lives in
-`Check/`. Designations, keywords, acts, counters, and deeds are labels with hand-maintained facts
-tables, not enums: the grammar carries the mechanism, the tables carry the set.
+antecedent stack, obligation witnesses, event names, static kinds) lives in `Check/`. Card types,
+subtypes, designations, keywords, keyword actions and counters are not enums: each member is a
+declaration in `Semantics.Definitions` whose value carries its own fields, so the grammar carries
+the mechanism and the declarations carry the set.
 -/
 
 namespace Semantics
@@ -20,29 +21,6 @@ class AnyValue (α : Type) where
   any : α
 
 export AnyValue (any)
-
-/-- [CR#205.2a] A dungeon begins outside the game and is never a permanent or a spell
-[CR#309.2,309.2c]; it is a card type all the same, and the `dungeon` type declaration names it. -/
-inductive CardType where
-  | creature | artifact | land | enchantment | instant | sorcery | planeswalker | battle | kindred
-  | dungeon
-  deriving DecidableEq, Repr
-
-/-- A card's Card Class: a permanent card or an instant or sorcery card, by its card types
-[CR#110.4,110.4a]. A keyword the rules define one way on a permanent and another on an instant or
-sorcery spell selects its half by it (`Ability.byCardClass`). -/
-inductive CardClass where
-  | permanentCard | instantOrSorceryCard
-  deriving DecidableEq, Repr
-
-/-- The Card Class of a card with card types `tys`: an instant or sorcery card if any of them is
-instant or sorcery, and otherwise a permanent card [CR#110.4,110.4a]. A kindred card reads by its
-other card type [CR#308.1]; a dungeon card, neither class, reads as a permanent card until the
-card type's own fields decide it (`lean-v3-card-type-composite-definition`). -/
-def cardClassOf : List CardType → CardClass
-  | [] => .permanentCard
-  | .instant :: _ | .sorcery :: _ => .instantOrSorceryCard
-  | _ :: ts => cardClassOf ts
 
 /-- A rules procedure: one a card can instruct a player to carry out during resolution, activating
 an ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land or as
@@ -63,6 +41,41 @@ inductive Stat where
   battle [CR#310.4c], and elsewhere the number printed on the card [CR#310.4a]. -/
   | defense
   deriving DecidableEq, Repr
+
+/-- A card type [CR#205.2a]: its name and the fields the rules read off it, whether it is a
+permanent type [CR#110.4], the characteristic stats its objects have [CR#302.4,306.5,310.4],
+and whether its cards are instant or sorcery cards [CR#110.4a]. A card names a declared card
+type (`Semantics.Definitions.CardTypes`), never the raw structure: `spelled` refuses it. What a
+card type confers on its objects is not a field; it is the type's `Definition.cardType` row. -/
+structure CardType where
+  /-- The word the type line prints. -/
+  name : String
+  /-- A permanent type: one of the six whose objects can be permanents [CR#110.4]. -/
+  permanent : Bool
+  /-- The characteristic stats only objects of this type have: power and toughness for a
+  creature [CR#302.4], loyalty for a planeswalker [CR#306.5], defense for a battle [CR#310.4]. -/
+  stats : List Stat := []
+  /-- An instant or sorcery card [CR#110.4,304.1,307.1]. With `permanent`, it settles a card's
+  Card Class [CR#110.4a]; a type that is neither, as kindred [CR#308.1] and dungeon
+  [CR#309.2c] are, gives a card no Card Class of its own. -/
+  instantOrSorcery : Bool := false
+  deriving DecidableEq, Repr
+
+/-- A card's Card Class: a permanent card or an instant or sorcery card, by its card types
+[CR#110.4,110.4a]. A keyword the rules define one way on a permanent and another on an instant or
+sorcery spell selects its half by it (`Ability.byCardClass`). -/
+inductive CardClass where
+  | permanentCard | instantOrSorceryCard
+  deriving DecidableEq, Repr
+
+/-- The Card Class of a card with card types `tys`, read off their fields: an instant or sorcery
+card if any of them is an instant or sorcery type, a permanent card if any is a permanent type
+[CR#110.4,110.4a], and none otherwise. A kindred card reads by its other card type [CR#308.1]; a
+dungeon card has no Card Class [CR#309.2c]. -/
+def cardClassOf (tys : List CardType) : Option CardClass :=
+  if tys.any (·.instantOrSorcery) then some .instantOrSorceryCard
+  else if tys.any (·.permanent) then some .permanentCard
+  else none
 
 inductive PlayerStat where
   | lifeTotal | startingLifeTotal
@@ -654,18 +667,20 @@ inductive EventSide where
 
 end Semantics
 
-attribute [semantic_expression] Semantics.Delta Semantics.Subtype Semantics.CounterKind
+attribute [semantic_expression] Semantics.CardType Semantics.Delta Semantics.Subtype
+  Semantics.CounterKind
   Semantics.DesignationLabel Semantics.RelationLabel Semantics.KeywordLabel
   Semantics.AbilityWordLabel
   Semantics.Deed
 
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
 
--- A `Subtype`, `CounterKind`, `DesignationLabel` or `RelationLabel` is a semantic expression with
--- no primitive wrapper: a card names a catalog entry (`Semantics.Definitions.Subtypes`,
--- `.Counters`, `.Designations`, `.Relations`), and `spelled` refuses a raw constructor.
-attribute [internal_expansion] Semantics.Subtype Semantics.CounterKind Semantics.DesignationLabel
-  Semantics.RelationLabel
+-- A `CardType`, `Subtype`, `CounterKind`, `DesignationLabel` or `RelationLabel` is a semantic
+-- expression with no primitive wrapper: a card names a catalog entry
+-- (`Semantics.Definitions.CardTypes`, `.Subtypes`, `.Counters`, `.Designations`, `.Relations`),
+-- and `spelled` refuses a raw constructor.
+attribute [internal_expansion] Semantics.CardType Semantics.Subtype Semantics.CounterKind
+  Semantics.DesignationLabel Semantics.RelationLabel
 
 -- A `KeywordLabel` is a semantic expression whose one constructor is internal: each keyword
 -- ability Definition generates its authored label constant (`kicker.label`,

@@ -48,9 +48,10 @@ longer apply to the native v3 workbench.
 
 The syntax modules are `Words`, `Events`, `Abilities`, `Card`, and `Rules`;
 `Primitives` wraps their constructors, `Templates` holds the transparent phrasings, and
-`Definitions` the rules-defined vocabulary (keyword actions and abilities, counters, tokens and
-designations), with the templates that name a card type or a catalog entry (`Definitions/Phrasings`:
-"historic", "this creature", "your party") and those written over a Definition. A constructor earns
+`Definitions` the rules-defined vocabulary (card types, keyword actions and abilities, counters,
+tokens and designations), with the templates that name a card type or a catalog entry
+(`Definitions/Phrasings`: "historic", "this creature", "your party") and those written over a
+Definition. A constructor earns
 its place through an obligation or structural distinction its expansion would not carry. Common
 phrasings live in `Templates`: for example, "permanent", "colorless", "spell" and "attacking"
 expand into shared predicates.

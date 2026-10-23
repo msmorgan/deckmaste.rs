@@ -80,10 +80,10 @@ structure ConferralRule where
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
 definition, where a `RulesTables` row is scoped by a predicate and names nothing.
 
-A counter kind, designation label, relation label or subtype is a self-contained catalog value
-(`Semantics.Definitions`) carrying its own columns, a counter's holder and a designation's scope;
-the record here adds only what the value cannot hold, the conferrals. A card type definition is
-not read by the checker's card-type tables (`CardType.permanent`) yet. -/
+A card type, counter kind, designation label, relation label or subtype is a self-contained
+catalog value (`Semantics.Definitions`) carrying its own columns, a card type's permanence and
+stats, a counter's holder and a designation's scope; the record here adds only what the value
+cannot hold, the conferrals. -/
 inductive Definition where
   /-- A counter [CR#122.1]: its kind, which carries what holds it, and what it does to its bearer.
 
@@ -114,12 +114,13 @@ inductive Definition where
   `night` [CR#731.1]), which carries who holds it; the registry supplies it, never the author.
   `effectful` is whether an action may confer it directly. -/
   | designation (label : DesignationLabel) (effectful : Bool)
-  /-- A card type [CR#205.2a]: the type, whether it is a permanent type [CR#110.4], and what it
-  confers on every object of that type. A quality the type gives its objects — a creature is a
-  Combatant [CR#508.1a], a land card may be played [CR#305.1], an instant may be cast whenever
-  its owner has priority [CR#304.1] — is no ability of the object [CR#113.12], so it is the
-  ability-free `property` flavor. Most card types confer nothing. -/
-  | cardType (cardType : CardType) (permanentType : Bool) (confers : List Conferral)
+  /-- A card type [CR#205.2a] and what it confers on every object of that type; whether it is a
+  permanent type [CR#110.4] is a field of the value, as its stats are. A quality the type gives
+  its objects — a creature is a Combatant [CR#508.1a], a land card may be played [CR#305.1], an
+  instant may be cast whenever its owner has priority [CR#304.1] — is no ability of the object
+  [CR#113.12], so it is the ability-free `property` flavor. The rows are declared beside the
+  values (`Semantics.Definitions.CardTypeRules`). -/
+  | cardType (cardType : CardType) (confers : List Conferral)
   /-- A Relation [CR#702.55b,702.95b,702.99b]: a named link between two objects, made by one
   ability and read by others. The label is the declaration's own name; the registry supplies it,
   never the author. -/

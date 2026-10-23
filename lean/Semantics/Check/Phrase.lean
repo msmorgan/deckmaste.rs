@@ -1628,9 +1628,9 @@ Two laws hold of its terms: `spec` is the one clause that removes Attachments (`
 and `subject` names Attachments of that clause's host (`retentionSubject`). -/
 
 /-- Whether a subtype is an Attachment's: Aura, Equipment or Fortification [CR#701.3a]. -/
-def Subtype.isAttachment : Subtype → Bool
-  | .of .enchantment "Aura" | .of .artifact "Equipment" | .of .artifact "Fortification" => true
-  | _ => false
+def Subtype.isAttachment (subtype : Subtype) : Bool :=
+  subtype == .of .enchantment "Aura" || subtype == .of .artifact "Equipment" ||
+    subtype == .of .artifact "Fortification"
 
 /-- Whether an action, seen through its scope wrappers, attaches something [CR#701.3a]: "can't be
 enchanted" forbids an Aura's becoming attached. -/
@@ -1716,11 +1716,11 @@ def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 16)
   match fuel, subject with
   | n + 1, .inCaller body => body.namesAttachmentsOf host n
   | _ + 1, .headed (.subtype subtype) .this =>
-    match subtype, host with
-    | .of .enchantment "Aura", .attachHost .enchanted _
-    | .of .artifact "Equipment", .attachHost .equipped _
-    | .of .artifact "Fortification", .attachHost .fortified _ => true
-    | _, _ => false
+    match host with
+    | .attachHost .enchanted _ => subtype == .of .enchantment "Aura"
+    | .attachHost .equipped _ => subtype == .of .artifact "Equipment"
+    | .attachHost .fortified _ => subtype == .of .artifact "Fortification"
+    | _ => false
   | _ + 1, .described _ p =>
     p.namesAttachments && p.attachmentHosts.all fun
       | .pro _ _ => true

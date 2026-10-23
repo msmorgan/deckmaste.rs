@@ -282,7 +282,8 @@ theorem badTokenCopyAsCopyMention :
       = [.anaphor (.word .copy) .one 0] := by
   decide
 
-/-- "Saga — I, II, III — Draw a card." -/
+/-- "Saga — I, II, III — Draw a card.": a Saga card's text box holds chapter symbols [CR#714.1],
+each a Roman numeral, I for 1 [CR#714.2a]. -/
 theorem okChapterOnSaga :
     Card.check
       (one

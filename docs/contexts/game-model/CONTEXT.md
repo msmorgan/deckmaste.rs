@@ -679,7 +679,8 @@ where applicable, Alternative Characteristics.
 
 **Card Class** (project term):
 Whether a card is a Permanent Card or an instant or sorcery card, by its Card
-Types ([CR#110.4,110.4a]). A Keyword Ability that represents different
+Types ([CR#110.4,110.4a]). A card that is neither, as a dungeon card is
+([CR#309.2c]), has no Card Class. A Keyword Ability that represents different
 abilities "on a permanent" and "on an instant or sorcery spell"
 ([CR#702.55a,702.131a,702.131b,702.174b]) is written with `byCardClass`, which
 holds both and lets the Card Class select the one the card has.

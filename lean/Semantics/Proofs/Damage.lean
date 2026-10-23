@@ -973,6 +973,19 @@ theorem witherAndInfectPutCountersOnce :
       StaticSpec.check (DRS.ofList []) markingReplacedByCounters = [] :=
   ⟨rfl, rfl, by decide, by decide⟩
 
+/-- Wither functions from any zone its object deals damage from [CR#702.80c]: its body names no
+zone it functions from, and its replacement reads the damage its source deals, not a permanent's.
+*Puncture Blast*, an instant with wither, deals its damage from the stack, and checks. -/
+theorem witherFunctionsFromAnyZone :
+    (match wither with
+      | .keyword _ _ body => body.all fun
+        | .qualified _ _ _ _ (some _) => false
+        | _ => true
+      | _ => false) = true ∧
+      (bodyStatics wither).head? = some markingReplacedByCounters ∧
+      Cards.punctureBlast.card.check = [] :=
+  ⟨by decide, rfl, Cards.punctureBlast.ok⟩
+
 /-- Infect's player row replaces the life loss its own damage would cause, caused by that damage
 event and not by the source, so other life loss the source causes is not replaced
 [CR#702.90b,120.3a]: "that many" reads the damage dealt. -/

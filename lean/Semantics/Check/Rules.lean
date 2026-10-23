@@ -52,7 +52,8 @@ def Definition.check : Definition → List Refusal
   | .subtype sub rules =>
     refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
   | .designation label _ => refuse (!label.name.isEmpty) .definitionNamed
-  | .cardType _ _ confers => confers.flatMap Conferral.check
+  | .cardType type confers =>
+    refuse (!type.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
   | .relation label => refuse (!label.name.isEmpty) .definitionNamed
 
 def PredefinedToken.check (t : PredefinedToken) : List Refusal :=
