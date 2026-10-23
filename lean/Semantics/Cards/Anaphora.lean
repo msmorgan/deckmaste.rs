@@ -842,4 +842,27 @@ def tuktukScrapper : Spelled := spelled <| singleFacedCard
     power := stat 2, toughness := stat 2 }
 theorem okTuktukScrapper : tuktukScrapper.card.check = [] := tuktukScrapper.ok
 
+/-- Insatiable Appetite: "You may sacrifice a Food. If you do, target creature gets +5/+5 until end
+of turn. Otherwise, that creature gets +3/+3 until end of turn." Both arms' targets are chosen as
+the spell is cast, whichever arm later runs [CR#601.2c,115.1], so "Otherwise, that creature" reads
+the target the "if you do" arm announces. -/
+def insatiableAppetite : Spelled := spelled <| singleFacedCard
+  { name := "Insatiable Appetite", cost := [generic 1, pip .green], types := [.instant],
+    text :=
+      [ spell (may (sacrifice (a food))
+          (some (get (target isCreature) (up 5) (up 5) untilEndOfTurn))
+          (some (get (that creature) (up 3) (up 3) untilEndOfTurn))) ] }
+theorem okInsatiableAppetite : insatiableAppetite.card.check = [] := insatiableAppetite.ok
+
+/-- Pippin's Bravery: "You may sacrifice a Food. If you do, target creature gets +4/+4 until end of
+turn. Otherwise, that creature gets +2/+2 until end of turn." The same shape as Insatiable
+Appetite. -/
+def pippinsBravery : Spelled := spelled <| singleFacedCard
+  { name := "Pippin's Bravery", cost := [pip .green], types := [.instant],
+    text :=
+      [ spell (may (sacrifice (a food))
+          (some (get (target isCreature) (up 4) (up 4) untilEndOfTurn))
+          (some (get (that creature) (up 2) (up 2) untilEndOfTurn))) ] }
+theorem okPippinsBravery : pippinsBravery.card.check = [] := pippinsBravery.ok
+
 end Semantics.Cards

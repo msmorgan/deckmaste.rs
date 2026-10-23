@@ -719,17 +719,49 @@ theorem optionalIfNotArmTargetStaysVisible :
       (sequentially [may (sacrifice (a isCreature)) none (some (tap (target isArtifact))),
         untap (that artifact)]) = [] := by decide
 
-/-- Each arm's target takes its own id past both arms, though the arms number from overlapping
-ids, and a stamp an arm left on its own target escapes participial-only under the target's id:
-after "you may sacrifice a creature. If you do, exile target creature. If you don't, tap target
-artifact", the two targets are ordinary referents 4 and 5, and the exiled creature's stamp is
-read under 4. -/
+/-- Each arm's target takes its own id past the body, before either arm numbers anything, though
+the arms number from overlapping ids, and a stamp an arm left on its own target escapes
+participial-only under the target's id: after "you may sacrifice a creature. If you do, exile
+target creature. If you don't, tap target artifact", the two targets are ordinary referents 2 and
+3, and the exiled creature's stamp is read under 2. -/
 theorem optionalArmTargetsTakeDistinctIds :
     let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (may (sacrifice (a isCreature)) (some (exile (target isCreature)))
         (some (tap (target isArtifact))))).1
-    (out.referents.map fun ref => (ref.id, ref.det == .target)) = [(4, true), (5, true)] ∧
-      (out.participialOnly.map (·.id)).contains 4 ∧ out.nextId = 7 := by decide
+    (out.referents.map fun ref => (ref.id, ref.det == .target)) = [(2, true), (3, true)] ∧
+      (out.participialOnly.map (·.id)).contains 2 ∧ out.nextId = 7 := by decide
+
+/-- Both arms' targets are announced as the spell is cast, before either arm runs
+[CR#601.2c,115.1], so each arm reads the other's as an ordinary referent: "Otherwise, that
+creature" reads the target the "if you do" arm announced (*Insatiable Appetite*), and the reverse
+reads too. -/
+theorem otherwiseReadsTheOtherArmsTarget :
+    Action.check (DRS.ofList [])
+      (may (sacrifice (a food)) (some (get (target isCreature) (up 5) (up 5) untilEndOfTurn))
+        (some (get (that creature) (up 3) (up 3) untilEndOfTurn))) = [] ∧
+    Action.check (DRS.ofList [])
+      (may (sacrifice (a food)) (some (untap (that artifact)))
+        (some (tap (target isArtifact)))) = [] := by decide
+
+/-- The other arm reads a target under the id it escapes with: after "you may sacrifice a Food. If
+you do, exile target creature. Otherwise, exile that creature", the target is ordinary referent 2,
+and the two arms' stamps on it escape participial-only once, under 2. -/
+theorem otherArmReadsTheTargetUnderItsEscapedId :
+    let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (may (sacrifice (a food)) (some (exile (target isCreature)))
+        (some (exile (that creature))))).1
+    (out.referents.map fun ref => (ref.id, ref.det == .target)) = [(2, true)] ∧
+      (out.participialOnly.map (·.id)).count 2 = 1 := by decide
+
+/-- Only targets cross between the arms: an object one arm creates or chooses without targeting
+is that arm's own, and "that artifact" in the other arm finds nothing. -/
+theorem otherArmDoesNotReadNonTargets :
+    Action.check (DRS.ofList [])
+      (may (sacrifice (a isCreature)) (some (createToken foodToken))
+        (some (sacrifice (that artifact)))) = [.anaphor (.word artifact) .one 0] ∧
+    Action.check (DRS.ofList [])
+      (may (sacrifice (a food)) (some (destroy (a isArtifact)))
+        (some (tap (that artifact)))) = [.anaphor (.word artifact) .one 0] := by decide
 
 /-- A "when you do" reflexive trigger is a separate ability that chooses its own targets as it is
 put on the stack [CR#603.12,603.3d]: its target does not escape into the text after it. -/
