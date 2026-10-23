@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Turn
 
 /-!
 # Semantics.Proofs.Turn
@@ -633,6 +634,72 @@ theorem okCastWhenASorceryCouldNotHaveBeen :
     Condition.check (DRS.ofList [])
       (did (.actor .you) (.procedure .cast .this .itsOwnCost none none none) (within thisGame (some (.not asSorcery))))
       = [] := by
+  decide
+
+/-! ## A permission's rider -/
+
+/-- "If you cast it any time a sorcery couldn't have been cast, the controller of the permanent it
+becomes sacrifices it at the beginning of the next cleanup step." [CR#307.5a]. -/
+private def sacrificedAtCleanup : Action :=
+  doIf (did you (cast it) (within thisGame (some (not asSorcery))))
+    (atNext .cleanup (instruct (controllerOf (becomes it)) (sacrifice it)))
+
+/-- "You may cast this spell as though it had flash." -/
+private def flashPermission : StaticSpec :=
+  can you (cast thisSpell) (asThough := asThoughHadFlash it)
+
+/-- Mystic Veil's two sentences are one paragraph, so one ability [CR#113.2c]: the permission,
+the second sentence its rider, so the cast-timing check reads the cast it allows and a cast under
+another effect's permission does not sacrifice it (Mystic Veil ruling, 2022-12-08). -/
+theorem flashSacrificeRidesThePermission :
+    asThoughFlashSacrificedAtCleanup =
+      .static (.can (.actor .you) (cast thisSpell)
+        { asThough := some (asThoughHadFlash it), rider := some sacrificedAtCleanup }) := rfl
+
+/-- Each of the nine cards carries the sentence as the permission's rider, its first ability,
+and no sibling static [CR#113.2c]. -/
+theorem flashSacrificeCardsCarryTheRider :
+    [ Semantics.Cards.armorOfThorns, Semantics.Cards.graveServitude,
+      Semantics.Cards.lightningReflexes, Semantics.Cards.mysticVeil, Semantics.Cards.parapet,
+      Semantics.Cards.relicWard, Semantics.Cards.soar, Semantics.Cards.spiderClimb,
+      Semantics.Cards.wardOfLights ].map (fun c => match c.card with
+        | .singleFaced face => face.characteristics.text.head?
+        | _ => none) =
+      List.replicate 9 (some asThoughFlashSacrificedAtCleanup) := rfl
+
+theorem okMysticVeil : Semantics.Cards.mysticVeil.card.check = [] := Semantics.Cards.mysticVeil.ok
+
+/-- Ward of Lights: the rider, and protection that doesn't remove it [CR#702.16n]. -/
+theorem okWardOfLights : Semantics.Cards.wardOfLights.card.check = [] :=
+  Semantics.Cards.wardOfLights.ok
+
+/-- The scoping is in the term: the rider reads the permission's clause back, so its "it" is
+this spell and "cast … this way" is the permitted cast [CR#113.2c]. Written as a separate static,
+the same check reads no permitted cast: its "it" finds no antecedent, and "this way" grounds in
+nothing. -/
+theorem riderReadsThePermittedCast :
+    StaticSpec.check (DRS.ofList []) (.can (.actor .you) (cast thisSpell)
+      { asThough := some (asThoughHadFlash it), rider := some sacrificedAtCleanup }) = [] ∧
+    Ability.checkText (DRS.ofList [])
+      [ static flashPermission,
+        static (whileHolds (did you (cast it) (within thisGame (some (not asSorcery))))
+          (sacrifice it)) ] =
+      [.anaphor .bare .one 0, .anaphor .bare .one 0] ∧
+    StaticSpec.check (DRS.ofList []) (.can (.actor .you) (cast thisSpell)
+      { rider := some (doIf (did you (cast it) thisWay) (draw 1)) }) = [] ∧
+    Ability.checkText (DRS.ofList [])
+      [ static flashPermission, static (whileHolds (did you (cast (a isSpell)) thisWay) (draw 1)) ] =
+      [.thisWayUngrounded] := by
+  decide
+
+/-- Only a permission takes a rider: a prohibition, a requirement and a cost-gated rule permit
+no act for it to modify. -/
+theorem riderOnlyOnAPermission :
+    [ StaticSpec.cant (.actor .you) (cast thisSpell) { rider := some sacrificedAtCleanup },
+      .must (.actor .you) (cast thisSpell) { rider := some sacrificedAtCleanup },
+      .gatedBy [generic 2] (.actor .you) (cast thisSpell) { rider := some sacrificedAtCleanup } ].map
+        (StaticSpec.check (DRS.ofList [])) =
+      [[.deonticRider], [.deonticRider], [.deonticRider]] := by
   decide
 
 /-- "Whenever you cast a spell, you may draw a card. Do this only once each turn." [CR#603.2h]:

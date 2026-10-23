@@ -995,12 +995,14 @@ semantic_template cant (subj : Subject) (action : Action)
     (except : Option DeonticExcept := none)
     (causedBy : Option Causing := none) : StaticSpec :=
   .cant subj action { timing, asThough, except, cause := causedBy }
-/-- "<subj> can <action>": a permission [CR#101.2]. -/
+/-- "<subj> can <action>": a permission [CR#101.2], with `rider` the later text that modifies the
+act it permits [CR#608.2c] (`DeonticMods.rider`). -/
 semantic_template can (subj : Subject) (action : Action)
     (timing : Option Timing := none)
     (asThough : Option AsThough := none)
-    (except : Option DeonticExcept := none) : StaticSpec :=
-  .can subj action { timing, asThough, except }
+    (except : Option DeonticExcept := none)
+    (rider : Option Action := none) : StaticSpec :=
+  .can subj action { timing, asThough, except, rider }
 /-- "<subj> <action>s if able", "<subj> must <action>". A requirement with the unspecified agent
 `any` is one requirement on the whole clause: "this creature must be blocked if able" is one
 requirement on the declaration of blockers [CR#509.1c], met when at least one creature blocks it.

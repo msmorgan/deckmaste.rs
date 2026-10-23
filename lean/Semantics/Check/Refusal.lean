@@ -136,6 +136,9 @@ inductive Refusal where
   /-- A deontic rule names a cause (`DeonticMods.cause`) but is no prohibition: only `cant`
   forbids an event by what causes it. -/
   | deonticCause
+  /-- A deontic rule carries a rider (`DeonticMods.rider`) but is no permission: only `can`
+  permits an act a rider can modify. -/
+  | deonticRider
   | verbedVoiceOk
   /-- A handoff names neither a player nor an object. -/
   | handoffPerformer

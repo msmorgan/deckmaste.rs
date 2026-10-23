@@ -848,6 +848,16 @@ blocked except by artifact creatures and/or creatures that share a color with
 it" ([CR#702.13b]), named by a description of Objects.
 _Avoid_: negated predicate, for the exception
 
+**Permission Rider** (project term):
+The rest of a permission's own ability, written after it in the same paragraph
+([CR#113.2c]), that modifies the act the permission allows: "You may cast this
+spell as though it had flash. If you cast it any time a sorcery couldn't have
+been cast, the controller of the permanent it becomes sacrifices it at the
+beginning of the next cleanup step" ([CR#307.5a,608.3g]). It applies only to an
+act performed under that permission, not to the same act allowed by another
+effect.
+_Avoid_: separate ability, for the second sentence; Entry Rider
+
 **Amount** (project term):
 A semantic expression denoting a number in context — a literal, a count over a
 Selection, or a characteristic read. An Amount is not a Reference.

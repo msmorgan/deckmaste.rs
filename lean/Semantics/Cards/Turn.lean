@@ -490,4 +490,105 @@ def berserk : Spelled := spelled <| singleFacedCard
                     creature) attack soFarThisTurn)) ])
                         (timing := beforePart .combatDamage none) ] }
 
+/-! ## Cast as though it had flash, sacrificed at cleanup
+
+Each prints "You may cast this spell as though it had flash. If you cast it any time a sorcery
+couldn't have been cast, the controller of the permanent it becomes sacrifices it at the
+beginning of the next cleanup step." (`asThoughFlashSacrificedAtCleanup`). -/
+
+/-- Armor of Thorns -/
+def armorOfThorns : Spelled := spelled <| singleFacedCard
+  { name := "Armor of Thorns", cost := [generic 1, pip .green], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant (and [isCreature, non (hasColor .black)]),
+        static (getsPt (enchanted creature) (up 2) (up 2)) ] }
+
+/-- Grave Servitude -/
+def graveServitude : Spelled := spelled <| singleFacedCard
+  { name := "Grave Servitude", cost := [generic 1, pip .black], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (conjunction
+          [ getsPt (enchanted creature) (up 3) (down 1),
+            qualityChange it .sets (colored (.some [.black])) ]
+          (subject := some (enchanted creature))) ] }
+
+/-- Lightning Reflexes -/
+def lightningReflexes : Spelled := spelled <| singleFacedCard
+  { name := "Lightning Reflexes", cost := [generic 1, pip .red], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (conjunction
+          [ getsPt (enchanted creature) (up 1) (up 0),
+            abilityGrant (enchanted creature) firstStrike ]
+          (subject := some (enchanted creature))) ] }
+
+/-- Mystic Veil -/
+def mysticVeil : Spelled := spelled <| singleFacedCard
+  { name := "Mystic Veil", cost := [generic 1, pip .blue], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (abilityGrant (enchanted creature) shroud) ] }
+
+/-- Parapet -/
+def parapet : Spelled := spelled <| singleFacedCard
+  { name := "Parapet", cost := [generic 1, pip .white], types := [.enchantment],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        static (getsPt (allOf (and [isCreature, youControl])) (up 0) (up 1)) ] }
+
+/-- Relic Ward -/
+def relicWard : Spelled := spelled <| singleFacedCard
+  { name := "Relic Ward", cost := [generic 1, pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isArtifact,
+        static (abilityGrant (enchanted artifact) shroud) ] }
+
+/-- Soar -/
+def soar : Spelled := spelled <| singleFacedCard
+  { name := "Soar", cost := [generic 1, pip .blue], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (conjunction
+          [ getsPt (enchanted creature) (up 0) (up 1),
+            abilityGrant (enchanted creature) flying ]
+          (subject := some (enchanted creature))) ] }
+
+/-- Spider Climb -/
+def spiderClimb : Spelled := spelled <| singleFacedCard
+  { name := "Spider Climb", cost := [pip .green], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (conjunction
+          [ getsPt (enchanted creature) (up 0) (up 3),
+            abilityGrant (enchanted creature) reach ]
+          (subject := some (enchanted creature))) ] }
+
+/-- Ward of Lights: its protection doesn't remove it, as Flickering Ward's doesn't
+[CR#702.16n]. -/
+def wardOfLights : Spelled := spelled <| singleFacedCard
+  { name := "Ward of Lights", cost := [pip .white, pip .white], types := [.enchantment],
+    subtypes := [aura],
+    text :=
+      [ asThoughFlashSacrificedAtCleanup,
+        enchant isCreature,
+        static (entersChoosing thisAura .color),
+        static (retention
+          (abilityGrant (enchanted creature) (protection (ofChosen .color)))
+          thisAura) ] }
+
 end Semantics.Cards
