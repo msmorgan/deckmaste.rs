@@ -922,7 +922,7 @@ private def turnOwnerKindRefusals (noun : NounPhrase) : List Refusal :=
 
 def stepTurnRefWith (ops : StepOps) (drs : DRS) (turn : TurnRef) : DRS × List Refusal :=
   match turn with
-  | .next (some owner) | .each (some owner) =>
+  | .next (some owner) | .each (some owner) | .mostRecent owner =>
     let (out, _, errors) := ops.np drs .other false owner
     (out, errors ++ turnOwnerKindRefusals owner)
   | .that => (drs, refuse (countTurns drs == 1) (.turnAntecedent (countTurns drs)))
@@ -3318,6 +3318,10 @@ def stepOps : Nat → StepOps
         | .soChooses chooser =>
           let (drs', ids, errs) := ops.np drs .subj true chooser
           (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
+        | .heldSince inner since =>
+          let (drs1, e1) := ops.cond drs inner
+          let (drs2, e2) := ops.ev drs1 since
+          (drs2, e1 ++ e2)
         | .not inner =>
           match inner with
           | .matches subj predicate =>

@@ -202,9 +202,10 @@ def confersOf : Definition → List Conferral
   | .counter _ confers | .subtype _ confers | .cardType _ confers => confers
   | .designation .. | .relation _ => []
 
-/-- [CR#302.1,508.1a,302.5,120.3e,704.5f,704.5g] A creature card may be cast as a sorcery, a
-creature is a Combatant, it can attack and block, damage is marked on it, and the toughness and
-lethal-damage state-based actions apply to it. -/
+/-- [CR#302.1,508.1a,302.5,302.6,120.3e,704.5f,704.5g] A creature card may be cast as a
+sorcery, a creature is a Combatant, it can attack and block, the summoning-sickness rule applies
+to it, damage is marked on it, and the toughness and lethal-damage state-based actions apply to
+it. -/
 theorem okCreatureType : Definition.check creatureType = [] := by decide
 
 /-- [CR#302.5] "Creatures can attack and block." -/
@@ -214,6 +215,27 @@ theorem okCreatureCanAttack :
 theorem okCreatureCanBlock :
     creatureCanBlock ∈ confersOf creatureType ∧ creatureCanBlock.check = [] :=
   ⟨by simp [confersOf, creatureType], by decide⟩
+
+/-- [CR#302.6] "A creature can't attack unless it has been under its controller's control
+continuously since their most recent turn began." -/
+theorem okSummoningSicknessAttack :
+    summoningSicknessAttack ∈ confersOf creatureType ∧ summoningSicknessAttack.check = [] :=
+  ⟨by simp [confersOf, creatureType], by decide⟩
+
+/-- [CR#302.6] "A creature's activated ability with the tap symbol or the untap symbol in its
+activation cost can't be activated unless the creature has been under its controller's control
+continuously since their most recent turn began." -/
+theorem okSummoningSicknessActivation :
+    summoningSicknessActivation ∈ confersOf creatureType ∧
+      summoningSicknessActivation.check = [] :=
+  ⟨by simp [confersOf, creatureType], by decide⟩
+
+/-- [CR#302.6] The summoning-sickness reading's "their" reads the player its condition names, the
+creature's controller: with no player named before it, "their most recent turn" reads nothing. -/
+theorem badHeldSinceTheirTurnWithNoPlayer :
+    Condition.check (DRS.ofList [])
+      (heldSince (.matches this_ isCreature) (.beginningOf .turn none (.mostRecent they))) =
+      [.anaphor (.word .player) .one 0] := by decide
 
 /-- [CR#120.3e] Damage dealt to a creature by a source with neither wither nor infect is marked
 on it. -/

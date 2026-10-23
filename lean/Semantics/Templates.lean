@@ -593,6 +593,12 @@ semantic_template comparesOwnStat (stat : Stat) (domain : Predicate) (comparator
 semantic_template thatColor : ColorTerm := .chosen .theChoice
 semantic_template abilityHead (class_ : AbilityClass) : Predicate := .abilityHead class_
 semantic_template abilityOf (source : NounPhrase) : Predicate := .abilityOf source
+/-- "with <cost> in its activation cost": an activated ability whose cost includes `cost`
+[CR#602.1a]. -/
+semantic_template activationCostHas (cost : Cost) : Predicate := .activationCostHas cost
+/-- "with the tap symbol or the untap symbol in its activation cost" [CR#302.6,107.5,107.6]. -/
+semantic_template tapOrUntapInCost : Predicate :=
+  .or [activationCostHas .tapSymbol, activationCostHas .untapSymbol]
 /-- "that has triggered but not yet left the stack": waiting to be put on the stack, or on it
 [CR#113.7,603.3]. -/
 semantic_template triggeredNotLeftStack : Predicate := .triggeredNotLeftStack
@@ -2113,6 +2119,14 @@ semantic_template compareAmt (subject : Amount) (comparator : Comparator) (bound
 semantic_template Condition.duringPart (part : TurnPart) (whose : Option NounPhrase := none) :
     Condition :=
   .duringPart part whose
+/-- "<condition> continuously since <since>": `condition` has held from `since` until now. -/
+semantic_template heldSince (condition : Condition) (since : GameEvent) : Condition :=
+  .heldSince condition since
+/-- "<subject> has been under its controller's control continuously since their most recent turn
+began" [CR#302.6]: the summoning-sickness reading, its controller the present one. -/
+semantic_template controlledSinceTheirTurnBegan (subject : NounPhrase) : Condition :=
+  heldSince (.matches subject (controlledBy (controllerOf it)))
+    (.beginningOf .turn none (.mostRecent they))
 /-- "if it's <designation>": the game has it [CR#731.1]. -/
 semantic_template gameIs (designation : DesignationLabel) : Condition := .gameHas designation
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=

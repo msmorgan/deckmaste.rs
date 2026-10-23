@@ -586,6 +586,22 @@ theorem okOncePerTurn : UsageLimit.check (DRS.ofList []) oncePerTurn = [] := by 
 theorem badNextTurnOfACreature :
     TurnRef.check (DRS.ofList []) (.next (some thisCreature)) = [.kindMismatch .player .object] := by decide
 
+/-- "your most recent turn", "its controller's most recent turn" [CR#302.6]: the most recent
+turn of the player named, read where it stands. -/
+theorem okMostRecentTurnOfAPlayer :
+    TurnRef.check (DRS.ofList []) (.mostRecent you) = [] ∧
+      TurnRef.check (DRS.ofList []) (.mostRecent (controllerOf this_)) = [] := by decide
+
+/-- "their most recent turn" with no player in scope reads nothing. -/
+theorem badMostRecentTurnWithNoPlayer :
+    TurnRef.check (DRS.ofList []) (.mostRecent they) = [.anaphor (.word .player) .one 0] := by
+  decide
+
+/-- "this creature's most recent turn": a turn reference names a player's turns. -/
+theorem badMostRecentTurnOfACreature :
+    TurnRef.check (DRS.ofList []) (.mostRecent thisCreature) =
+      [.kindMismatch .player .object] := by decide
+
 /-- Flash's definition [CR#702.8a]: a play permission at instant speed. -/
 theorem okFlash : Ability.check (DRS.ofList []) flash = [] := by decide
 

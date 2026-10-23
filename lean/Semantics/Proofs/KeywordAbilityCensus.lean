@@ -97,4 +97,11 @@ theorem badDestroyedPlayer :
     (StaticSpec.check (DRS.ofList []) (cant any (destroy .you))).isEmpty = false := by
   decide
 
+/-- Haste's body checks: its creature can attack, and its controller can activate its
+abilities with {T} or {Q} in their costs, as though it had been under its controller's control
+continuously since their most recent turn began [CR#702.10b,702.10c,302.6]. -/
+theorem okHasteDefinition :
+    (match haste with | .keyword _ _ body => body.length | _ => 0) = 2 ∧
+      Ability.check (DRS.ofList []) haste = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus
