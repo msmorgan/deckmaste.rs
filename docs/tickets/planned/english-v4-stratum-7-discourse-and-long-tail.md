@@ -145,6 +145,13 @@ delimited-complement fixes (F1, F2) land:
    *Otherwise*, *After that*; clause-initial or clause-final *instead*;
    *instead of* + Noun Phrase or Gerund.
 4. Delimited quoted-ability spans, and nominal (Noun Phrase) apposition.
+5. A comma-delimited Clause coordination inside a preposed clause, in real
+   Oracle text: Mishra, Claimed by Gix, *If [Mishra, Claimed by Gix and a
+   creature named Phyrexian Dragon Engine are attacking, and you both own and
+   control them], exile them*. It breaks the formation rule of
+   `english-v4-comma-scope-nodule-1` (a dependent set off before its head
+   holds no unclosed comma), so the coordination comma and the comma-set
+   post-dependent's comma may need to be told apart.
 
 ## Gate
 

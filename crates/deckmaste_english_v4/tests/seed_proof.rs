@@ -692,3 +692,59 @@ fn find_node<'r>(
     }
     node.children.iter().find_map(|c| find_node(c, test))
 }
+
+#[test]
+fn normal_form_identifies_a_fronted_dependent_outermost() {
+    let s = seed();
+    let readings = s.readings(
+        "During your untap step, destroy target creature, during each other player's untap step.",
+    );
+    // A fronted dependent attaches outermost: *Pre, [Clause, Post]*.
+    let canonical = readings
+        .iter()
+        .find(|r| {
+            s.has(
+                r,
+                "Clause",
+                "destroy target creature, during each other player's untap step",
+            )
+        })
+        .expect("the fronted dependent over the post-dependent's host");
+    assert!(
+        !readings.iter().any(|r| s.has(
+            r,
+            "Clause",
+            "During your untap step, destroy target creature"
+        )),
+        "the host of a comma-set post-dependent never begins with a fronted dependent"
+    );
+    // Hand-build the excluded `[Pre, Clause], Post`.
+    let front = find_node(canonical, &|n| {
+        n.children.len() == 2
+            && n.children[1].node().is_some_and(|h| {
+                s.surface(&n.children[1])
+                    == "destroy target creature, during each other player's untap step"
+                    && h.children.len() == 2
+            })
+    })
+    .unwrap();
+    let host = node(&front.children[1]);
+    let clause = node(&host.children[0]);
+    let fronted = Reading::Node(ReadingNode {
+        features: clause.features.clone(),
+        children: vec![front.children[0].clone(), host.children[0].clone()],
+        ..front.clone()
+    });
+    let excluded = Reading::Node(ReadingNode {
+        features: front.features.clone(),
+        children: vec![fronted, host.children[1].clone()],
+        ..host.clone()
+    });
+    let excluded = replace(canonical, front, &excluded);
+    assert_eq!(s.surface(&excluded), s.surface(canonical));
+    assert!(s.grammar.admit(&excluded, &s.lexicon).is_err());
+    assert_eq!(
+        s.grammar.normal_form(&excluded),
+        s.grammar.normal_form(canonical)
+    );
+}

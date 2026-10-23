@@ -194,6 +194,10 @@ struct Child {
 
 /// A Production under construction, before equations are resolved.
 #[derive(Clone)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent facts of one Production"
+)]
 struct Draft {
     id: Ident,
     lhs: usize,
@@ -228,9 +232,10 @@ struct Draft {
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
     scoped: Vec<usize>,
-    undelimited: Vec<usize>,
     /// A binary coordination with a delimiter before its coordinator.
     delimits: bool,
+    /// A serial tail of a coordination, whose `first` conjunct follows another.
+    tail: bool,
     /// Conjuncts that must differ in a feature: (first, last, feature).
     unlike: Option<(usize, usize, usize)>,
     /// A polysyndetic tail that must repeat the coordinator.
@@ -307,8 +312,8 @@ impl Draft {
             paired_coordinator: None,
             uncoordinated: Vec::new(),
             scoped: Vec::new(),
-            undelimited: Vec::new(),
             delimits: false,
+            tail: false,
             chained: None,
             gap_preposition: None,
             fills_preposition: None,
@@ -943,14 +948,6 @@ impl<'a> Binder<'a> {
                 draft.weights.push((child, weight));
             }
         }
-        for name in &declaration.undelimited {
-            let child = draft
-                .children
-                .iter()
-                .position(|c| c.name == *name)
-                .ok_or_else(|| context(invalid(format!("unknown undelimited child `{name}`"))))?;
-            draft.undelimited.push(child);
-        }
         for name in &declaration.uncoordinated {
             let child = draft
                 .children
@@ -1486,8 +1483,8 @@ impl<'a> Binder<'a> {
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
         production.scoped = draft.scoped;
-        production.undelimited = draft.undelimited;
         production.delimits = draft.delimits;
+        production.tail = draft.tail;
         production.chained = draft.chained;
         production.gap_preposition = draft.gap_preposition;
         production.fills_preposition = draft.fills_preposition;
@@ -3136,6 +3133,7 @@ impl Conjoin {
         edge: Edge,
     ) -> Result<(), LoadError> {
         let whole = matches!(edge, Edge::Whole { .. });
+        draft.tail = !whole;
         self.resolve(draft, conjuncts, edge);
         for &feature in &self.features {
             if self.unshared.contains(&feature)
