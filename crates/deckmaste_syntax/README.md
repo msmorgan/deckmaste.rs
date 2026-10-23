@@ -218,7 +218,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   whole coordination. The initial conjunct of a coordination delimited before
   its coordinator may have its own (*[If you do, …], and [if you don't, …]*),
   and so may a middle conjunct of a serial one, whose serial tail names it
-  `first` too (*C1, [if …, C2], and C3*).
+  `first` too (*C1, [if …, C2], and C3*). A Predicate Adjunct preposed
+  without a comma may scope over the initial conjunct alone or over the whole
+  coordination (*instead [A] and B*, *instead [A and B]*; CGEL, Ch. 15
+  §1.3.4, pp. 1285–1286), so a constituent that begins with one may be that
+  initial conjunct (`Summary::preposed_predicate`).
   Nor is such a constituent the host of a comma-set post-dependent (a head
   followed by a comma and its dependent): the fronted dependent attaches
   outermost, *Pre, [Clause, Post]*.

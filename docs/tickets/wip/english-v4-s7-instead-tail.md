@@ -49,7 +49,8 @@ Governance is `docs/decisions/english-v4.md` §4.4, Principles: admit English, s
 
 ## Landing note
 
-Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with the change id they were measured on:
-
-1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
-2. **Judgment set**: the result of running it.
+1. **Census delta** (measured on `zwpmlwww` → `sumoowlk`): faces read 30,365 → 30,389;
+   total Readings 277,002 → 278,082; Surplus 116,303 → 116,513; 67 units changed (24 newly
+   read, 43 grew, none shrank); lost faces: none.
+2. **Judgment set** (`sumoowlk`): 3,087 enforced and 249 pending, all enforced holding; the
+   three named entries and the 13 added ones hold.

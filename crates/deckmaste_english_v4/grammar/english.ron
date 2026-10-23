@@ -337,7 +337,7 @@
         "BoundKeyword": (features: ["KeywordForm", "FinalParameter"]),
         // An Amount's QuantityNumber agrees with a counted noun (*two cards*);
         // as a Noun Phrase it is singular (*X can't be 0*).
-        "Amount": (features: ["QuantityNumber", "Sign"]),
+        "Amount": (features: ["QuantityNumber", "Sign", "ComplementKind"]),
         "SignedAmount": (),
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
@@ -523,7 +523,9 @@
         (name: "NegativeMeasureAmount", lhs: "SignedAmount", rhs: [Mark('-', Prefix), Cat("head", "Amount")], equations: []),
 
         (name: "BoundKeywordItem", lhs: "KeywordParameters", rhs: [Cat("head", "BoundKeyword")]),
-        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // A comparative bound on a number is no Noun Phrase: predicated, it
+        // is the comparative adjective's (*Its power is less than 3*).
+        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Exclude("head.ComplementKind", "PP"), Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], transparent: ["head"]),
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
@@ -1004,6 +1006,13 @@
         // not a postmodifier, licenses it.
         (name: "ComparativeBoundedAmount", lhs: "Amount", rhs: [Cat("first", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
             equations: [Agree("$.QuantityNumber", "first.QuantityNumber")]),
+        // A scalar comparative bound on a number as an Amount: the endpoint
+        // of a scalar change, like the number it bounds (*reduce it to less
+        // than 1* beside *reduce it to 1*, *reduced to 0 or less*; CGEL, Ch. 8
+        // §5.2, pp. 691–692; the comparative and its *than* Complement, Ch. 13
+        // §2.1, p. 1104).
+        (name: "ComparativeAmount", lhs: "Amount", rhs: [Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Require("quantifier.Countability", "Mass"), Require("complement.NounKind", "Numeric"), Require("$.ComplementKind", "PP")]),
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
             equations: [Require("head.Number", "Singular"), Require("modifier.ComplementKind", "PP"), Require("modifier.Countability", "Count"), Exclude("modifier.ObliqueKind", "AdvP")], heavy: ["modifier"], cost: 2),
         (name: "PostpositiveLocativeAdjective", lhs: "LocativeHead", rhs: [Cat("head", "LocativeHead"), Cat("modifier", "AdjectivePhrase")],
@@ -1065,6 +1074,12 @@
             equations: [Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Overt"), Require("$.NounKind", "Ordinary"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "NounPhraseArithmetic", lhs: "NounPhrase", rhs: [Cat("head", "NounPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Exclude("head.NounKind", "Numeric"), Carry("head.Case", "Plain")]),
+        // A frequency Noun Phrase admits the same arithmetic as an object
+        // Noun Phrase, adding or taking away a number of occurrences (*that
+        // many times plus an additional time*; CGEL, Ch. 7 §5.1(a), p. 635;
+        // Ch. 8 §9, pp. 713–716).
+        (name: "TemporalArithmetic", lhs: "TemporalNounPhrase", rhs: [Cat("head", "TemporalNounPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
+            equations: [Require("modifier.NounKind", "Temporal")]),
         (name: "DegreeArithmetic", lhs: "DeterminerPhrase", rhs: [Cat("head", "DeterminerPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Require("head.ComplementKind", "Intransitive")], heavy: ["head"]),
         // A fraction or multiplier before a determined Noun Phrase (*half their
@@ -1310,7 +1325,10 @@
         // *its controller's next two untap steps*.
         (name: "GenitiveModifiedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "ModifiedQuantifiedNominal")],
             equations: [Carry("determiner.Case", "Genitive"), Agree("$.Number", "head.QuantityNumber"), Require("$.Countability", "Count"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Agree("$.ConjunctNumber", "$.Number")], transparent: ["head"]),
+        // A property noun's comparative bound is the postpositive
+        // comparative adjective's (*mana value less than X*), never its
+        // Amount Complement.
+        (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Agree("$.ConjunctNumber", "$.Number"), ExcludeTogether([("head.ComplementKind", "Amount"), ("head.ObliqueKind", "PP")])], transparent: ["head"]),
         // The Targeting Marker is a determiner on its own (*target creature*),
         // singular as the lexicon gives it; after an adjective (*other target
         // creatures*, *second target*); or the last word of a determiner with
@@ -1532,6 +1550,13 @@
 
     ],
     schemas: [
+        // Central Preposition Phrase adjuncts in a bare infinitival (*may
+        // instead draw a card*; CGEL, Ch. 8 §20.1, pp. 779–781). Imperative
+        // front position is supplied by the Clause adjunct schema.
+        Adjunct(host: "BareInf", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, cost: 1, equations: [Require("adjunct.ComplementKind", "Intransitive")]),
+        // Finite and participial central position; plain-form imperative
+        // front position remains the Clause schema's (same reference).
+        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, cost: 1, equations: [Require("adjunct.ComplementKind", "Intransitive"), Exclude("head.VerbForm", "Plain")]),
         // A past participle spelled like a declared Adjective (*tapped*) has
         // that Adjective as its Adjectival Passive, which premodifies in its
         // place.
