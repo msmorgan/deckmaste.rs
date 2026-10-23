@@ -25,5 +25,5 @@ Census byte-identical; `strata --check` passes.
 
 Standard constraints apply.
 
-1. **Census delta** (`<change>`): TBD.
-2. **Judgment set** (`<change>`): TBD.
+1. **Census delta** (`yxwmtnol`): comments only; faces read 28,801 and total Readings 245,781 unchanged (surplus 106,817); lost faces: none.
+2. **Judgment set** (`yxwmtnol`): `strata --check` passes; crate tests hold.
