@@ -81,6 +81,16 @@ text, "with the entering" rather than "after the event". A three-way split (befo
 or a choice/effect split, is one thing the owner may want to consider. This is evidence, not a
 decision.
 
+## Ruling (owner, 2026-10-23)
+
+Split `Replacement.also` into `before` and `with`, not `before` and `after`. `before` holds the
+choices made before the replaced event (choosing as it enters [CR#614.12a], devour's sacrifice,
+tribute's choice, enchant's choice [CR#303.4f]). `with` holds what is done as part of the event
+("enters with", "as it enters": the riot, unleash, tribute and devour counters, the Aura's
+attachment, *Deadpool*'s exchange). Megamorph's "as turned face up" [CR#614.1e] is a `with` on its
+own event. *Wolverine*'s healing, whose order its text does not state, goes in whichever arm the
+implementer can justify from the rules, with the reason recorded.
+
 ## Tests (once ruled)
 
 - Each witness above keeps its current check result.
