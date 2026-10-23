@@ -506,7 +506,7 @@ pub struct BoundEntry {
 pub struct ClosedClass {
     pub determinatives: Vec<DeterminativeEntry>,
     pub pronouns: Vec<PronounEntry>,
-    /// Closed-class adverbs: the interrogative *how*.
+    /// Closed-class adverbs: interrogative *how* and degree *as*.
     pub adverbs: Vec<AdverbEntry>,
     pub coordinators: Vec<String>,
     pub subordinators: Vec<String>,

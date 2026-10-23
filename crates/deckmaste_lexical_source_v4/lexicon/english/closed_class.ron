@@ -128,7 +128,13 @@
     ],
     // Interrogative *how* belongs to CGEL's closed interrogative class (Ch. 10
     // §7, p. 902): *how those creatures block*; *how many cards*.
-    adverbs: [(lemma: "how", positions: [Front, Bounding])],
+    adverbs: [
+        (lemma: "how", positions: [Front, Bounding]),
+        // Degree *as* grades a scalar head (CGEL, Ch. 13 §4.3, p. 1130).
+        // It has no clause position or general phrasal distribution: the
+        // grammar combines it with the degree determinatives it modifies.
+        (lemma: "as", positions: []),
+    ],
     coordinators: ["and", "and/or", "but", "nor", "or"],
     // CGEL's subordinators (Ch. 11 §8.1, p. 1011) plus infinitival *to*; the
     // other traditional "subordinating conjunctions" are prepositions.

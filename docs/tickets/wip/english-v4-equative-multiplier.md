@@ -67,5 +67,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`mlrkosuz`): faces read 28,801 → 28,802; total Readings 245,781 → 245,784; Surplus 106,817 → 106,819; lost faces: none. Exactly three units change: Virtue of Strength (Line 0) 1 → 2, Nyxbloom Ancient (Line 1) 1 → 2, Mana Reflection (Line 0) 0 → 1 (Unread → Read). Each gains the intended Object Reading, ranked first; every other unit's Derivations and verdict are unchanged. Cheapest tier: singleton in 15,624 of 18,344 ambiguous units → 15,626 of 18,346; summed 21,723 → 21,725; largest 8 → 8. `strata --check` passes.
+2. **Judgment set** (`mlrkosuz`): both changed crates' tests and Clippy pass. Added eight judgments in `equative_multiplier.txt`, enforced or pending by their Stratum (the three face entries are above the completed Stratum and so pending): the three face Objects, count and mass multiplier phrases, two Countability controls, and the unchanged single Reading of *Activate only as a sorcery*. No judgments or tests rewritten or retired. Degree *as* and EquativeDeterminer cite CGEL Ch. 13 §§1.2, 4.1.2, 4.3–4.4.1, pp. 1102, 1126, 1130–1131; existing multipliers and partitives supply the surrounding structure. S/A/P/F is unavailable: this tree has no tally tool. Citation checks: no noncompliant entries, 0 stale; no new CR citations.

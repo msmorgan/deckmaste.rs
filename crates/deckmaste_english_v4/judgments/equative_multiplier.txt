@@ -1,0 +1,10 @@
+# Scalar equality with an implicit standard; CGEL Ch. 13 §§1.2, 4.1.2,
+# 4.3–4.4.1, pp. 1102, 1126, 1130–1131; OSG §4, Number, amount, total, much, and many.
++ <card=Nyxbloom Ancient> If you tap a permanent for mana, it produces three times as much of that mana instead. => NounPhrase "three times as much of that mana" as Object of produce; DeterminerPhrase "as much" head much; PrepositionPhrase "of that mana"
++ <card=Virtue of Strength> If you tap a basic land for mana, it produces three times as much of that mana instead. => NounPhrase "three times as much of that mana" as Object of produce; DeterminerPhrase "as much" head much; PrepositionPhrase "of that mana"
++ <card=Mana Reflection> If you tap a permanent for mana, it produces twice as much of that mana instead. => NounPhrase "twice as much of that mana" as Object of produce; DeterminerPhrase "as much" head much; PrepositionPhrase "of that mana"
++NounPhrase twice as many of those tokens => DeterminerPhrase "as many" head many; PrepositionPhrase "of those tokens"
++NounPhrase three times as much mana => DeterminerPhrase "as much" as Determiner of mana
+*NounPhrase as many mana
+*NounPhrase as much tokens
++ Activate only as a sorcery. => PrepositionPhrase "only as a sorcery" as Adjunct of activate; !NounPhrase "as a sorcery"; readings 1
