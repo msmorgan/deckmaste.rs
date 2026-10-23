@@ -42,6 +42,13 @@ face below needs a construction beyond those, or a ruling.
   p. 1323, [4i] rules out coordinating an Object with an Adjunct (*He left
   this morning and the room*); this face needs a ruling before any
   construction.
+- **Aang, Master of Elements** (*you gain 4 life, draw four cards, put four
+  +1/+1 counters on him, and he deals 4 damage to each opponent*): coordination
+  at unlike levels, two Verb Phrases between Clauses, the medial coordinates
+  with their Subject ellipted (CGEL, Ch. 15 §3.6, pp. 1335–1336, [31iii]: *He
+  reads widely, has a questioning mind and he's very mature for his years*).
+  Not a mixed-mood serial: `english-v4-s7-serial-coordination-generalizations`
+  keeps that one imperative-initial, so *draw four cards* is no imperative.
 
 ## Constraints
 

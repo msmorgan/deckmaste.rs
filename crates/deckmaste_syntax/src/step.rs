@@ -249,8 +249,11 @@ pub(crate) struct Production {
     pub fills_preposition: Option<usize>,
     /// Coordinators a plain serial coordination's tail may not end with.
     pub foreign_coordinators: Vec<LexemeId>,
-    /// Two conjuncts that may not share a feature value: (first, last,
-    /// feature).
+    /// The conjuncts of an unlike coordination, which may not all share a
+    /// feature value: (first, last, feature), the last a conjunct or a serial
+    /// tail. A serial tail records whether its own conjuncts already differ
+    /// (`Summary::unlike_mixed`); the whole requires that the first differ
+    /// from the last or that the tail be mixed.
     pub unlike: Option<(usize, usize, usize)>,
     /// An auxiliary Verb Phrase's Complement: the child of an uncoordinated
     /// Production after its head, last, and of a function Category aliasing
@@ -482,6 +485,7 @@ pub(crate) fn resolve(
             mixed_prepositions: false,
             conjunct_hosts: u8::MAX,
             unlike_value: None,
+            unlike_mixed: false,
             nonlast: [FeatureValue::UNSET; MAX_RESOLUTIONS],
             last: [FeatureValue::UNSET; MAX_RESOLUTIONS],
             joint_hits: 0,
@@ -549,6 +553,9 @@ pub(crate) struct Summary {
     pub other_preposition: Option<LexemeId>,
     /// A serial tail's last conjunct's value of each resolved feature.
     pub last_resolved: [FeatureValue; MAX_RESOLUTIONS],
+    /// A serial tail of an unlike coordination whose conjuncts do not all
+    /// share the unlike feature's value (`Production::unlike`).
+    pub unlike_mixed: bool,
     /// Complements that would extend this phrase's selected frame, as an
     /// index into [`CompiledGrammar::extension_sets`].
     pub extensions: u16,
@@ -681,6 +688,8 @@ pub(crate) struct State {
     conjunct_hosts: u8,
     /// The first conjunct's value of an `unlike` feature.
     unlike_value: Option<u16>,
+    /// The conjuncts so far do not all share the `unlike` feature's value.
+    unlike_mixed: bool,
     /// The value of each resolved feature on the conjuncts but the last, and
     /// on the last.
     nonlast: [FeatureValue; MAX_RESOLUTIONS],
@@ -1053,22 +1062,29 @@ impl Production {
         }
     }
 
-    /// Records the first unlike conjunct's value, or `None` if the last one
-    /// shares it (or either has none).
+    /// Records the first unlike conjunct's value and whether the last (or
+    /// the serial tail's conjuncts) differ from it; `None` if the whole
+    /// coordination's conjuncts are all of one kind (or a compared one has
+    /// no value): unlike conjuncts need only not all be alike (CGEL, Ch. 15
+    /// §3.1, p. 1323 [1]; §3.2, p. 1326).
     fn unlike_conjuncts(
         &self,
         next: &mut State,
         position: usize,
+        child: &ChildView<'_>,
         lookup: &dyn Fn(usize) -> Option<u16>,
     ) -> Option<()> {
         if let Some((first, last, feature)) = self.unlike {
             let value = lookup(feature);
             if position == first {
                 next.unlike_value = value;
-            } else if position == last
-                && (value.is_none() || next.unlike_value.is_none() || value == next.unlike_value)
-            {
-                return None;
+            } else if position == last {
+                let differ = matches!(child, ChildView::Node(summary) if summary.unlike_mixed)
+                    || value.is_some() && next.unlike_value.is_some() && value != next.unlike_value;
+                if !self.tail && !differ {
+                    return None;
+                }
+                next.unlike_mixed = differ;
             }
         }
         Some(())
@@ -1335,7 +1351,7 @@ impl Production {
         {
             return None;
         }
-        self.unlike_conjuncts(&mut next, position, &lookup)?;
+        self.unlike_conjuncts(&mut next, position, child, &lookup)?;
         self.joint_exclusion(&mut next, position, &lookup)?;
         self.resolve(&mut next, position, child, &lookup);
         for &(feature, var) in &self.child_vars[position] {
@@ -1511,6 +1527,7 @@ impl Production {
                 state.other_preposition
             },
             last_resolved,
+            unlike_mixed: self.tail && state.unlike_mixed,
             extensions: state.extensions,
             coordinator: self.link.or(state.coordinator),
             hosts: match state.preposition {

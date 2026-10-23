@@ -1184,7 +1184,9 @@ license its grammatical function.
 **Unlike Coordination**:
 A Coordination whose Conjuncts differ in Category but share a function, as an
 Adjective Phrase and a Preposition Phrase in predicative function (CGEL,
-Ch. 15 §3.2, pp. 1326–1329). In Oracle English it joins depictives,
+Ch. 15 §3.2, pp. 1326–1329). Its Conjuncts need only not all be of one
+Category: a serial one may begin and end alike (*indestructible, "...," and
+equip {0}*). In Oracle English it joins depictives,
 attributes, postmodifiers, predicate Adjuncts (*second from the top or on the
 bottom*) and an Object with keyword phrases (*base power and toughness 4/4,
 flying, and haste*), or keyword phrases with a slash measure naming counter

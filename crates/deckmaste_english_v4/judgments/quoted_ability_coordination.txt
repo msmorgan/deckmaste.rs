@@ -11,3 +11,5 @@
 + It has "This creature can't block" and is a Wizard.
 + Equipped creature gets +1/+1, has "Whenever this creature attacks, you gain 1 life," and is a Cleric in addition to its other types. => VerbPhrase "has \"Whenever this creature attacks, you gain 1 life,\""; Ability "Whenever this creature attacks, you gain 1 life"
 + When this creature dies, create a legendary white Equipment artifact token with "Equipped creature gets +2/+0," "Whenever equipped creature attacks, tap target creature defending player controls," and equip {4}. => Ability "Equipped creature gets +2/+0"; Ability "Whenever equipped creature attacks, tap target creature defending player controls"
+# Unlike serial Objects need only not all be of one kind: a keyword first and last, a quoted ability between
++ <card=Nahiri, the Lithomancer> It has indestructible, "Equipped creature gets +5/+5 and has double strike," and equip {0}. => Ability "Equipped creature gets +5/+5 and has double strike"; readings 1

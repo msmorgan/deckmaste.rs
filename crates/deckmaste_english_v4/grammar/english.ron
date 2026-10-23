@@ -2031,12 +2031,15 @@
         // *left or right*; *artifact, creature, or land*.
         Coordination(category: "Mention", coordinators: "Coordinator"),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
-        // An imperative and then a declarative, with imperatives or
-        // declaratives between them in a serial one (*tap that creature and
-        // it doesn't untap ...*; *gain control of that permanent, it loses
-        // all abilities, and it can't attack or block*): the first and last
-        // unlike.
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
+        // Clauses of mixed moods (CGEL, Ch. 15 §3.5, pp. 1332–1333): an
+        // imperative and then a declarative (*tap that creature and it
+        // doesn't untap ...*), with either mood between in a serial one (*gain
+        // control of that permanent, it loses all abilities, and it can't
+        // attack or block*). After an initial declarative, a subjectless
+        // conjunct is a Verb Phrase with its Subject ellipted, no imperative
+        // (*you gain 4 life, draw four cards, ..., and he deals ...*;
+        // coordination at unlike levels, §3.6, pp. 1335–1336, [31iii]).
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
@@ -2051,7 +2054,10 @@
         // comma-less link whose verb could be its Complement (*You may then
         // have ...*; StrandedModal).
         Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
+        // Mixed moods end in a declarative link as they do with a
+        // Coordinator (*reveal cards ... until ..., Kaboom! deals damage ...,
+        // then you put the revealed cards ...*).
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
         Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.
@@ -2112,8 +2118,8 @@
         Coordination(category: "ClusterCoordination", conjunct: Some("ComplementCluster"), coordinators: "Coordinator"),
         Coordination(category: "ContrastCoordination", conjunct: Some("ContrastConjunct"), coordinators: "But", unshared: ["Polarity"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], delimiter: Some(','), serial: Some(false)),
         Coordination(category: "ContrastPrepositionCoordination", conjunct: Some("ContrastPrepositionConjunct"), coordinators: "But", unshared: ["Polarity", "DeterminativeDistribution"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"], delimiter: Some(','), serial: Some(false)),
-        // Unlike predicate Adjuncts coordinate serially too, the first and
-        // last unlike (*only during the declare blockers step, only if ...,
+        // Unlike predicate Adjuncts coordinate serially too, not all alike
+        // (*only during the declare blockers step, only if ...,
         // and only once each turn*).
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "AmountOrNounPhrase", conjunct: Some("AmountOrNounConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),

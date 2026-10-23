@@ -128,9 +128,9 @@ pub struct CategoryDecl {
 /// - `adjunct`, `modifier`: unselected dependents, counted for Right
 ///   Association and the preposed-dependent Attachment Class (`reading.rs`).
 ///   `adjunct` also marks the post-verbal Adjunct host that an auxiliary Verb
-///   Phrase never is (`step.rs`, `post_adjunct_host`).
-///   Either may be Bracketed, set in square brackets: binding derives the
-///   Production's twin with it bracketed (`compile.rs`, `Binder::add`).
+///   Phrase never is (`step.rs`, `post_adjunct_host`). Either may be Bracketed,
+///   set in square brackets: binding derives the Production's twin with it
+///   bracketed (`compile.rs`, `Binder::add`).
 /// - `supplement`: reversed Right Association (`reading.rs`).
 /// - `object`, `shared`: the Reading functions of postposed Modifiers
 ///   (`object`) and of Right Node Raising (`shared`) (`reading.rs`, `locate`).
@@ -165,14 +165,14 @@ pub struct ProductionDecl {
     /// The phrase ends in an ellipsis site: its head omits every Complement
     /// it selects (a stranded auxiliary, CGEL Ch. 17 §7.1, p. 1519). The
     /// list, which may not be empty, names the word forms of the verb that
-    /// heads the omitted Complement. Before any punctuation, a Constituent that ends in one is
-    /// followed only by a coordinator or by the head it is a dependent of (a
-    /// Subject's predicate), and only when no word spelled like that
-    /// follower's lexical head has one of those forms: a phrase right after
-    /// the site that could be the omitted Complement is that Complement, so
-    /// no ellipsis is there (p. 1519), as with a bare noun's omitted
-    /// Complement (`english-lexical-analysis.md` §2, same-head complement
-    /// priority).
+    /// heads the omitted Complement. Before any punctuation, a Constituent that
+    /// ends in one is followed only by a coordinator or by the head it is a
+    /// dependent of (a Subject's predicate), and only when no word spelled
+    /// like that follower's lexical head has one of those forms: a phrase
+    /// right after the site that could be the omitted Complement is that
+    /// Complement, so no ellipsis is there (p. 1519), as with a bare noun's
+    /// omitted Complement (`english-lexical-analysis.md` §2, same-head
+    /// complement priority).
     #[serde(default)]
     pub elliptical: Option<Vec<deckmaste_lexical::WordForm>>,
     /// Lexical children that cost one more where analysis did not admit
@@ -459,8 +459,9 @@ pub enum SchemaDecl {
         conjunct: Option<Ident>,
         /// A feature whose value the two conjuncts of a binary coordination
         /// must not share: a coordination of unlike categories in one
-        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial ones, derived
-        /// only with `serial`, differ first to last.
+        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); the conjuncts of
+        /// serial and polysyndetic ones, derived only with `serial`, are not
+        /// all of one value.
         #[serde(default)]
         unlike: Option<Ident>,
     },
