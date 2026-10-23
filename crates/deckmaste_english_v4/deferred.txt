@@ -14,14 +14,7 @@ Hearth Elemental | This spell costs {X} less to cast, where X is the number of c
 Frantic Firebolt | Frantic Firebolt deals X damage to target creature, where X is 2 plus the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure.
 Ulasht, the Hate Seed | Ulasht enters with a +1/+1 counter on it for each other red creature you control and a +1/+1 counter on it for each other green creature you control.
 Kutzil, Malamet Exemplar | Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
-Angelic Aberration | When this creature enters, sacrifice any number of creatures each with base power or toughness 1 or less. Create that many 4/4 colorless Eldrazi Angel creature tokens with flying and vigilance.
-Leonardo's Technique | Return one or two target creature cards each with mana value 3 or less from your graveyard to the battlefield.
-Dance of the Manse | Return up to X target artifact and/or non-Aura enchantment cards each with mana value X or less from your graveyard to the battlefield. If X is 6 or more, those permanents are 4/4 creatures in addition to their other types.
-Ballroom Brawlers | Whenever this creature attacks, this creature and up to one other target creature you control both gain your choice of first strike or lifelink until end of turn.
-Keen Duelist | At the beginning of your upkeep, you and target opponent each reveal the top card of your library. You each lose life equal to the mana value of the card revealed by the other player. You each put the card you revealed into your hand.
-Storyweave | • Put two lore counters on target Saga you control. The next time one or more enchantment creatures you control enter this turn, each enters with two additional +1/+1 counters on it.
 Midnight Crusader Shuttle | Midnight Entity — Whenever this Vehicle attacks, defending player faces a villainous choice — That player sacrifices a creature of their choice, or you gain control of a creature of your choice that player controls until end of turn. If you gain control of a creature this way, tap it, and it's attacking that player.
-Triumphant Chomp | Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.
 Gorex, the Tombshell | Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand.
 Eye of Duskmantle | You may play lands and cast spells from among cards in your graveyard you've surveilled this turn. If you cast a spell this way, you pay life equal to its mana value rather than paying its mana cost.
 Expand the Sphere | Look at the top six cards of your library. Put up to two land cards from among them onto the battlefield tapped and the rest on the bottom of your library in a random order. If you put fewer than two lands onto the battlefield this way, proliferate a number of times equal to the difference.
@@ -54,28 +47,15 @@ Withering Wisps | {B}: This enchantment deals 1 damage to each creature and each
 Arcum's Whistle | {3}, {T}: Choose target non-Wall creature the active player has controlled continuously since the beginning of the turn. That player may pay {X}, where X is that creature's mana value. If they don't pay, the creature attacks this turn if able, and at the beginning of the next end step, destroy it if it didn't attack this turn. Activate only before attackers are declared.
 Tranquil Frillback | When this creature enters, you may pay {G} up to three times. When you pay this cost one or more times, choose up to that many —
 All Hallow's Eve | At the beginning of your upkeep, if this card is exiled with a scream counter on it, remove a scream counter from it. If there are no more scream counters on it, put it into your graveyard and each player returns all creature cards from their graveyard to the battlefield.
-Chrome Replicator | When this creature enters, if you control two or more nonland, nontoken permanents with the same name as one another, create a 4/4 colorless Construct artifact creature token.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 Chaos Defiler | Battle Cannon — When this creature enters or dies, for each opponent, choose a nonland permanent that player controls. Destroy one of them chosen at random.
 
 Everything Comes to Dust | Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments.
-Squee's Revenge | Choose a number. Flip a coin that many times or until you lose a flip, whichever comes first. If you win all the flips, draw two cards for each flip.
 Opportunistic Dragon | When this creature enters, choose target Human or artifact an opponent controls. For as long as this creature remains on the battlefield, gain control of that permanent, it loses all abilities, and it can't attack or block.
 Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/+1 counters on it, where X is the discarded card's mana value.
-
-Stonework Packbeast | Stonework Packbeast is also a Cleric, Rogue, Warrior, and Wizard.
-Burakos, Party Leader | Burakos is also a Cleric, Rogue, Warrior, and Wizard.
-Tajuru Paragon | Tajuru Paragon is also a Cleric, Rogue, Warrior, and Wizard.
-Veteran Adventurer | Veteran Adventurer is also a Cleric, Rogue, Warrior, and Wizard.
 
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
 Teferi's Realm | At the beginning of each player's upkeep, that player chooses artifact, creature, land, or non-Aura enchantment. All nontoken permanents of that type phase out.
 Grizzled Wolverine | {R}: This creature gets +2/+0 until end of turn. Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn.
 Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blue Camarid, black Thrull, red Goblin, or green Saproling.
-
-Wild Shape | Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability.
-Lush Growth | Enchanted land is a Mountain, Forest, and Plains.
-
-Cut Down | Destroy target creature with total power and toughness 5 or less.
-Meek Attack | {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature.
 

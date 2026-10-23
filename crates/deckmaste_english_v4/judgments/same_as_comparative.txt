@@ -6,3 +6,4 @@
 + Search its owner's graveyard, hand, and library for all cards with the same name as that card and exile them. => Nominal "same name as that card"; NounPhrase "that card"
 +Nominal same name as that land => NounPhrase "that land"; readings 1
 + Discard two nonland cards with the same name: Draw four cards.
++ <card=Chrome Replicator> When this creature enters, if you control two or more nonland, nontoken permanents with the same name as one another, create a 4/4 colorless Construct artifact creature token. => Nominal "same name as one another"; NounPhrase "one another"

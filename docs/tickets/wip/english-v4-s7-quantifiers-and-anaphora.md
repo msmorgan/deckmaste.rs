@@ -62,3 +62,13 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Findings
+
+- Kutzil, Malamet Exemplar stays deferred: its Oracle text and printed card (LCI 0232) both read *one or more creatures … deals*, a subject–verb agreement error no English grammar admits. With *deal* it reads.
+- The wide-scope targeting reading, *[your choice of 5/1] or [1/5]* and the *target Cloud* reading needed no change: the twelve units already carry both bracketings, Aquamorph Entity already has the nominal-conjunct Reading, and Cloud has no `det:target` Reading. Frodo and Eternal Flame keep their endorsed Readings.
+- Engine: a preposition selecting both an Amount and a Noun Phrase derives an `AmountOrNP` frame (Triumphant Chomp), and a Production may require a `coordinated` child (a trailing Adjunct of a Clause coordination, `trailing_adjunct_height.txt:12,14`). That one costs 4,201 Readings on 281 units.
+- Plural *you* under a floating quantifier (Keen Duelist, Juxtapose) also admits floated *both* in *you both own and control*, which doubles Remove Enchantments (9,384 → 18,768).
+
+1. **Census delta** (measured on `zuqmzkks`): faces read 32,667 → 32,687; total Readings 314,400 → 333,708; lost faces: none.
+2. **Judgment set**: 3,153 enforced at `COMPLETED_STRATUM` 6, all hold; 285 pending.

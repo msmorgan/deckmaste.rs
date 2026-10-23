@@ -85,6 +85,13 @@
         (lemma: "itself", forms: [
             (person: Third, number: Singular, case: Accusative, surfaces: "itself"),
         ]),
+        // The reciprocal *one another* is one grammatical word written as
+        // two, with no person contrast (CGEL, Ch. 5 §10.1.2, p. 428; Ch. 17
+        // §4, p. 1499): *with the same name as one another*. *Each other* is
+        // read as determinative *each* with fused-head *other*.
+        (lemma: "one another", forms: [
+            (person: Third, number: Plural, case: Accusative, surfaces: "one another"),
+        ]),
         (lemma: "she", forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "she"),
             (person: Third, number: Singular, case: Accusative, surfaces: "her"),

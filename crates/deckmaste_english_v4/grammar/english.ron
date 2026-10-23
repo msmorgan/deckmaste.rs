@@ -55,9 +55,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -333,6 +333,12 @@
         "ObjectCoordination": (category: Some("NounPhrase"), function: true, features: ["ComplementKind"]),
         // Postmodifiers of unlike categories coordinated (*the player with the
         // most life or tied for most life*), and each of them.
+        // An Amount and a Noun Phrase coordinated (*equal to [2] or [the
+        // greatest power among Dinosaurs you control]*), where a head selects
+        // both (CGEL, Ch. 15 §3.1, p. 1323, rule [1]), and each of its
+        // conjuncts.
+        "AmountOrNounConjunct": (category: Some("NounPhrase"), function: true, features: ["ComplementKind"]),
+        "AmountOrNounPhrase": (category: Some("NounPhrase"), function: true, features: ["ComplementKind"]),
         "PostmodifierConjunct": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "PostmodifierCoordination": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind", "Polarity"]),
@@ -476,11 +482,22 @@
         // (*one of them*, *that many of those tokens*) have Productions of
         // their own.
         "PartitiveQuantifier": ["det:all.count", "det:all.mass", "det:another", "det:both", "det:each", "det:either", "det:fewer", "det:less", "det:many", "det:more.count", "det:more.mass", "det:most", "det:much", "det:neither", "det:none", "det:some"],
+        // The universal quantifiers that float as a quantificational
+        // Adjunct after a plural Subject or an auxiliary (*the girls each
+        // enjoyed it*, *we both enjoyed it*, *you will each qualify*; CGEL,
+        // Ch. 5 §9.3, p. 413; §10.1.1, p. 428). *All* floats after a
+        // personal pronoun only, in FloatedAll.
+        "FloatingQuantifier": ["det:each", "det:both"],
         "SuperlativeQuantifier": ["det:most", "det:least", "det:fewest"],
         // Determinatives that stand alone as a fused determiner-head (CGEL,
         // Ch. 5 §9.1, p. 410): *both*, *none*, and *another* opposed to *one*
         // (*replacing all instances of one color word with another*; p. 391).
-        "FusedQuantifier": ["det:another", "det:both", "det:more.count", "det:everything", "det:this", "det:none"],
+        // *Each* fuses with the head in an implicit partitive, its set
+        // recovered from an antecedent (*one or more creatures enter, each
+        // enters with ...*; Ch. 5 §9.3, p. 413), as *both* and *either* do;
+        // in Oracle only as a Subject (NonNumericComplement,
+        // NominalPredicative).
+        "FusedQuantifier": ["det:another", "det:both", "det:each", "det:more.count", "det:everything", "det:this", "det:none"],
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
@@ -508,6 +525,7 @@
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
         Amount: "Amount",
+        AmountOrNP: "AmountOrNounPhrase",
         // A Cost slot is a mana cost: a keyword's cost after a space or after
         // its amount and em dash (*Equip {2}*, *Suspend 4—{1}{U}*), and a
         // keyword action's (*waterbend {3}*). A verbal or composite keyword
@@ -590,7 +608,12 @@
         // A comparative bound on a number is no Noun Phrase: predicated, it
         // is the comparative adjective's (*Its power is less than 3*).
         (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Exclude("head.ComplementKind", "PP"), Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], transparent: ["head"]),
+        // Fused *each*, an implicit partitive, is a Subject only (*each
+        // enters with ...*): a Complement is the explicit partitive *each of
+        // them* (`docs/oracle-style-guide.md` §6, Target: "Put a +1/+1
+        // counter on each of up to two target creatures"), so an *of* phrase
+        // after a fused *each* is always its partitive oblique.
+        (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive"), ExcludeTogether([("head.DeterminativeDistribution", "Distributive"), ("head.NounKind", "Quantity")])], transparent: ["head"]),
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
         (name: "FusedQuantifierNominalPhrase", lhs: "NounPhrase", rhs: [Class("head", "FusedQuantifier")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
@@ -954,6 +977,16 @@
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
+        // A temporal Noun Phrase Adjunct as an unlike conjunct (*flip a coin
+        // [that many times] or [until you lose a flip]*; CGEL, Ch. 15 §3.2,
+        // pp. 1326–1329).
+        // A trailing Preposition Phrase Adjunct of a coordination of
+        // clauses, which scopes over every conjunct, beside the site in its
+        // last one (*[put a counter on target creature, and that creature
+        // gains flying] until end of turn*; CGEL, Ch. 15 §1.3.4,
+        // pp. 1285–1286).
+        (name: "CoordinatedClauseAdjunct", lhs: "Clause", rhs: [Cat("head", "Clause"), Hosted("adjunct", "PrepositionPhrase", Predicate)], coordinated: ["head"], cost: 1),
+        (name: "TemporalNounAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "TemporalNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
         (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Grade", "Comparative"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
@@ -1280,9 +1313,15 @@
         // ...*, *power and toughness each equal to ...*; CGEL, Ch. 5 §10.1.1,
         // p. 428).
         (name: "FloatedEachAdjective", lhs: "AdjectivePhrase", rhs: [Word("adjunct", "Each"), Cat("head", "AdjectivePhrase")], equations: [Require("head.ComplementKind", "PP")]),
-        // Floated *each* after an auxiliary (*any number of target players may
+        // Floated *each* before a Preposition Phrase postmodifying a plural
+        // nominal, which it quantifies distributively (*creature cards each
+        // with mana value 3 or less*), as before a postpositive adjective
+        // above (CGEL, Ch. 5 §9.3, p. 413; §10.1.1, p. 428).
+        (name: "FloatedEachPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Word("adjunct", "Each"), Hosted("modifier", "PrepositionPhrase", Nominal)],
+            equations: [Require("head.Number", "Plural")], heavy: ["modifier"], cost: 1),
+        // A floating quantifier after an auxiliary (*any number of target players may
         // each search ...*; CGEL, Ch. 5 §10.1.1, p. 428).
-        (name: "AuxiliaryFloatedEach", lhs: "VerbPhrase", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
+        (name: "AuxiliaryFloatedEach", lhs: "VerbPhrase", rhs: [Class("adjunct", "FloatingQuantifier"), Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Plain")], transparent: ["head"], cost: 2),
         // Two front dependents before one comma (*Then if ...*, *Once during
         // each of your turns, ...*); the adverb is an Adjunct of the Clause,
@@ -1316,9 +1355,14 @@
         (name: "DeclarativeCost", lhs: "NonManaCost", rhs: [Cat("head", "Clause")], equations: [Require("head.VerbForm", "Finite"), Exclude("head.Inflection", "Irrealis")]),
         (name: "ClauseCondition", lhs: "Condition", rhs: [Cat("head", "Clause")]),
         (name: "KeywordInstruction", lhs: "Sentence", rhs: [Cat("head", "KeywordLineItem"), Punct('.')], equations: [Require("head.KeywordForm", "Parametric")]),
+        // A floating quantifier quantifies a plural Subject (*they each*,
+        // *this creature and target creature both*), or a second-person one:
+        // *you* is singular in Oracle, but its verb forms are those of plural
+        // *you* (CGEL, Ch. 5 §10.1.1, p. 428 [7ii]: *You each qualify for a
+        // prize*; *You each lose life*).
         // Restated as RelativeFloatedEach; a change to one must be made to the
         // other.
-        (name: "FloatedEach", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "Each"), Cat("head", "VerbPhrase")], equations: [Require("subject.Number", "Plural"), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")], transparent: ["head"]),
+        (name: "FloatedEach", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Class("adjunct", "FloatingQuantifier"), Cat("head", "VerbPhrase")], equations: [ExcludeTogether([("subject.Number", "Singular"), ("subject.Person", "Third")]), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")], transparent: ["head"]),
         // Floated *all* after a personal pronoun Subject (*they all share a
         // color*; CGEL, Ch. 5 §10.1.1, p. 428).
         // Restated as RelativeFloatedAll; a change to one must be made to the
@@ -1386,6 +1430,19 @@
         // §18.4, p. 508).
         (name: "DistributiveCoordinationDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("nominal", "Nominal")],
             equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Carry("nominal.ConjunctNumber", "Singular"), Require("nominal.Number", "Plural"), Agree("$.Number", "determiner.Number"),
+                Agree("determiner.Countability", "nominal.Countability"), Agree("$.NounKind", "nominal.NounKind"), Agree("$.Countability", "nominal.Countability"),
+                Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], transparent: ["nominal"]),
+        // A singular determiner over an *and*-coordination of singular
+        // nominals makes a singular Noun Phrase of joint reference: one
+        // entity that each conjunct describes (*our chef and chauffeur has*;
+        // *a red, white and blue flag*; *is also a Cleric, Rogue, Warrior,
+        // and Wizard*; CGEL, Ch. 5 §18.4, pp. 507–508, [26]–[27]). As in
+        // DistributiveCoordinationDetermined, the nominal child is
+        // `nominal`, not `head`: the Noun Phrase is singular while the
+        // coordination it determines is plural. A distributive determiner
+        // is that Production's.
+        (name: "JointCoordinationDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("nominal", "Nominal")],
+            equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Carry("determiner.Number", "Singular"), Exclude("determiner.DeterminativeDistribution", "Distributive"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Carry("nominal.ConjunctNumber", "Singular"), Require("nominal.Number", "Plural"), Require("$.Number", "Singular"),
                 Agree("determiner.Countability", "nominal.Countability"), Agree("$.NounKind", "nominal.NounKind"), Agree("$.Countability", "nominal.Countability"),
                 Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], transparent: ["nominal"]),
         // A comparative or exceptive quantity determines a count head that
@@ -1485,6 +1542,14 @@
         // passes that need to its nominal (*the only creature you control*,
         // *the first creature*).
         (name: "Premodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Require("modifier.ComplementKind", "Intransitive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative")]),
+        // An attributive adjective before an *and*-coordination of singular
+        // nominals may modify the whole coordination (*long [poems and
+        // essays]*; CGEL, Ch. 15 §1.3.4, pp. 1285–1286, [32b]), as well as its
+        // first conjunct: *[total [power and toughness 5 or less]]*. A
+        // nominal's Complement is inside its premodifiers, so a shared Amount
+        // is too.
+        (name: "CoordinationPremodifier", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal")],
+            equations: [Require("modifier.ComplementKind", "Intransitive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative"), Require("head.Number", "Plural"), Carry("head.ConjunctNumber", "Singular")]),
         (name: "DeterminedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "BareNominal")],
             equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "CoordinatedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "PossessorNominals")],
@@ -1523,6 +1588,8 @@
         (name: "MeasureObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "MeasureNounPhrase")], equations: [Require("$.ComplementKind", "MeasureNP")]),
         // A quoted ability beside a keyword (*has reach and "…"*).
         (name: "QuotedObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "QuotedAbility")], equations: [Require("$.ComplementKind", "QuotedAbility")]),
+        (name: "AmountConjunct", lhs: "AmountOrNounConjunct", rhs: [Cat("filler", "Amount")], equations: [Require("$.ComplementKind", "Amount")]),
+        (name: "NounPhraseConjunct", lhs: "AmountOrNounConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
         (name: "AdjectivalConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Require("$.ComplementKind", "AdjP")], heavy: ["filler"]),
         // A past-participial conjunct is a lexical passive participle clause
@@ -1583,8 +1650,8 @@
         (name: "RelativeCliticSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Attached("head", "VerbPhrase", Suffix)],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("subject.Case", "Nominative")],
             transparent: ["head"]),
-        (name: "RelativeFloatedEach", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
-            equations: [Require("subject.Number", "Plural"), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")], transparent: ["head"]),
+        (name: "RelativeFloatedEach", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Class("adjunct", "FloatingQuantifier"), Cat("head", "VerbPhrase")],
+            equations: [ExcludeTogether([("subject.Number", "Singular"), ("subject.Person", "Third")]), Exclude("subject.Case", "Accusative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")], transparent: ["head"]),
         (name: "RelativeFloatedAll", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "All"), Cat("head", "VerbPhrase")],
             equations: [Require("subject.Number", "Plural"), Require("subject.Case", "Nominative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")], transparent: ["head"]),
         (name: "MarkedRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "Clause")],
@@ -1596,7 +1663,7 @@
         // The plural Requirement already keeps out the irrealis *were*, which
         // is third person singular only (CGEL, Ch. 3 §1.5, pp. 85–88), so this
         // needs no Exclude of SubjectGap's.
-        (name: "FloatedEachSubjectGap", lhs: "SubjectGapClause", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
+        (name: "FloatedEachSubjectGap", lhs: "SubjectGapClause", rhs: [Class("adjunct", "FloatingQuantifier"), Cat("head", "VerbPhrase")],
             equations: [Require("head.VerbForm", "Finite"), Require("head.Number", "Plural"), Require("head.Person", "Third"), Require("$.Gap", "NP")]),
         // *whose*: the relative phrase is the Subject or fills an object Gap.
         (name: "GenitiveRelativePhrase", lhs: "RelativeNounPhrase", rhs: [Lex("determiner", Pronoun), Cat("head", "Nominal")],
@@ -1689,7 +1756,12 @@
         (name: "AdverbialInterrogative", lhs: "InterrogativeClause", rhs: [Word("marker", "How"), Cat("clause", "AdjunctGapClause")],
             equations: [Require("clause.Gap", "Adjunct")]),
 
-        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive")]),
+        // Fused distributive *each* is an implicit partitive (CGEL, Ch. 5
+        // §9.3, p. 413) that quantifies the members of a set (Ch. 5 §5,
+        // p. 358): it is never a predicative Complement, and *are each equal
+        // to 2* has floated *each* (Ch. 5 §10.1.1, p. 428), never *are
+        // [each]*.
+        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive"), ExcludeTogether([("head.DeterminativeDistribution", "Distributive"), ("head.NounKind", "Quantity")])]),
         // A predicative Preposition Phrase could also modify a nominal.
         (name: "PrepositionalPredicative", lhs: "Predicative", rhs: [Hosted("head", "PrepositionPhrase", Nominal)]),
         (name: "AdjectivalPredicative", lhs: "Predicative", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.AdjectivePosition", "Attributive")]),
@@ -1921,6 +1993,7 @@
         Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true),
             equations: [ExcludeTogether([("first.ComplementKind", "NP"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "NP")]), ExcludeTogether([("first.ComplementKind", "QuotedAbility"), ("last.ComplementKind", "MeasureNP")]), ExcludeTogether([("first.ComplementKind", "MeasureNP"), ("last.ComplementKind", "QuotedAbility")])]),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "AmountOrNounPhrase", conjunct: Some("AmountOrNounConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "MeasureNounPhrase", coordinators: "Coordinator"),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),

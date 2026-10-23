@@ -317,6 +317,21 @@ Marker's determiner takes a whole coordination of nominals, each with its own
 postmodifiers or none (*up to one target artifact or creature*, *target
 planeswalker that player controls or battle that player protects*).
 
+Stratum 7 adds joint coordination: a singular determiner over an
+*and*-coordination of singular nominals is a singular Noun Phrase (*a Cleric,
+Rogue, Warrior, and Wizard*; *that base power and toughness*). An attributive
+adjective may modify a whole *and*-coordination of singular nominals, its
+shared Complement inside it (*total [power and toughness 5 or less]*). Floated
+*each* and *both* follow a plural or second-person Subject or an auxiliary
+(*you each lose*, *this creature and target creature both gain*), and *each*
+precedes a postmodifying Preposition Phrase (*cards each with mana value 3 or
+less*); fused *each* is an implicit partitive Subject (*each enters with*).
+A temporal Noun Phrase is an unlike predicate-adjunct conjunct (*that many
+times or until you lose a flip*). A preposition that selects both an Amount
+and a Noun Phrase also selects their unlike coordination (*equal to 2 or the
+greatest power among ...*), and a trailing Adjunct may scope over a
+coordination of Clauses.
+
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)
 belongs to Stratum 3 even inside a keyword parameter.
