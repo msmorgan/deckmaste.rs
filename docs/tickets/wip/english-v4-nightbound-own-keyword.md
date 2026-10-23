@@ -55,5 +55,5 @@ as it is.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `kxmoylxk` → this landing): faces read 28,801 → 28,801; total Readings 245,781 → 245,781; Surplus 106,817 → 106,817; changed units none; lost faces none.
+Judgment set: `cargo test -p deckmaste_english_v4` passed, including all 6 judgment tests; no judgments added, rewritten or retired.

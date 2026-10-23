@@ -60,10 +60,11 @@ const KEYWORD_ABILITY_EXCLUSIONS: [(&str, Excluded); 3] = [
     ("[CR#702.159]", UnSet),
 ];
 
-/// Keyword abilities the CR defines outside the keyword-ability rules [CR#702],
-/// by the rule that defines each and its name: *To solve* is one of the Case's
-/// "two special keyword abilities" [CR#719.3,719.3a].
-const KEYWORD_ABILITIES_OUTSIDE_702: [(&str, &str); 1] = [("[CR#719.3a]", "To Solve")];
+/// Keyword abilities defined by subrules rather than their own [CR#702]
+/// heading: *To solve* is one of the Case's "two special keyword abilities"
+/// [CR#719.3,719.3a]; nightbound shares daybound's heading [CR#702.145e].
+const KEYWORD_ABILITIES_IN_SUBRULES: [(&str, &str); 2] =
+    [("[CR#719.3a]", "To Solve"), ("[CR#702.145e]", "Nightbound")];
 
 /// Scryfall's inventory lists words that are not ability words of
 /// Vintage-playable cards.
@@ -325,20 +326,27 @@ fn keyword_abilities() {
     let rules = rules();
     let sources = Sources::load().unwrap();
     let mut headings = headings(&rules, "702");
-    for (citation, name) in KEYWORD_ABILITIES_OUTSIDE_702 {
+    for (citation, name) in KEYWORD_ABILITIES_IN_SUBRULES {
         let rule = number(citation);
         let parent = rule.trim_end_matches(|c: char| c.is_ascii_lowercase());
+        if rule.starts_with("702.") {
+            assert!(
+                headings.contains_key(parent),
+                "{parent} is not a keyword-ability heading"
+            );
+        } else {
+            assert!(
+                rules[parent].contains("keyword abilities"),
+                "{parent} does not define keyword abilities"
+            );
+        }
+        let definition = rules[rule].to_lowercase();
+        let definition = definition.trim_start_matches('\u{201c}');
         assert!(
-            rules[parent].contains("keyword abilities"),
-            "{parent} does not define keyword abilities"
-        );
-        assert!(
-            rules[rule]
-                .to_lowercase()
-                .starts_with(&format!("\u{201c}{}", name.to_lowercase())),
+            definition.starts_with(&format!("{} ", name.to_lowercase())),
             "{rule} does not define {name:?}"
         );
-        headings.insert(rule.to_owned(), name.to_owned());
+        assert!(headings.insert(rule.to_owned(), name.to_owned()).is_none());
     }
     let declared: BTreeMap<_, _> = sources
         .keyword_abilities
