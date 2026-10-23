@@ -472,6 +472,11 @@ structure Referent where
   /-- Introduced as the subject of an existential ("if there is a …", "if two or more creatures
   are tied …"): read back in the consequent and closed after it (`semantics-v3.md` §1.3, box 2). -/
   existentialDomain : Bool := false
+  /-- An existential's domain a replacement's condition published ("If there is …, instead put
+  two of them …"): the replacement does what the replaced action would have done, to what that
+  action read, so the domain ranks below ordinary earlier mentions (`preferOrdinary`; owner ruling
+  2026-10-22, batch 4). -/
+  replacementDomain : Bool := false
   /-- Whether its description says "you control" (`some true`) or that an opponent, or not you,
   controls it (`some false`); `none` when it says neither. -/
   controlledByYou : Option Bool := none
@@ -856,16 +861,18 @@ def countManys (k : Kind) (drs : DRS) : Nat :=
 
 def objGroup (k : Kind) (b : Referent) : Bool := Kind.lte k b.kind && !b.plur.isOne
 
-/-- `refs` without the domains existential conditions published (`Referent.existentialDomain`)
-when an ordinary mention is among them: such a domain ranks below earlier mentions, and is read
-only where none is in scope (owner ruling 2026-10-22). -/
+/-- `refs` without the existential domains replacement conditions published
+(`Referent.replacementDomain`) when an ordinary mention is among them: such a domain ranks below
+earlier mentions, and is read only where none is in scope (owner ruling 2026-10-22, batch 4). Any
+other existential's domain ranks as an ordinary mention, the nearest ("If two or more permanents
+a player controls are tied for greatest, their controller chooses one of them"). -/
 def preferOrdinary (refs : List Referent) : List Referent :=
-  if refs.any (!·.existentialDomain) then refs.filter (!·.existentialDomain) else refs
+  if refs.any (!·.replacementDomain) then refs.filter (!·.replacementDomain) else refs
 
 /-- The groups "the rest" and "the other" can be taken from. An object a linked ability
 published is read only by a Participial Description (`Referent.linked`), so none is one. A
-domain an existential published counts only where no ordinary group is in scope
-(`preferOrdinary`). -/
+domain a replacement's existential condition published counts only where no ordinary group is
+in scope (`preferOrdinary`). -/
 def countGroups (k : Kind) (drs : DRS) : Nat :=
   (preferOrdinary (wholeGroups (drs.visibleReferents.filter fun b =>
     !b.linked && b.det != .part && objGroup k b))).length
@@ -1286,7 +1293,8 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
   match r with
   | .bare | .atSlot _ =>
       let cands := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
-      -- A plural pronoun reads an existential's domain only where no earlier mention fits.
+      -- A plural pronoun reads a replacement condition's existential domain only where no
+      -- earlier mention fits.
       let cands := if pl.isOne then cands else preferOrdinary cands
       match cands with
       | [] => []

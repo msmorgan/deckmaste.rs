@@ -2068,6 +2068,28 @@ def MoveRider.isPilePlacement (rider : MoveRider) (fuel : Nat := 8) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
+/-- The state a self-replacement's replacement starts from, `replaced` being the state after
+stepping the replaced action from `before`. A replaced action never happens; its replacement
+happens instead [CR#614.6,614.15]. So the replacement reads what that action read, not what it
+introduced (its part, its "the rest"). Its targets stay in reach, being chosen as the spell or
+ability is put on the stack [CR#601.2c,115.1] ("deals 4 damage to that permanent or player
+instead"), as do the token descriptions it names ("create three of those tokens instead"). -/
+def replacementStart (before replaced : DRS) : DRS :=
+  { replaced with
+    prospectiveTokenTypes :=
+      replaced.prospectiveTokenTypes.drop before.prospectiveTokenTypes.length
+    referents := replaced.referents.filter fun ref =>
+      before.referents.any (·.id == ref.id) || (ref.det == .target && !ref.attachmentHost) }
+
+/-- `conditioned`, the state after stepping a replacement's condition from `before`, with the
+existential domain that condition published marked `Referent.replacementDomain`: it ranks below
+what the replacement redoes the replaced action to (owner ruling 2026-10-22, batch 4). -/
+def markReplacementDomain (before conditioned : DRS) : DRS :=
+  { conditioned with referents := conditioned.referents.map fun ref =>
+      if ref.existentialDomain && !before.referents.any (·.id == ref.id) then
+        { ref with replacementDomain := true }
+      else ref }
+
 /-- A replacement, read after the event it replaces, `replacesEntering` when that event is an
 entering. `instead` and `also` read their action; `withRiders` reads its riders, which must be
 Entry Riders over an entering; `onlyIf` reads its condition, then its body in a new clause after
@@ -2086,6 +2108,7 @@ def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesE
       refuse (!riders.any (fun rider => rider.isPilePlacement)) .entryRidersOnly)
   | n + 1, .onlyIf condition body =>
     let (drs1, e1) := ops.cond drs condition
+    let drs1 := markReplacementDomain drs drs1
     let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesEntering n
     -- An existential's domain is read in the replacement and closed after it, as `doIf` closes
     -- it (`semantics-v3.md` §1.3, box 2).
@@ -3919,10 +3942,17 @@ def stepOps : Nat → StepOps
             e1 ++ eAlts ++ e2 ++ e3)
         | .replace repld repl =>
           let (drs1, e1) := ops.inst .preEvent patientRole drs repld
-          let localDescriptions := drs1.prospectiveTokenTypes.drop drs.prospectiveTokenTypes.length
-          let described := { drs1 with prospectiveTokenTypes := localDescriptions }
+          let described := replacementStart drs drs1
+          let introduced :=
+            drs1.referents.filter fun ref => !described.referents.any (·.id == ref.id)
           let (drs2, e2) := stepReplacementWith ops (nextClause described) repl repld.isEntering
-          ({ drs2 with prospectiveTokenTypes := drs.prospectiveTokenTypes }, e1 ++ e2)
+          -- Later text may read back what either introduced, the replacement's referents first.
+          let fromReplacement :=
+            drs2.referents.filter fun ref => !described.referents.any (·.id == ref.id)
+          let kept := drs2.referents.filter fun ref => described.referents.any (·.id == ref.id)
+          ({ drs2 with
+              prospectiveTokenTypes := drs.prospectiveTokenTypes
+              referents := fromReplacement ++ introduced ++ kept }, e1 ++ e2)
         | .holdUntil inst ev =>
           let (drs1, e1) := ops.inst phase patientRole drs inst
           let (drs2, e2) := ops.ev drs1 ev
