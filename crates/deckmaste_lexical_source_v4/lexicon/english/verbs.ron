@@ -106,7 +106,7 @@
     (lemma: "pair", frames: [TransitiveWithPP(["with"])]),
     (lemma: "pass", frames: [Monotransitive, TransitiveWithPP(["to"])]),
     // *tapped to pay for its abilities*
-    (lemma: "pay", past: "paid", frames: [Monotransitive, Prepositional(["for"])]),
+    (lemma: "pay", past: "paid", frames: [Intransitive, Monotransitive, Prepositional(["for"])]),
     (lemma: "phase", frames: [Prepositional(["in", "out"])]),
     (lemma: "prevent", frames: [Monotransitive]),
     (lemma: "print", frames: [Monotransitive]),

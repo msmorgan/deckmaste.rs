@@ -118,7 +118,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   subjective predicative; never the objective one of *turn it face up*) and,
   when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
-  Phrase, which strands its preposition like any other. `internalised` equations
+  Phrase, which strands its preposition like any other. The Internalised
+  Complement (CGEL, Ch. 16 §10.1.1, pp. 1428–1429) can also precede later
+  selected Preposition Phrase Complements (*dealt by a source to a player*),
+  preserving the Frame and grammatical functions in both surface orders.
+  `internalised` equations
   constrain that Preposition Phrase in every derived passive, as the child
   `internalised` (the English grammar admits only *by* + a Noun Phrase that is
   neither a fused-head quantity nor a braced symbol, so *reduced by {2}* is only its selected extent); a `Prepositional` frame's passive strands its
@@ -430,3 +434,8 @@ gap-capable Category's `closed_gaps` names Gap kinds its Constituents never
 contain: a non-finite Complement passes up no predicative Gap (*can't be __*),
 so one is shared only inside it (*can't [be and become] legendary*). Adjunct
 Schemas can declare a punctuation delimiter for preposed or delimited PPs.
+
+Declarative content-clause slots distinguish non-expandable finite clauses
+from expandable clauses, whose grammar may admit the subordinator *that*.
+Preposition Frames select that distinction; *except* permits *that*, whereas
+*when* excludes it (CGEL, Ch. 11 §4.8, p. 971).

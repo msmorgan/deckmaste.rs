@@ -81,7 +81,7 @@
         (lemma: "shuffle", frames: [Intransitive, Monotransitive, TransitiveWithPP(["into"])]),
     ]),
     (rule: "[CR#701.25]", name: "Surveil", verbs: [
-        (lemma: "surveil", past: "surveilled", gerund: "surveilling", frames: [Amount, Intransitive]),
+        (lemma: "surveil", past: "surveilled", gerund: "surveilling", frames: [Amount, Intransitive, Monotransitive]),
     ]),
     (rule: "[CR#701.26]", name: "Tap and Untap", verbs: [
         (lemma: "tap", past: "tapped", gerund: "tapping", frames: [Monotransitive]),

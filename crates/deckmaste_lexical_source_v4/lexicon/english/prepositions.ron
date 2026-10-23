@@ -85,10 +85,11 @@
     // Postmodifies compound determinatives (CGEL p. 615 n. 5): *anywhere else*.
     (lemma: "else", frames: [(complement: Intransitive, hosts: Nominal)]),
     // *all abilities except mana abilities*; *except it's a 4/4 black Zombie*;
-    // *can't be blocked except by Spirits*; *except for basic lands*
+    // *can't be blocked except by Spirits*; *except for basic lands*.
+    // Except permits *that* (CGEL, Ch. 11 §4.8, p. 971).
     (lemma: "except", frames: [
         (complement: NP, hosts: Nominal),
-        (complement: FiniteClause, hosts: Predicate),
+        (complement: ExpandableClause, hosts: Predicate),
         (complement: PP(["by", "during", "for"]), hosts: NominalAndPredicate),
     ]),
     // *don't lose the game for having 0 or less life*; *Do the same for

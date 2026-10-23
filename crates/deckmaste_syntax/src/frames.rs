@@ -52,6 +52,8 @@ pub enum SlotRelation {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum ClauseKind {
     Finite,
+    /// A declarative content clause permitting the subordinator *that*.
+    Expandable,
     Verbless,
     /// A non-finite or verbless clause with its Subject, the Complement of
     /// *with* and *without* (*with your hand revealed*; CGEL, Ch. 14 §8.3,
@@ -123,6 +125,7 @@ pub enum SlotKind {
     LocativeNP,
     MeasureNP,
     FiniteClause,
+    ExpandableClause,
     VerblessClause,
     AbsoluteClause,
     InterrogativeClause,
@@ -152,6 +155,7 @@ impl SlotFill {
             Self::LocativeNP => SlotKind::LocativeNP,
             Self::MeasureNP => SlotKind::MeasureNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
+            Self::Clause(ClauseKind::Expandable) => SlotKind::ExpandableClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::Clause(ClauseKind::Absolute) => SlotKind::AbsoluteClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
@@ -258,7 +262,9 @@ impl Frame {
                     shape[..],
                     [(
                         Complement,
-                        SlotFill::Clause(ClauseKind::Finite | ClauseKind::Interrogative)
+                        SlotFill::Clause(
+                            ClauseKind::Finite | ClauseKind::Expandable | ClauseKind::Interrogative
+                        )
                     )]
                 )
             }
