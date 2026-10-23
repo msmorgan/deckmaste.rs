@@ -26,9 +26,10 @@ needs: [lean-v3-rules-and-card-fidelity]
   multikicker cost is a kicker cost `[CR#702.33c]`) are written by
   [lean-v3-keyword-cast-permissions-and-costs](lean-v3-keyword-cast-permissions-and-costs.md)
   §3; do not give it a separate label here.
-- Note: `lifelink`, `wither`, `infect`, and `toxic` are owned by
-  [`lean-v3-damage-composition`](lean-v3-damage-composition.md) (with `toxic`
-  gated on Q89, its open item 3); do not duplicate or bypass that STOP.
+- Note: `lifelink`, `wither`, `infect`, and `toxic` were landed by
+  [`lean-v3-damage-composition`](../done/lean-v3-damage-composition.md) (Q89 ruled
+  2026-10-22: toxic is one rules-table result reading the total toxic value); do not
+  duplicate them here.
 - Document in `lean/CONTRACTS.md` the exact set of combat/engine-intrinsic
   keywords that remain intentionally bodiless (`firstStrike`, `doubleStrike`,
   `trample`, `vigilance`, `deathtouch`, etc.).
