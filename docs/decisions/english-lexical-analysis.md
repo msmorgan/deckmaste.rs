@@ -144,7 +144,7 @@ Settled analyses:
 Readings; wrong Readings beside a correct one are tolerated, because not every
 one can be eliminated in syntax alone. A face whose Readings are all known to
 be wrong is not covered, and is reported separately from read and unread. A
-newly admitted wrong Reading is a defect, never a gain. A known-wrong
+newly admitted ungrammatical Reading is a defect, never a gain; a grammatical Reading that English admits beside the intended one is disambiguated by semantics ([`english-v4.md`](./english-v4.md) §4.4, principle 1). A known-wrong
 analysis is never accepted as coverage.
 
 **Morphological and valence completeness vs. controlled-register syntax.** Every
