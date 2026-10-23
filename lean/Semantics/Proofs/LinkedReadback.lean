@@ -3,6 +3,7 @@ import Semantics.Check.Card
 import Semantics.Check.Rules
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Keyword
+import Semantics.Cards.Turn
 
 /-!
 # Semantics.Proofs.LinkedReadback
@@ -489,5 +490,107 @@ theorem okEmblemReadsTheExiledCard :
     Ability.check (DRS.ofList []) (emblemOver theExiledCard) = [] ∧
       Ability.check (DRS.ofList []) (emblemOver (that card)) = [.anaphor (.word .card) .one 0] := by
   decide
+
+/-! ## Put onto the battlefield with this
+
+"Enchant creature put onto the battlefield with Necromancy" reads the creature Necromancy's
+entering ability puts onto the battlefield [CR#607.2c]: the ability granting the enchant ability
+is printed on the object it is granted to, so the two are linked [CR#607.1a], and the enchant
+ability is linked to the whole granting ability, the step after the grant that puts the creature
+included [CR#607.1]. In a keyword's quality, "put onto the battlefield with [this object]" reads
+the objects the linked ability put there, as a Participial Description does; anywhere else, or by
+any other agent, it looks back over nothing. -/
+
+namespace LinkedEntry
+
+open Semantics.Cards (creatureCardInAGraveyard)
+
+/-- "creature put onto the battlefield [by <agent>]" -/
+def putBy (agent : Subject) : Predicate := and [isCreature, did agent (putOntoBattlefield which)]
+
+/-- "it becomes an Aura with 'enchant creature put onto the battlefield [by <agent>]'" -/
+def becomesAuraEnchanting (agent : Subject) : Action :=
+  establish (conjunction [addSubtype it aura, abilityGrant it (enchant (putBy agent))]
+    (subject := some it))
+
+/-- "Put target creature card from a graveyard onto the battlefield under your control." -/
+def putTargetCreatureCard : Action :=
+  putOntoBattlefieldUnderYourControl (target creatureCardInAGraveyard)
+
+/-- "When this enchantment enters, <steps>." -/
+def entering (steps : List Action) : Ability :=
+  when (does thisEnchantment enter) (sequentially steps)
+
+/-- Required pin: Necromancy as printed [CR#607.2c,603.7a]. -/
+theorem okNecromancy : Semantics.Cards.necromancy.card.check = [] :=
+  Semantics.Cards.necromancy.ok
+
+/-- Required pin: Animate Dead as printed; its return puts the creature onto the battlefield
+[CR#607.2c]. -/
+theorem okAnimateDead : Semantics.Cards.animateDead.card.check = [] :=
+  Semantics.Cards.animateDead.ok
+
+/-- Required pin: Dance of the Dead as printed. -/
+theorem okDanceOfTheDead : Semantics.Cards.danceOfTheDead.card.check = [] :=
+  Semantics.Cards.danceOfTheDead.ok
+
+/-- The granted quality reads the put whichever side of the grant it is on [CR#607.1,607.1a]. -/
+theorem okPutBeforeOrAfterTheGrant :
+    Ability.check (DRS.ofList [])
+        (entering [becomesAuraEnchanting (by_ this_), putTargetCreatureCard]) = [] ∧
+      Ability.check (DRS.ofList [])
+        (entering [putTargetCreatureCard, becomesAuraEnchanting (by_ this_)]) = [] := by
+  decide
+
+/-- With nothing linked put onto the battlefield, the quality reads nothing: the object whose
+entering triggered the ability was not put there by it [CR#607.1]. Each of enchant's three reads
+of its quality is refused. -/
+theorem badNothingPutWithThis :
+    Ability.check (DRS.ofList []) (entering [becomesAuraEnchanting (by_ this_)]) =
+      List.replicate 3 (.participialDescription (.zoneChange none .battlefield) 0) := by
+  decide
+
+/-- Required pin: outside a keyword's quality, "put onto the battlefield with this" is still an
+unanchored lookback, in a later line of the card's text and in text the ability grants. -/
+theorem badLookbackOutsideAKeywordQuality :
+    let destroyPut := activated (mana [generic 1]) (destroy (target (putBy (by_ this_))))
+    Ability.checkText (DRS.ofList []) [entering [putTargetCreatureCard], destroyPut] =
+        [.unanchoredLookback] ∧
+      Ability.check (DRS.ofList [])
+        (entering [establish (abilityGrant it destroyPut), putTargetCreatureCard]) =
+        [.unanchoredLookback] := by
+  decide
+
+/-- Required pin: an agent other than this object is no linking phrase: "put onto the
+battlefield by an artifact" is refused, and so is the quality with no agent written. -/
+theorem badAgentOtherThanThis :
+    Ability.check (DRS.ofList [])
+        (entering [becomesAuraEnchanting (by_ (a isArtifact)), putTargetCreatureCard]) =
+        [.unanchoredLookback, .unanchoredLookback, .participialAgent] ∧
+      Ability.check (DRS.ofList [])
+        (entering [becomesAuraEnchanting .any, putTargetCreatureCard]) =
+        [.unanchoredLookback, .unanchoredLookback] := by
+  decide
+
+/-- Two abilities of the object put creatures onto the battlefield, so the quality could read
+either's [CR#607.2c]. -/
+theorem badTwoLinkedPuts :
+    Ability.checkText (DRS.ofList [])
+      [ entering [putTargetCreatureCard], entering [putTargetCreatureCard],
+        enchant (putBy (by_ this_)) ] =
+      List.replicate 2 (.participialDescription (.zoneChange none .battlefield) 2) := by
+  decide
+
+/-- Granted text reads the exiled card its granting ability exiles after the grant, as it does
+one exiled before [CR#607.1a,607.2a]. -/
+theorem okGrantReadsLaterExile :
+    let grant := establish (abilityGrant it
+      (when (does thisEnchantment leave) (returnTo theExiledCard battlefield [])))
+    let exileCard := exile (target creatureCardInAGraveyard)
+    Ability.check (DRS.ofList []) (entering [grant, exileCard]) = [] ∧
+      Ability.check (DRS.ofList []) (entering [exileCard, grant]) = [] := by
+  decide
+
+end LinkedEntry
 
 end Semantics.Proofs.LinkedReadback

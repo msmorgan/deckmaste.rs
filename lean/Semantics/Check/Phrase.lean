@@ -1395,6 +1395,32 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
         eventVoiceChecks drs subj action ++ eventOrdinalRefusals ordinal)
 
+/-- Whether a relative clause's agent is this object, written with "by" ("put onto the
+battlefield with Necromancy", "created with this"): the phrase that links an ability to the one
+that acted [CR#607.2c]. -/
+def DidClause.bySource (clause : DidClause) : Bool :=
+  match clause.subj with
+  | .by .this | .by (.headed _ .this) => true
+  | _ => false
+
+/-- The refusals of a relative clause with no span written. In a keyword's quality
+(`DRS.keywordLinked`), one whose agent is this object and whose deed or Zone Change anchors a
+Participial Description reads what the abilities linked to the keyword did to the object it
+describes, as that description would: one linked ability must have done it
+[CR#607.1a,607.2a,607.2c]. Anywhere else, or with any other agent, a clause with no span looks
+back over nothing it names. -/
+def DidClause.spanRefusals (clause : DidClause) (drs : DRS) : List Refusal :=
+  if clause.within.isSome then [] else
+  match clause.anchor?, drs.keywordLinked with
+  | some anchor, some linked =>
+    if clause.bySource then
+      let found := participialCandidates anchor (some .one) none false { referents := linked }
+      match participialRead (some .one) found with
+      | .ok _ => []
+      | .error n => [.participialDescription anchor n]
+    else [.unanchoredLookback]
+  | _, _ => [.unanchoredLookback]
+
 /-- Step a relative clause (`Predicate.did`) with its `which` bound to `whichRef`; the clause
 must mention `which`. -/
 def stepRelativeDidWith (ops : StepOps) (drs : DRS) (whichRef : Referent) (clause : DidClause) :
@@ -1405,7 +1431,7 @@ def stepRelativeDidWith (ops : StepOps) (drs : DRS) (whichRef : Referent) (claus
     relativeBinder := some binderId, relativeUses := 0 }
   let (out, errs) := stepDidClauseWith ops subDrs' clause
   (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject ++
-    refuse clause.within.isSome .unanchoredLookback)
+    clause.spanRefusals drs)
 
 /-- The referent a conjunct relative clause's `which` binds: the enclosing object predicate's
 binding, so the clause reads the head's types and zone from its sibling conjuncts; any other
@@ -2578,6 +2604,14 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | _+1, _ => drs
 termination_by structural fuel
 
+/-- The objects a printed triggered or activated ability acts on, stepped from `drs`, as it
+publishes them to the abilities linked to it (`Ability.textContextWith`): the text it grants
+reads them (`DRS.grantorLinked`) [CR#607.1,607.1a]. -/
+def grantorPublished (ops : StepOps) (drs : DRS) (ability : Ability) : List Referent :=
+  (Ability.textContextWith ops drs ability).referents.filter fun ref =>
+    ref.id ≥ drs.nextId && ref.linked &&
+      (match ref.payload with | .object .. => true | _ => false)
+
 /-- Check each line of `abilities` in the context the lines before it leave
 (`Ability.textContextWith`). -/
 def checkTextWith (ops : StepOps) (drs : DRS) (abilities : List Ability) : List Refusal :=
@@ -2860,7 +2894,12 @@ def stepOps : Nat → StepOps
               pred.withAnchorSpan
             let drs2 := { drs2 with participialAnchorRead := drs.participialAnchorRead }
             let (word, zones) := Predicate.participialHead pred.conjuncts plur.isNone
-            let found := participialCandidates anchor plur word clause.within.isSome drs zones
+            -- A description whose predicate the caller supplies reads back in the caller's
+            -- visibility, as the predicate is read (`semantics-v3.md` §1.4).
+            let readFrom := match pred with
+              | .inCaller _ => enterCaller drs
+              | _ => drs
+            let found := participialCandidates anchor plur word clause.within.isSome readFrom zones
             let agentErrors := refuse (clause.participialAgentOk anchor) .participialAgent
             match participialRead plur found with
             | .ok read =>
@@ -4421,14 +4460,20 @@ def stepOps : Nat → StepOps
         match ab with
         | .inCaller body => ops.ab (enterCaller drs) body
         | .keyword _ params body =>
-          let bodyDrs := { drs with eachKindQuality := params.any (·.isEachKind) }
-          checkKeywordParamsWith ops drs params ++ checkTextWith ops (enterOwnScope bodyDrs) body
+          -- What the abilities linked to the keyword did, read by its quality [CR#607.1a].
+          let linkedDrs := { drs with
+            keywordLinked := some (drs.visibleReferents.filter (·.linked)) }
+          let bodyDrs := { linkedDrs with eachKindQuality := params.any (·.isEachKind) }
+          checkKeywordParamsWith ops linkedDrs params ++
+            checkTextWith ops (enterOwnScope bodyDrs) body
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)
             | none => (drs, [])
           let (drs1, e1) := ops.cost (dropLetter .x drs0) cost
-          let colonDrs := nextClause drs1
+          let colonDrs := { nextClause drs1 with
+            grantorLinked := some
+              { since := drs.nextId, published := grantorPublished ops drs ab, before := [] } }
           let (drs2, e2) := ops.inst .postEvent .obj colonDrs inst
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
           let (_, e4) := match guard with | some g => ops.cond drs2 g | none => (drs2, [])
@@ -4447,7 +4492,12 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := match interv with
             | some c => ops.cond (nextClause drs1) c
             | none => (drs1, [])
-          let (drs3, e3) := ops.inst .postEvent .obj (nextClause drs2) inst
+          let effectDrs := nextClause drs2
+          let (drs3, e3) := ops.inst .postEvent .obj
+            { effectDrs with
+              grantorLinked := some
+                { since := effectDrs.nextId, published := grantorPublished ops drs ab
+                  before := effectDrs.visibleReferents } } inst
           let (_, e4) := match tm with | some t => stepTimingWith ops drs3 t | none => (drs3, [])
           let (_, limitErrors) := match limit with
             | some l => stepUsageLimitWith ops drs l

@@ -403,6 +403,20 @@ structure SelectionEvidence where
   scope : Nat
   deriving DecidableEq, Repr
 
+/-- What text a printed triggered or activated ability grants reads of that ability
+(`DRS.grantorLinked`) [CR#607.1,607.1a]. -/
+structure GrantorLinked where
+  /-- The id from which the objects the ability names are its own: its effect's first, after its
+  trigger event's, or its first, costs included. -/
+  since : ReferentId
+  /-- The objects the ability acts on, as it publishes them to the abilities linked to it
+  (`Ability.textContext`), those its steps after the grant acts on included. -/
+  published : List Referent
+  /-- The objects the ability named before `since` (its trigger event's), as they stood then: one
+  of them it acted on is read as it stands after, one it did not act on is not read. -/
+  before : List Referent
+  deriving DecidableEq, Repr
+
 /-- Explicit Reference Scope frame for `Action.ownScope` (`semantics-v3.md` §1.2, §1.4). -/
 structure OwnScopeFrame where
   preEntryIds   : List ReferentId
@@ -458,6 +472,17 @@ structure DRS where
   /-- A keyword's quality argument, or the body of a keyword with one, is "each <value>"
   (`Predicate.eachKind`), the only place it stands [CR#702.16h,702.16i]. -/
   eachKindQuality : Bool := false
+  /-- Stepping a keyword ability, its parameters and its body: the objects the abilities linked
+  to it published, as its context had them. A quality the keyword's caller supplies that says its
+  object was acted on by this object, with no span written ("enchant creature put onto the
+  battlefield with Necromancy"), reads them as a Participial Description does
+  [CR#607.1a,607.2c]. -/
+  keywordLinked : Option (List Referent) := none
+  /-- Inside the effect of a printed triggered or activated ability: the objects it acts on, as
+  it publishes them to the abilities linked to it. Text it grants reads them whichever step acts
+  on them, before or after the grant, since the granted ability is linked to the whole granting
+  ability [CR#607.1,607.1a]. -/
+  grantorLinked : Option GrantorLinked := none
   historicalReferentIds : List ReferentId := []
   historicalMoveFrom : Option Zone := none
   groupSizeScope : Option (List ReferentId) := none
