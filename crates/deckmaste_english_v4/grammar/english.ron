@@ -1632,6 +1632,12 @@
         // (*you and/or at least one permanent you control becomes*).
         Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Plural"), Require("$.Number", "Plural")], proximate: ["Person", "Case", "NounKind", "Countability"]),
         Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Singular")], proximate: ["Person", "Case", "NounKind", "Countability"]),
+        // A Numeric Noun Phrase is no first conjunct: a conjunct must fill
+        // the coordination's function alone (CGEL, Ch. 15 §3.1, p. 1323,
+        // rule [1]), and a number fills no Noun Phrase Complement slot, so
+        // never *is dealt [3] or [more damage]*. Numbers alone are an Amount
+        // coordination (*2 or 3*). A kept admission gate
+        // (`docs/decisions/english-v4.md` §4.4, item 10).
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),
@@ -1663,7 +1669,10 @@
         // A coordination of quantifiers determines as its last one does (*one
         // or more cards*, *one or more of them*; CGEL, Ch. 15 §3.3, p. 1330).
         Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind"]),
-        Coordination(category: "FusedQuantity", conjunct: Some("FusableDeterminer"), coordinators: "Disjunctive", equations: [Exclude("last.NounKind", "Numeric")], proximate: ["Number", "Countability", "NounKind"]),
+        // Numbers alone are an Amount coordination (*X is 2 or 3*), never also
+        // a fused quantity over them (`docs/decisions/english-lexical-analysis.md`
+        // §2).
+        Coordination(category: "FusedQuantity", conjunct: Some("FusableDeterminer"), coordinators: "Disjunctive", equations: [ExcludeTogether([("first.NounKind", "Numeric"), ("last.NounKind", "Numeric")])], proximate: ["Number", "Countability", "NounKind"]),
     ],
     correlatives: [("Both", "And"), ("Either", "Or"), ("Neither", "Nor")],
 )

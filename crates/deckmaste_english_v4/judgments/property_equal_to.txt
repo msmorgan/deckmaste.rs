@@ -9,3 +9,7 @@
 + <card=Ironclaw Curse> Enchanted creature can't block creatures with power equal to or greater than the enchanted creature's toughness. => AdjectivePhrase "equal to or greater than the enchanted creature's toughness" as Modifier of power
 + <card=Soul Separator> Create a black Zombie creature token with power equal to that card's power and toughness equal to that card's toughness. => NounPhrase "power equal to that card's power and toughness equal to that card's toughness"; NounPhrase "power equal to that card's power"; NounPhrase "toughness equal to that card's toughness"; AdjectivePhrase "equal to that card's power" as Modifier of power; AdjectivePhrase "equal to that card's toughness" as Modifier of toughness
 +NounPhrase mana value equal to 1 plus the sacrificed creature's mana value => AdjectivePhrase "equal to 1 plus the sacrificed creature's mana value" as Modifier of "mana value"; NounPhrase "the sacrificed creature's mana value"
++ <card=Triumphant Chomp> Triumphant Chomp deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater. => NounPhrase "2 or the greatest power among Dinosaurs you control" as Complement of to; NounPhrase "2"; NounPhrase "the greatest power among Dinosaurs you control"; NounPhrase "whichever is greater"
++NounPhrase damage equal to 2 or 3 => Amount "2 or 3"; !NounPhrase "2 or 3"
++NounPhrase 2 or 3 => readings 1
++ If X is 2 or 3, draw a card. => !DeterminerPhrase "2 or 3"
