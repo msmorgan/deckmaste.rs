@@ -235,14 +235,18 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Right Node Raising. Its identity, by its serial tail, stands for a
   Coordinator: no Conjunct of it is, or is headed through `head` children by,
   a Linked Coordination of the same identity, so each chain has one tree.
-  A coordination delimited before its coordinator (*A, and B*) and the host of
-  a comma-set post-dependent contain a comma that runs to the end of the
-  sentence, and every phrase that contains one carries it up
-  (`Summary::internal_comma`). A dependent set off before its head by a comma
-  ends at that comma, so it never contains one: an intervening *if* follows
-  the trigger condition rather than sitting inside it (*When [this creature
-  dies], if …*). A dependent after its head may contain one (*unless [its
-  controller pays {X}, where X is …]*, *except [A, and B]*).
+  The host of a comma-set post-dependent contains a delimiting comma, whose
+  closing mark only a stronger indicator absorbs (CGEL, Ch. 20 §3.2.5, p. 1745
+  [25]), so it runs to the end of the sentence, and every phrase that contains
+  one carries it up (`Summary::internal_comma`). A dependent set off before its
+  head by a comma ends at that comma, so it never contains one: an intervening
+  *if* follows the trigger condition rather than sitting inside it (*When [this
+  creature dies], if …*). A dependent after its head may contain one (*unless
+  [its controller pays {X}, where X is …]*). The comma of a coordination,
+  delimited (*A, and B*) or serial, separates coordinates and needs no closing
+  mark (CGEL, Ch. 20 §3.1, pp. 1736–1737 [3]–[4]; §3.2.1, p. 1739), so a
+  dependent set off before its head may contain one (*If [A are attacking, and
+  you both own and control them], …*).
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
