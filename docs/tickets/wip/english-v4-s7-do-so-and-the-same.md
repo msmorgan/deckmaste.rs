@@ -52,3 +52,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (`qqqsurtz`): faces read 28,802 → 28,862; total Readings 250,544 → 250,768; Surplus 109,750 → 109,870; 62 units changed; lost faces: none.
+2. **Judgment set** (`qqqsurtz`): `cargo test -p deckmaste_english_v4 -p deckmaste_lexical_source_v4` passes (100 tests); all 26 entries in `do_so_and_able_to.txt` and `anaphoric_same.txt` independently hold through `cargo xtask english-v4 parse --limit 0`, including Stratum 7 entries.

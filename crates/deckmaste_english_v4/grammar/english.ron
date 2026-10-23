@@ -420,12 +420,15 @@
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
     // `FusedHeadAdjective` has one member, *other*, the one Oracle adjective
-    // that heads a Noun Phrase alone (*the other*, *each other*; CGEL, Ch. 5
-    // §9.1, p. 410, modifier-head), read by FusedAdjectiveHead. `RangeMarker`
+    // that heads a Noun Phrase with ordinary determination (*the other*,
+    // *each other*; CGEL, Ch. 5 §9.1, p. 410, modifier-head).
+    // `DefiniteFusedHeadAdjective` has *same*, whose anaphoric fused NP
+    // takes the definite article (Ch. 5 §9.3, p. 416; Ch. 17, p. 1545).
+    // `RangeMarker`
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -961,6 +964,10 @@
                 Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
         (name: "PostpositiveAdjective", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "AdjectivePhrase")],
             equations: [Require("modifier.ComplementKind", "PP"), Exclude("modifier.Voice", "Passive")], heavy: ["modifier"]),
+        // An AdjP with its own post-head dependent follows the nominal
+        // (CGEL, Ch. 5 §14.2, p. 445): *creatures able to block it*.
+        (name: "PostpositiveInfinitivalAdjective", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "AdjectivePhrase")],
+            equations: [Require("modifier.ComplementKind", "ToInf"), Exclude("modifier.AdjectivePosition", "Attributive"), Exclude("modifier.Voice", "Passive")], heavy: ["modifier"]),
         // A number or a comparative adjective with that number its
         // understood standard (*power 3 or greater*, *X is 2 or less*,
         // *five or greater*).
@@ -1125,6 +1132,9 @@
         // *for each target beyond the first*.
         (name: "FusedOrdinalHead", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Numeral("head", Ordinal)], equations: [Require("determiner.Countability", "Count"), Require("determiner.Number", "Singular"), Require("$.Number", "Singular"), Require("$.Case", "Plain"), Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Overt"), Require("$.Person", "Third")]),
         (name: "FusedAdjectiveHead", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Class("head", "FusedHeadAdjective")], equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt"), Require("$.Countability", "Count"), Agree("determiner.Countability", "$.Countability"), Require("$.NounKind", "Ordinary")]),
+        // Abstract anaphoric NP *the same*, including *do the same for ...*
+        // (CGEL, Ch. 17, p. 1545). Its head remains an adjective.
+        (name: "DefiniteFusedAdjectiveHead", lhs: "NounPhrase", rhs: [Word("determiner", "The"), Class("head", "DefiniteFusedHeadAdjective")], equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary")]),
         (name: "SingleRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount")], equations: []),
         (name: "OpenRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount"), Punct('+')], equations: []),
         (name: "UnicodeRangeRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('—', Bound), Cat("upper", "Amount")], equations: []),

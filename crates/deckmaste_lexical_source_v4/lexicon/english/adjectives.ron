@@ -62,7 +62,7 @@
     // Attributive-only "the only creature card" (CGEL, Ch. 6, §4.1, p. 553).
     (lemma: "only", position: Some(Attributive), determination: Some(Overt)),
     "original",
-    (lemma: "other", position: Some(Attributive), fused_head: true, frames: [Complement(PP(["than"]))]),
+    (lemma: "other", position: Some(Attributive), fused_head: Some(Ordinary), frames: [Complement(PP(["than"]))]),
     // Attributive-only (CGEL, Ch. 6, §4.1, p. 553); the verb `own` is separate.
     (lemma: "own", position: Some(Attributive)),
     "planar",
@@ -75,7 +75,9 @@
     "random",
     "recent",
     "right",
-    (lemma: "same", grade: Some(Equative), frames: [Complement(PP(["as"]))]),
+    // Anaphoric fused modifier-head *the same*, as Subject or Object
+    // (CGEL, Ch. 5 §9.3, p. 416; Ch. 17, p. 1545).
+    (lemma: "same", grade: Some(Equative), fused_head: Some(DefiniteArticle), frames: [Complement(PP(["as"]))]),
     "single",
     "six-sided",
     (lemma: "small", comparative: "smaller", superlative: "smallest"),

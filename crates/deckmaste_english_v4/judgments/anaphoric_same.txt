@@ -1,0 +1,11 @@
+# Fused modifier-head NP *the same*: CGEL, Ch. 5 §9.3, p. 416;
+# Ch. 17, p. 1545. Keyword lists: OSG §12, Granting and removing abilities,
+# and §14, Keyword abilities. Existing verb/adjective frames supply the rest.
++NounPhrase the same => NounPhrase "the same" head same
++ <card=Escaped Shapeshifter> As long as an opponent controls a creature with flying not named Escaped Shapeshifter, this creature has flying. The same is true for first strike, trample, and protection from any color. => NounPhrase "The same" as Subject of be; AdjectivePhrase "true for first strike, trample, and protection from any color" as PredicativeComplement of be; PrepositionPhrase "for first strike, trample, and protection from any color" as Complement of true; KeywordPhrase "first strike, trample, and protection from any color" as Complement of for
++ <card=Encroaching Mycosynth> Nonland permanents you control are artifacts in addition to their other types. The same is true for permanent spells you control and nonland permanent cards you own that aren't on the battlefield. => NounPhrase "The same" as Subject of be; PrepositionPhrase "for permanent spells you control and nonland permanent cards you own that aren't on the battlefield" as Complement of true; NounPhrase "permanent spells you control and nonland permanent cards you own that aren't on the battlefield" as Complement of for
+# An NP Object of ordinary *do*, not an auxiliary or an opaque pro-form verb.
++ <card=Curse of Vitality> Whenever enchanted player is attacked, you gain 2 life. Each opponent attacking that player does the same. => NounPhrase "Each opponent attacking that player" as Subject of do; NounPhrase "the same" as Object of do
++ <card=Super-Adaptoid> Do the same for flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance. => NounPhrase "the same" as Object of do; PrepositionPhrase "for flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance" as Adjunct of do; KeywordPhrase "flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance" as Complement of for
+*Clause Each opponent do the same
+*Clause You does the same
