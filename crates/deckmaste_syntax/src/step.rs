@@ -213,13 +213,11 @@ pub(crate) struct Production {
     /// Lexical children that cost one more where their leaf was not admitted
     /// through the face's scope (`ProductionDecl::scoped`).
     pub scoped: Vec<usize>,
-    /// A preposition's Clause Complement: a delimited coordination only
-    /// within a comma-set post-dependent (`Summary::delimited_complement`),
-    /// and never a Clause with a comma-set post-adjunct
-    /// (`Summary::post_adjunct`).
-    pub undelimited: Vec<usize>,
     /// It is a coordination delimited before its coordinator.
     pub delimits: bool,
+    /// It is a serial tail of a coordination (*…, [B, and C]*): its `first`
+    /// conjunct is a middle one, after the initial conjunct.
+    pub tail: bool,
     /// A polysyndetic tail child that must repeat the mother's coordinator.
     pub chained: Option<usize>,
     /// The preposition of the Preposition Phrase Complement it extracts.
@@ -391,8 +389,8 @@ pub(crate) fn resolve(
         paired_coordinator: None,
         uncoordinated: Vec::new(),
         scoped: Vec::new(),
-        undelimited: Vec::new(),
         delimits: false,
+        tail: false,
         chained: None,
         gap_preposition: None,
         fills_preposition: None,
@@ -446,8 +444,7 @@ pub(crate) fn resolve(
             joint_hits: 0,
             host_extensions: 0,
             adjunct_extension: None,
-            delimited_complement: false,
-            post_adjunct: false,
+            internal_comma: false,
         },
     })
 }
@@ -503,32 +500,26 @@ pub(crate) struct Summary {
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
-    /// It is a coordination delimited before its coordinator.
-    pub delimited: bool,
     /// It begins with a fronted dependent of its head, which is its last
     /// child: one set off by a comma (*When …, …*, *Until end of turn, …*)
     /// or a preposed Adjunct without one (*instead put …*). Such a Clause
     /// hosts no comma-set post-dependent, which attaches inside the fronted
-    /// one, and is never a first conjunct: the fronted dependent scopes over
-    /// the whole coordination (`english-lexical-analysis.md` §2).
+    /// one, and is never the initial conjunct of a coordination undelimited
+    /// before its coordinator: the fronted dependent scopes over the whole
+    /// coordination (`english-lexical-analysis.md` §2).
     pub fronted: bool,
-    /// It is a Clause with a comma-set Supplement (*…, where X is its
-    /// power*). A Supplement is the outermost comma-set post-dependent of its
-    /// Clause: a later one attaches inside it (*where [X is half …, rounded
-    /// down]*).
-    pub supplemented: bool,
-    /// It is, or selects as its Complement, a Clause coordination delimited
-    /// before its coordinator (*except [it's an artifact, and it has
-    /// flying]*). Only a comma-set post-dependent, which runs to the end of
-    /// its sentence, takes one (`docs/oracle-style-guide.md` §3, Commas and
-    /// the serial comma; §12, Copies).
-    pub delimited_complement: bool,
-    /// It is a Clause with a comma-set post-adjunct or Supplement Preposition
-    /// Phrase (*…, if you control a Desert*), through its head line. A
-    /// preposition's Clause Complement is closed against one: an intervening
-    /// *if* follows the trigger condition, never inside it
-    /// (`docs/oracle-style-guide.md` §8, checklist 4; [CR#603.1,603.4]).
-    pub post_adjunct: bool,
+    /// It contains a comma that no bracket closes: it is, or has at any depth,
+    /// a coordination delimited before its coordinator (*[it's an artifact,
+    /// and it has flying]*) or the host of a comma-set post-dependent
+    /// (*[this creature dies, if …]*, *[X is half …, rounded down]*). Such a
+    /// comma runs to the end of its sentence, and a dependent set off before
+    /// its head by a comma ends at that comma, so it never contains one: an
+    /// intervening *if* follows the trigger condition, never inside it
+    /// (`docs/oracle-style-guide.md` §3, Commas and the serial comma; §8,
+    /// Intervening if; [CR#603.4]). A dependent after its head, which runs to
+    /// the end of its sentence, may contain one (*unless [its controller pays
+    /// {X}, where X is …]*).
+    pub internal_comma: bool,
     /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
@@ -603,10 +594,8 @@ pub(crate) struct State {
     joint_hits: u8,
     host_extensions: u16,
     adjunct_extension: Option<Extension>,
-    /// A child so far carries `Summary::delimited_complement` up.
-    delimited_complement: bool,
-    /// A head-line child so far carries `Summary::post_adjunct` up.
-    post_adjunct: bool,
+    /// A child so far carries `Summary::internal_comma` up.
+    internal_comma: bool,
 }
 
 impl Production {
@@ -977,29 +966,51 @@ impl Production {
         }
     }
 
-    /// Whether a fronted dependent's or a Supplement's scope rules this child
-    /// out: a fronted dependent scopes over a whole coordination, never its
-    /// first conjunct, and over a comma-set post-dependent of its Clause,
-    /// never inside the post-dependent's host; a Supplement is never inside
-    /// a later comma-set post-dependent's host (`english-lexical-analysis.md`
-    /// §2).
-    fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
-        let first_conjunct = self.coordinator.is_some() && self.names[position] == "first";
-        let post_host = position == 0
-            && self.head == Some(0)
-            && self.rhs.len() > 2
-            && matches!(self.rhs[1], Symbol::Punct(',', _));
-        (summary.fronted && first_conjunct)
-            || ((summary.fronted || summary.supplemented) && post_host)
+    /// Whether the Production begins with a fronted dependent of its head,
+    /// which is its last child: one set off by a comma (*When …, …*) or a
+    /// preposed Adjunct without one (*instead put …*) (`Summary::fronted`).
+    pub(crate) fn fronts(&self) -> bool {
+        self.coordinator.is_none()
+            && self.head == Some(self.rhs.len() - 1)
+            && ((self.rhs.len() > 2
+                && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)))
+                || self
+                    .host_check
+                    .is_some_and(|(host, adjunct, _)| adjunct < host))
     }
 
-    /// Whether child `position` is a comma-set post-dependent: the last child
-    /// of a Production whose head comes first, followed by a comma.
-    fn comma_set_dependent(&self, position: usize) -> bool {
-        self.head == Some(0)
-            && position + 1 == self.rhs.len()
-            && position > 1
-            && matches!(self.rhs[1], Symbol::Punct(',', _))
+    /// Whether a fronted dependent's scope rules this child out: a fronted
+    /// dependent scopes over a whole coordination, never its initial
+    /// conjunct, and over a comma-set post-dependent of its Clause, never
+    /// inside the post-dependent's host (`english-lexical-analysis.md` §2).
+    /// The initial conjunct of a coordination delimited before its
+    /// coordinator may have its own (*[If you do, …], and [if you don't,
+    /// …]*), and so may a middle conjunct of a serial one, since a fronted
+    /// dependent there cannot scope over the whole (*C1, [if …, C2], and
+    /// C3*).
+    fn comma_scope_excludes(&self, position: usize, summary: &Summary) -> bool {
+        let first_conjunct = self.coordinator.is_some()
+            && !self.delimits
+            && !self.tail
+            && self.names[position] == "first";
+        summary.fronted && (first_conjunct || (position == 0 && self.hosts_comma_set_dependent()))
+    }
+
+    /// Whether the Production hosts a comma-set post-dependent: its head
+    /// comes first, followed by a comma.
+    pub(crate) fn hosts_comma_set_dependent(&self) -> bool {
+        self.head == Some(0) && self.rhs.len() > 2 && matches!(self.rhs[1], Symbol::Punct(',', _))
+    }
+
+    /// Whether child `position` is set off before the head by a comma: a
+    /// fronted dependent (*When …, …*), which ends at that comma.
+    fn set_off_before_head(&self, position: usize) -> bool {
+        self.head.is_some_and(|head| {
+            position < head
+                && self.rhs[position + 1..head]
+                    .iter()
+                    .any(|symbol| matches!(symbol, Symbol::Punct(',', _)))
+        })
     }
 
     /// Whether child `position` is the head of a Production of its own
@@ -1136,21 +1147,13 @@ impl Production {
                 if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
                     return None;
                 }
-                if self.undelimited.contains(&position) && summary.delimited {
-                    next.delimited_complement = true;
-                }
-                if summary.post_adjunct {
-                    if self.undelimited.contains(&position) {
+                // A comma that no bracket closes stays inside every phrase
+                // that contains it, to the end of its sentence.
+                if summary.internal_comma {
+                    if self.set_off_before_head(position) {
                         return None;
                     }
-                    next.post_adjunct |= self.head_line[position];
-                }
-                if summary.delimited_complement {
-                    if self.names[position] == "complement" {
-                        next.delimited_complement = true;
-                    } else if !self.comma_set_dependent(position) {
-                        return None;
-                    }
+                    next.internal_comma = true;
                 }
                 if self.comma_scope_excludes(position, summary) {
                     return None;
@@ -1280,22 +1283,10 @@ impl Production {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
             },
-            delimited: self.delimits,
-            fronted: !coordinated
-                && self.head == Some(self.rhs.len() - 1)
-                && ((self.rhs.len() > 2
-                    && matches!(self.rhs[self.rhs.len() - 2], Symbol::Punct(',', _)))
-                    || self
-                        .host_check
-                        .is_some_and(|(host, adjunct, _)| adjunct < host)),
-            delimited_complement: state.delimited_complement,
-            post_adjunct: state.post_adjunct
-                || self.host_check.is_some_and(|(host, adjunct, _)| {
-                    host < adjunct && matches!(self.rhs[host + 1], Symbol::Punct(',', _))
-                }),
-            supplemented: self.host_check.is_some_and(|(host, adjunct, kind)| {
-                kind == HostKind::Supplement && host < adjunct
-            }),
+            fronted: self.fronts(),
+            internal_comma: state.internal_comma
+                || self.delimits
+                || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
         })
     }

@@ -110,26 +110,27 @@ pub struct CategoryDecl {
 ///   - implicit agreement with the mother on every feature both carry
 ///     (`compile.rs`, `add`; see `Equation`);
 ///   - Preposition and extension inheritance (`step.rs`, `resolve`);
-///   - the head line (`step.rs`, `Production::head_line`), shared with
-///     `first`, `last` and `rest`;
+///   - the head line (`step.rs`, `Production::head_line`), shared with `first`,
+///     `last` and `rest`;
 ///   - the Reading head lexeme (`reading.rs`, `head_word`);
 ///   - the host words counted for Right Association (`reading.rs`);
-///   - wrapping by a function Category (`reading.rs`, `locate`).
+///   - wrapping by a function Category (`reading.rs`, `locate`);
+///   - comma scope: a dependent set off before the head by a comma, which
+///     contains no unclosed comma (`step.rs`, `set_off_before_head`), and a
+///     comma-set post-dependent after a first head (`step.rs`,
+///     `comma_scope_excludes`).
 /// - `first`, `last`, `rest`:
 ///   - the head line;
-///   - conjunct balance and the coordination Attachment Class
-///     (`reading.rs`);
-///   - the fronted-scope rule (`step.rs`, `comma_scope_excludes`).
+///   - conjunct balance and the coordination Attachment Class (`reading.rs`);
+///   - the fronted-scope rule, which `first` keys on only outside a serial tail
+///     (`step.rs`, `comma_scope_excludes`, `Production::tail`).
 /// - `adjunct`, `modifier`: unselected dependents, counted for Right
 ///   Association and the preposed-dependent Attachment Class (`reading.rs`).
-///   `adjunct` also marks the post-verbal Adjunct host that an auxiliary
-///   Verb Phrase never is (`step.rs`, `post_adjunct_host`).
+///   `adjunct` also marks the post-verbal Adjunct host that an auxiliary Verb
+///   Phrase never is (`step.rs`, `post_adjunct_host`).
 /// - `supplement`: reversed Right Association (`reading.rs`).
-/// - `complement`: carries a delimited Clause coordination up to its
-///   comma-set post-dependent (`step.rs`, `accept`).
 /// - `object`, `shared`: the Reading functions of postposed Modifiers
-///   (`object`) and of Right Node Raising (`shared`) (`reading.rs`,
-///   `locate`).
+///   (`object`) and of Right Node Raising (`shared`) (`reading.rs`, `locate`).
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProductionDecl {
@@ -169,14 +170,6 @@ pub struct ProductionDecl {
     /// one level up is the same analysis (a chain of bare imperatives).
     #[serde(default)]
     pub uncoordinated: Vec<Ident>,
-    /// Children that are a coordination delimited by punctuation before its
-    /// coordinator (two independent clauses joined by *, and*) only within a
-    /// comma-set post-dependent (*, except [A, and B]*): the mother carries
-    /// it up through the phrases it is the Complement of to that dependent.
-    /// Nor are they a Clause with a comma-set post-adjunct (a preposition's
-    /// Clause Complement: *when [this creature dies], if …*).
-    #[serde(default)]
-    pub undelimited: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {

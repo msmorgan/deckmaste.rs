@@ -30,7 +30,10 @@ impl CompiledGrammar {
     ///   participial Verb Phrase that is its Complement;
     /// - same-head complement priority: a Preposition Phrase attached as a
     ///   Predicate adjunct to a head that has a longer frame selecting it
-    ///   becomes that frame's complement.
+    ///   becomes that frame's complement;
+    /// - fronted dependent outermost: a comma-set post-dependent of a Clause
+    ///   that begins with a fronted dependent becomes a post-dependent of that
+    ///   Clause's head, *Pre[,] [Clause, Post]* for *[Pre[,] Clause], Post*.
     #[must_use]
     pub fn normal_form(&self, reading: &Reading) -> Reading {
         self.normalize(&self.lower_adjuncts(reading))
@@ -66,6 +69,12 @@ impl CompiledGrammar {
             return self.distribute(node, &children, at, p.lhs);
         }
         if let Some(p) = production
+            && p.hosts_comma_set_dependent()
+            && let Some(outermost) = self.front_outermost(node, &children)
+        {
+            return outermost;
+        }
+        if let Some(p) = production
             && let Some((host, adjunct, HostKind::Predicate)) = p.host_check
             && adjunct > host
             && let Some(complement) =
@@ -77,6 +86,32 @@ impl CompiledGrammar {
             children,
             ..node.clone()
         })
+    }
+
+    /// `node`, the host of a comma-set post-dependent over normalized
+    /// `children`, as the fronted dependents its first child begins with over
+    /// `node` on that child's head, if it begins with any.
+    fn front_outermost(&self, node: &ReadingNode, children: &[Reading]) -> Option<Reading> {
+        let Some(Reading::Node(front)) = children.first() else {
+            return None;
+        };
+        if !self.productions[*self.by_id.get(&front.production)?].fronts() {
+            return None;
+        }
+        let mut hosted = children.to_vec();
+        hosted[0] = front.children.last()?.clone();
+        let inner = self.front_outermost(node, &hosted).unwrap_or_else(|| {
+            Reading::Node(ReadingNode {
+                children: hosted,
+                ..node.clone()
+            })
+        });
+        let mut outer = front.children.clone();
+        *outer.last_mut()? = inner;
+        Some(Reading::Node(ReadingNode {
+            children: outer,
+            ..front.clone()
+        }))
     }
 
     fn flat_coordination(node: &ReadingNode, children: Vec<Reading>) -> Reading {

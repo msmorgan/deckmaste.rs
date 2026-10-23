@@ -207,20 +207,23 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Category, and `unlike` a feature its two conjuncts must not share: unlike
   categories coordinated in one function (a depictive *tapped and attacking*),
   binary unless `serial` is set (an *and*-list of an Object with keywords). A constituent that begins with a dependent set off by
-  a comma (*When …, …*) is never a conjunct other than the last: the preposed
-  dependent scopes over the whole coordination. Nor is it the host of a
-  comma-set post-dependent (a head followed by a comma and its dependent): the
-  fronted dependent attaches outermost, *Pre, [Clause, Post]*. A comma-set
-  Supplement is the outermost comma-set post-dependent of its Clause: a later
-  one attaches inside it (*where [X is half …, rounded down]*).
-  A Production's `undelimited` child is a coordination delimited before its
-  coordinator (*A, and B*) only inside a comma-set post-dependent: the fact is
-  carried up through each phrase it is the Complement of and admitted only as
-  the last child of a Production whose head comes first, followed by a comma
-  (*…, except [A, and B]*). Nor is that child a Clause with a comma-set
-  post-adjunct or Supplement anywhere along its head line: a preposition's
-  Clause Complement is closed against one, so an intervening *if* follows the
-  trigger condition rather than sitting inside it.
+  a comma (*When …, …*) is never the initial conjunct of a coordination
+  undelimited before its coordinator: the preposed dependent scopes over the
+  whole coordination. The initial conjunct of a coordination delimited before
+  its coordinator may have its own (*[If you do, …], and [if you don't, …]*),
+  and so may a middle conjunct of a serial one, whose serial tail names it
+  `first` too (*C1, [if …, C2], and C3*).
+  Nor is such a constituent the host of a comma-set post-dependent (a head
+  followed by a comma and its dependent): the fronted dependent attaches
+  outermost, *Pre, [Clause, Post]*.
+  A coordination delimited before its coordinator (*A, and B*) and the host of
+  a comma-set post-dependent contain a comma that runs to the end of the
+  sentence, and every phrase that contains one carries it up
+  (`Summary::internal_comma`). A dependent set off before its head by a comma
+  ends at that comma, so it never contains one: an intervening *if* follows
+  the trigger condition rather than sitting inside it (*When [this creature
+  dies], if …*). A dependent after its head may contain one (*unless [its
+  controller pays {X}, where X is …]*, *except [A, and B]*).
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
@@ -344,8 +347,11 @@ the coordination of that Production over each conjunct (clause versus
 verb-phrase coordination of bare imperatives); an Adjunct Production over an
 uncoordinated auxiliary Verb Phrase becomes the auxiliary over that Production
 of its participial Complement's Verb Phrase (adjuncts below a non-modal
-auxiliary); and a Preposition Phrase attached as a Predicate adjunct to a head
-with a longer frame selecting it becomes that frame's complement. It endorses
+auxiliary); a Preposition Phrase attached as a Predicate adjunct to a head
+with a longer frame selecting it becomes that frame's complement; and a
+comma-set post-dependent of a Clause that begins with a fronted dependent
+becomes a post-dependent of that Clause's head, *Pre, [Clause, Post]* for
+*[Pre, Clause], Post* (fronted dependent outermost). It endorses
 nothing; it lets two sets of Readings be compared under exactly those
 equivalences.
 
