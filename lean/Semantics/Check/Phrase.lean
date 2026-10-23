@@ -3849,11 +3849,24 @@ def stepOps : Nat → StepOps
           (out, e1 ++ e2)
         | .withContinuation policy body ifDid ifNot =>
           let (drs1, e1) := ops.inst phase patientRole (nextClause drs) body
+          -- A target an optional body announces is chosen as the spell or ability is put on the
+          -- stack, whether or not the player later acts [CR#601.2c,603.3d,115.1] (owner ruling
+          -- 2026-10-23): it is an ordinary referent after the body and in its "if you don't" arm,
+          -- read as announced, with no stamp from the body. Stepped before the event, it is no
+          -- announced target result, so a loop around the body abstracts it as a loop-local.
+          let targets := if policy == .optional then
+              (ops.inst .preEvent patientRole (nextClause drs) body).1.referents.filter
+                fun ref => ref.id >= drs.nextId && ref.det == .target
+            else []
+          let targetIds := targets.map (·.id)
+          let withTargets := { drs with
+            referents := targets ++ drs.referents
+            nextId := targets.foldl (fun next ref => max next (ref.id + 1)) drs.nextId }
           let (drs2, e2) := match ifDid with
             | some b => ops.inst phase .obj (nextClause drs1) b
             | none => (drs1, [])
           let (drs3, e3) := match ifNot with
-            | some b => ops.inst phase .obj (nextClause drs) b
+            | some b => ops.inst phase .obj (nextClause withTargets) b
             | none => (drs, [])
           let policyErrors := match policy with
             | .optional => []
@@ -3870,19 +3883,23 @@ def stepOps : Nat → StepOps
             else []
           -- What the body and its arms stamped escapes them to Participial Descriptions only
           -- (owner ruling 2026-10-22): "this way" ranges over the events that happened.
-          -- An earlier object keeps its id, and both paths stamping it escape it once; what an
-          -- arm introduced takes a fresh id, as the two arms number from the same `nextId`.
+          -- An earlier object, an announced target among them, keeps its id, and both paths
+          -- stamping it escape it once; what an arm introduced takes a fresh id, as the two arms
+          -- number from the same `nextId`.
           let armsNextId := max drs2.nextId drs3.nextId
-          let fromBody := continuationStamped drs drs2
-          let fromOther := (continuationStamped drs drs3).filter fun ref =>
-            ref.id >= drs.nextId || !fromBody.any (·.id == ref.id)
+          let earlier := fun (ref : Referent) => ref.id < drs.nextId || targetIds.contains ref.id
+          -- A target's stamp, or its moved successor's, escapes under the target's id.
+          let before := { withTargets with nextId := drs.nextId }
+          let fromBody := continuationStamped before drs2
+          let fromOther := (continuationStamped before drs3).filter fun ref =>
+            !earlier ref || !fromBody.any (·.id == ref.id)
           let stamped := fromBody ++ fromOther
-          let introduced := stamped.filter (·.id >= drs.nextId)
+          let introduced := stamped.filter (!earlier ·)
           let renumbered := introduced.zipIdx.map fun (ref, index) =>
             { ref with id := armsNextId + index }
           ({ drs with
-              referents := shortfalls ++ drs.referents
-              participialOnly := stamped.filter (·.id < drs.nextId) ++ renumbered ++
+              referents := shortfalls ++ targets ++ drs.referents
+              participialOnly := stamped.filter earlier ++ renumbered ++
                 drs.participialOnly
               nextId := armsNextId + introduced.length
               nextSelectionScope := max drs2.nextSelectionScope drs3.nextSelectionScope

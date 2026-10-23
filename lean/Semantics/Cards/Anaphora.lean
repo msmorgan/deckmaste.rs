@@ -821,4 +821,40 @@ theorem okSawInHalf :
       (stepAction 64 .postEvent .obj (DRS.ofList []) sawInHalfBody).1.resolvedIds = [1] := by
   decide
 
+/-- Tuktuk Scrapper: "Whenever this creature or another Ally you control enters, you may destroy
+target artifact. If that artifact is put into a graveyard this way, this creature deals damage to
+that artifact's controller equal to the number of Allies you control." The target is chosen as the
+ability is put on the stack, whether or not its controller destroys it [CR#601.2c,603.3d,115.1]:
+"that artifact" reads it after the optional body, in the lookback and as the damage's possessor
+(owner ruling 2026-10-23). -/
+def tuktukScrapper : Spelled := spelled <| singleFacedCard
+  { name := "Tuktuk Scrapper", cost := [generic 3, pip .red], types := [.creature],
+    subtypes := [goblin, artificer, ally],
+    text :=
+      [ whenever
+          (does (eitherOf thisCreature (a (and [ally, youControl, isOther]))) enter)
+          (sequentially
+            [ may (destroy (target isArtifact)),
+              doIf (did (that artifact) (putInto theActor graveyard) thisWay)
+                (instruct thisCreature
+                  (dealDamage (countOf (and [ally, youControl]))
+                    (controllerOf (that artifact)))) ]) ],
+    power := stat 2, toughness := stat 2 }
+theorem okTuktukScrapper : tuktukScrapper.card.check = [] := tuktukScrapper.ok
+
+/-- Werewolf Ransacker's trigger (*Afflicted Deserter // Werewolf Ransacker*): "Whenever this
+creature transforms into Werewolf Ransacker, you may destroy target artifact. If that artifact is
+put into a graveyard this way, this creature deals 3 damage to that artifact's controller." The
+whole card lands with `lean-v3-counted-cast-lookback-singular`. -/
+theorem okWerewolfRansackerTrigger :
+    Ability.check (DRS.ofList [])
+      (whenever
+        (.does .any (.enact (.action "transform") (.turnOver thisCreature)
+          (some (named "Werewolf Ransacker")) none))
+        (sequentially
+          [ may (destroy (target isArtifact)),
+            doIf (did (that artifact) (putInto .actor graveyard) thisWay)
+              (instruct thisCreature (dealDamage 3 (controllerOf (that artifact)))) ])) = [] := by
+  decide
+
 end Semantics.Cards
