@@ -168,6 +168,10 @@ mutual
     /-- A turn after the current one [CR#702.170d]. -/
     | later
     | that
+    /-- `player`'s most recent turn: the current turn while it is `player`'s, and otherwise the
+    last turn `player` took ("their most recent turn" [CR#302.6]). Which turn that is at runtime
+    is the engine's (ADR `semantics-v3.md` §0.1 item 4). -/
+    | mostRecent (player : NounPhrase)
 
   /-- When a player may act, or when a trigger or replacement applies. With no timing written,
   a player may act any time they have priority [CR#117.1a]. -/
@@ -308,6 +312,10 @@ mutual
     | manaCostHas (symbol : ManaSymbol)
     | abilityHead (class_ : AbilityClass)
     | abilityOf (source : NounPhrase)
+    /-- The member is an activated ability whose activation cost, everything before its colon
+    [CR#602.1a], includes `cost`: "with {T} in its cost", "with the tap symbol or the untap
+    symbol in its activation cost" [CR#302.6,107.5,107.6]. -/
+    | activationCostHas (cost : Cost)
     /-- The member is an ability that has triggered but not yet left the stack: one waiting to be
     put on the stack, or one on it [CR#113.7,603.3]. A Saga, a dungeon or a Siege that is the
     source of one stays [CR#704.5s,704.5t,704.5v]. -/
@@ -495,6 +503,15 @@ mutual
     on untapping it that holds only if you so choose: untapping stays the default, and it is no
     permission to untap. -/
     | soChooses (chooser : NounPhrase)
+    /-- `condition` has held continuously from `since` until now: "has been under its
+    controller's control continuously since their most recent turn began" [CR#302.6]. The
+    perfect reads the condition's referents as they are now, so "its controller" is the
+    present controller, and the condition is that this player has controlled the object
+    throughout. An object that became a new object after `since` held nothing before it
+    existed [CR#400.7]. `since` follows `condition`, so its pronouns read the condition's
+    referents ("their"). Whether the condition held throughout is the engine's (ADR
+    `semantics-v3.md` §0.1 item 4). -/
+    | heldSince (condition : Condition) (since : GameEvent)
     | not (condition : Condition)
     | and (conjuncts : List Condition)
     | or (disjuncts : List Condition)
@@ -1011,11 +1028,12 @@ mutual
     used. `limit` is a printed "only once each turn". -/
     | rollModifier (roll : GameEvent) (modify : Action) (limit : Option UsageLimit)
     /-- "<subject> is a Combatant": the creature-like combat rules apply to it. Its power deals
-    combat and fight damage, marked damage is compared with its toughness, it may be declared an
-    attacker or a blocker, and the summoning-sickness rule applies to it
-    [CR#120.3e,302.6,508.1a,509.1a,701.14a]. The role is a quality of a permanent, not an
-    ability [CR#113.12], and the creature type definition confers it; whether the Combatant may
-    take a given combat action is a separate deontic question. -/
+    combat and fight damage, marked damage is compared with its toughness, and it may be declared
+    an attacker or a blocker [CR#120.3e,508.1a,509.1a,701.14a]. The role is a quality of a
+    permanent, not an ability [CR#113.12], and the creature type definition confers it; whether
+    the Combatant may take a given combat action is a separate deontic question. The
+    summoning-sickness rule is one such question and no part of the role: the creature type
+    definition confers it as two prohibitions of its own [CR#302.6]. -/
     | combatant (subject : NounPhrase)
     /-- A Mode Change: modifies how the modes of the spell or ability it is printed with are
     chosen [CR#700.2,702.42a,702.120a]. -/
