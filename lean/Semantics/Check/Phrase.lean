@@ -642,6 +642,37 @@ def applyThroughStamp (drs : DRS) (refIds : List ReferentId) (deed : Deed) : DRS
         | other => other
       { r with payload := newPayload }) drs
 
+/-- What carrying out `kind` on `refIds` records, each procedure under its own Deed. Casting puts
+the card onto the stack as a spell [CR#601.2a]. Playing a card is playing it as a land or casting
+it as a spell [CR#701.18b]: a land play is a special action that uses no stack, putting the land
+onto the battlefield [CR#701.18a], and any other card (one whose types are not known to include
+land too) is cast.
+Activating puts the ability onto the stack [CR#602.2a,701.2a]: an ability referent moves there, and
+an object is stamped in place, since no card is put on the stack. A resolution moves nothing
+here: the spell or ability goes where its resolution puts it [CR#608.2n]. -/
+def applyProcedureDeed (drs : DRS) (kind : Procedure) (refIds : List ReferentId) : DRS :=
+  let isLand := fun (id : ReferentId) => (drs.findById? id).any fun r =>
+    match r.payload with
+    | .object ty .. => tyIs .land ty
+    | _ => false
+  let isAbility := fun (id : ReferentId) => (drs.findById? id).any fun r =>
+    match r.payload with
+    | .ability .. => true
+    | _ => false
+  match kind with
+  | .cast => applyZoneMove drs refIds (some (.action "cast")) (some .stack)
+  | .play =>
+    let spells := refIds.filter (!isLand ·)
+    let cast := applyZoneMove (applyZoneMove drs (refIds.filter isLand) (some (.action "play"))
+      (some .battlefield)) spells (some (.action "cast")) (some .stack)
+    -- The spell is played as well as cast: both deeds stand ("each spell played this way").
+    applyThroughStamp cast (cast.referents.filter (fun r => r.movedFrom.head?.any spells.contains)
+      |>.map (·.id)) (.action "play")
+  | .activate =>
+    applyZoneMove (applyInPlaceStamp drs (refIds.filter (!isAbility ·)) (some (.action "activate")))
+      (refIds.filter isAbility) (some (.action "activate")) (some .stack)
+  | .resolve => drs
+
 
 /-- Voice and `GramRole` assignment (`semantics-v3.md` §3.2):
 - Active (`.actor np`): primary patient inside `action` gets `.obj`.
@@ -3842,7 +3873,7 @@ def stepOps : Nat → StepOps
             { nextClause (settleTargets drs2) with triggerEvents := ev.triggerEvents } trig
           ({ drs1 with nextId := drs3.nextId },
             e1 ++ e2 ++ e3 ++ refuse body.thisWayOutcomeOk .thisWayOutcome)
-        | .procedure _ subj pay res from_ of_ =>
+        | .procedure kind subj pay res from_ of_ =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let e1 := e1 ++ kindCheck .object ((refIds.head?.bind drs1.findById?).map (·.kind))
           let (drs2, e2) := stepPlayPaymentWith ops drs1 pay
@@ -3851,7 +3882,7 @@ def stepOps : Nat → StepOps
           let (drs5, e5) := match of_ with
             | some o => let (d, _, e) := ops.np drs4 .other false o; (d, e)
             | none => (drs4, [])
-          let drs6 := if phase == .postEvent then applyZoneMove drs5 refIds (some (.action "cast")) (some .stack) else drs5
+          let drs6 := if phase == .postEvent then applyProcedureDeed drs5 kind refIds else drs5
           (drs6, e1 ++ e2 ++ e3 ++ e4 ++ e5),
 
       spec := fun drs s =>

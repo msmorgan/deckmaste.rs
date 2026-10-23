@@ -511,7 +511,7 @@ def gallopingLizrog : Spelled := spelled <| singleFacedCard
         when (does thisCreature enter)
           (may
             (removeCounters anyNumber p1p1Counter (among (allOf (and [isCreature, youControl]))))
-            (putCounters (times 2 removedThisWay) p1p1Counter thisCreature)) ],
+            (putCounters (times 2 thatMuch) p1p1Counter thisCreature)) ],
     power := stat 3, toughness := stat 3 }
 
 /-- Novijen Sages -/
