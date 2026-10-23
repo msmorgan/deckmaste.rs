@@ -23,7 +23,7 @@
         (lemma: "attacking"),
         (lemma: "defending"),
         // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
-        (lemma: "anywhere", distribution: Independent, noun_kind: Some(Locative)),
+        (lemma: "anywhere", distribution: Independent),
         (number: Plural, countability: Count, lemma: "both"),
         (number: Singular, countability: Count, lemma: "each", distribution: Distributive),
         (number: Singular, countability: Count, lemma: "either", distribution: Distributive),
