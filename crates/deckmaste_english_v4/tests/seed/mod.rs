@@ -71,7 +71,7 @@ fn set(
 
 fn verb(lemma: &str, kind: SourceKind) -> Lexeme {
     let mut lexeme = Lexeme::verb(format!("verb:{lemma}"), lemma, source(kind));
-    // Oracle text has no first person (owner ruling).
+    // Oracle text has no first person.
     lexeme
         .forms
         .retain(|slot| slot.features.person != Some(Person::First));

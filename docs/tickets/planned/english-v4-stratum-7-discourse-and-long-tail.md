@@ -114,13 +114,13 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     Evolution; Balduvian Shaman; Crystal Spray; Glamerdye; Magical Hack; Mind
     Bend; New Blood; Sleight of Mind; Spectral Shift; Trait Doctoring; Whim of
     Volrath.
-- **New coverage may add what it needs** (owner ruling, round 8;
-  `docs/decisions/english-v4.md` §4.4, item 3): a Stratum 7 construction the
-  grammar cannot yet build may add features, values, Categories, Productions
-  or engine capabilities. Each addition is justified by the construction it
-  builds, citing CGEL or `docs/oracle-style-guide.md`, and stated generally.
-  Line (a) and the single-holder finding still hold, and nothing is added to
-  suppress a Reading.
+- **New coverage may add what it needs** (`docs/decisions/english-v4.md` §4.4,
+  principle 3): a Stratum 7 construction the grammar cannot yet build may add
+  features, values, Categories, Productions or engine capabilities. Each
+  addition is justified by the construction it builds, citing CGEL or
+  `docs/oracle-style-guide.md`, and stated generally. The engine still names
+  no feature (principle 6), a single-holder value is still a finding, and
+  nothing is added to suppress a Reading.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean
@@ -131,10 +131,10 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
 
 ## Coverage S7 intrinsically needs
 
-The round-12 re-scan (owner ruling F8) found four constructions that S7 cannot
-read without. They are planned as coverage under `docs/decisions/english-v4.md`
-§4.4 item 3, not as suppression, after the comma-scope and
-delimited-complement fixes (F1, F2) land:
+A re-scan found constructions that S7 cannot read without. They are planned as
+coverage under `docs/decisions/english-v4.md` §4.4, principle 3, not as
+suppression, after the comma-scope and
+delimited-complement fixes land:
 
 1. Stranded auxiliaries, VP ellipsis and pro-VP: *if you do*, *if they don't*,
    *if you can't*, *if it isn't* (CGEL, Ch. 17 §3.1, pp. 1519–1524), and
@@ -153,7 +153,7 @@ delimited-complement fixes (F1, F2) land:
    holds no unclosed comma), so the coordination comma and the comma-set
    post-dependent's comma may need to be told apart.
 
-From `english-v4-numeric-coordination-gate` (owner ruling, round 13, item 2):
+From `english-v4-numeric-coordination-gate`:
 
 - An unlike coordination of an Amount and a Noun Phrase under a head that
   selects both (*equal to [2] or [the greatest power among Dinosaurs you
@@ -171,9 +171,9 @@ From `english-v4-numeric-coordination-gate` (owner ruling, round 13, item 2):
   `v is independently constructed and grammatical => v is a Reading of parse(render(v))`).
 - Full linguistic judgment suite passes: every judgment's positive
   assertions hold, and nothing ungrammatical is admitted. No judgment asserts
-  rank (round 9: `docs/decisions/english-v4.md` §4.4, item 6).
-- The round-9 hard landing acceptance holds for every landing under this
-  Stratum (§4.4, item 9): no face is lost, `cargo xtask english-v4 strata
+  rank (`docs/decisions/english-v4.md` §4.4, principle 4).
+- The landing acceptance of §4.4, principle 5, holds for every landing under
+  this Stratum: no face is lost, `cargo xtask english-v4 strata
   --check` passes, and no real card's forest explodes. The cheapest-tier
   figures and the judgment-set S/A/P/F are reported, not gated.
 - Zero CR-cataloged words appear directly in the grammar data file, and zero

@@ -161,7 +161,7 @@ impl Builder {
             return Err(invalid("only a contracted auxiliary is bound"));
         }
         let mut lexeme = Lexeme::verb(id, &entry.lemma, source);
-        // Oracle text has no first person (owner ruling): a paradigm has
+        // Oracle text has no first person: a paradigm has
         // second- and third-person cells only.
         lexeme
             .forms

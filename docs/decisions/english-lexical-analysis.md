@@ -144,8 +144,8 @@ Settled analyses:
 Readings; wrong Readings beside a correct one are tolerated, because not every
 one can be eliminated in syntax alone. A face whose Readings are all known to
 be wrong is not covered, and is reported separately from read and unread. A
-newly admitted wrong Reading is a defect, never a gain. No ruling accepts a
-known-wrong analysis as coverage.
+newly admitted wrong Reading is a defect, never a gain. A known-wrong
+analysis is never accepted as coverage.
 
 **Morphological and valence completeness vs. controlled-register syntax.** Every
 declared verb and noun receives its full English inflectional paradigm, and
