@@ -120,7 +120,8 @@ def UsageLimit.check (drs : DRS) (limit : UsageLimit) : List Refusal :=
 
 private def announcedColor : Ability :=
   .static (.replace (.would .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival []))
-    (.also (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
+    (.before (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none)
+      none)
     none .repeatedly none)
 private def readAnnouncedColor : Ability :=
   .static (.characteristicChange .any [.quality .adds (.chosen (.ofChosen .theChoice .color))])

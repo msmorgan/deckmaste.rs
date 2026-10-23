@@ -133,7 +133,7 @@ theorem megamorphCounterIsOnAsItTurnsFaceUp :
         [ static
             (replace (would any (turnFaceUp thisPermanent))
               (doIf (keywordCostPaid (.named "morph") thisPermanent)
-                (also (putCounters 1 p1p1Counter thisPermanent)))) ] := rfl
+                (alongside (putCounters 1 p1p1Counter thisPermanent)))) ] := rfl
 
 theorem okMultikicker : Ability.check (DRS.ofList []) (multikicker cost) = [] := by decide
 

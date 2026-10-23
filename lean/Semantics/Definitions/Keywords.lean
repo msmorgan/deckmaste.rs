@@ -225,14 +225,15 @@ semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (also
-            (sequentially
-              [ .expose .reveal
-                  (.cards
-                    (counted anyNumber
-                      (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent]))),
-                putCounters (times (.inCaller amount) (.countOf them)) p1p1Counter
-                  thisPermanent ]))) ]
+          (before
+            (.expose .reveal
+              (.cards
+                (counted anyNumber
+                  (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent]))))
+            (some
+              (alongside
+                (putCounters (times (.inCaller amount) (.countOf them)) p1p1Counter
+                  thisPermanent))))) ]
 semantic_definition annihilator (amount : Amount) : Ability :=
   .keyword (.named "annihilator") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.attack none))
@@ -515,9 +516,9 @@ each creature [CR#702.82a], devour [quality] each permanent [CR#702.82c]. -/
 semantic_template devourEntry (quality head : Predicate) (amount : Amount) : Ability :=
   static
     (replace (would thisPermanent enter)
-      (also
-        (may (Action.devour (counted anyNumber (and [quality, .in_ battlefield])))
-          (some
+      (before (may (Action.devour (counted anyNumber (and [quality, .in_ battlefield]))))
+        (some
+          (alongside
             (putCounters (forEach amount (and [head, was (sacrifice which) thisWay]))
               p1p1Counter thisPermanent)))))
 /-- "Devour [quality] N", a variant of devour, so it carries devour's label [CR#702.82c]. -/
@@ -610,7 +611,8 @@ semantic_definition enchant (quality : Predicate) : Ability :=
           (would .any
             (.move thisAura (not stack) battlefield .arrival [.not (.attachedTo .any)]))
           (doIf (exists_ (legalHostOf thisAura))
-            (also (attachTo thisAura (a (legalHostOf thisAura)))))),
+            (before (choose (a (legalHostOf thisAura)))
+              (some (alongside (attachTo thisAura it)))))),
       static
         (replace
           (would thisAura
@@ -1068,7 +1070,7 @@ semantic_definition megamorph (cost : Cost) : Ability :=
       static
         (replace (would any (turnFaceUp thisPermanent))
           (doIf (keywordCostPaid (.named "morph") thisPermanent)
-            (also (putCounters 1 p1p1Counter thisPermanent)))) ]
+            (alongside (putCounters 1 p1p1Counter thisPermanent)))) ]
 semantic_definition melee : Ability :=
   .keyword (.named "melee") []
     [ whenever (does thisCreature (.attack none))
@@ -1374,7 +1376,7 @@ semantic_definition riot : Ability :=
   .keyword (.named "riot") []
     [ static
         (replace (would thisPermanent enter)
-          (also
+          (alongside
             (mayOrElse (putCounters 1 p1p1Counter thisPermanent)
               (gainHaste thisPermanent)))) ]
 semantic_definition saddle (amount : Amount) : Ability :=
@@ -1623,11 +1625,11 @@ semantic_definition tribute (amount : Amount) : Ability :=
   .keyword (.named "tribute") [.number (.inCaller amount)]
     [ static
         (replace (would thisCreature enter)
-          (also
-            (sequentially
-              [ choose anOpponent,
-                instruct (the isChosenPlayer)
-                  (may (putCounters (.inCaller amount) p1p1Counter thisCreature)) ]))) ]
+          (before (choose anOpponent)
+            (some
+              (alongside
+                (instruct (the isChosenPlayer)
+                  (may (putCounters (.inCaller amount) p1p1Counter thisCreature))))))) ]
 /-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
 cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. "[Cost], Discard
 this card: Search your library for a [type] card, reveal it, and put it into your hand. Then
@@ -1668,7 +1670,7 @@ semantic_definition unleash : Ability :=
   .keyword (.named "unleash") []
     [ static
         (replace (would thisPermanent enter)
-          (also (may (putCounters 1 p1p1Counter thisPermanent)))),
+          (alongside (may (putCounters 1 p1p1Counter thisPermanent)))),
       static
         (onlyWhile (cant thisPermanent (.block .any))
           (is thisPermanent (.hasCounters p1p1Counter))) ]

@@ -2193,7 +2193,9 @@ def markReplacementDomain (before conditioned : DRS) : DRS :=
       else ref }
 
 /-- A replacement, read after the event it replaces, `replacesEntering` when that event is an
-entering. `instead` and `also` read their action; `withRiders` reads its riders, which must be
+entering. `instead` and `alongside` read their action; `before` reads its action, then its body,
+if one is written, in a new clause after it, as `sequentially` reads its next step, so the body
+reads what the action did; `withRiders` reads its riders, which must be
 Entry Riders over an entering; `onlyIf` reads its condition, then its body in a new clause after
 it, as `doIf` reads its then-branch. A caller's replacement is read in its caller's scope. -/
 def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesEntering : Bool)
@@ -2203,7 +2205,14 @@ def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesE
   | n + 1, .inCaller body =>
     let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body replacesEntering n
     (leaveCaller drs callerDrs, errs)
-  | _ + 1, .instead action | _ + 1, .also action => ops.inst .postEvent .obj drs action
+  | _ + 1, .instead action | _ + 1, .alongside action => ops.inst .postEvent .obj drs action
+  | n + 1, .before action body =>
+    let (drs1, e1) := ops.inst .postEvent .obj drs action
+    match body with
+    | none => (drs1, e1)
+    | some body =>
+      let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesEntering n
+      (drs2, e1 ++ e2)
   | _ + 1, .withRiders riders =>
     let (out, errs) := stepMoveRiderListWith ops drs riders
     (out, errs ++ refuse replacesEntering .riddenEntering ++
@@ -2324,24 +2333,31 @@ def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
   | _+1, _ => []
 termination_by structural fuel
 
-/-- What a replacement does `also` as part of the replaced event ("As this enters, you may
-sacrifice any number of creatures"), whose results later lines read [CR#614.1c,702.82b]. -/
-def Replacement.alsoAction? (replacement : Replacement) (fuel : Nat := 64) : Option Action :=
+/-- What a replacement does before the replaced event or as part of it, which still happens ("As
+this enters, you may sacrifice any number of creatures"), in the order done, whose results later
+lines read [CR#614.1c,702.82b]. -/
+def Replacement.doneAction? (replacement : Replacement) (fuel : Nat := 64) : Option Action :=
   match fuel, replacement with
   | 0, _ => none
-  | n+1, .inCaller body | n+1, .onlyIf _ body => body.alsoAction? n
-  | _+1, .also action => some action
+  | n+1, .inCaller body | n+1, .onlyIf _ body => body.doneAction? n
+  | _+1, .alongside action => some action
+  | n+1, .before action body =>
+    match body.bind (·.doneAction? n) with
+    | some after => some (.sequentially [action, after])
+    | none => some action
   | _+1, .instead _ | _+1, .withRiders _ => none
 termination_by structural fuel
 
-/-- Choices made as part of a replaced event, by what a replacement does `also`
-("As this enters, choose a color"), which later lines read [CR#614.1c]. -/
+/-- Choices a replacement makes before the replaced event or as part of it ("As this enters,
+choose a color"), which later lines read [CR#614.1c,614.12a]. -/
 def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
     List ChoiceSort :=
   match fuel, replacement with
   | 0, _ => []
   | n+1, .inCaller body | n+1, .onlyIf _ body => replacementTextChoices body n
-  | _+1, .also action => actionTextChoices action
+  | _+1, .alongside action => actionTextChoices action
+  | n+1, .before action body =>
+    actionTextChoices action ++ (body.map (replacementTextChoices · n)).getD []
   | _+1, .instead _ | _+1, .withRiders _ => []
 termination_by structural fuel
 
@@ -2522,7 +2538,7 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
     publishTextChoices drs (actionTextChoices action)
   | _+1, .replace event replacement _ _ _ =>
-    let published := match replacement.alsoAction? with
+    let published := match replacement.doneAction? with
       | some action => publishArms ops drs (nextClause (stepWouldClauseWith ops drs event).1) action
       | none => drs
     publishTextChoices published (replacementTextChoices replacement)

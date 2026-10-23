@@ -220,8 +220,9 @@ theorem conditionOverTooDeepReplacementIsRefused :
 
 /-! ### What a replacement makes of its event
 
-"Instead" puts an action in the event's place; `also` does one as part of the event, which still
-happens; `withRiders` lets the entering happen with Entry Riders. None restates the event
+"Instead" puts an action in the event's place; `before` does one before the event and `alongside`
+does one as part of it, the event still happening; `withRiders` lets the entering happen with Entry
+Riders. None restates the event
 [CR#614.1a,614.1c,614.1d]. -/
 
 /-- "This land enters tapped": the entering still happens, ridden; nothing restates it
@@ -286,16 +287,16 @@ theorem okConditionalRiders :
   decide
 
 /-- "As this creature enters, choose an opponent. That player may put an additional +1/+1
-counter on it as it enters." (tribute 1): the chosen player is read in the action done as part
-of the entering [CR#702.104a]. -/
-theorem okAlsoReadsItsOwnChoice :
+counter on it as it enters." (tribute 1): the player chosen before the entering is read in the
+action done as part of it [CR#702.104a,614.12a]. -/
+theorem okAlongsideReadsTheChoiceBefore :
     StaticSpec.check (DRS.ofList [])
       (replace (would thisCreature enter)
-        (also
-          (sequentially
-            [ choose anOpponent,
-              instruct (the isChosenPlayer)
-                (may (putCounters 1 (.printed p1p1Counter) thisCreature)) ]))) = [] := by
+        (before (choose anOpponent)
+          (some
+            (alongside
+              (instruct (the isChosenPlayer)
+                (may (putCounters 1 (.printed p1p1Counter) thisCreature))))))) = [] := by
   decide
 
 /-- "<spec> unless <condition>" is "<spec> if not <condition>": the negation is the

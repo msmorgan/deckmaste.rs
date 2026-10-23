@@ -131,7 +131,8 @@ mutual
   def Replacement.namesThisDoor (replacement : Replacement) (fuel : Nat := 64) : Bool :=
     match fuel, replacement with
     | n + 1, .inCaller body => body.namesThisDoor n
-    | n + 1, .instead i | n + 1, .also i => i.namesThisDoor n
+    | n + 1, .instead i | n + 1, .alongside i => i.namesThisDoor n
+    | n + 1, .before i body => i.namesThisDoor n || body.any (fun b => b.namesThisDoor n)
     | n + 1, .onlyIf condition body => condition.namesThisDoor n || body.namesThisDoor n
     | _, _ => false
   termination_by structural fuel
