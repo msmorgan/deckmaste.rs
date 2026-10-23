@@ -4259,10 +4259,12 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
-          (publishProhibitionSources drs drs4, headErr ++ e0 ++ e1 ++ e2 ++ e3 ++ e4)
+          (publishProhibitionSources drs drs4,
+            headErr ++ e0 ++ e1 ++ e2 ++ e3 ++ e4 ++ refuse mods.rider.isNone .deonticRider)
         | .must subj action mods | .can subj action mods =>
           let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
-            refuse mods.cause.isNone .deonticCause
+            refuse mods.cause.isNone .deonticCause ++
+            refuse (mods.rider.isNone || s matches .can ..) .deonticRider
           let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
@@ -4275,13 +4277,18 @@ def stepOps : Nat → StepOps
             (action.describedEvents (match subj with
               | .actor _ => (actorShape? drs1).map (·.kind)
               | .any | .by _ => none)).map ({ · with permitted := true })
-          ({ drs4 with
+          let permitting := { drs4 with
               actionPattern := drs.actionPattern
-              causedEvents := permitted ++ drs4.causedEvents },
-            headErr ++ e1 ++ e2 ++ e3 ++ e4)
+              causedEvents := permitted ++ drs4.causedEvents }
+          -- A rider modifies the permitted act, so it reads the permission's clause back
+          -- [CR#608.2c].
+          let (out, e5) := match mods.rider with
+            | some rider => ops.inst .postEvent .obj (nextClause permitting) rider
+            | none => (permitting, [])
+          (out, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
         | .gatedBy cost subj action mods =>
           let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
-            refuse mods.cause.isNone .deonticCause
+            refuse mods.cause.isNone .deonticCause ++ refuse mods.rider.isNone .deonticRider
           let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods

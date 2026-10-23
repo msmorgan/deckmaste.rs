@@ -880,6 +880,19 @@ mutual
     happening [CR#120.3a,120.3f]; with no cause, "you can't lose life" stops every loss of life
     [CR#119.8]. Only `cant` takes one (`deonticCause`). -/
     cause : Option Causing := none
+    /-- A Permission Rider: the rest of the permission's own ability, the text after it in the
+    same paragraph, not a separate ability (each paragraph break marks one [CR#113.2c]). It
+    modifies the act `can` permits, carried out for an act performed under this permission and
+    no other, and its pronouns read back from the permission's clause. "You may cast this spell
+    as though it had flash. If you cast it any time a sorcery couldn't have been cast, the
+    controller of the permanent it becomes sacrifices it at the beginning of the next cleanup
+    step" is one ability: "if you cast it" is a cast made under that permission, its
+    cast-timing check [CR#307.5a] reads that cast, and the ability, a static ability that
+    functions on the stack, creates its delayed trigger as the permanent is put onto the
+    battlefield [CR#608.3g]. A cast made under another effect's permission (Vedalken Orrery's)
+    is not that cast, so nothing is sacrificed (Mystic Veil ruling, 2022-12-08). Only `can`
+    takes one (`deonticRider`). -/
+    rider : Option Action := none
 
   inductive StaticSpec where
     | inCaller (body : StaticSpec)

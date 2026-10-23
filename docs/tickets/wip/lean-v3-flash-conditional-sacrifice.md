@@ -22,3 +22,20 @@ sentence: a spell's static ability under which the delayed triggered ability is 
 spell resolves [CR#603.7a], conditioned on how the spell was cast. Decide that form (a replacement
 on the spell's resolution, or a dedicated static form), pin it, and spell the ten cards,
 *Ward of Lights* with its `retention` like *Flickering Ward*'s.
+
+## Rulings (2026-10-23)
+
+1. **One ability, the second sentence a rider on the permission.** The two sentences are one
+   paragraph, so one ability [CR#113.2c]: "If you cast it" is a cast made under that permission,
+   which is why the 2022-12-08 Gatherer ruling holds ("The sacrifice occurs only if you cast it
+   using its own ability"). The ability is a static ability that functions on the stack and
+   creates its delayed trigger as the permanent enters [CR#608.3g]. It is written as
+   `DeonticMods.rider` on the `can`, stepped after the permission's clause so its pronouns read
+   that clause (`thisSpell` once, every "it" `it`); the cast-timing check is the printed one
+   [CR#307.5a], read of the permitted cast. A rider on any deontic but `can` is refused
+   (`deonticRider`). No `resolving` constructor, no `.asEvent (move …)`, no Link Source.
+2. **Scope: the nine cards** (Armor of Thorns, Grave Servitude, Lightning Reflexes, Mystic Veil,
+   Parapet, Relic Ward, Soar, Spider Climb, Ward of Lights with its `retention`). Necromancy is
+   [lean-v3-necromancy-linked-entry](../planned/lean-v3-necromancy-linked-entry.md); dash, blitz
+   and warp are
+   [lean-v3-dash-blitz-warp-delayed-trigger-form](../planned/lean-v3-dash-blitz-warp-delayed-trigger-form.md).
