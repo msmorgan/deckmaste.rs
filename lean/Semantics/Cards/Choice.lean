@@ -32,6 +32,43 @@ def fulgentDistraction : Action :=
                                attachedTo (those creature) ])) ]
 theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction = [] := by decide
 
+/-- "Choose target creature you control and target creature you don't control. … those
+creatures": the fight-and-bite opening (Blizzard Brawl, Joust, Tail Swipe). The targets are
+chosen as the spell is cast [CR#601.2c]; "those creatures" reads both. The rest of each card
+waits on `lean-v3-anaphoric-definite-description` and `lean-v3-reciprocal-each-other`. -/
+def chooseCreatureYouControlAndCreatureYouDont : Action :=
+  sequentially
+    [ choose (both (target (and [isCreature, youControl]))
+                   (target (and [isCreature, youDontControl]))),
+      tap (those creature) ]
+theorem okChooseCreatureYouControlAndCreatureYouDont :
+    Action.check (DRS.ofList []) chooseCreatureYouControlAndCreatureYouDont = [] := by decide
+
+/-- Stolen Uniform, through its second sentence: "Choose target creature you control and target
+Equipment. Gain control of that Equipment until end of turn." "Attach it to the chosen creature"
+waits on `lean-v3-chosen-participial-anchor`. -/
+def stolenUniformOpening : Action :=
+  sequentially
+    [ choose (both (target (and [isCreature, youControl])) (target (hasSubtype equipment))),
+      gainControl (that (.subtype equipment)) untilEndOfTurn ]
+theorem okStolenUniformOpening : Action.check (DRS.ofList []) stolenUniformOpening = [] := by
+  decide
+
+/-- Green Sun's Twilight, through its third sentence: "Reveal the top X plus one cards of your
+library. Choose a creature card and/or a land card from among them. Put those cards into your
+hand and the rest on the bottom of your library in a random order." The X-is-5 replacement's
+"the chosen cards" waits on `lean-v3-chosen-participial-anchor`. -/
+def greenSunsTwilightOpening : Action :=
+  sequentially
+    [ reveal (topSlice (plus (letter .x) 1)),
+      choose (NounPhrase.andOr
+        [ fromAmong (exactly 1) (and [isCreature, isCard]) them,
+          fromAmong (exactly 1) (and [isLand, isCard]) them ]),
+      putInto (those .card) hand,
+      putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ]
+theorem okGreenSunsTwilightOpening :
+    Action.check (DRS.ofList [letterB .x]) greenSunsTwilightOpening = [] := by decide
+
 def continueSpell : Action :=
   sequentially
     [ choose (targets (upTo 4) (and [isCreature, in_ yourGraveyard])),

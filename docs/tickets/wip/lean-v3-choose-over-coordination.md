@@ -43,7 +43,27 @@ while applying it ([CR#608.2d]). Both halves of a coordination are chosen.
   creatures" and "each of those creatures" as well as the per-role singular.
 - No new Core AST node: the coordination is the existing `.and` / `.coord .andOr`.
 
-## Tests to add
+## Narrowed (coordinator ruling, 2026-10-23)
+
+A probe at implementation showed that most of the readbacks named below cannot be written today,
+for reasons that have nothing to do with coordination. They fail after a single `choose (target …)`
+too. This ticket lands the coordination fix, per-member marking in the `choose` arm, and the
+readbacks that already exist: "those creatures", "that Equipment", "those cards". The rest moved:
+
+- "the creature you control …" (Blizzard Brawl, Joust, Tail Swipe, Malamet Battle Glyph,
+  Beastie Beatdown) → `lean-v3-anaphoric-definite-description`.
+- "the chosen cards" (Green Sun's Twilight), "the chosen creature" (Stolen Uniform, Duel for
+  Dominance) → `lean-v3-chosen-participial-anchor`.
+- "those creatures fight each other" (the fight family), and Grim Contest's "each of those
+  creatures … to the other" → `lean-v3-reciprocal-each-other`.
+
+Landed pins: `okChooseCreatureYouControlAndCreatureYouDont`, `okStolenUniformOpening` and
+`okGreenSunsTwilightOpening` (`Cards/Choice.lean`); `okChooseCoordinatedIndefinites`,
+`badChooseCoordinationWithUnchosenMember`, `chosenCoordinationStampsEachTarget` and
+`chosenCoordinationAnnouncesEachIndefinite` (`Proofs/Anaphora.lean`). The bare-`you` and
+superlative refusals were already pinned (`badChooseYou`, `Check/AbilityRules.lean`).
+
+## Tests to add (as originally written; see Narrowed)
 
 - *Blizzard Brawl*, *Joust*, *Grim Contest* and *Stolen Uniform* bench items, each with the
   readback its Oracle text uses ("the creature you control gets …", "those creatures fight each
