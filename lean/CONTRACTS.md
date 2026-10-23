@@ -1011,8 +1011,8 @@ the look-back zone changes [CR#603.10a].
   deleted (ruling 2026-10-22/23, extending the batch-4 ruling that removed the
   keyword gate and superseded the 2026-08-22 ruling that kept one): a keyword or
   ability on the wrong card class is a card-authoring mistake, not a text-meaning
-  error. A kindred card still has another card type [CR#308.1]
-  (`kindredHasAnotherType`, part of `cardLineOk`).
+  error. That includes a card typed as Kindred alone [CR#308.1]: the check
+  (`kindredHasAnotherType`) and its pin (`badKindredAlone`) are deleted (ruling 2026-10-23).
   The parts of a keyword's definition are not checked against the class:
   the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
   `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are

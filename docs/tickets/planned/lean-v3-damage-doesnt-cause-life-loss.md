@@ -43,3 +43,27 @@ Decide which, state it in Core, author the card, and add a witness that also che
 other results (the monarch trigger, lifelink) are untouched. *Soul-Scar Mage* is only a neighbour:
 it replaces noncombat damage to an opponent with counters, a replacement with an action, and is
 not this ticket's.
+
+## Ruling (owner, 2026-10-23)
+
+Option 1: a cause-qualified prohibition. `cant you (loseLife anyAmount)`, restricted to a loss
+that damage causes, reusing the existing `causedBy` [CR#119.8,120.3a]. The prohibition stops only
+the result; the damage is still dealt, and its other results are untouched [CR#120.3b,120.3f,120.3g].
+
+Not a replacement: the text has no "instead", and a replacement would compete with other
+replacement and prevention effects under [CR#616.1]. Options 2 and 3 are rejected.
+
+## Change
+
+- `cant`'s action takes `causedBy` as a would-clause does, so *Archon of Coronation* reads
+  `static (cant you (loseLife anyAmount) (causedBy (damage …)))` under the monarch condition.
+- Author *Archon of Coronation* in `lean/Semantics/Cards/Damage.lean`.
+- Update the closure tables and `lean/CONTRACTS.md` for the new `cant` argument.
+
+## Tests
+
+- `okArchonOfCoronation`: the card checks clean.
+- A witness that the damage's other results are untouched: the monarch trigger from combat damage
+  and lifelink still read their damage; only the loss of life is prohibited.
+- A negative: `cant you (loseLife anyAmount)` with no cause still denotes "you can't lose life"
+  [CR#119.8], a different card.

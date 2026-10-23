@@ -106,7 +106,7 @@ are not gated.
   `CardType.isInstantOrSorcery` (`:1824`); `normalizeTypes` (`:25-27`, the canonical order);
   `Stat.comparedType` (`:38-42`: power/toughness need creature, loyalty planeswalker, defense
   battle); `boxSuitsTypes` (`Check/Card.lean:198-201`) and `cardBoxOk` (`:210-214`);
-  `anyPermanentType` and `kindredHasAnotherType` (`Check/Card.lean`), `cardClassOf`
+  `anyPermanentType` (`Check/Card.lean`), `cardClassOf`
   (`Words.lean`, moved there by `lean-v3-by-card-class`), `flipHalfOk`, the shared-line case of
   `Card.check`.
 - **Layering**: Siege's rules need templates but `Definitions/Subtypes.lean` imports only
@@ -169,8 +169,9 @@ are not gated.
   [CR#110.4,304.1,307.1,308.1,309.2]; the other six are), `stats` per type (creature `[power,
   toughness]` [CR#302.4], planeswalker `[loyalty]` [CR#306.5], battle `[defense]` [CR#310.4]), a
   raw `CardType` constructor in a `spelled` card is refused (`Proofs/Authoring.lean`).
-- **Kept, must pass unchanged**: the `cardLineOk` / `kindredHasAnotherType` / `boxSuitsTypes` pins
-  in `Proofs/Faces.lean` (`badCreatureCardNoPt`, `badKindredAlone`, …) and every card bench.
+- **Kept, must pass unchanged**: the `cardLineOk` / `boxSuitsTypes` pins in `Proofs/Faces.lean`
+  (`badCreatureCardNoPt`, …) and every card bench. (`kindredHasAnotherType` and `badKindredAlone`
+  were deleted, owner ruling 2026-10-23.)
 - **Retired**: whatever remains of `Proofs/Tables.lean`, with the reason "its tables are gone".
 - `lean/scripts/build` (`lake build --wfail`), `cargo xtask lean check` if plugin definitions
   change, the CR citation gates; `cargo test -p xtask -p deckmaste_semantics_v2` only if

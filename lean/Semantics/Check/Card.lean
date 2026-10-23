@@ -17,10 +17,6 @@ inductive FaceSide where
 
 def anyPermanentType (tys : List CardType) : Bool := tys.any CardType.permanent
 
-/-- Each kindred card has another card type [CR#308.1]. -/
-def kindredHasAnotherType (tys : List CardType) : Bool :=
-  !tys.elem .kindred || tys.any (· != .kindred)
-
 def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
 
 /-! ## Printed-position references
@@ -150,8 +146,7 @@ def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
   hasAnyTypeCharacteristic c.supertypes c.types c.subtypes
 
 def Characteristics.cardLineOk (c : Characteristics) : Bool :=
-  c.lineNonEmpty && typesDistinct c.types && kindredHasAnotherType c.types &&
-    subsFitLine c.subtypes c.types
+  c.lineNonEmpty && typesDistinct c.types && subsFitLine c.subtypes c.types
 
 def Ability.keywordWantsModes (ab : Ability) (fuel : Nat := 64) : Bool :=
   match fuel with
