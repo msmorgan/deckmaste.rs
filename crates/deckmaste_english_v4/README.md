@@ -437,3 +437,16 @@ which excludes it. Numeric zero in a neutral loyalty symbol remains a numeral
 leaf. Mixed costs use one right-recursive structure, preventing duplicate trees
 from overlapping symbol and verbal cost alternatives. Modal selection with
 adjuncts or relatives belongs to the corresponding later strata.
+
+Selection placements include a passive participial postmodifier after a manner
+PP and participial postmodification of a fused partitive (*one of them chosen
+at random*). The manner PP *at random* hosts only on predicates (OSG §10,
+Ordinary choices; §12, Look, reveal, and the top of a library, and Randomness,
+dice, coins, and voting). Quantified frequency adjuncts include
+*a number of times equal to the difference* (CGEL, Ch. 8 §9, p. 715 n. 19).
+
+Expandable content-clause Complements retain the explicit subordinator in
+*except that the copy is red*, beside unmarked *except the copy is red*;
+non-expandable prepositions do not gain that form (CGEL, Ch. 11 §4.8, p. 971;
+OSG §12, Copies). A focusing modifier can precede ordinary determination
+(*exactly those colors*; CGEL, Ch. 6 §7.3.1, p. 587).

@@ -1,0 +1,25 @@
+# Selection placements, expandable except-clauses, and the ticket's witness lines (Distended Mindbender and Cataclysm await english-v4-s7-heavy-object-shift; Crabomination awaits english-v4-s7-unlike-cluster-coordination).
+# OSG §5 This way; §10 Ordinary choices; §12 Look, reveal, and the top of a library, Copies, and Randomness.
++ <card=Gorex, the Tombshell> Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand. => NounPhrase "a card" as Object of choose; PrepositionPhrase "at random" as Adjunct of choose; VerbPhrase "exiled with Gorex"
++ <card=Eye of Duskmantle> You may play lands and cast spells from among cards in your graveyard you've surveilled this turn. If you cast a spell this way, you pay life equal to its mana value rather than paying its mana cost. => RelativeClause "you've surveilled this turn" gap "cards in your graveyard"
++ <card=Expand the Sphere> Look at the top six cards of your library. Put up to two land cards from among them onto the battlefield tapped and the rest on the bottom of your library in a random order. If you put fewer than two lands onto the battlefield this way, proliferate a number of times equal to the difference. => PrepositionPhrase "from among them"; NounPhrase "a number of times equal to the difference" as Adjunct of proliferate
++ <card=Niv-Mizzet Reborn> When Niv-Mizzet enters, reveal the top ten cards of your library. For each color pair, choose a card that's exactly those colors from among them. Put the chosen cards into your hand and the rest on the bottom of your library in a random order. => Predicative "exactly those colors" as PredicativeComplement of be; PrepositionPhrase "from among them" as Adjunct of choose
++ <card=Fork> Copy target instant or sorcery spell, except that the copy is red. You may choose new targets for the copy. => PrepositionPhrase "except that the copy is red" as Adjunct of copy; Clause "the copy is red"
++ <card=Impact Resonance> Impact Resonance deals X damage divided as you choose among any number of target creatures, where X is the greatest amount of damage dealt by a source to a permanent or player this turn. => VerbPhrase "dealt by a source to a permanent or player this turn"; PrepositionPhrase "by a source" as Complement of deal; PrepositionPhrase "to a permanent or player" as Complement of deal
++ <card=Arcum's Whistle> {3}, {T}: Choose target non-Wall creature the active player has controlled continuously since the beginning of the turn. That player may pay {X}, where X is that creature's mana value. If they don't pay, the creature attacks this turn if able, and at the beginning of the next end step, destroy it if it didn't attack this turn. Activate only before attackers are declared. => Clause "they don't pay"; RelativeClause "the active player has controlled continuously since the beginning of the turn" gap "non-Wall creature"
++ <card=Chaos Defiler> Battle Cannon — When this creature enters or dies, for each opponent, choose a nonland permanent that player controls. Destroy one of them chosen at random. => NounPhrase "one of them chosen at random" as Object of destroy; VerbPhrase "chosen at random"
+# Expandability is selected by the preposition (CGEL, Ch. 11 §4.8, p. 971).
++ Copy target spell, except the copy is red. => PrepositionPhrase "except the copy is red" as Adjunct of copy
+* When that this creature enters, draw a card.
+* Copy target spell, except that that the copy is red.
+# A participial modifier is a bare passive (CGEL, Ch. 14 §9, pp. 1264–1265).
+* Destroy one of them been chosen at random.
+* Choose a card at random been exiled with this creature.
+# Interrogative *how* is no focusing modifier of a Noun Phrase.
+*NounPhrase how those creatures
+# This additional deferred witness becomes readable through general NP focus.
++ <card=Scrying Glass> {3}, {T}: Choose a number greater than 0 and a color. Target opponent reveals their hand. If that opponent reveals exactly the chosen number of cards of the chosen color, you draw a card. => NounPhrase "exactly the chosen number of cards of the chosen color" as Object of reveal
+# Manner is clause-level, within Complement Clusters too (CGEL, Ch. 15 §4.3, pp. 1341–1343).
+*NounPhrase a card at random
++ Exile a card at random and a creature card at random. => ComplementCluster "a card at random"; ComplementCluster "a creature card at random"; PredicateAdjunct "at random" as Adjunct of exile; !NounPhrase "a card at random"; readings 1
++ Exile a card and a land. => NounPhrase "a card and a land" as Object of exile; readings 1

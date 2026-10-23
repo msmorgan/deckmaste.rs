@@ -2704,6 +2704,46 @@ impl<'a> Binder<'a> {
         Ok(drafts)
     }
 
+    fn internalised_orders(draft: &Draft) -> Vec<Draft> {
+        let mut ordered = Vec::new();
+        // The internalised Complement (CGEL, Ch. 16 §10.1.1, pp. 1428–1429)
+        // is a PP Complement like the Frame's own, so it can precede a later
+        // one (*damage dealt by a source to a player*). Preserve the same
+        // Frame and functions in each surface order, keeping any NP Object
+        // before the by-phrase.
+        if let Some(agent) = draft.internalised {
+            for before in 1..agent {
+                if !draft.children[before..agent].iter().all(|child| {
+                    matches!(
+                        child.symbol,
+                        Symbol::Cat {
+                            prepositions: Some(_),
+                            ..
+                        }
+                    )
+                }) {
+                    continue;
+                }
+                let mut reordered = draft.clone();
+                reordered.id = Ident::new(&format!("{}/internalised-before{before}", draft.id));
+                let child = reordered.children.remove(agent);
+                reordered.children.insert(before, child);
+                remap_draft(&mut reordered, |i| {
+                    if i == agent {
+                        before
+                    } else if (before..agent).contains(&i) {
+                        i + 1
+                    } else {
+                        i
+                    }
+                });
+                reordered.internalised = Some(before);
+                ordered.push(reordered);
+            }
+        }
+        ordered
+    }
+
     fn valence_order(
         &mut self,
         drafts: Vec<Draft>,
@@ -2714,6 +2754,7 @@ impl<'a> Binder<'a> {
         let adjunct = adjunct.map(|name| self.category(name)).transpose()?;
         let mut ordered = Vec::new();
         for draft in drafts {
+            ordered.extend(Self::internalised_orders(&draft));
             if heavy
                 && draft.children.len() > 2
                 && draft.children[1].name == "object"

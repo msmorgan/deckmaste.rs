@@ -83,6 +83,8 @@ pub enum FillSpec {
     /// Phrase).
     MeasureNP,
     FiniteClause,
+    /// An expandable declarative content clause (CGEL, Ch. 11 §4.8, p. 971).
+    ExpandableClause,
     VerblessClause,
     /// A non-finite or verbless clause with its Subject (*with your hand
     /// revealed*; CGEL, Ch. 14 §10(a), p. 1267).

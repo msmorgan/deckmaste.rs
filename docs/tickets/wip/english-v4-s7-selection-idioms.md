@@ -45,3 +45,8 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+Distended Mindbender and the Object placement of Cataclysm moved to `english-v4-s7-heavy-object-shift`. Crabomination moved to `english-v4-s7-unlike-cluster-coordination`.
+
+1. **Census delta** (ymlxxuwp): fully read faces 32,718 → 32,734; total Readings 339,455 → 341,562; lost faces: none.
+2. **Judgment set** (ymlxxuwp): all 18 `selection_idioms.txt` entries hold; every other judgment entry has the same outcome as on the base.

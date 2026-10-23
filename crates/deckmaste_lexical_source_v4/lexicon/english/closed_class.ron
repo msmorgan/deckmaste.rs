@@ -138,8 +138,11 @@
     adverbs: [
         // Clause-initial *how* marks an interrogative clause, which the
         // grammar reads by the word itself; it is never a front Adjunct of a
-        // declarative Clause (CGEL, Ch. 11 §5.1, pp. 972–973).
-        (lemma: "how", positions: [Bounding]),
+        // declarative Clause (CGEL, Ch. 11 §5.1, pp. 972–973). Its degree
+        // use grades *many* and *much*, which the grammar also reads by the
+        // word, so it is no bounding or focusing modifier of a numeral or a
+        // Noun Phrase (*how two creatures*, *how those creatures*).
+        (lemma: "how", positions: []),
         // Degree *as* grades a scalar head (CGEL, Ch. 13 §4.3, p. 1130).
         // It has no clause position or general phrasal distribution: the
         // grammar combines it with the degree determinatives it modifies.

@@ -55,9 +55,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -406,6 +406,7 @@
         "SignedAmount": (),
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
+        "ExpandableClause": (category: Some("Clause")),
         "VerblessClause": (category: Some("Clause")),
         "AbsoluteClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
@@ -455,6 +456,7 @@
         "The": "det:the",
         "Genitive": "clitic:genitive",
         "That": "det:that",
+        "ContentMarker": "sub:that",
         "Any": "det:any",
         "Or": "coord:or",
         "And": "coord:and",
@@ -571,6 +573,7 @@
         // a keyword's Cost (*Equip abilities you activate cost {2} less*).
         Cost: "SymbolCosts",
         FiniteClause: "FiniteClause",
+        ExpandableClause: "ExpandableClause",
         VerblessClause: "VerblessClause",
         AbsoluteClause: "AbsoluteClause",
         InterrogativeClause: "InterrogativeClause",
@@ -1090,6 +1093,11 @@
         // A focusing or multiplying adverb modifies a Noun Phrase (*only one
         // target*, *twice X life*); a bounding one, its quantity (*at least
         // one creature*).
+        // A focusing modifier precedes a determined NP (*exactly those
+        // colors*; CGEL, Ch. 6 §7.3.1, p. 587). With numerical determination
+        // the existing AdverbModifiedDeterminerPhrase hosts it instead.
+        (name: "BoundingNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
+            equations: [Require("modifier.AdjunctPosition", "Bounding"), Exclude("determiner.DeterminativeDistribution", "Numerical"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AdverbModifiedNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "NounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         (name: "AdverbModifiedPrepositionPhrase", lhs: "PrepositionPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "PrepositionPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         (name: "AdverbModifiedDeterminerPhrase", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "DeterminerPhrase")], equations: [Require("modifier.AdjunctPosition", "Bounding"), Require("head.DeterminativeDistribution", "Numerical")]),
@@ -1562,6 +1570,10 @@
         // head lexeme and the head line are forgone.
         (name: "TemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Carry("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // Bounding frequency also uses a quantified *number of times*,
+        // including its postmodifiers (CGEL, Ch. 8 §9, p. 715 n. 19).
+        (name: "DeterminedTemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
+            equations: [Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.NounDistribution", "Quantity"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Carry("quantity.ObliqueNounKind", "Temporal"), Agree("determiner.Number", "quantity.Number"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Ordinary bare plurals have plural count heads, not just the plural
         // Number of a coordination of singular count nominals. A shared
         // determiner belongs outside that coordination and cannot be left
@@ -1652,6 +1664,11 @@
         // that hasn't been chosen*).
         (name: "FusedPostmodifier", lhs: "FusedNounPhrase", rhs: [Cat("head", "FusedNounPhrase"), Cat("modifier", "RelativeClause")],
             equations: [Require("modifier.ClauseMarking", "Relative"), Agree("head.Number", "modifier.Number")]),
+        // A subjectless participial clause can modify a partitive fused head
+        // too (*one of them chosen at random*; CGEL, Ch. 5 §9.1, p. 411;
+        // Ch. 14 §9, pp. 1264–1265; OSG §5, This way).
+        (name: "FusedParticipialPostmodifier", lhs: "FusedNounPhrase", rhs: [Cat("head", "FusedNounPhrase"), Cat("modifier", "VerbPhrase")],
+            equations: [Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive"), Exclude("modifier.VerbKind", "Auxiliary")], heavy: ["modifier"], cost: 1),
         (name: "PrepositionalConjunct", lhs: "PostmodifierConjunct", rhs: [Hosted("filler", "PrepositionPhrase", Nominal)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "NominalObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "KeywordObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "KeywordPhrase")], equations: [Require("$.ComplementKind", "KeywordPhrase")]),
@@ -1790,6 +1807,12 @@
         // random*), which has no noun of its own to modify in place.
         (name: "PostposedBareRelative", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("object", "ComplementNounPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("modifier", "RelativeClause")],
             equations: [Require("head.Gap", "NP"), Require("adjunct.ComplementKind", "AdjP"), Require("modifier.ClauseMarking", "Unmarked"), Agree("object.Number", "modifier.Number")], heavy: ["modifier"], cost: 2),
+        // Postposing separates an Object from its participial postmodifier
+        // by a manner PP (*a card at random exiled with ...*; OSG §10,
+        // Ordinary choices; CGEL, Ch. 14 §9, pp. 1264–1265; Ch. 16 §4,
+        // pp. 1382–1384). The modifier is a bare passive, not an auxiliary.
+        (name: "PostposedParticipialModifier", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("object", "ComplementNounPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("modifier", "VerbPhrase")],
+            equations: [Require("head.Gap", "NP"), Require("adjunct.ComplementKind", "AdjP"), Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive"), Exclude("modifier.VerbKind", "Auxiliary")], heavy: ["modifier"], cost: 2),
         // A postpositive equative Adjective Phrase with its own Complement,
         // the amount of the Object, postposed out of it past the verb's
         // selected Complements (*deals damage to any target equal to …*,
@@ -1812,6 +1835,11 @@
         // [they exile a nonland card, then you may cast it]*.
         (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")],
             equations: [Require("head.VerbForm", "Finite")], unlinked: ["head"]),
+        // Expandable declarative content clauses permit *that*; their lexical
+        // governors select this Category instead of the non-expandable one
+        // (CGEL, Ch. 11 §4.8, p. 971; OSG §12, Copies).
+        (name: "UnmarkedExpandableClause", lhs: "ExpandableClause", rhs: [Cat("head", "FiniteClause")]),
+        (name: "MarkedExpandableClause", lhs: "ExpandableClause", rhs: [Word("marker", "ContentMarker"), Cat("head", "FiniteClause")]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
         // The Absolute Clause Complement of *with* and *without*: a Subject
         // and a past-participial predicate (*with your hand revealed*; CGEL,
