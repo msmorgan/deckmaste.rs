@@ -272,12 +272,16 @@ Gap kinds and its reserved child names are not grammar names.
 environment's declared properties, including Catalog entries. Empty and
 singleton classes are reported. The grammar never enumerates their members.
 Binding reports features the same way (`english-lexical-analysis.md` §3,
-`english-v4.md` §4.4): a feature with fewer than two values, and a value with
-fewer than two holders. A value's holders are the lexemes that carry it and
-the Productions that set it on their mother; a value with neither is held by
-the Productions that require it of a child. A value projected from inflection
-is held by every word form inflected for it, and a feature equated with
-another shares that feature's holders. Each warning names its holders.
+`english-v4.md` §4.4): a feature with no value, and a value with fewer than
+two holders. A feature may declare one, privative, value, which is reported
+only by its holders. A value's holders are the lexemes that carry it and those
+that hold it through a Production setting it on its mother: the lexemes its
+lexical `head` names (a Closed Word, a lifted Lexical Class, a keyword's
+Parameter pattern, the lexemes declaring a Frame), or else the Production
+itself. A value with neither is held by the Productions that require it of a
+child. A value projected from inflection is held by every word form inflected
+for it. Features equated with one another share their holders, and such a
+value is reported once, naming them all. Each warning names its holders.
 `Parameters` compiles the catalog's ordered parameter patterns around a head:
 slots select grammar Categories; markers, bound stems and head identities stay
 in the catalog. With `coordinators`, a pattern's final marker and slot also

@@ -32,10 +32,12 @@
         // clause by *that* or a relative phrase.
         "ClauseMarking": ["Unmarked", "To", "Relative"],
         "Voice": ["Active", "Passive"],
-        // A verb whose Adjectival Passive is a declared Adjective (*tapped*).
-        "AdjectivalPassive": ["Derived", "Lexical"],
-        // Auxiliary verbs (CGEL's NICE verbs) and the rest.
-        "VerbKind": ["Lexical", "Auxiliary"],
+        // A verb whose Adjectival Passive is a declared Adjective (*tapped*);
+        // privative: any other verb leaves it unvalued.
+        "AdjectivalPassive": ["Lexical"],
+        // Auxiliary verbs (CGEL's NICE verbs); privative: a lexical verb
+        // leaves it unvalued.
+        "VerbKind": ["Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
         "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
@@ -46,11 +48,9 @@
         // (*three times X*; Ch. 5 §12, p. 434).
         "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
-        // A braced symbol's fused head (*add {G}*, *reduced by {2}*) is a
-        // Symbol: an amount of what it represents.
-        "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity", "Symbol"],
+        "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
         // The NounKind of a head's *of* oblique.
-        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity", "Symbol"],
+        "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
         "Determination": ["Bare", "Overt"],
         // The Determination of a determinative's *than* Complement.
         "ObliqueDetermination": ["Bare", "Overt"],
@@ -1112,7 +1112,7 @@
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],
             transparent: ["head"]),
         (name: "SymbolFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "SymbolHead")]),
-        (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Symbol"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
+        (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
