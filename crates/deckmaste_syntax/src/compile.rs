@@ -12,6 +12,7 @@ use deckmaste_lexical::SourceKind;
 use dpsi::Ident;
 
 use crate::LoadError;
+use crate::chart::QUOTATION_MARK;
 use crate::frames::Frame;
 use crate::frames::FrameCatalog;
 use crate::frames::FrameFamily;
@@ -910,8 +911,16 @@ impl<'a> Binder<'a> {
         if let Some(gap) = required_gaps.remove("$") {
             draft.introduces = gap;
         }
-        for symbol in &declaration.rhs {
-            let (name, symbol) = self.symbol(symbol).map_err(context)?;
+        for declared in &declaration.rhs {
+            let quoted = matches!(declared, SymbolDecl::Quoted(..));
+            if quoted {
+                draft.child(
+                    "",
+                    Symbol::Punct(QUOTATION_MARK, Binding::Prefix),
+                    GapRule::Closed,
+                );
+            }
+            let (name, symbol) = self.symbol(declared).map_err(context)?;
             let transparent = declaration.transparent.iter().any(|t| t == name);
             let gap = if let Some(gap) = required_gaps.remove(name) {
                 // A transparent child with a required Gap raises it.
@@ -922,6 +931,13 @@ impl<'a> Binder<'a> {
                 GapRule::Closed
             };
             draft.child(name, symbol, gap);
+            if quoted {
+                draft.child(
+                    "",
+                    Symbol::Punct(QUOTATION_MARK, Binding::Suffix),
+                    GapRule::Closed,
+                );
+            }
         }
         if let Some(name) = required_gaps.keys().next() {
             return Err(context(invalid(format!(
@@ -1054,7 +1070,8 @@ impl<'a> Binder<'a> {
     /// A right-hand-side declaration's child name and Symbol.
     fn symbol<'d>(&self, symbol: &'d SymbolDecl) -> Result<(&'d str, Symbol), LoadError> {
         Ok(match symbol {
-            SymbolDecl::Cat(name, category) => (
+            // A quoted child's marks are added around it (`authored`).
+            SymbolDecl::Cat(name, category) | SymbolDecl::Quoted(name, category) => (
                 name.as_str(),
                 Symbol::Cat {
                     binding: None,
@@ -1125,6 +1142,13 @@ impl<'a> Binder<'a> {
                         .ok_or_else(|| invalid(format!("unknown class `{class}`")))?,
                 )),
             ),
+            SymbolDecl::Mark(c, _) | SymbolDecl::Punct(c)
+                if crate::chart::is_quotation_mark(*c) =>
+            {
+                return Err(invalid(format!(
+                    "quotation mark `{c}`: a quoted child is declared with `Quoted`"
+                )));
+            }
             SymbolDecl::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
             SymbolDecl::Punct(c) => ("", Symbol::Punct(*c, Binding::Suffix)),
         })
@@ -1188,16 +1212,17 @@ impl<'a> Binder<'a> {
 
     /// Reports, as findings, a declared feature with no value and a feature
     /// value with fewer than two holders (`english-lexical-analysis.md` §3,
-    /// `english-v4.md` §4.4, principle 3). A feature may declare one value, a privative
-    /// one, whose unvalued feature is the unmarked default; the value is still
-    /// a finding unless it has two or more holders. A value's holders are the
-    /// lexemes whose feature bundles carry it and those that hold it through
-    /// a Production setting it on its mother ([`Binder::setter_holders`]); a
-    /// value that has none is a default, held through the Productions that
-    /// require it of a child leaving the feature unvalued. A value the engine
-    /// projects from inflection is held by every word form inflected for it.
-    /// Features equated with one another share their holders of a value of
-    /// the same name, and that value is reported once, naming them all.
+    /// `english-v4.md` §4.4, principle 3). A feature may declare one value, a
+    /// privative one, whose unvalued feature is the unmarked default; the
+    /// value is still a finding unless it has two or more holders. A
+    /// value's holders are the lexemes whose feature bundles carry it and
+    /// those that hold it through a Production setting it on its mother
+    /// ([`Binder::setter_holders`]); a value that has none is a default,
+    /// held through the Productions that require it of a child leaving the
+    /// feature unvalued. A value the engine projects from inflection is
+    /// held by every word form inflected for it. Features equated with one
+    /// another share their holders of a value of the same name, and that
+    /// value is reported once, naming them all.
     fn report_holders(&mut self) {
         let out = &mut self.out;
         let mut lexical: BTreeMap<(usize, u16), BTreeSet<String>> = BTreeMap::new();

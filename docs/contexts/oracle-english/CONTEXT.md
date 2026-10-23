@@ -460,8 +460,11 @@ independent utterance or a fragment (CGEL, Ch. 20 §6, pp. 1753–1755).
 
 **Terminal Punctuation**:
 Punctuation marking the end of a sentence. When a quotation ends a matrix
-sentence and both would have a full stop, the matrix full stop is suppressed
-(CGEL, Ch. 20 §6, p. 1755).
+sentence and both would have a full stop, only one is written (CGEL, Ch. 20
+§6, p. 1755). Oracle never writes a quoted ability's own final full stop, and
+writes the period or comma that follows a quotation inside its closing mark
+(*has "A" and flying.*, *"A," "B," and "C."*; `docs/oracle-style-guide.md` §3,
+Periods; Quotation marks and apostrophes).
 
 **Serial Comma**:
 The comma written before the Coordinator of a flat Coordination of three or

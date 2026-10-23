@@ -529,6 +529,12 @@
         (name: "CompleteKeywordPhrase", lhs: "KeywordPhrase", rhs: [Cat("head", "KeywordParameters")]),
         (name: "CompleteKeywordItem", lhs: "KeywordLineItem", rhs: [Cat("head", "KeywordParameters")]),
         (name: "BareKeywordMention", lhs: "KeywordPhrase", rhs: [Class("head", "ParameterizedKeyword")]),
+        // A granted ability quoted whole (*has "{T}: Add {G}."*; [CR#113.1a]):
+        // the text of an Ability set in quotation marks, with its final
+        // period inside the closing mark (style guide §3, Periods; Quotation
+        // marks and apostrophes; §12, Granting and removing abilities; CGEL,
+        // Ch. 20 §6, pp. 1753–1755).
+        (name: "QuotedAbility", lhs: "QuotedAbility", rhs: [Quoted("head", "Ability")]),
         (name: "TextAbility", lhs: "Document", rhs: [Cat("head", "Ability")]),
         (name: "TextTypeLine", lhs: "Document", rhs: [Cat("head", "TypeLine")]),
         (name: "TextHeader", lhs: "Document", rhs: [Cat("head", "Header")]),
@@ -1343,6 +1349,8 @@
         (name: "PrepositionalConjunct", lhs: "PostmodifierConjunct", rhs: [Hosted("filler", "PrepositionPhrase", Nominal)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "NominalObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "KeywordObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "KeywordPhrase")], equations: [Require("$.ComplementKind", "KeywordPhrase")]),
+        // A quoted ability beside a keyword (*has reach and "…"*).
+        (name: "QuotedObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "QuotedAbility")], equations: [Require("$.ComplementKind", "QuotedAbility")]),
         (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
         (name: "AdjectivalConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Require("$.ComplementKind", "AdjP")], heavy: ["filler"]),
         // A past-participial conjunct is a lexical passive participle clause
@@ -1629,6 +1637,8 @@
         // Contrastive *but* joins predicates (*you control but don't own*).
         Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["Inflection", "AdjectivalPassive"]),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm", "FinalParameter"]),
+        // *"A" and "B"*; *"A," "B," and "C."*
+        Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it
         // doesn't untap ...*).

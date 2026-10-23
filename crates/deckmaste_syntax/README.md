@@ -55,6 +55,12 @@ It has no proc macros and no generated code: a grammar is data.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.
+   A `Quoted(name, Category)` child is set in quotation marks the engine
+   supplies, double and single by nesting depth; the chart pairs the marks of
+   the text and reads it in logical order, where a period or comma written
+   inside a closing mark follows it and the quotation's own final period is
+   not written (`docs/oracle-style-guide.md` §3). Realization writes them back
+   from structure, so no quotation punctuation is stored.
 6. `parse_analyzed(analyzed)` parses a text already analyzed (for example with a
    card's names in scope); `parse_category(analyzed, category)` parses it as any
    Category, and `Parse::admit` admits at the Category the Parse was made for.

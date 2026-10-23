@@ -58,3 +58,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (yzwsslzk): faces read 28,894 → 29,932 (+1,038), Readings 252,596 → 258,466; lost faces: none.
+2. **Judgment set** (yzwsslzk): all hold, 3,076 enforced and 235 pending; every pending entry this ticket names now holds.

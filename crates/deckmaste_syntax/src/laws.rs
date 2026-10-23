@@ -301,9 +301,9 @@ impl Parse<'_> {
         &self.grammar.categories[self.root]
     }
 
-    /// The analyzed text this Parse was made from.
+    /// The analyzed text this Parse was made from, as written.
     #[must_use]
     pub fn text(&self) -> String {
-        self.tokens.iter().collect()
+        self.source.clone()
     }
 }

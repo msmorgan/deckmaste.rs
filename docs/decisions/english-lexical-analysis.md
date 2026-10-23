@@ -35,7 +35,10 @@ identity. No source-buffer echo or opaque catch-all leaf counts as realization.
 Punctuation may decide an analysis, but its presence is not stored in a Reading;
 realization derives it from structure. This includes the separator in a
 keyword-ability list, which is always a comma once reminder text is removed
-(see below).
+(see below), and the punctuation of a quotation: its marks are double, and
+single inside a double one, and the period or comma after it is written inside
+its closing mark, where its own final period is not written
+(`docs/oracle-style-guide.md` §3, Periods; Quotation marks and apostrophes).
 
 **Facts about the input.** The supported corpus is the Vintage-playable cards
 (legal or restricted), excluding Scryfall `set_type: funny`. Balanced

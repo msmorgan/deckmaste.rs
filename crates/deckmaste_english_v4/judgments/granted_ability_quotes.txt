@@ -1,4 +1,4 @@
-# Quoted abilities granted with "has", "gain" and "with": quotation as the complement of a verb or preposition, alone or coordinated with a keyword
+# Quoted abilities granted with "has", "gain", "lose" and "with": quotation as the complement of a verb or preposition, alone, nested or coordinated with a keyword
 + Enchanted creature has "{2}, Sacrifice this creature: You gain 2 life."
 + It has "Sacrifice this token: Add {C}."
 + Until end of turn, lands you control gain "Sacrifice this land: Add {B}."
@@ -7,3 +7,7 @@
 + All artifacts have "At the beginning of your upkeep, sacrifice this artifact unless you pay {2}."
 * It has "Sacrifice this token: {C} Add."
 + Whenever this creature attacks, it gains "this creature can't be blocked" until end of turn unless defending player sacrifices a creature of their choice. => Clause "this creature can't be blocked"
++ {3}: Until end of turn, this creature loses "Prevent all damage that would be dealt to this creature." => QuotedAbility "\"Prevent all damage that would be dealt to this creature.\"" as Object of lose
++ When this Aura enters, if it's on the battlefield, it loses "enchant creature card in a graveyard" and gains "enchant creature put onto the battlefield with this Aura." => Ability "enchant creature card in a graveyard"; Ability "enchant creature put onto the battlefield with this Aura"
++ −5: You get an emblem with "Mountains you control have '{T}: This land deals 1 damage to any target.'" => QuotedAbility "\"Mountains you control have '{T}: This land deals 1 damage to any target.'\"" as Complement of with; QuotedAbility "'{T}: This land deals 1 damage to any target.'" as Object of have; Ability "{T}: This land deals 1 damage to any target"
++ II — This Saga gains "Landfall — Whenever a land you control enters, create a 1/1 green Elf creature token." => Ability "Landfall — Whenever a land you control enters, create a 1/1 green Elf creature token"
