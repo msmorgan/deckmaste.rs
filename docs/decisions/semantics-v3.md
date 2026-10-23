@@ -220,6 +220,19 @@ the move's patient ("that creature dies", [CR#700.4]), that subject is read the 
 selected referent retains its current zone, identity, and stamp. `HistoricalMove` proves the read
 and subsequent ordinary-action refusals; `Lookback.okThatCreatureDiesThisWay` the subject read.
 
+Where the move writes no origin ("If that artifact is put into a graveyard this way"), a grounded
+"this way" lookback takes the origin from the Zone Change recorded by the event it reads back
+(`DRS.causedEvents` [CR#608.2c]): after "Destroy target artifact" that is the battlefield, so
+"that artifact" reads the destroyed artifact as the permanent it was [CR#608.2h]. A recorded
+origin other than the battlefield reads no permanent. The rule is limited to grounded "this way"
+lookbacks, which read back an event their own text caused. A written origin, a negated one
+("from anywhere other than the battlefield") included, decides alone, and a recorded event never
+overrides it. A lookback over another span, or a trigger, takes no recorded origin: "from
+anywhere" is no leaves-the-battlefield pattern [CR#603.6c].
+`Lookback.okThatArtifactPutIntoAGraveyardThisWay` proves the read,
+`Lookback.thatArtifactMilledThisWayStaysRefused`, `Lookback.writtenOriginStillDecides` and
+`Lookback.fromAnywhereIsNotLeavesTheBattlefield` its limits.
+
 Counter removal cannot read counters across a zone change: the new object's identity may be
 available, but its old counters ceased to exist ([CR#400.7,122.2]). Removal or transfer from
 that moved referent is refused until an instruction or entry/placement rider establishes new

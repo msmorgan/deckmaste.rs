@@ -1237,6 +1237,16 @@ def GameEvent.triggerEvents (ev : GameEvent) (fuel : Nat := 8) : List CausedEven
   | _ + 1, _ => []
 termination_by structural fuel
 
+/-- The events a "this way" lookback whose action is `action`, its subject of kind `subject` (if
+known), reads back among those its own spell or ability's earlier text caused or permitted
+(`DRS.causedEvents` [CR#608.2c]): done by what the subject names or, where the subject is what
+the event moves or acts on, done to it (`CausedEvent.subjectFits`). -/
+def DRS.thisWayEvents (drs : DRS) (action : Action) (subject : Option Kind) : List CausedEvent :=
+  let anchor := action.participialAnchor?
+  let verbs := action.eventVerbs
+  drs.causedEvents.filter fun event =>
+    event.readBy anchor verbs && event.subjectFits subject action.subjectIsPatient
+
 /-- Whether a lookback over `span` whose action is `action`, its subject of kind `subject` (if
 known), reads back an event in scope, done by what the subject names or, where the subject is
 what the event moves or acts on, done to it (`CausedEvent.subjectFits`). "This way" reads the
@@ -1248,10 +1258,8 @@ def lookbackGroundRefusals (drs : DRS) (action : Action) (subject : Option Kind)
     Option LookbackSpan → List Refusal
   | some .thisWay =>
     let anchor := action.participialAnchor?
-    let verbs := action.eventVerbs
     refuse ((drs.participialAnchorRead.isSome && drs.participialAnchorRead == anchor) ||
-      drs.causedEvents.any (fun event =>
-        event.readBy anchor verbs && event.subjectFits subject action.subjectIsPatient))
+      !(drs.thisWayEvents action subject).isEmpty)
       .thisWayUngrounded
   | some .triggering =>
     let anchor := action.participialAnchor?
@@ -1268,21 +1276,59 @@ def eventOrdinalRefusals : Option (Ordinal × Option Period) → List Refusal
   | some (ordinal, per) => refuse ordinal.ok .ordinalNonZero ++
     per.toList.flatMap fun period => refuse period.eventOrdinalOk (.eventOrdinalPeriod period)
 
+/-- Whether a move writes no origin ("is put into a graveyard"): its origin is anywhere. -/
+def Location.writesNoOrigin (loc : Location) (fuel : Nat := 16) : Bool :=
+  match fuel, loc with
+  | n + 1, .inCaller body => body.writesNoOrigin n
+  | _ + 1, .anyLocation => true
+  | _, _ => false
+termination_by structural fuel
+
 /-- Whether a move from `from_` observed at `at_` reads its battlefield patient as the permanent it
-was: a departure-observed move whose written origin includes the battlefield [CR#603.6c,603.10a]
-(`Location.observedOnDeparture` classes the Observation Point). -/
-def Location.readsDepartedPermanent (from_ : Location) (at_ : ObservationPoint) : Bool :=
-  at_ == .departure && match from_.positiveZones? with
+was. A written origin decides alone: a departure-observed move whose written origin includes the
+battlefield [CR#603.6c,603.10a] (`Location.observedOnDeparture` classes the Observation Point). A
+move that writes no origin reads the permanent only where a grounded "this way" lookback hands it
+the origin its matched event recorded (`recorded`, `DRS.thisWayRecordedOrigin`), and that origin is
+the battlefield: "Destroy target artifact. If that artifact is put into a graveyard this way, …"
+[CR#608.2c,608.2h]. -/
+def Location.readsDepartedPermanent (from_ : Location) (at_ : ObservationPoint)
+    (recorded : Option Zone := none) : Bool :=
+  if from_.writesNoOrigin then recorded == some .battlefield
+  else at_ == .departure && match from_.positiveZones? with
     | some zones => zones.any (fun zone => zone.sort == some .battlefield)
     | none => false
 
 /-- Whether a lookback's subject is the patient of a move that reads the permanent it was
-("that creature dies this way" [CR#700.4]): its subject is then read as the `.move` arm reads a
-written patient, against the departed participants (`semantics-v3.md`, the historical read). -/
-def Action.subjectReadsDepartedPermanent (action : Action) : Bool :=
+("that creature dies this way" [CR#700.4]), the move's origin, where it writes none, being
+`recorded` (`Location.readsDepartedPermanent`): its subject is then read as the `.move` arm reads
+a written patient, against the departed participants (`semantics-v3.md`, the historical read). -/
+def Action.subjectReadsDepartedPermanent (action : Action) (recorded : Option Zone := none) :
+    Bool :=
   match action.scopeBody with
-  | .move .actor from_ _ at_ _ => Location.readsDepartedPermanent from_ at_
+  | .move .actor from_ _ at_ _ => Location.readsDepartedPermanent from_ at_ recorded
   | _ => false
+
+/-- The origin a grounded "this way" lookback (`within`) whose move writes no origin
+(`Location.writesNoOrigin`) takes from the Zone Change recorded by the events it reads back
+(`DRS.thisWayEvents`) [CR#608.2c]: the battlefield if one of them moved its object from there, as
+a destroy does [CR#701.8a], else the first recorded origin. Only such a lookback has one: a written
+origin decides alone, and a trigger's "from anywhere" is no leaves-the-battlefield trigger
+[CR#603.6c]. -/
+def DRS.thisWayRecordedOrigin (drs : DRS) (subj : Subject) (action : Action) :
+    Option LookbackSpan → Option Zone
+  | some .thisWay =>
+    match action.scopeBody with
+    | .move _ from_ _ _ _ =>
+      if !from_.writesNoOrigin then none else
+      let subject : Option Kind := match subj with
+        | .actor np => np.kind?
+        | .by np => some (np.kindIn drs .object)
+        | .any => none
+      let origins := (drs.thisWayEvents action subject).filterMap
+        (·.zoneChange.bind (·.origin))
+      if origins.contains .battlefield then some .battlefield else origins.head?
+    | _ => none
+  | _ => none
 
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
@@ -1294,7 +1340,10 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | _ => []
     -- A subject the move moves ("that creature dies") reads the participants introduced before
     -- the clause as the permanents they were, as a patient written inside the move does.
-    let subjectContext := if action.subjectReadsDepartedPermanent then
+    -- A grounded "this way" lookback whose move writes no origin reads it from the events the
+    -- lookback reads back, and hands it to the move's patient read through `historicalMoveFrom`.
+    let recorded := drs.thisWayRecordedOrigin subj action within
+    let subjectContext := if action.subjectReadsDepartedPermanent recorded then
       { drs with historicalMoveFrom := some .battlefield
                  historicalReferentIds := drs.referents.map (·.id) } else drs
     let (drs1, e1) := stepEventSubjectWith ops subjectContext subj .postEvent action
@@ -1321,8 +1370,10 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         drs1.referents.filter (!·.isActorFrame)
       actionPattern := true
       historicalReferentIds := drs.referents.map (·.id)
+      historicalMoveFrom := if recorded.isSome then recorded else drs1.historicalMoveFrom
       participialAnchorRead := none }
     let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
+    let drs2 := { drs2 with historicalMoveFrom := drs.historicalMoveFrom }
     let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
     let (drs4, e4) := match within with
       | some span => stepLookbackSpanWith ops drs3 span
@@ -3472,10 +3523,15 @@ def stepOps : Nat → StepOps
         | .move subj from_ to at_ riders =>
           -- The move's own Observation Point (`Location.observedOnDeparture` for the put and
           -- return Templates) decides whether its battlefield patient is the permanent it was.
-          let readContext := if drs.actionPattern && Location.readsDepartedPermanent from_ at_ then
-            { drs with historicalMoveFrom := some .battlefield } else drs
+          -- A move that writes no origin reads the one a grounded "this way" lookback handed it
+          -- (`historicalMoveFrom`, `DRS.thisWayRecordedOrigin`), for its patient alone.
+          let handed := if from_.writesNoOrigin then drs.historicalMoveFrom else none
+          let readContext :=
+            if drs.actionPattern && Location.readsDepartedPermanent from_ at_ handed then
+              { drs with historicalMoveFrom := some .battlefield } else drs
           let (selected, refIds, e1) := ops.np readContext patientRole true subj
-          let drs1 := { selected with historicalMoveFrom := drs.historicalMoveFrom }
+          let drs1 := { selected with
+            historicalMoveFrom := if handed.isSome then none else drs.historicalMoveFrom }
           let actualKind := (refIds.head?.bind drs1.findById?).map (·.kind)
           let moveKind := Kind.join .object .pile
           let e1 := e1 ++ actualKind.toList.flatMap (fun kind =>

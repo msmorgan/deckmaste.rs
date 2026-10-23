@@ -584,6 +584,72 @@ theorem thatNounDiesThisWayStaysBounded :
           doIf (did (that creature) die thisWay) (untap (that creature))]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
+/-- "Destroy target artifact. If that artifact is put into a graveyard this way, …" (*Tuktuk
+Scrapper*, *Werewolf Ransacker*): the lookback's move writes no origin, so it takes the origin from
+the Zone Change its matched event recorded, the destroy's move from the battlefield to a graveyard
+[CR#608.2c,701.8a], and "that artifact" reads the destroyed artifact as the permanent it was
+[CR#608.2h], whichever Observation Point the pattern carries, as "it" does. A patient written
+inside the move ("if you put that artifact into a graveyard this way") is read the same way. -/
+theorem okThatArtifactPutIntoAGraveyardThisWay :
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (did (that artifact) (.move .actor .anyLocation (some graveyard) .arrival []) thisWay)
+          (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (did (that artifact) (.move .actor .anyLocation (some graveyard) .departure [])
+          thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (did it (putInto .actor graveyard) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (did you (putInto (that artifact) graveyard) thisWay) (draw 1)]) = [] := by decide
+
+/-- The recorded origin reads the permanent only when it is the battlefield. After "Exile target
+artifact, then put it from exile into a graveyard", the matched event moved the artifact from
+exile, so "that artifact" finds nothing, though the card once left the battlefield; after a mill
+the matched event moved a card from a library. -/
+theorem thatArtifactMilledThisWayStaysRefused :
+    Action.check (DRS.ofList [])
+      (sequentially [exile (target isArtifact), putInto it graveyard (some exileZone),
+        doIf (did (that artifact) (putInto .actor graveyard) thisWay) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [mill 1,
+        doIf (did (that artifact) (putInto .actor graveyard) thisWay) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0] := by decide
+
+/-- A written origin decides alone: a recorded move from the battlefield never overrides it. "If
+that artifact is put into a graveyard from your hand this way" after a destroy reads no
+permanent and no event; "from anywhere other than the battlefield" is written too, and reads no
+permanent. -/
+theorem writtenOriginStillDecides :
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (did (that artifact) (.move .actor (.zone .hand none) (some graveyard) .departure [])
+          thisWay) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0, .thisWayUngrounded] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (.did { subj := .any
+                     action := putInto (that artifact) graveyard (from_ := some (.not battlefield))
+                     within := some .thisWay }) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0] := by decide
+
+/-- Only a grounded "this way" lookback takes an origin from a recorded event: "from anywhere" is
+no leaves-the-battlefield pattern [CR#603.6c], so a lookback over this turn that writes it reads
+no departed permanent, and its pattern is observed on arrival. -/
+theorem fromAnywhereIsNotLeavesTheBattlefield :
+    (match (putInto .actor graveyard (from_ := some .anyLocation)).scopeBody with
+      | .move _ _ _ point _ => point | _ => .departure) = .arrival ∧
+    Action.check (DRS.ofList [])
+      (sequentially [destroy (target isArtifact),
+        doIf (.did { subj := .any
+                     action := putInto (that artifact) graveyard (from_ := some .anyLocation)
+                     within := some withinThisTurn }) (draw 1)]) =
+      [.anaphor (.word (.type .artifact)) .one 0] := by decide
+
 /-- A trigger event's expansion is read layer by layer: "Whenever you sacrifice a creature, if it
 died …" reads the sacrificed creature's move to a graveyard [CR#603.2,701.21a]. -/
 theorem triggeringReadsWhatItsEventMoved :
