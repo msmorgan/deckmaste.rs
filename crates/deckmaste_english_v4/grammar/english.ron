@@ -41,6 +41,12 @@
         // Auxiliary verbs (CGEL's NICE verbs); privative: a lexical verb
         // leaves it unvalued.
         "VerbKind": ["Auxiliary"],
+        // An auxiliary's form is Affirmative or Negative (*can*, *can't*); a
+        // premodifier prefixed by *non-* is Negative
+        // (`docs/oracle-style-guide.md` §7, Negation with non-), and any other
+        // premodifier leaves it unvalued. An asyndetic chain of premodifiers
+        // holds only Negative ones (§6, Determiners and modifier order).
+        "Polarity": ["Affirmative", "Negative"],
         // The Slot Kind of a Preposition Phrase's Complement. `MeasureNP` has
         // one preposition holder, *of* (*your choice of 5/1 or 1/5*), and
         // `QuotedAbility` one, *with* (*a token with "This token can't
@@ -165,7 +171,7 @@
         // and omits those that front an adjunct.
         "SubjectInitialClause": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
         // A participle premodifying a nominal (*attacking creature*).
-        "Participle": (category: Some("VerbPhrase"), features: ["Inflection"]),
+        "Participle": (category: Some("VerbPhrase"), features: ["Inflection", "Polarity"]),
         "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive"], gap: true),
         // Existential *there* and the predicate it is subject of (CGEL, Ch. 16
         // §6.1, p. 1391).
@@ -215,7 +221,7 @@
         // restate NominalPostmodifier and TemporalPostmodifier for that reason.
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
         "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind"], gap: true),
-        "NounPremodifier": (category: Some("Nominal")),
+        "NounPremodifier": (category: Some("Nominal"), features: ["Polarity"]),
         // A conjunct of a coordination of noun premodifiers: a noun premodifier,
         // with any negative premodifier of its own (*artifact or [non-Aura
         // enchantment] card*).
@@ -264,7 +270,7 @@
         "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
-        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"], gap: true),
+        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Polarity"], gap: true),
         "AdverbPhrase": (features: ["AdjunctPosition"]),
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
@@ -288,26 +294,14 @@
         // most life or tied for most life*), and each of them.
         "PostmodifierConjunct": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
         "PostmodifierCoordination": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
-        "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
+        "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind", "Polarity"]),
         // An asyndetic chain of premodifiers. A kept admission gate
         // (`docs/decisions/english-v4.md` §4.4, item 10), a register formation
         // rule: Oracle sets off with commas only independent *non-*
         // premodifiers of one head (`docs/oracle-style-guide.md` §6,
         // Determiners and modifier order), so the chain never holds an
-        // uncoordinated non-negative attribute.
+        // uncoordinated attribute that is not `Polarity: Negative`.
         "AttributeChain": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
-        // A premodifier in an asyndetic chain, and the negative premodifier
-        // that fills it. The three negative Categories restate
-        // PrefixedNounPremodifier, the Premodification `prefix` Production and
-        // NegativeAdjective, and the chain cannot share those: nothing in
-        // NounPremodifier, Participle or AdjectivePhrase records that a
-        // premodifier is negative. Sharing them would take a polarity feature
-        // on all three, read only by the chain, or a unary node added to the
-        // Reading of every *non-* premodifier.
-        "NegativeAttribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
-        "NegativeNounPremodifier": (category: Some("Nominal")),
-        "NegativeParticiple": (category: Some("VerbPhrase"), features: ["Inflection"]),
-        "NegativeAdjectivePhrase": (category: Some("AdjectivePhrase"), features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"]),
         "AdjunctCoordination": (category: Some("PredicateAdjunct"), function: true, features: ["ComplementKind"]),
         // An adverbial Complement: an Adverb Phrase or a Noun Phrase of
         // frequency (*more than twice*, *more than three times*).
@@ -522,7 +516,7 @@
         (name: "VariableDeterminer", lhs: "NumericalDeterminer", rhs: [Class("head", "Variable")], equations: [Require("$.Countability", "Count")]),
         (name: "ArabicDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Arabic(false))], equations: [Require("$.Countability", "Count")]),
         (name: "GroupedArabicDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Arabic(true))], equations: [Require("$.Countability", "Count")]),
-        (name: "NegativeAdjective", lhs: "AdjectivePhrase", rhs: [Lex("prefix", Affix), Cat("head", "AdjectivePhrase")]),
+        (name: "NegativeAdjective", lhs: "AdjectivePhrase", rhs: [Lex("prefix", Affix), Cat("head", "AdjectivePhrase")], equations: [Require("$.Polarity", "Negative")]),
         // A modal header labelled by an ability word, as a unit of its own.
         (name: "LabelledModalHeader", lhs: "Document", rhs: [Class("label", "AbilityWord"), Mark('—', Free), Cat("head", "ModalHeader")]),
         (name: "ChapterModalHeader", lhs: "Document", rhs: [Cat("chapters", "Chapters"), Mark('—', Free), Cat("head", "ModalHeader")]),
@@ -1147,33 +1141,28 @@
         (name: "PartitiveFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "PartitiveHead")]),
         (name: "FusedLocative", lhs: "LocativeHead", rhs: [Word("head", "Anywhere")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
-        (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
+        (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")], equations: [Require("$.Polarity", "Negative")]),
+        // A participle premodifier prefixed by *non-* (*nonattacking*).
+        (name: "PrefixedParticiple", lhs: "Participle", rhs: [Lex("prefix", Affix), Cat("head", "Participle")], equations: [Require("$.Polarity", "Negative")], cost: 0),
         (name: "NounConjunct", lhs: "NounPremodifierConjunct", rhs: [Cat("head", "NounPremodifier")], cost: 0),
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
-        (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
+        (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal"), Agree("$.Polarity", "filler.Polarity")]),
         // A gerund-participle in a coordination of premodifiers. As in a
         // Depictive, it is an unlike conjunct of an adjective (*tapped and
         // attacking token*, *attacking, blocking, or tapped creature*).
-        (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "Gerund")]),
-        (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
+        (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "Gerund"), Agree("$.Polarity", "filler.Polarity")]),
+        (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP"), Agree("$.Polarity", "filler.Polarity")]),
         // Oracle sets off with commas only independent negative modifiers of
         // one head (`docs/oracle-style-guide.md` §6, Determiners and modifier
-        // order): each premodifier of an asyndetic chain is a *non-* one. A
+        // order): each premodifier of an asyndetic chain is a *non-* one,
+        // `Polarity: Negative`, which the chain requires it to carry. A
         // comma before a bare premodifier is a serial coordination's (§3,
         // Commas and the serial comma): *a Swamp, Mountain, black permanent,
         // or red permanent*, *a Bat, Bird, Mouse, or Rabbit card*.
-        (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "NegativeAttribute"), Punct(','), Cat("rest", "AttributeChain")]),
-        (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "NegativeAttribute"), Punct(','), Cat("rest", "AttributeChain")]),
-        (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "NegativeAttribute")]),
-        (name: "NegativeNounAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeNounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
-        // A gerund-participle in a chain (*nonattacking, nonblocking
-        // creature*).
-        (name: "NegativeParticipialAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeParticiple")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "AdjP")]),
-        (name: "NegativeAdjectivalAttribute", lhs: "NegativeAttribute", rhs: [Cat("filler", "NegativeAdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
-        (name: "NegativeNounPremodifier", lhs: "NegativeNounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
-        (name: "NegativeParticiple", lhs: "NegativeParticiple", rhs: [Lex("prefix", Affix), Cat("head", "Participle")]),
-        (name: "NegativeAdjectivePhrase", lhs: "NegativeAdjectivePhrase", rhs: [Lex("prefix", Affix), Cat("head", "AdjectivePhrase")]),
+        (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")], equations: [Carry("first.Polarity", "Negative")]),
+        (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")], equations: [Carry("first.Polarity", "Negative")]),
+        (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "Attribute")], equations: [Carry("last.Polarity", "Negative")]),
         (name: "AttributedNominal", lhs: "BareNominal", rhs: [Cat("modifier", "Attributes"), Cat("head", "BareNominal")], equations: []),
         (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
@@ -1492,7 +1481,7 @@
         // A past participle spelled like a declared Adjective (*tapped*) has
         // that Adjective as its Adjectival Passive, which premodifies in its
         // place.
-        Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true,
+        Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple],
             equations: [(PastParticiple, [Exclude("head.AdjectivalPassive", "Lexical")])]),
         Parameters(head: Noun, phrase: "IndexedNominal"),
         Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator")),
@@ -1538,7 +1527,7 @@
         // card. A preposed dependent at the start of the first conjunct
         // scopes over the whole coordination instead (*non-Lesson [instant and
         // sorcery] card*; `english-lexical-analysis.md` §2).
-        Adjunct(host: "NounPremodifierConjunct", adjunct: "NegativeNounPremodifier", side: Before, host_kind: Nominal, cost: 1),
+        Adjunct(host: "NounPremodifierConjunct", adjunct: "NounPremodifier", side: Before, host_kind: Nominal, cost: 1, equations: [Carry("modifier.Polarity", "Negative")]),
         // A complement costs nothing. A Preposition Phrase Adjunct costs the
         // same whether it postmodifies a Nominal or modifies a Predicate: the
         // Ranking Key's Right Association, not a Production Cost, prefers one
@@ -1639,9 +1628,9 @@
         // Interrogative clauses coordinate (*which creatures block and how
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
-        Coordination(category: "NounPremodifier", conjunct: Some("NounPremodifierConjunct"), coordinators: "Coordinator"),
-        Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
-        Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
+        Coordination(category: "NounPremodifier", conjunct: Some("NounPremodifierConjunct"), coordinators: "Coordinator", unshared: ["Polarity"]),
+        Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection", "Polarity"]),
+        Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade", "Polarity"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", unshared: ["DeterminativeDistribution"], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
