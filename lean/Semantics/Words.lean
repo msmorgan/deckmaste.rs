@@ -108,7 +108,7 @@ inductive KindAxis where
   | colorPair
   deriving DecidableEq, Repr
 
-/-- The sort of an action outcome read back by `thatMuch`, `thatMany`, or `ResultMode.instead`
+/-- The sort of an action outcome read back by `thatMuch`, `thatMany` or `theOutcome`
 [CR#120.3d]. -/
 inductive OutcomeSort where
   | damageDealt | damageMarked | lifeGained | lifeLost | countersPut | damagePrevented | rollResult
@@ -396,10 +396,6 @@ inductive RoundMode where
   | up | down
   deriving DecidableEq, Repr
 
-inductive ScaleFactor where
-  | doubled | tripled
-  deriving DecidableEq, Repr
-
 /-- How much of a spell's or ability's targets a "targets …" check reads [CR#115.9]: some target
 ("that targets [something]" [CR#115.9b]), its sole target ("that targets only a single
 [something]"), or the subject alone ("that targets only it"); both "only" readings count the
@@ -587,6 +583,10 @@ inductive ProjAxis where
   values or none, so it is read through a fold: "the final chapter number" is the greatest of
   them, `aggregate max chapter this` [CR#714.2d]. -/
   | chapter
+  /-- The N of each `keyword N` ability an object has: several values or none, so it is read
+  through a fold, as `chapter` is. A creature's total toxic value, the sum of the N values of
+  its toxic abilities, is `aggregate sum (keywordNumber toxic) it` [CR#702.164b]. -/
+  | keywordNumber (keyword : KeywordLabel)
   deriving DecidableEq, Repr
 
 /-- A Saga's chapter, counted from I [CR#714.2a]. -/

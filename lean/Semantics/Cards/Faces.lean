@@ -213,8 +213,9 @@ def akkiLavarunner : Spelled := spelled <| .flip
       subtypes := [goblin, shaman],
       text :=
         [ protection (hasColor .red),
-          static (damageRule (dealtBy (a (and [isSource, hasColor .red])))
-            (toRecipient (a isPlayer)) (scale (shifted (up 1))) .repeatedly) ],
+          static
+            (replace (would (a (and [isSource, hasColor .red])) (dealDamage anyAmount (a isPlayer)))
+              (instead (instruct it (dealDamage (plus thatMuch 1) (that player))))) ],
       power := stat 2, toughness := stat 2 } }
 
 def bushiTenderfoot : Spelled := spelled <| .flip

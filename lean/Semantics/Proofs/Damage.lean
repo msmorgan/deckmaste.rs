@@ -1,3 +1,4 @@
+import Semantics.Check.NumberSlots
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Damage
@@ -428,29 +429,37 @@ theorem okBarePluralPlayerDamageRecipient :
 /-- "Prevent all damage that would be dealt to any player or permanent." -/
 theorem okPreventDealtToPermanent :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient (a (.or [isPermanent, .anyPlayer])))
-        (.prevent .all none) .repeatedly) = [] := by
+      (replace (would any (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+        (instead (preventDamage .all))) = [] := by
   decide
 
 /-- "… is dealt to target attacking creature instead." -/
 theorem okRedirectToSingleCreature :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you)
-        (.redirect .all (target (.and [isCreature, isAttacking]))) .repeatedly) = [] := by
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (redirectDamage .all (target (.and [isCreature, isAttacking]))))) = [] := by
   decide
 
+/-- "… is dealt to all creatures you control instead": a redirection deals the same damage to one
+other permanent or player [CR#614.9], so its `to` is singular. -/
 theorem badRedirectToPlural :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you)
-        (.redirect .all (allOf (and [isCreature, youControl]))) .repeatedly) = [.singular] := by
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (redirectDamage .all (allOf (and [isCreature, youControl]))))) = [.singular] := by
   decide
+
+/-- "If damage from a red source is prevented this way": the prevention its own text did, read
+back by `did … thisWay` [CR#615.5,608.2c]. -/
+def redSourcePreventedThisWay : Condition :=
+  did any
+    (preventDamage .all
+      (damage := would (a (.and [isSource, .colorIs .red])) (dealDamage anyAmount)))
+    thisWay
 
 /-- "… If damage from a red source is prevented this way, you gain 3 life." -/
 def preventedFromSourceAnnounced : StaticSpec :=
-  .damageRule .unattributed (.toRecipient .you)
-    (.prevent .all
-      (some (doIf (.preventedFromSource (.and [isSource, .colorIs .red])) (gainLife 3))))
-    .repeatedly
+  replace (would any (dealDamage anyAmount .you))
+    (instead (preventDamage .all (also := doIf redSourcePreventedThisWay (gainLife 3))))
 
 theorem okPreventedFromSourceAnnounced :
     StaticSpec.check (DRS.ofList []) preventedFromSourceAnnounced = [] := by decide
@@ -461,17 +470,54 @@ theorem okPreventedFromSourceInAClause :
     Action.check (DRS.ofList []) (.establish preventedFromSourceAnnounced (some thisTurn)) = [] := by
   decide
 
-/-- "If damage from a red source is prevented this way, you gain 3 life." -/
+/-- "If damage from a red source is prevented this way, you gain 3 life.": nothing in the text
+prevented damage, so "this way" reads no event [CR#608.2c]. -/
 theorem badPreventedFromSourceUnannounced :
+    Action.check (DRS.ofList []) (doIf redSourcePreventedThisWay (gainLife 3))
+      = [.thisWayUngrounded] := by
+  decide
+
+/-- *Shadowbane*'s rider is a lookback over its own prevention: "If damage from a black source is
+prevented this way, you gain that much life" is `did any (preventDamage …) thisWay`, the
+prevention's additional effect [CR#615.5,608.2c]. "That much" reads one amount, the damage
+prevented: the lookback restates the prevention's outcome rather than publishing a second one.
+Alone, with no prevention before it, the rider is refused. -/
+theorem shadowbaneRiderIsDidPreventDamageThisWay :
+    let blackPrevented : Condition :=
+      did any
+        (preventDamage allDamage
+          (damage := would (a (and [isSource, hasColor .black])) (dealDamage anyAmount)))
+        thisWay
+    let rule : StaticSpec :=
+      replace
+        (would (aYourChoice isSource)
+          (dealDamage anyAmount (andOr [you, allOf (and [isCreature, youControl])])))
+        (instead
+          (preventDamage allDamage (also := doIf blackPrevented (gainLife thatMuch))))
+        (use := .nextTimeOnly)
+    Cards.shadowbane.card =
+        singleFacedCard
+          { name := "Shadowbane", cost := [generic 1, pip .white], types := [.instant],
+            text := [spell (establishThroughout rule thisTurn)] } ∧
+      StaticSpec.check (DRS.ofList []) rule = [] ∧
+      Action.check (DRS.ofList []) (doIf blackPrevented (gainLife thatMuch)) =
+        [.thisWayUngrounded] :=
+  ⟨rfl, by decide, by decide⟩
+
+/-- "This deals 3 damage to any target. If a player was dealt damage this way, you gain that much
+life": the lookback restates the damage its own text dealt, so "that much" reads that one amount
+[CR#608.2c]. -/
+theorem okThatMuchAfterThisWayLookback :
     Action.check (DRS.ofList [])
-      (doIf (.preventedFromSource (.and [isSource, .colorIs .red])) (gainLife 3))
-      = [.outcomeInScope .damagePrevented 0] := by
+      (sequentially
+        [ instruct this_ (dealDamage 3 (target isAnyTarget)),
+          doIf (did any (dealDamage anyAmount (a isPlayer)) thisWay) (gainLife thatMuch) ]) = [] := by
   decide
 
 /-- "… You gain life equal to the damage prevented this way." -/
 def preventedThisWayAnnounced : StaticSpec :=
-  .damageRule .unattributed (.toRecipient .you)
-    (.prevent .all (some (gainLife preventedThisWay))) .repeatedly
+  replace (would any (dealDamage anyAmount .you))
+    (instead (preventDamage .all (also := gainLife preventedThisWay)))
 
 theorem okPreventedThisWayAnnounced : StaticSpec.check (DRS.ofList []) preventedThisWayAnnounced = [] := by
   decide
@@ -529,14 +575,15 @@ theorem badShortOfCeilingUnannounced :
 /-- "Prevent the next 3 damage that would be dealt to you this turn." -/
 theorem okShieldRepeatedly :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you) (.prevent (.shield 3) none)
-        .repeatedly) = [] := by
+      (replace (would any (dealDamage anyAmount .you)) (instead (preventDamage (.shield 3))))
+      = [] := by
   decide
 
+/-- A shield is sized before its prevention publishes what it prevents [CR#615.7]. -/
 theorem badShieldSizedByItsOwnPrevention :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you)
-        (.prevent (.shield preventedThisWay) none) .repeatedly)
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (preventDamage (.shield preventedThisWay))))
       = [.outcomeInScope .damagePrevented 0] := by
   decide
 
@@ -553,15 +600,55 @@ theorem badNonsource : Predicate.checkAt .object (DRS.ofList []) (.not isSource)
 /-- "If damage would be dealt to you, it's dealt to target creature you control instead." -/
 theorem okRedirectToOne :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you)
-        (.redirect .all (target (and [isCreature, youControl]))) .repeatedly) = [] := by
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (redirectDamage .all (target (and [isCreature, youControl]))))) = [] := by
   decide
 
+/-- "… it's dealt to you and permanents you control instead": refused as a group, not member by
+member, since a redirection names one recipient [CR#614.9]. -/
 theorem badRedirectToGroup :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule .unattributed (.toRecipient .you)
-        (.redirect .all (youAnd (allOf (.and [isPermanent, .hasPossessor .controller .you]))))
-        .repeatedly) = [.singular] := by
+      (replace (would any (dealDamage anyAmount .you))
+        (instead
+          (redirectDamage .all
+            (youAnd (allOf (.and [isPermanent, .hasPossessor .controller .you]))))))
+      = [.singular] := by
+  decide
+
+/-- *Harm's Way*: "The next 2 damage that a source of your choice would deal to you and/or
+permanents you control this turn is dealt to any target instead." Partial redirection sizes its
+cut as a shield, `redirectDamage (.shield 2) …`, and the rest is dealt normally
+[CR#614.9,615.7]. -/
+theorem okShieldedRedirectionSizesItsCut :
+    let harmsWay :=
+      replace
+        (would (aYourChoice isSource)
+          (dealDamage anyAmount (andOr [you, allOf (and [isPermanent, youControl])])))
+        (instead (redirectDamage (.shield 2) (target isAnyTarget)))
+    Cards.harmsWay.card =
+        singleFacedCard
+          { name := "Harm's Way", cost := [pip .white], types := [.instant],
+            text := [spell (establishThroughout harmsWay thisTurn)] } ∧
+      StaticSpec.check (DRS.ofList []) harmsWay = [] ∧
+      (Action.redirectDamage (.shield 2) (target isAnyTarget) none).numberSlots =
+        [(2, .clamped)] :=
+  ⟨rfl, by decide, rfl⟩
+
+/-- *Pariah*: "All damage that would be dealt to you is dealt to enchanted creature instead."
+Damage dealt to you from any source, with no source written, is redirected: the redirection needs
+no source to hand the damage to [CR#614.9]. -/
+theorem okPassiveRedirectionNeedsNoSource :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (redirectDamage .all (enchanted creature)))) = [] := by
+  decide
+
+/-- Damage is redirected to a permanent or a player [CR#614.9,120.1]; a color is neither. -/
+theorem badRedirectToAColor :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would any (dealDamage anyAmount .you))
+        (instead (redirectDamage .all (a (.qualityNoun .color none)))))
+      = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
 
 /-- "Target opponent loses 1 life. You gain that much life." -/
@@ -570,19 +657,29 @@ theorem okThatMuchAfterLifeLoss :
       (.sequentially [instruct (target (.isOpponentOf .you)) (loseLife 1), gainLife .thatMuch]) = [] := by
   decide
 
-/-- "If a source would deal damage to a player or permanent, it deals double that damage
-instead." -/
+/-- "If a source would deal damage to a permanent or player, it deals double that damage to that
+permanent or player instead": the source deals twice the damage it would have [CR#701.10g], "it"
+the source and "that much" the replaced damage. -/
 theorem okScaleDoubled :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule (.dealtBy (a isSource)) (.toRecipient (a (.or [isPermanent, .anyPlayer])))
-        (.scale (.multiplied .doubled)) .repeatedly) = [] := by
+      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+        (instead (instruct it (dealDamage (times 2 thatMuch) thatJoin)))) = [] := by
   decide
 
-/-- "… it deals that much damage plus that much instead." -/
-theorem badScaleShiftByThatMuch :
+/-- "… it deals that much damage plus that much instead": "that much" reads the replaced damage,
+the one amount in scope. -/
+theorem okScaleShiftByThatMuch :
     StaticSpec.check (DRS.ofList [])
-      (.damageRule (.dealtBy (a isSource)) (.toRecipient (a (.or [isPermanent, .anyPlayer])))
-        (.scale (.shifted (.up .thatMuch))) .repeatedly) = [.quantOutcomeInScope 0] := by
+      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+        (instead (instruct it (dealDamage (plus thatMuch thatMuch) thatJoin)))) = [] := by
+  decide
+
+/-- "If a source would deal damage …, it deals that much damage plus 1 to that permanent or player
+instead" read with no damage replaced: outside the replacement, "that much" reads nothing. -/
+theorem badScaleShiftWithoutReplacedDamage :
+    Action.check (DRS.ofList [])
+      (instruct this_ (dealDamage (plus thatMuch 1) (target isAnyTarget)))
+      = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Whenever this creature is dealt damage, it deals that much damage to any target." -/
@@ -699,8 +796,8 @@ theorem damagedSelfIsReadableAsThatCreature :
 
 /-- "Prevent all damage sources of the last chosen color would deal to you." -/
 def preventLastChosenColor : StaticSpec :=
-  .damageRule (.dealtBy (allOf (.and [isSource, ofTheLastChosen .color]))) (.toRecipient .you)
-    (.prevent .all none) .repeatedly
+  replace (would (allOf (.and [isSource, ofTheLastChosen .color])) (dealDamage anyAmount .you))
+    (instead (preventDamage .all))
 
 theorem okLastChosenAfterChooser :
     Card.check
@@ -851,5 +948,45 @@ theorem okGetsCreature :
     Action.check (DRS.ofList [])
       (get (target isCreature) (.up 1) (.up 1) (some untilEndOfTurn)) = [] := by
   decide
+
+/-! ## The results of damage -/
+
+/-- The static clauses a keyword's body holds. -/
+private def bodyStatics : Ability → List StaticSpec
+  | .keyword _ _ body => body.filterMap fun | .static spec => some spec | _ => none
+  | _ => []
+
+/-- Wither's and infect's marking replacement: "if damage this deals would be marked on a
+creature, put that many −1/−1 counters on that creature instead" [CR#702.80a,702.90c]. -/
+def markingReplacedByCounters : StaticSpec :=
+  replace (causedBy (bySource this_) (would any (markDamage (a isCreature))))
+    (instead (putCounters thatMuch m1m1Counter (that creature)))
+
+/-- A source with both wither and infect puts −1/−1 counters on a creature it damages once
+[CR#120.3d]. Each keyword's creature row replaces the same event, the marking of the damage,
+with the same counters; once one has replaced it, the marking never happens [CR#614.6], and the
+counters are no marking, so the other row has nothing left to replace [CR#616.1f]. -/
+theorem witherAndInfectPutCountersOnce :
+    (bodyStatics wither).head? = some markingReplacedByCounters ∧
+      (bodyStatics infect).head? = some markingReplacedByCounters ∧
+      (putCounters thatMuch m1m1Counter (that creature)).eventVerbs.contains .damageMarked = false ∧
+      StaticSpec.check (DRS.ofList []) markingReplacedByCounters = [] :=
+  ⟨rfl, rfl, by decide, by decide⟩
+
+/-- Infect's player row replaces the life loss its own damage would cause, caused by that damage
+event and not by the source, so other life loss the source causes is not replaced
+[CR#702.90b,120.3a]: "that many" reads the damage dealt. -/
+theorem infectReplacesTheLifeLossItsDamageCauses :
+    (bodyStatics infect).map (StaticSpec.check (DRS.ofList [])) = [[], []] := by
+  decide
+
+/-- Lifelink adds a result to its damage, the damage's other results still happening: its body is
+an `asEvent` over the damage this deals, not a replacement of a result [CR#702.15b,120.3f]. Two
+instances of lifelink are redundant [CR#702.15f], so the body applies once per object. -/
+theorem lifelinkIsAnAdditionalResult :
+    bodyStatics lifelink = [asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch)] ∧
+      StaticSpec.check (DRS.ofList [])
+        (asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch)) = [] :=
+  ⟨rfl, by decide⟩
 
 end Semantics.Proofs.Damage

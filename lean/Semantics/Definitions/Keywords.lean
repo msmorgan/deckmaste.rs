@@ -184,12 +184,13 @@ semantic_template willOfTheCouncil (ability : Ability) : Ability :=
 
 /-! ## Keyword abilities -/
 
+/-- "Absorb N": "If a source would deal damage to this creature, prevent N of that damage."
+[CR#702.64a] -/
 semantic_definition absorb (amount : Amount) : Ability :=
   .keyword (.named "absorb") [.number (.inCaller amount)]
     [ static
-        (.damageRule .unattributed (.toRecipient thisCreature)
-          (.prevent (.some (.inCaller amount)) none)
-          .repeatedly) ]
+        (replace (would (a .isSource) (dealDamage anyAmount thisCreature))
+          (instead (preventDamage (.some (.inCaller amount))))) ]
 semantic_definition affinity (quality : Predicate) : Ability :=
   .keyword (.named "affinity") [.quality (.inCaller quality)]
     [ static
@@ -938,7 +939,24 @@ semantic_definition indestructible : Ability :=
     [ static
         (cant .any
           (destroy thisPermanent)) ]
-semantic_definition infect : Ability := keyword (.named "infect")
+/-- "Infect": damage this deals to a creature isn't marked on it, and damage it deals to a player
+doesn't cause that player to lose life; rather, its controller puts that many −1/−1 counters on
+that creature, or gives that player that many poison counters [CR#702.90b,702.90c]. Each is a
+replacement of the result the damage would otherwise have [CR#120.3a,120.3e,614.6], so a source
+with wither as well puts the counters once [CR#120.3d]. The player's row is caused by this
+damage event, not by this source, so other life loss this source causes is not replaced; the
+life that damage to a player would make anyone lose is that player's [CR#120.3a], so the loss
+names no loser. Infect functions from any zone [CR#702.90e]. -/
+semantic_definition infect : Ability :=
+  .keyword (.named "infect") []
+    [ static
+        (replace (causedBy (bySource this_) (would any (markDamage (a isCreature))))
+          (instead (putCounters thatMuch m1m1Counter (that creature)))),
+      static
+        (replace
+          (causedBy (byEvent (does this_ (dealDamage anyAmount (a isPlayer))))
+            (would any (loseLife anyAmount)))
+          (instead (putCounters (theOutcome .damageDealt) poison (that player)))) ]
 semantic_definition infinity (ability : Ability) : Ability :=
   .keyword (.named "infinity") [.ability (.inCaller ability)]
     [ static
@@ -986,7 +1004,13 @@ semantic_definition landwalk (quality : Predicate) : Ability :=
     [ static
         (onlyWhile (cant .any (.block thisCreature))
           (exists_ (and [isLand, .inCaller quality, controlledBy defendingPlayer]))) ]
-semantic_definition lifelink : Ability := keyword (.named "lifelink")
+/-- "Lifelink": damage dealt by this also causes its controller, or its owner if it has no
+controller, to gain that much life, in addition to the damage's other results
+[CR#702.15b,120.3f,109.5]. Multiple instances of lifelink on one object are redundant
+[CR#702.15f]: a consumer applies this body once per object, not once per instance. -/
+semantic_definition lifelink : Ability :=
+  .keyword (.named "lifelink") []
+    [static (asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch))]
 semantic_definition livingMetal : Ability :=
   .keyword (.named "livingMetal") []
     [ static
@@ -1228,9 +1252,9 @@ semantic_definition protection (quality : Predicate) : Ability :=
               (and [or [.hasSubtype equipment, .hasSubtype fortification], .inCaller quality]))
             thisPermanent)),
       static
-        (.damageRule (.dealtBy (allOf (and [.isSource, .inCaller quality])))
-          (.toRecipient this_)
-          (.prevent .all none) .repeatedly),
+        (replace
+          (would (by_ (allOf (and [.isSource, .inCaller quality]))) (dealDamage anyAmount this_))
+          (instead (preventDamage allDamage))),
       static (cant (.by (allOf (and [isCreature, .inCaller quality]))) (.block thisCreature)) ]
 set_option linter.unusedVariables false in
 semantic_definition prototype (cost : Cost) (power toughness : Amount) : Ability :=
@@ -1677,7 +1701,15 @@ semantic_definition webSlinging (cost : Cost) : Ability :=
             (.compound
               [ .inCaller cost,
                 .perform (returnToHand (a (and [isCreature, isTapped, youControl]))) ]))) ]
-semantic_definition wither : Ability := keyword (.named "wither")
+/-- "Wither": damage this deals to a creature isn't marked on it; rather, its controller puts
+that many −1/−1 counters on that creature [CR#702.80a]. A replacement of the marking result
+[CR#120.3e,614.6]: a source with infect as well puts the counters once [CR#120.3d]. Wither
+functions from any zone [CR#702.80c]. -/
+semantic_definition wither : Ability :=
+  .keyword (.named "wither") []
+    [ static
+        (replace (causedBy (bySource this_) (would any (markDamage (a isCreature))))
+          (instead (putCounters thatMuch m1m1Counter (that creature)))) ]
 
 open Lean Elab Term in
 /-- `crew`, `saddle` and `devour` name a keyword ability declared here and the action its

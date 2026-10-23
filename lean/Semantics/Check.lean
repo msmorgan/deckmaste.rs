@@ -275,9 +275,11 @@ def sliceECopyAndPreventPin : Ability :=
         (.lit 1) [],
       .chooseNewTargets (.pro (.word .copy) .one),
       .establish
-        (.damageRule .unattributed .everywhere
-          (.prevent (.shield (.lit 3)) (some (.draw (.exactlyOf (.theOutcome .damagePrevented)))))
-          .nextTimeOnly)
+        (.replace (.would .any (.dealDamage .anyAmount .any none))
+          (.instead
+            (.preventDamage (.shield (.lit 3)) none
+              (some (.draw (.exactlyOf (.theOutcome .damagePrevented))))))
+          none .repeatedly none)
         (some (.between none (some (.endOf .turn none .current))))
     ]
 

@@ -551,7 +551,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - **Combinators:** `and`, `or`, `not` (`Predicate` / `Condition` / `NounPhrase` / `Location` — dispatched via single-method typeclasses or top-down expected-type resolution rather than `export` overloads so nested combinators elaborate in $O(1)$ per node without bottom-up $3^d$ branching), `sequentially`, `simultaneously`, `compound`, `conjunction`.
   - **Deltas & Amounts:** `up`, `down`, `setTo`, `letter (l : Letter) : Amount`, `thatMuch : Amount`, `anyAmount : Amount`, `Amount.moreThan (bound : Amount)` (matching `Amount.upTo`, for *"can't draw more than one card each turn"* on *Spirit of the Labyrinth*).
   - **Costs, Payments & Ballots:** `mana`, `tapSymbol`, `untapSymbol`, `loyaltySymbol`, `perform`, `itsManaCost`, `anyCost`, `itsOwnCost : PlayPayment`, `withoutPaying : PlayPayment`, `payingInstead (cost : Cost) : PlayPayment`, `anyBallot : Ballot`.
-  - **Continuous & Static Specs:** `establish`, `abilityGrant`, `qualityChange`, `ptDefinition`, `letterDefinition`, `instead`, `damageRule`, `costShift`, `altCost`, `addedCost`, `visibility`, `controlGrant`, `copyChange`.
+  - **Continuous & Static Specs:** `establish`, `abilityGrant`, `qualityChange`, `ptDefinition`, `letterDefinition`, `instead`, `costShift`, `altCost`, `addedCost`, `visibility`, `controlGrant`, `copyChange`.
   - **Conditions, Timings & Durations:** `matches_ (np : NounPhrase) (p : Predicate) : Condition`, `compareAmt`, `forAsLongAs`, `duringYourUntapStep`, `onEachOfTheirTurns`.
 
 ---

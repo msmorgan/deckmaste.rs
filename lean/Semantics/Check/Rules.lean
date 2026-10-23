@@ -24,21 +24,25 @@ def SbaRule.check (r : SbaRule) : List Refusal :=
   e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
     (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2 ++ e3
 
-def ConferralRule.check (r : ConferralRule) : List Refusal :=
-  let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
-  let e2 := checkAbility 64 drs1 r.confer
-  e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
-    (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2
-
-def Conferral.check : Conferral → List Refusal
-  | .ability ab => checkAbility 64 (DRS.ofList []) ab
-  | .property spec => (stepStaticSpec 64 (DRS.ofList []) spec).2
+/-- A conferral read in `drs`: the empty context for a registry definition's, its scope's for a
+`ConferralRule`'s. -/
+def Conferral.checkIn (drs : DRS) : Conferral → List Refusal
+  | .ability ab => checkAbility 64 drs ab
+  | .property spec => (stepStaticSpec 64 drs spec).2
   | .stateBased when then_ =>
-    let (drs1, e1) := stepCondition 64 (DRS.ofList []) when
+    let (drs1, e1) := stepCondition 64 drs when
     let (_, e2) := stepAction 64 .postEvent .obj (nextClause drs1) then_
     e1 ++ e2
   | .turnBased _ then_ =>
-    (stepAction 64 .postEvent .obj (DRS.ofList []) then_).2
+    (stepAction 64 .postEvent .obj drs then_).2
+
+def Conferral.check (c : Conferral) : List Refusal := c.checkIn (DRS.ofList [])
+
+def ConferralRule.check (r : ConferralRule) : List Refusal :=
+  let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
+  let e2 := r.confer.checkIn drs1
+  e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
+    (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2
 
 def Definition.check : Definition → List Refusal
   | .counter kind k confers =>
@@ -64,8 +68,7 @@ def PredefinedToken.check (t : PredefinedToken) : List Refusal :=
 
 def RulesTables.check (t : RulesTables) : List Refusal :=
   t.sba.flatMap SbaRule.check ++
-  t.conferral.flatMap ConferralRule.check ++
-  t.damageResult.flatMap (fun dr => (stepStaticSpec 64 (DRS.ofList []) (.damageResult dr)).2)
+  t.conferral.flatMap ConferralRule.check
 
 def distinctPredefinedTokens : List PredefinedToken → Bool
   | [] => true

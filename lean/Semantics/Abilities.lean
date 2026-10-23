@@ -6,8 +6,8 @@ import Semantics.Events
 The Semantics v3 unified action-clause spine: phrases (`Location`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
 headers and bounds (`UsageLimit`, `JoinedHeader`), actions (`Action`), static specifications
-(`StaticSpec`, `WouldClause`, `Replacement`, `DeonticMods`, `DamageResult`), costs (`Cost`), and
-abilities (`Ability`).
+(`StaticSpec`, `WouldClause`, `Replacement`, `DeonticMods`), costs (`Cost`), and abilities
+(`Ability`).
 
 Because `GameEvent.does` and `DidClause` (`Predicate.did`, `Amount.tally`, `Condition.did`)
 embed `action : Action` directly, the phrase, trigger, and ability grammars form a single
@@ -49,10 +49,6 @@ structure TypeLineChanges where
 
 inductive CharacteristicStat where
   | power | toughness | loyalty | defense
-  deriving DecidableEq, Repr
-
-inductive PreventionBan where
-  | noPreventionOnly | noRedirectEither
   deriving DecidableEq, Repr
 
 inductive SpentMode where
@@ -479,7 +475,6 @@ mutual
     `Action.gameGains`. -/
     | gameHas (designation : DesignationLabel)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
-    | preventedFromSource (predicate : Predicate)
     | voteLead (label : VoteLabel) (orTied : Bool)
     | anyResultIs (comparator : Comparator) (bound : Amount)
     | rolledDoubles
@@ -667,30 +662,15 @@ mutual
     | byKeyword (label : KeywordLabel)
     | byObjects (objects : NounPhrase)
 
-  inductive DamageScope where
-    | everywhere
-    | toRecipient (recipient : NounPhrase)
-
-  inductive DamageAgent where
-    | unattributed
-    | dealtBy (source : NounPhrase)
-
-  inductive Unpreventable where
-    | described (source : DamageAgent) (scope : DamageScope)
-    | thatDamage
-
+  /-- How much of a damage event a prevention or redirection takes: all of it, `amount` of it,
+  the next `amount` damage (a shield, used up as it is applied [CR#615.7]), all but `amount` of
+  it, or half of it, rounded as `rounding` says [CR#615.1,614.9]. -/
   inductive PreventCut where
     | all
     | some (amount : Amount)
     | shield (amount : Amount)
     | allBut (amount : Amount)
     | half (rounding : RoundMode)
-
-  inductive DamageScale where
-    | multiplied (factor : ScaleFactor)
-    | halved (rounding : RoundMode)
-    /-- "That much damage plus or minus N": raised or lowered, never set (`shiftSets`). -/
-    | shifted (change : Delta Amount)
 
   inductive DividedVerb where
     | damage (source : NounPhrase)
@@ -875,14 +855,6 @@ mutual
     asThough : Option AsThough := none
     except : Option DeonticExcept := none
 
-  /-- A rules- or static-defined damage result [CR#120.3,120.4c,702.15b,702.80a]. -/
-  structure DamageResult where
-    kind : Option DamageKind := none
-    source : Subject
-    recipient : Predicate
-    mode : ResultMode
-    does : Action
-
   inductive StaticSpec where
     | inCaller (body : StaticSpec)
     | costShift (subject : NounPhrase) (shift : CostShift)
@@ -943,13 +915,6 @@ mutual
     happens unmodified while the condition fails. -/
     | replace (event : WouldClause) (replacement : Replacement) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
-    /-- A static damage-result modification (lifelink, wither, infect)
-    [CR#120.3,120.4c,702.15b,702.80a]. -/
-    | damageResult (rule : DamageResult)
-    | damageRule (source : DamageAgent) (scope : DamageScope) (op : DamageOp) (use : ReplUse)
-        (kind : Option DamageKind := none)
-    | preventionBan (damage : Unpreventable) (ban : PreventionBan)
-        (kind : Option DamageKind := none)
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
@@ -1032,11 +997,6 @@ mutual
     /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
     disguise [CR#702.37a,702.168a,708.4]. -/
     | faceDown (spec : FaceDown) (cost : Cost)
-
-  inductive DamageOp where
-    | prevent (cut : PreventCut) (also : Option Action)
-    | redirect (cut : PreventCut) (to : NounPhrase)
-    | scale (scale : DamageScale)
 
   /-- A move's rider. An Entry Rider says how a permanent arrives on the battlefield, from a
   move, a token's creation, or a static entry rider; a Pile Placement says how a moved card is
@@ -1130,10 +1090,28 @@ mutual
     [CR#702.148a]: transparent, it means what `action` means. -/
     | bracketed (action : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
-    clause's subject or performer); `kind` is `none` for unqualified "damage". -/
+    clause's subject or performer); `kind` is `none` for unqualified "damage". In a replacement's
+    `instead` over a damage event it is that event modified [CR#614.6]: a recipient left
+    unwritten (`any`) is the event's own, as in "it deals double that damage instead", and the
+    damage keeps the event's kind. -/
     | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : Option DamageKind := none)
     /-- Mark `amount` damage on `subject` [CR#120.3e], counterpart to `clearDamage` [CR#120.6]. -/
     | markDamage (subject : NounPhrase) (amount : Amount)
+    /-- Prevent `cut` of a damage event [CR#615.1,615.1a]: the damage `damage` names, or, with
+    none written, "that damage", the damage in scope. In a replacement's `instead` that is the
+    damage the replacement watches ("If a source would deal damage to you, prevent 1 of that
+    damage"); after a resolving `dealDamage` it is the damage that action deals ("The damage
+    can't be prevented"). `also` is the prevention's additional effect, which takes place
+    immediately after the prevention and may read the damage prevented [CR#615.5]. "Can't be
+    prevented" is a prohibition over this action, `cant any (preventDamage .all …)`; prevention
+    effects still apply to unpreventable damage, and their additional effects still happen
+    [CR#615.12]. -/
+    | preventDamage (cut : PreventCut) (damage : Option WouldClause) (also : Option Action)
+    /-- Deal `cut` of a damage event to `to`, one permanent or player, instead: a redirection
+    effect [CR#614.9]. The damage is the one `damage` names, or, with none written, the damage
+    in scope, read as `preventDamage` reads it. A shield cut ("the next 2 damage") redirects
+    only up to its amount, and the rest is dealt normally [CR#614.9,615.7]. -/
+    | redirectDamage (cut : PreventCut) (to : NounPhrase) (damage : Option WouldClause)
     /-- Remove all damage marked on the permanent [CR#120.6]. -/
     | clearDamage (subject : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)

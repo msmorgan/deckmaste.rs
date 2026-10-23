@@ -104,8 +104,10 @@ theorem reconfigureAnchorsOnTheSource :
 player, it deals that much damage plus 1 to that permanent or player instead." "A permanent or
 player" is no particular, so no participant anchors it: the anchor is the Source. -/
 theorem embermawHellionAnchorsOnTheSource :
-    let rule := damageRule (dealtBy (a (and [isSource, hasColor .red, youControl, isOther])))
-      (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted (up 1))) .repeatedly
+    let rule := replace
+      (would (a (and [isSource, hasColor .red, youControl, isOther]))
+        (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+      (instead (instruct it (dealDamage (plus thatMuch 1) thatJoin)))
     let after := stepStaticSpec 64 (framed [.creature]) rule
     after.2 = [] ∧ after.1.contrastAnchors = [.source] := by
   decide
@@ -198,9 +200,13 @@ theorem ulvenwaldTrackerAnchorsOnTheFirstTarget :
   decide
 
 /-- Carom: "The next 1 damage that would be dealt to target creature this turn is dealt to
-another target creature instead." -/
+another target creature instead." The first target, read in the replacement's event, is the
+anchor. -/
 theorem caromAnchorsOnTheFirstTarget :
-    mentionsOf (spellOf Cards.carom) (framed [.instant]) = [some (.target, [.creature])] := by
+    let firstTarget := (stepWouldClause 64 (framed [.instant])
+      (would any (dealDamage anyAmount (target isCreature)))).1.findById? 0
+    anchorsOf (spellOf Cards.carom) (framed [.instant]) = [.mention 0] ∧
+      firstTarget.map (fun ref => (ref.det, ref.ty)) = some (.target, [.creature]) := by
   decide
 
 /-- Feral Contest: "Put a +1/+1 counter on target creature you control. Another target creature
@@ -299,10 +305,13 @@ theorem slimefootAndSqueeAnchorsOnThisCard :
 deals double that damage to equipped creature instead." No creature is mentioned earlier: the
 anchor is the clause's recipient, the equipped creature. -/
 theorem inquisitorsFlailAnchorsOnTheEquippedCreature :
-    let rule := damageRule (dealtBy (a (and [isCreature, isOther])))
-      (toRecipient (equipped creature)) (scale (multiplied .doubled)) .repeatedly (some .combat)
+    let event :=
+      would (a (and [isCreature, isOther]))
+        (dealDamage anyAmount (equipped creature) (some .combat))
+    let rule :=
+      replace event (instead (instruct it (dealDamage (times 2 thatMuch) (equipped creature))))
     let after := stepStaticSpec 64 (framed [.artifact]) rule
-    let recipient := after.1.findById? 1
+    let recipient := (stepWouldClause 64 (framed [.artifact]) event).1.findById? 2
     after.2 = [] ∧ recipient.map (·.attachmentHost) = some true ∧
       after.1.contrastAnchors = recipient.toList.map (fun ref => ContrastAnchor.participant ref.payload)
     := by

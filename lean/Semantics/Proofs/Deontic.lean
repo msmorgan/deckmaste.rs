@@ -248,12 +248,16 @@ theorem okCoordinatedLandHostBlocks :
             .cant (.actor it) (.block .any) {} ])) = [] := by
   decide
 
+/-- "The damage can't be prevented": a prohibition over preventing "that damage", the damage in
+scope [CR#615.12]. -/
+def theDamageCantBePrevented : StaticSpec := .cant .any (.preventDamage .all none none) {}
+
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAfterDealing :
     Action.check (DRS.ofList [])
       (.sequentially
         [ (Action.instruct .this (.dealDamage 4 (target isCreature))),
-          .establish (.preventionBan .thatDamage .noPreventionOnly) none ]) = [] := by
+          .establish theDamageCantBePrevented none ]) = [] := by
   decide
 
 /-- "You gain 3 life. The damage can't be prevented." -/
@@ -261,7 +265,7 @@ theorem badTheDamageAfterLifeGain :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .changeLife (.up 3),
-          .establish (.preventionBan .thatDamage .noPreventionOnly) none ])
+          .establish theDamageCantBePrevented none ])
       = [.damageDealtInScope] := by
   decide
 
@@ -270,14 +274,52 @@ def afterDamageDealt : DRS :=
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :
-    StaticSpec.check afterDamageDealt (.preventionBan .thatDamage .noPreventionOnly)
-      = [] := by
+    StaticSpec.check afterDamageDealt theDamageCantBePrevented = [] := by
   decide
 
 /-- "The damage can't be prevented." -/
 theorem badTheDamageUnannounced :
-    StaticSpec.check (DRS.ofList []) (.preventionBan .thatDamage .noPreventionOnly)
-      = [.damageDealtInScope] := by
+    StaticSpec.check (DRS.ofList []) theDamageCantBePrevented = [.damageDealtInScope] := by
+  decide
+
+/-- *Excruciator*: "Damage that would be dealt by this creature can't be prevented." A
+prohibition over the prevention of the damage it names, `cant any (preventDamage .all (damage :=
+…))`: prevention effects still apply to that damage, and their additional effects still happen
+[CR#615.12]. The prevention is a deontic head; a self-replacement is not. -/
+theorem cantBePreventedIsADeonticOverPreventDamage :
+    let cantBePrevented : StaticSpec :=
+      cant any
+        (preventDamage allDamage (damage := would (by_ thisCreature) (dealDamage anyAmount)))
+    Cards.excruciator.card =
+        singleFacedCard
+          { name := "Excruciator", cost := [generic 6, pip .red, pip .red], types := [.creature],
+            subtypes := [avatar], text := [static cantBePrevented],
+            power := stat 7, toughness := stat 7 } ∧
+      StaticSpec.check (DRS.ofList []) cantBePrevented = [] ∧
+      (Action.preventDamage .all none none).deonticHeadOk = true :=
+  ⟨rfl, by decide, rfl⟩
+
+/-- *Whippoorwill*: "Damage that would be dealt to that creature this turn can't be prevented or
+dealt instead to another permanent or player." Its redirection half is `cant any (redirectDamage
+…)`, a prohibition over the redirection [CR#614.9]; the redirect target is one permanent or
+player, so a plural one is refused. `redirectDamage` is a deontic head, and the self-replacement
+`Action.replace` is not [CR#614.15]. -/
+theorem whippoorwillCantIsADeonticOverRedirectDamage :
+    let toThatCreature : WouldClause := would any (dealDamage anyAmount (that creature))
+    let afterTarget := nextClause (actionResult (DRS.ofList [])
+      (establishThroughout (cant any (regeneration (target isCreature))) thisTurn))
+    StaticSpec.check afterTarget
+        (cant any
+          (redirectDamage allDamage (a (and [or [isPermanent, isPlayer], isOther]))
+            (damage := toThatCreature))) = [] ∧
+      StaticSpec.check afterTarget
+        (cant any
+          (redirectDamage allDamage (allOf (or [isPermanent, isPlayer]))
+            (damage := toThatCreature))) = [.singular] ∧
+      (Action.redirectDamage .all .you none).deonticHeadOk = true ∧
+      Action.deonticHeadOk
+          (.replace (.dealDamage .anyAmount .any none) (.instead (.draw (.exactlyOf 1))))
+        = false := by
   decide
 
 /-- "You may cast spells as though they had flash." -/

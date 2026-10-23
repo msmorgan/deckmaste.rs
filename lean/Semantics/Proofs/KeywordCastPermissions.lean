@@ -61,11 +61,11 @@ theorem plotSpecialActionEndsAtThePlottedState :
 theorem plottedCardRuleCarriesTheCastRight :
     Proofs.Rules.plottedCardCast.scope = .and [.isCard, hasDesignation plotted, in_ exileZone] ∧
     Proofs.Rules.plottedCardCast.confer =
-      static
+      .ability (static
         (onlyUnless
           (can you (cast this_ (from_ := exileZone) (payment := withoutPaying))
             (timing := asSorcery))
-          (did any (gainDesignation this_ plotted) soFarThisTurn)) := ⟨rfl, rfl⟩
+          (did any (gainDesignation this_ plotted) soFarThisTurn))) := ⟨rfl, rfl⟩
 
 /-- The foretold card's look and cast permissions are keyed on its being foretold
 [CR#702.143a,702.143d]. -/

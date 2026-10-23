@@ -44,19 +44,6 @@ def PreventCut.numberSlots : PreventCut → List (Amount × NumberRegime)
   | .all | .half _ => []
   | .some amount | .shield amount | .allBut amount => [(amount, .clamped)]
 
-/-- Doubling and tripling damage carries its factor as a `ScaleFactor`, not an `Amount`, so it
-declares no slot. A shift is a magnitude with the direction as its sign, and the damage it
-adjusts is not negative [CR#107.1b]. -/
-def DamageScale.numberSlots : DamageScale → List (Amount × NumberRegime)
-  | .multiplied _ | .halved _ => []
-  | .shifted change => [(change.amount, .clamped)]
-
-/-- A damage replacement's own slots. The `also` action a prevention runs declares its
-own. -/
-def DamageOp.numberSlots : DamageOp → List (Amount × NumberRegime)
-  | .prevent cut _ | .redirect cut _ => cut.numberSlots
-  | .scale damageScale => damageScale.numberSlots
-
 /-- "two more times": a count of repetitions [CR#107.1b]. -/
 def Repetition.numberSlots : Repetition → List (Amount × NumberRegime)
   | .again | .anyNumber | .untilCond _ | .againExcludingChosen => []
@@ -138,9 +125,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ => []
   | _n + 1, .retention _ _ => []
   | _n + 1, .copyChange _ _ _ | _n + 1, .controlGrant _ _ => []
-  | _n + 1, .replace _ _ _ _ _ | _n + 1, .damageResult _ => []
-  | _n + 1, .damageRule _ _ op _ _ => op.numberSlots
-  | _n + 1, .preventionBan _ _ _ => []
+  | _n + 1, .replace _ _ _ _ _ => []
   | _n + 1, .conditional _ _ _ => []
   | _n + 1, .visibility _ _ _ | _n + 1, .additionalTriggers _ _ => []
   | _n + 1, .conjunction _ _ => []
@@ -153,6 +138,9 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .inCaller body | _n + 1, .ownScope _ body | _n + 1, .bracketed body | _n + 1, .instruct _ body => body.numberSlots _n
   -- You can't deal negative damage [CR#107.1b].
   | _n + 1, .dealDamage amount _ _ | _n + 1, .markDamage _ amount => [(amount, .clamped)]
+  -- A prevention's or redirection's own slot is its cut; the additional effect a prevention
+  -- runs declares its own.
+  | _n + 1, .preventDamage cut _ _ | _n + 1, .redirectDamage cut _ _ => cut.numberSlots
   | _n + 1, .setStatus _ _ | _n + 1, .turnOver _ | _n + 1, .combat _ _ => []
   | _n + 1, .attack _ | _n + 1, .attackUnblocked _ | _n + 1, .attackWith _ _ | _n + 1, .block _ | _n + 1, .target _ | _n + 1, .changeControl _ _
   | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger

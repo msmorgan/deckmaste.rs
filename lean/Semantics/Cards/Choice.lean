@@ -1179,7 +1179,7 @@ def trueNameNemesis : Spelled := spelled <| singleFacedCard
     types := [.creature], subtypes := [merfolk, rogue],
     text :=
       [ static (entersChoosingPlayer thisCreature (a isPlayer)),
-        protection isChosenPlayer ],
+        protection (objectsOfPlayer (the isChosenPlayer)) ],
     power := stat 3, toughness := stat 1 }
 
 /-- Akiri, Fearless Voyager -/

@@ -140,18 +140,19 @@ theorem okExchangeValuesSigned :
 /-! ## Doubling damage -/
 
 /-- "If a source would deal damage to a permanent or player, it deals double that damage
-instead": [CR#107.1b] exempts doubling from clamping, but the factor is a `ScaleFactor` and
-not an `Amount`, so the rule declares no number slot. The exemption is visible instead where
-doubling is written as a set, above. -/
-theorem okMultipliedDamageDeclaresNoSlot :
-    (StaticSpec.damageRule .unattributed .everywhere
-      (.scale (.multiplied .doubled)) .repeatedly).numberSlots = [] := by rfl
+instead": the source deals twice that much damage instead [CR#701.10g], the doubled amount the
+slot of the `dealDamage` the replacement does, and clamped: [CR#107.1b] exempts doubling only of
+a life total or a power or toughness, and damage is never negative. The exemption is visible
+where doubling a life total is written as a set, above. -/
+theorem okDoubledDamageClamped :
+    (Action.dealDamage (.arith .times 2 .thatMuch) .any none).numberSlots
+      = [(.arith .times 2 .thatMuch, .clamped)] := by rfl
 
-/-- "...it deals that much damage plus 1 instead": the shift is a magnitude with its direction
-for a sign, and damage is never negative [CR#107.1b]. -/
+/-- "...it deals that much damage plus 1 instead": the shifted amount is the replacement's
+`dealDamage` slot, and damage is never negative [CR#107.1b]. -/
 theorem okShiftedDamageClamped :
-    (StaticSpec.damageRule .unattributed .everywhere
-      (.scale (.shifted (.up 1))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
+    (Action.dealDamage (.arith .plus .thatMuch 1) .any none).numberSlots
+      = [(.arith .plus .thatMuch 1, .clamped)] := by rfl
 
 /-! ## Printed slots and effect-written expressions -/
 

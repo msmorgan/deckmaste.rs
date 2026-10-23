@@ -237,9 +237,9 @@ Where a done ticket recorded the current shape as intended, this section superse
   2010-06-15). Write `dealDamage (countOf isAttacking) (eachOf (those creature))`. This supersedes
   `docs/tickets/done/workbench-bare-plural-det.md:77-80`'s re-spelling as "the number of those
   creatures".
-- *Inkshield* (review #11, §3 above): `damageRule` needs `(kind := some .combat)`
-  (`Templates.lean:1896-1897`), and the token is `creatureToken 2 1 [.white, .black] [inkling]`
-  with `(abilities := [flying])`.
+- *Inkshield* (review #11, §3 above): the replaced event `would any (dealDamage anyAmount you)`
+  needs `(some .combat)` (`lean-v3-damage-composition` retired `damageRule`), and the token is
+  `creatureToken 2 1 [.white, .black] [inkling]` with `(abilities := [flying])`.
 - *Temple Altisaur* (`Cards/Damage.lean:508-510`, review #11): the recipient lacks "another".
   Write it with the bare "another" (`isOther`; ADR [semantics-v3](../../decisions/semantics-v3.md)
   §0.1 resolves the Contrast Anchor to the source).

@@ -729,11 +729,7 @@ expected child kinds in the incoming `DRS`.
 | `CountBound` | No Lean type: a usage limit's count is an `Amount` (`UsageLimit.mk times per`), stepped by `stepUsageLimitWith`. |
 | `DeedComplement` | Retired with `deonticPatientOk` (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): a counterpart's deed membership, kind and identity with the subject are not checked beyond ordinary reference resolution. |
 | `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. A counterpart is stepped as any reference; that it is not the subject read back (`deonticPatientOk`) is no longer checked (`lean-v3-authoring-impl-7-checker-and-regime-retirement`), and which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). |
-| `DamageScope` | `stepDamageScopeWith` steps it. |
-| `DamageAgent` | `stepDamageAgentWith` steps it. |
-| `Unpreventable` | The `preventionBan` static case steps its described damage. |
-| `PreventCut` | `stepPreventCutWith` steps it. |
-| `DamageScale` | `stepDamageOpWith` steps a shifted scale's amount. |
+| `PreventCut` | `stepPreventCutWith` steps it, the cut of a `preventDamage` or a `redirectDamage`. |
 | `DividedVerb` | `stepDividedVerbWith` steps it. |
 | `DividedTakes` | `Action.distribute` checks the recipient kind (an object or a player, `kindLte`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
 | `CtrlOverrideOk` | `MoveRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
@@ -748,7 +744,6 @@ expected child kinds in the incoming `DRS`.
 | `Compulsion` | No Lean type: requirements are `StaticSpec.must` clauses, stepped as a deontic. |
 | `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). `payingInstead` is the alternative cost of a cast a permission grants from another zone or at another time, or that an instruction directs; a pure alternative cost, granting no cast, is `StaticSpec.altCost` [CR#118.9,601.3]. |
 | `DeonticRider` | No Lean type: the rider is retired (`lean-v3-authoring-surface` §2.3). |
-| `DamageOp` | `stepDamageOpWith` steps it. |
 | `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). Whether its destination takes an Entry Rider or a Pile Placement is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). An `attachedTo` host is an object or a player (`kindLte`); a negated rider is named only in an event pattern (`riderNegationPattern`). |
 | `Cost` | `stepCost` (`Cost.check` in [Abilities.lean](Semantics/Check/Abilities.lean)) steps it; `Cost.localChecks` checks its shape. |
 | `ManaRider` | `stepManaRiderWith` steps it; `ManaRider.localChecks` checks its shape. |
@@ -795,7 +790,7 @@ expected child kinds in the incoming `DRS`.
 | `Quantity` | `stepQuantityWith` steps it. |
 | `NonZeroQ` | `Quantity.nonZero` (`nonZeroQ`) in the consumers that require nonzero cardinality; zero remains allowed in other quantity slots. |
 | `SliceCount` | `stepSliceCountWith` steps it. |
-| `ComplementAnchor` | `NounPhrase.anchorPhrase` and singularity in the `otherThan` predicate case (`complementAnchor`), for a printed "other than <NP>" only. A bare "another"/"other" (`Predicate.other`) writes no anchor; the `other` predicate case resolves its Contrast Anchor (`DRS.contrastAnchor?`, `semantics-v3.md` §0.1). A mention of the Source coordinated before the phrase is its anchor (`coordinatedSelf`). Otherwise: (1) the nearest earlier mention in scope compatible with the head in kind, Card Type, zone and controller restriction (`controlFits`), never the subject of the `is` it is directly predicated of (`contrastExcluded`, cleared for nested noun phrases), a referent a linked ability published, a referent a Condition introduced (`Referent.fromCondition`), or a mention of the Source or "you" (`Referent.defaultAnchor`); (2) failing that, the first compatible particular (a target, a definite description or an attachment host) the clause introduces after its agent, when "another <X>" is the agent of a `would`, damage-rule, event, deontic, handoff, copy, characteristic-change or text-change clause (`clauseParticipants`); (3) otherwise the Source, for an Object head in a zone the Source may be in and not restricted to a controller other than "you" (an instant's or sorcery's is the stack; any other Source's is unknown), whatever its Card Types, or "you", for a Player head [CR#109.5]. A head that may be an Object or a Player never falls back to "you". It refuses `contrastAnchor` when none fits. A written granted ability is read with unknown Source types and the granting text's objects excluded (`grantedContext`). Two "other"s in one conjunction refuse `otherAnchored`. |
+| `ComplementAnchor` | `NounPhrase.anchorPhrase` and singularity in the `otherThan` predicate case (`complementAnchor`), for a printed "other than <NP>" only. A bare "another"/"other" (`Predicate.other`) writes no anchor; the `other` predicate case resolves its Contrast Anchor (`DRS.contrastAnchor?`, `semantics-v3.md` §0.1). A mention of the Source coordinated before the phrase is its anchor (`coordinatedSelf`). Otherwise: (1) the nearest earlier mention in scope compatible with the head in kind, Card Type, zone and controller restriction (`controlFits`), never the subject of the `is` it is directly predicated of (`contrastExcluded`, cleared for nested noun phrases), a referent a linked ability published, a referent a Condition introduced (`Referent.fromCondition`), or a mention of the Source or "you" (`Referent.defaultAnchor`); (2) failing that, the first compatible particular (a target, a definite description or an attachment host) the clause introduces after its agent, when "another <X>" is the agent of a `would`, event, deontic, handoff, copy, characteristic-change or text-change clause (`clauseParticipants`); (3) otherwise the Source, for an Object head in a zone the Source may be in and not restricted to a controller other than "you" (an instant's or sorcery's is the stack; any other Source's is unknown), whatever its Card Types, or "you", for a Player head [CR#109.5]. A head that may be an Object or a Player never falls back to "you". It refuses `contrastAnchor` when none fits. A written granted ability is read with unknown Source types and the granting text's objects excluded (`grantedContext`). Two "other"s in one conjunction refuse `otherAnchored`. |
 | `LinkSource` | `NounPhrase.linkSource` in the `exiledWith` location case (`linkSource`). |
 | `PileMention` | `NounPhrase.pileMention` plus noun stepping in the `pile` location case (`pileMention`). |
 | `PaidSubject` | Object-kind checking in the `paid` amount case. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
@@ -1119,7 +1114,27 @@ unions retain location evidence rather than restoring a hardcoded stack location
 subject must be an object; where it is is not checked, and it need not
 currently be a creature [CR#120.6]. It publishes the ordinary subject reference and no damage
 outcome. Regeneration composes this primitive with tapping and conditional
-removal from combat inside a destruction replacement.
+removal from combat inside a destruction replacement. `Action.markDamage` [CR#120.3e]
+publishes the damage marked (`damageMarked`), which a replacement of the marking reads back.
+
+Damage rules are compositions (owner ruling 2026-10-22). A prevention, redirection or scaling
+effect is a replacement of a damage event, `replace (would <source> (dealDamage …))
+(instead …)` [CR#614.1a,615.1]: `instead (preventDamage cut (also := …))` prevents it, its
+additional effect stepped after the prevention publishes what it prevented [CR#615.5];
+`instead (redirectDamage cut to)` deals it to one other permanent or player, `to` singular
+(`singular`) and of that kind (`kindLte`) [CR#614.9]; `instead (instruct it (dealDamage …))`
+has the source deal a modified amount instead [CR#614.1a,614.6], twice that much when
+it doubles [CR#701.10g]. A cut is stepped before the prevention
+publishes its outcome. With no damage named (`damage := none`), either action acts on "that
+damage", the damage in scope, and refuses `damageDealtInScope` without one; the prevention
+turns that damage into the damage prevented (`DRS.withDamagePrevented`), so "that much" in its
+additional effect reads one amount. "Can't be prevented" and "can't be dealt instead" are
+prohibitions over these actions, `cant any (preventDamage .all (damage := some clause))`,
+both of them deontic and event heads [CR#615.12]. A prevention records the event its additional
+effect's "this way" reads (`did any (preventDamage …) thisWay`). An `instead` over a damage event
+is that event modified [CR#614.6]: its `dealDamage` keeps the event's kind, and a recipient left
+unwritten is the event's. A damage pattern's recipient is matched member by member, so a group
+recipient refuses `perMember` only in an instruction.
 
 
 ### Template and definition parameters and expanded actions
@@ -1235,10 +1250,13 @@ the `nontarget` refusal is retired here as on a static ability
 (`lean-checker-sweep-game-rules`).
 
 Two representation boundaries are named rather than hidden. A conferral confers
-an `Ability`, not a separate property type; whether it is one an effect could
-grant (`grantable`) is retired with the grant rules. A damage result names a `CounterKind`;
-its recipient is an object or a player (`counterHolderKind`), and which of the two the
-counter registry declares is not checked.
+an `Ability` or an ability-free property (`Conferral`, as a registry definition's does);
+whether an ability is one an effect could grant (`grantable`) is retired with the grant rules.
+The results of damage are property conferrals, each an `asEvent` over the damage dealt to what
+the row scopes [CR#120.3a,120.3c,120.3e,120.3g,120.3h], so removing abilities leaves them; a
+result's counter is a declared one (`knownCounter`), and which holder the counter registry
+declares for it is not checked. Toxic is one row reading the total toxic value
+[CR#702.164b,702.164c].
 
 A counter's kind is a name: `CounterKind.named` carries the counter
 declaration's name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`),

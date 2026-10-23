@@ -537,29 +537,32 @@ def stormwildCapridor : Spelled := spelled <| singleFacedCard
     subtypes := [bird, goat],
     text :=
       [ flying,
-        static (damageRule unattributed (toRecipient thisCreature)
-          (prevent allDamage
-            (putCounters preventedThisWay p1p1Counter thisCreature))
-          .repeatedly (some .noncombat)) ],
+        static
+          (replace (would any (dealDamage anyAmount thisCreature (some .noncombat)))
+            (instead
+              (preventDamage allDamage
+                (also := putCounters preventedThisWay p1p1Counter thisCreature)))) ],
     power := stat 1, toughness := stat 3 }
 
 def testOfFaith : Spelled := spelled <| singleFacedCard
   { name := "Test of Faith", cost := [generic 1, pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule unattributed (toRecipient (target isCreature))
-            (prevent (theNext 3)
-              (some
-                 (putCounters preventedThisWay p1p1Counter (that creature))))
-            .repeatedly) thisTurn) ] }
+      [ spell (establishThroughout
+            (replace (would any (dealDamage anyAmount (target isCreature)))
+              (instead
+                (preventDamage (theNext 3)
+                  (also := putCounters preventedThisWay p1p1Counter (that creature)))))
+            thisTurn) ] }
 
 def temper : Spelled := spelled <| singleFacedCard
   { name := "Temper", cost := [.variable, generic 1, pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule unattributed (toRecipient (target isCreature))
-            (prevent (theNext (letter .x))
-              (some
-                 (putCounters preventedThisWay p1p1Counter (that creature))))
-            .repeatedly) thisTurn) ] }
+      [ spell (establishThroughout
+            (replace (would any (dealDamage anyAmount (target isCreature)))
+              (instead
+                (preventDamage (theNext (letter .x))
+                  (also := putCounters preventedThisWay p1p1Counter (that creature)))))
+            thisTurn) ] }
 
 def phytohydra : Spelled := spelled <| singleFacedCard
   { name := "Phytohydra", cost := [generic 2, pip .green, pip .white, pip .white],
@@ -584,8 +587,11 @@ def chromaticArmor : Spelled := spelled <| singleFacedCard
       [ enchant isCreature,
         static (entersChoosing thisAura .color),
         static (entersWithCounters thisAura 1 sleightCounter),
-        static (damageRule (dealtBy (allOf (and [isSource, ofTheLastChosen .color])))
-          (toRecipient (enchanted creature)) (prevent allDamage) .repeatedly),
+        static
+          (replace
+            (would (by_ (allOf (and [isSource, ofTheLastChosen .color])))
+              (dealDamage anyAmount (enchanted creature)))
+            (instead (preventDamage allDamage))),
         activated (mana [.variable])
           (sequentially
             [ putCounters 1 sleightCounter thisAura,

@@ -17,8 +17,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Rules
 
-private def damageResultCheck (rule : DamageResult) : List Refusal :=
-  StaticSpec.check (DRS.ofList []) (.damageResult rule)
 
 /-! ## State-based actions -/
 
@@ -67,8 +65,8 @@ concern, not the term's (ADR §0.1 items 4 and 5; owner ruling 2026-10-22). -/
 def planeswalkerLoyalty : ConferralRule :=
   { scope := .hasType .planeswalker,
     confer :=
-      .static
-        (entersWithCounters .this (.statOf (.stat .loyalty) .this) (.named "loyaltyCounter")) }
+      .ability (.static
+        (entersWithCounters .this (.statOf (.stat .loyalty) .this) (.named "loyaltyCounter"))) }
 theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := by decide
 
 /-- [CR#310.4b] "A battle has the intrinsic ability 'This permanent enters with a number of
@@ -78,14 +76,15 @@ defense counters on it equal to its printed defense number.'" The battle row of 
 def battleDefense : ConferralRule :=
   { scope := .hasType .battle,
     confer :=
-      .static
-        (entersWithCounters .this (.statOf (.stat .defense) .this) (.named "defenseCounter")) }
+      .ability (.static
+        (entersWithCounters .this (.statOf (.stat .defense) .this) (.named "defenseCounter"))) }
 theorem okBattleDefense : ConferralRule.check battleDefense = [] := by decide
 
 /-- A conferral scopes what can have an ability — an object, or a player granted one
 [CR#113.1a,113.1b] — and a color is neither. -/
 theorem badConferralScopeKind :
-    ConferralRule.check { scope := .qualityNoun .color none, confer := keyword (.named "flying") }
+    ConferralRule.check
+      { scope := .qualityNoun .color none, confer := .ability (keyword (.named "flying")) }
       = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
 
@@ -97,11 +96,11 @@ exile is its owner [CR#109.5]. -/
 def plottedCardCast : ConferralRule :=
   { scope := .and [.isCard, hasDesignation plotted, in_ exileZone],
     confer :=
-      static
+      .ability (static
         (onlyUnless
           (can you (cast this_ (from_ := exileZone) (payment := withoutPaying))
             (timing := asSorcery))
-          (did any (gainDesignation this_ plotted) soFarThisTurn)) }
+          (did any (gainDesignation this_ plotted) soFarThisTurn))) }
 theorem okPlottedCardCast : ConferralRule.check plottedCardCast = [] := by decide
 
 /-- [CR#702.143d] "That card's owner may look at that card as long as it remains in exile": the
@@ -109,32 +108,90 @@ look right of every foretold card, whatever made it foretold. Its cast right, "f
 cost it has", needs a cost term naming a keyword's cost, which the grammar does not have. -/
 def foretoldCardLook : ConferralRule :=
   { scope := .and [.isCard, hasDesignation foretold, in_ exileZone],
-    confer := static (visibility .lookAt you (objects this_)) }
+    confer := .ability (static (visibility .lookAt you (objects this_))) }
 theorem okForetoldCardLook : ConferralRule.check foretoldCardLook = [] := by decide
 
-/-! ## Damage results -/
+/-! ## The results of damage
+
+Each result is a rule, conferred as a property on what the rules give it to, so no effect that
+removes abilities switches it off; an `asEvent` does it as the damage is dealt [CR#120.4c]. A
+replacement of a result replaces this row's action, not the damage: wither and infect replace the
+marking and the life loss [CR#120.3d,702.80a,702.90b,702.90c]. Lifelink, an ability, is the
+keyword's own body [CR#702.15b]. -/
+
+/-- The results of damage dealt to `this` the scoped object, `result` reading the damage dealt as
+`thatMuch`. -/
+def damageResultRow (scope : Predicate) (result : Action) : ConferralRule :=
+  { scope, confer := .property (asEvent (does any (dealDamage anyAmount this_)) result) }
+
+/-- [CR#120.3a] "Damage dealt to a player by a source without infect causes that player to lose
+that much life." In a row scoped to players, "you" is the player. Infect replaces the loss
+(`infect`) [CR#702.90b]. -/
+def playerDamageLifeLoss : ConferralRule :=
+  { scope := isPlayer,
+    confer := .property (asEvent (does any (dealDamage anyAmount you)) (loseLife thatMuch)) }
+theorem okPlayerDamageLifeLoss : ConferralRule.check playerDamageLifeLoss = [] := by decide
+
+/-- [CR#120.3e] "Damage dealt to a creature by a source with neither wither nor infect causes
+that much damage to be marked on that creature." Wither and infect replace the marking
+[CR#120.3d]. -/
+def creatureDamageMarking : ConferralRule :=
+  damageResultRow isCreature (markDamage this_ thatMuch)
+theorem okCreatureDamageMarking : ConferralRule.check creatureDamageMarking = [] := by decide
 
 /-- [CR#120.3c] "Damage dealt to a planeswalker causes that many loyalty counters to be removed
 from that planeswalker." -/
-def planeswalkerLoyaltyDamage : DamageResult :=
-  { source := .any, recipient := .hasType .planeswalker, mode := .intrinsic,
-    does := loseCounters (some (.printed (.named "loyaltyCounter"))) (some .thatMuch) .this }
-theorem okPlaneswalkerLoyaltyDamage :
-    damageResultCheck planeswalkerLoyaltyDamage = [] := by decide
+def planeswalkerLoyaltyDamage : ConferralRule :=
+  damageResultRow (.hasType .planeswalker)
+    (loseCounters (some (.printed (.named "loyaltyCounter"))) (some .thatMuch) .this)
+theorem okPlaneswalkerLoyaltyDamage : ConferralRule.check planeswalkerLoyaltyDamage = [] := by
+  decide
 
 /-- [CR#120.3h] "Damage dealt to a battle causes that many defense counters to be removed from
 that battle." -/
-def battleDefenseDamage : DamageResult :=
-  { source := .any, recipient := .hasType .battle, mode := .intrinsic,
-    does := loseCounters (some (.printed (.named "defenseCounter"))) (some .thatMuch) .this }
-theorem okBattleDefenseDamage : damageResultCheck battleDefenseDamage = [] := by decide
+def battleDefenseDamage : ConferralRule :=
+  damageResultRow (.hasType .battle)
+    (loseCounters (some (.printed (.named "defenseCounter"))) (some .thatMuch) .this)
+theorem okBattleDefenseDamage : ConferralRule.check battleDefenseDamage = [] := by decide
 
 /-- A counter kind is a registry key, and "loyalty" is not the declared name (`loyaltyCounter`). -/
 theorem badDamageResultUndeclaredCounter :
-    damageResultCheck { planeswalkerLoyaltyDamage with
-      does := loseCounters (some (.printed (.named "loyalty"))) (some .thatMuch) .this }
+    ConferralRule.check
+      (damageResultRow (.hasType .planeswalker)
+        (loseCounters (some (.printed (.named "loyalty"))) (some .thatMuch) .this))
       = [.knownCounter] := by
   decide
+
+/-- [CR#120.3g,702.164c] "Combat damage dealt to a player by a creature with toxic causes that
+creature's controller to give the player a number of poison counters equal to that creature's
+total toxic value, in addition to the damage's other results." One row for the creature,
+reading the sum of its toxic abilities' N values [CR#702.164b], not one per toxic ability: the
+keyword is bodiless, so combat damage from a creature with toxic 2 and toxic 1 gives three poison
+counters once. -/
+def toxicPoison : ConferralRule :=
+  { scope := .and [isCreature, .hasKeyword (.the (.named "toxic"))],
+    confer := .property
+      (asEvent (does this_ (dealDamage anyAmount (a isPlayer) (some .combat)))
+        (putCounters (totalToxicValue this_) poison (that player))) }
+theorem okToxicPoison : ConferralRule.check toxicPoison = [] := by decide
+
+/-- A creature with two toxic abilities has one result: each ability is the bare keyword, with
+no body of its own, and the one row reads the total toxic value [CR#702.164b,702.164c]. -/
+theorem toxicIsOneResultReadingTheTotal :
+    toxic 2 = .keyword (.named "toxic") [.number (.inCaller 2)] [] ∧
+      toxic 1 = .keyword (.named "toxic") [.number (.inCaller 1)] [] ∧
+      toxicPoison.confer = .property
+        (asEvent (does this_ (dealDamage anyAmount (a isPlayer) (some .combat)))
+          (putCounters (.aggregate .sum (.keywordNumber (.named "toxic")) this_) poison
+            (that player))) :=
+  ⟨rfl, rfl, rfl⟩
+
+/-- The results of damage to a planeswalker are no ability of it: they are a property the rules
+confer, so an effect that makes a permanent lose all abilities leaves them [CR#120.3c,113.12]. -/
+theorem planeswalkerDamageResultIsNotAnAbility :
+    (match planeswalkerLoyaltyDamage.confer with
+      | .property _ => true
+      | _ => false) = true := rfl
 
 /-! ## Registry definitions -/
 
@@ -478,8 +535,10 @@ theorem badUnnamedPredefinedToken :
 lookback the grammar does not yet spell. -/
 def builtinTables : RulesTables :=
   { sba := [toughnessZero, loyaltyZero, battleDefenseZero],
-    conferral := [planeswalkerLoyalty, battleDefense, plottedCardCast, foretoldCardLook],
-    damageResult := [planeswalkerLoyaltyDamage, battleDefenseDamage] }
+    conferral :=
+      [ planeswalkerLoyalty, battleDefense, plottedCardCast, foretoldCardLook,
+        playerDamageLifeLoss, creatureDamageMarking, planeswalkerLoyaltyDamage,
+        battleDefenseDamage, toxicPoison ] }
 
 theorem okBuiltinTables : RulesTables.check builtinTables = [] := by decide
 

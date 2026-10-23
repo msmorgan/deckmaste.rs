@@ -444,9 +444,12 @@ def shiningShoal : Spelled := spelled <| singleFacedCard
           (exile
             (a (and [hasColor .white, hasManaValue .eq (letter .x),
                       in_ yourHand])))),
-        spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-              (toRecipient (andOr [you, allOf (and [isCreature, youControl])]))
-              (redirect (theNext (letter .x)) (target isAnyTarget)) .repeatedly) thisTurn) ] }
+        spell (establishThroughout
+              (replace
+                (would (aYourChoice isSource)
+                  (dealDamage anyAmount (andOr [you, allOf (and [isCreature, youControl])])))
+                (instead (redirectDamage (theNext (letter .x)) (target isAnyTarget))))
+              thisTurn) ] }
 
 def disruptingShoal : Spelled := spelled <| singleFacedCard
   { name := "Disrupting Shoal", cost := [.variable, pip .blue, pip .blue], types := [.instant],

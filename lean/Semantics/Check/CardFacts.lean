@@ -69,6 +69,9 @@ mutual
     | n + 1, .addMana _ _ riders => riders.any (fun rider => match rider with
       | .onSpent _ _ _ body => body.namesThisDoor n | _ => false)
     | n + 1, .pay cost .. => cost.namesThisDoor n
+    | n + 1, .preventDamage _ damage also =>
+      damage.any (fun c => c.namesThisDoor n) || also.any (fun i => i.namesThisDoor n)
+    | n + 1, .redirectDamage _ _ damage => damage.any (fun c => c.namesThisDoor n)
     | n + 1, .applyResultsTable rows => rows.any (fun row => row.action.namesThisDoor n)
     | n + 1, .createObject _ (.emblem _ abilities) _ => abilities.any (fun a => a.namesThisDoor n)
     | _, _ => false
@@ -106,10 +109,8 @@ mutual
     | n + 1, .replace event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .whileHolds condition i => condition.namesThisDoor n || i.namesThisDoor n
     | n + 1, .specialAction _ timing cost i => cost.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
-    | n + 1, .damageRule _ _ (.prevent _ also) _ _ => also.any (fun i => i.namesThisDoor n)
     | n + 1, .paySubstitute _ substitute => substitute.action.namesThisDoor n
     | n + 1, .asEvent ev i | n + 1, .rollModifier ev i _ => ev.namesThisDoor n || i.namesThisDoor n
-    | n + 1, .damageResult rule => rule.does.namesThisDoor n
     | n + 1, .additionalTriggers ev _ => ev.namesThisDoor n
     | n + 1, .addedCost cost _ _ => cost.namesThisDoor n
     | n + 1, .altCost _ cost => cost.any (fun c => c.namesThisDoor n)
