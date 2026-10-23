@@ -116,3 +116,7 @@ before it.
   Association prefers it, and the measured cost of reordering the components.
 - **Row 23.** See `english-v4-agency-outfitter-coordination-ranking`.
 
+Closed: retired by owner round 9; no work remains, integration moves it to done.
+
+Census delta (measured on `okprvpoz` -> this landing): documentation and comment changes only; faces read 28,801, total Readings 245,825 and Surplus 106,859 before and after; lost faces: none.
+Judgment set (measured on `okprvpoz`): not affected; `cargo xtask english-v4 strata --check` passes and the crate tests pass.
