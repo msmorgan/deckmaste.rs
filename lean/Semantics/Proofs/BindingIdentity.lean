@@ -219,7 +219,7 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
   .sequentially
     [ discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not isLand, .isCard,
-        .did ⟨.any, discard .which, some .thisWay⟩]))
+        .did { subj := .any, action := discard .which, within := some .thisWay }]))
         (.putCounters 1 (.printed p1p1Counter) (that .permanent)) ]
 
 private def conniveBy (amount : Amount) : Action :=

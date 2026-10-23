@@ -499,9 +499,10 @@ theorem millThenPutFromAmongMilled :
             (putInto
               (fromAmong (exactly 1) isArtifact
                 (thePlural (and [isCard,
-                  .did ⟨.any, .ownScope (some (.action "mill"))
-                    (.move (.inCaller .which) yourLibrary (some graveyard) .departure []),
-                    some .thisWay⟩])))
+                  .did { subj := .any
+                         action := .ownScope (some (.action "mill"))
+                           (.move (.inCaller .which) yourLibrary (some graveyard) .departure [])
+                         within := some .thisWay }])))
               hand) ]) = [] := by
   decide
 

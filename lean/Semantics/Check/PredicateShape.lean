@@ -82,6 +82,7 @@ def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   | _ + 1, .chosenPlayer _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
   | _ + 1, .in_ (.exiledWith _) | _ + 1, .related _ (some _) => true
   | _ + 1, .castBy _ rank => rank.isSome
+  | _ + 1, .did clause => clause.ordinal.isSome
   | n + 1, .and predicates => predicates.any (·.uniquifies n)
   | _, _ => false
 termination_by structural fuel

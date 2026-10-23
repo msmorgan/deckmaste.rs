@@ -561,7 +561,9 @@ theorem okUntapAction :
 
 /-- "… if a creature died this turn, …" -/
 theorem okDeathLookback :
-    Condition.check (DRS.ofList []) (.did ⟨.any, .move (a isCreature) (battlefield) (some graveyard) .departure [], some (.duration soFarThisTurn none)⟩) = [] := by decide
+    Condition.check (DRS.ofList []) (.did { subj := .any
+                                            action := .move (a isCreature) (battlefield) (some graveyard) .departure []
+                                            within := some (.duration soFarThisTurn none) }) = [] := by decide
 
 /-- "Counter target activated ability." -/
 theorem okCounterAbility :

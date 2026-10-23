@@ -85,7 +85,9 @@ theorem distributedLifeLossKeepsOneScalarLetter :
 
 theorem alternativeConditionsCannotBorrowOtherBranchParticipants :
     Condition.check (DRS.ofList [])
-      (.or [.did ⟨.any, destroy (a isCreature), some (.duration soFarThisTurn none)⟩,
+      (.or [.did { subj := .any
+                   action := destroy (a isCreature)
+                   within := some (.duration soFarThisTurn none) },
         .matches it isCreature]) =
       [.anaphor .bare .one 0] := by decide
 
@@ -187,14 +189,17 @@ theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
       triggerEvents := (does thisCreature enter).triggerEvents }
     let original := initial.referents.head?.map (·.id)
     let out := stepCondition 16 initial
-      (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival [],
-        some .triggering⟩)
+      (.did { subj := .any
+              action := .move it (graveyardOf .you) (some battlefield) .arrival []
+              within := some .triggering })
     out.2 = [] ∧ (original.bind out.1.findById?).map (·.zone) = some (some .battlefield) ∧
       out.1.historicalReferentIds = [] := by decide +kernel
 
 theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
     let out := stepCondition 16 (DRS.ofList [])
-      (.did ⟨.any, destroy (a isCreature), some (.duration soFarThisTurn none)⟩)
+      (.did { subj := .any
+              action := destroy (a isCreature)
+              within := some (.duration soFarThisTurn none) })
     out.2 = [] ∧ out.1.visibleReferents.any
       (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
 

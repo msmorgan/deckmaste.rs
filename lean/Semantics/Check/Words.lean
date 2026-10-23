@@ -1671,6 +1671,14 @@ def OptOrdinal.ok : Option Ordinal → Bool
   | none => true
   | some o => o.ok
 
+/-- What an event ordinal ("your second spell each turn") may count within. `thisObject` is a
+Usage Limit's alone: an object's existence [CR#400.7] spans no run of events to count. "Each turn"
+is spelled `Period.turn`; `part .turn` would say the same and is refused, so the one reading has
+one spelling. -/
+def Period.eventOrdinalOk : Period → Bool
+  | .thisObject | .part .turn => false
+  | _ => true
+
 /-! ## Designations -/
 
 def DesignationLabel.name : DesignationLabel → String

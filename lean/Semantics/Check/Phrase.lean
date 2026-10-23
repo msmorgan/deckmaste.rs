@@ -1227,9 +1227,16 @@ def lookbackGroundRefusals (drs : DRS) (action : Action) (subject : Option Kind)
       .triggeringUngrounded
   | _ => []
 
+/-- An event ordinal counts from one, within a period `Period.eventOrdinalOk`
+admits. -/
+def eventOrdinalRefusals : Option (Ordinal × Option Period) → List Refusal
+  | none => []
+  | some (ordinal, per) => refuse ordinal.ok .ordinalNonZero ++
+    per.toList.flatMap fun period => refuse period.eventOrdinalOk (.eventOrdinalPeriod period)
+
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
-  | ⟨subj, action, within⟩ =>
+  | { subj, action, within, ordinal } =>
     let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
     let locusErrors := match action.scopeBody with
       | .enact verb _ _ (some zone) =>
@@ -1269,7 +1276,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         historicalReferentIds := drs.historicalReferentIds
         participialAnchorRead := drs.participialAnchorRead },
       headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
-        eventVoiceChecks drs subj action)
+        eventVoiceChecks drs subj action ++ eventOrdinalRefusals ordinal)
 
 /-- Step a relative clause (`Predicate.did`) with its `which` bound to `whichRef`; the clause
 must mention `which`. -/
@@ -1321,7 +1328,9 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
     let (drs1, errors) := stepCausingWith ops drs cause
     let (drs2, clauseErrors) := stepWouldClauseWith ops drs1 clause n
     (drs2, errors ++ clauseErrors)
-  | n + 1, .nthOccurrence _ _ clause => stepWouldClauseWith ops drs clause n
+  | n + 1, .nthOccurrence ordinal per clause =>
+    let (out, errors) := stepWouldClauseWith ops drs clause n
+    (out, errors ++ eventOrdinalRefusals (some (ordinal, per)))
 termination_by structural fuel
 
 def stepCombatParticipationWith (ops : StepOps) (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
@@ -2490,10 +2499,19 @@ def stepOps : Nat → StepOps
           (drs, refuse (count == 1) (.choiceRef .theChoice (.quality .cardName) count))
         | .hasKeyword term => (drs, refuse term.known .knownKeywordTerm)
         | .abilityHead family => (drs, refuse family.known .knownKeywordTerm)
-        | .counterKindOn src | .abilityOf src
-        | .activatedBy src | .legalAttachment _ src =>
+        | .counterKindOn src | .abilityOf src | .legalAttachment _ src =>
           let (drs', _, errs) := ops.np drs .other false src
           (drs', errs)
+        | .activatedBy activator =>
+          -- A player activates an ability [CR#602.2].
+          let (out, ids, errors) := ops.np drs .other false activator
+          (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)))
+        | .castBy caster rank =>
+          -- A player casts a spell [CR#601.2].
+          let (out, ids, errors) := ops.np drs .other false caster
+          (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)) ++
+            eventOrdinalRefusals rank)
+        | .castFrom zone => stepLocationWith ops drs zone
         | .other =>
           let kind := drs.relativeKind.getD .object
           match drs.contrastAnchor? kind drs.relativeTypes drs.relativeZone drs.relativeControl with
@@ -3115,7 +3133,9 @@ def stepOps : Nat → StepOps
         | .chapterMark ns => (drs, refuse (chapterMarksOk ns) .chapterMarks)
         | .stateBasedActionsChecked | .now => (drs, [])
         | .stateHolds c => ops.cond drs c
-        | .nthOccurrence _ _ ev => ops.ev drs ev
+        | .nthOccurrence ordinal per ev =>
+          let (out, errors) := ops.ev drs ev
+          (out, errors ++ eventOrdinalRefusals (some (ordinal, per)))
         | .causes c ev =>
           let (drs1, e1) := stepCausingWith ops drs c
           let (drs2, e2) := ops.ev drs1 ev
