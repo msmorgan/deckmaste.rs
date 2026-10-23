@@ -638,8 +638,8 @@ The remaining heads each supply an independent read requirement:
 | `type ty` | Current battlefield carrier and remembered type; `ofType permanent ty` is not equivalent because `permanent` can also read a former battlefield carrier through its stamp. |
 | `card`, `spell` | Their current card-zone or stack carrier. |
 | `permanent`, `token` | Battlefield/stamp discipline for the former; current battlefield plus token origin for the latter. |
-| `copy` | An object-payload copy, without imposing a card, spell, or permanent carrier; `copied ability` separately retains the ability head. `copied object` is not this head: it also reaches a copied ability. |
-| `object` | Kind alone: any Object, in any zone, with no carrier, zone or type requirement [CR#109.1]. It is no Head Noun. The `thatSource` Template ("that source") expands to `that object`, since a source is an Object in any zone [CR#109.2c,609.7a]; "source" adds no rules meaning of its own. |
+| `copy` | An object-payload copy, without imposing a card, spell, or permanent carrier; `copied ability` separately retains the ability head. There is no generic object word to expand this head through. |
+| `source` | No Head Noun and no carrier: an object referent introduced by a description that names it a source (`Referent.introducedAsSource`: "a source of your choice", "whenever a source deals damage"), in any zone [CR#609.7a]. The `thatSource` Template ("that source") is `that source`; it never reads the Source of the text, nor an object introduced under any other description (owner ruling 2026-10-22). |
 | `ability`, `player`, `pile` | The corresponding payload category. |
 | `stack`, `join` | The existing shared-stack and joined-reference disciplines, including their kind constraints. |
 

@@ -368,9 +368,11 @@ inductive NounWord where
   | copied (word : NounWord)
   /-- "Put THAT PILE into your hand and the other into your graveyard." -/
   | pile
-  /-- Any Object, in any zone, by kind alone [CR#109.1]; no Head Noun. "That source" is
-  written with it: a source is an Object in any zone [CR#109.2c,609.7a]. -/
-  | object
+  /-- "THAT SOURCE's controller": no Head Noun. It reads back only a referent introduced as a
+  source ("a source of your choice", "whenever a source deals damage"), whatever its zone, as a
+  source can be a permanent, a spell, a card an effect refers to, or a command-zone object
+  [CR#609.7a]. It never reads the Source of the text. -/
+  | source
   deriving DecidableEq, Repr
 
 inductive SlotCarrier where

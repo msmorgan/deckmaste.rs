@@ -10,6 +10,18 @@ Standard constraints apply. Owner notes (2026-10-21):
 - Owner's suggested direction, not yet a ruling: "source" may just be a Template over a generic
   Noun Word (`any`, `object` or similar).
 
+## Owner ruling (2026-10-22, Option C)
+
+- "That source" matches by head noun. Add a `source` Noun Word, plus a referent flag recording
+  that the antecedent was introduced *as a source* ("a source of your choice", "a source").
+- "That source" matches only such antecedents. Existing "that <type>" → "this <type>" pins stay
+  unchanged.
+- The generic `NounWord.object` route failed: plain demonstrative recency read the card's own
+  mention (the spell's `this_`), not the chosen source. It is replaced, not narrowed:
+  `NounWord.object` is gone, and `NounWord.source` reads only a referent whose
+  `introducedAsSource` flag is set. `bindFor` sets the flag when the introducing description has
+  an `isSource` conjunct.
+
 ## Defect (verified 2026-10-21)
 
 *Deflecting Palm* (`lean/Semantics/Cards/Damage.lean:492-501`): "The next time a source of your
@@ -43,6 +55,9 @@ Obliterator*, *Reaper of Sheoldred*, *Belltower Sphinx*, *Archfiend of Spite*, *
 *Rona, Herald of Invasion*, *Elesh Norn // The Argent Etchings*, *Flameblade Angel*).
 
 ## Proposed fix (direction from the owner; shape to confirm)
+
+Superseded where it differs by the 2026-10-22 ruling above (a `source` word and flag, not a
+kind-only `object` word).
 
 - Governing principle (owner, 2026-10-21): printed wording lives on Templates, and a Core AST
   distinction exists only where the CR or anaphora resolution needs it. Refined 2026-10-22 as

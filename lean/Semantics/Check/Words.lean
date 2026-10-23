@@ -478,6 +478,9 @@ structure Referent where
   /-- The ids this object's referent had before the Zone Changes the checker applied to it,
   latest first: a move is a new object [CR#400.7], read under a fresh id. -/
   movedFrom : List ReferentId := []
+  /-- Introduced by a description that names it a source ("a source of your choice", "whenever a
+  source deals damage"): the only antecedent "that source" reads back [CR#609.7a]. -/
+  introducedAsSource : Bool := false
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -1083,7 +1086,6 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
   match w with
   | .ofType word t => halfWordReaches word pl && payloadHasType t pl
   | .copied word => halfWordReaches word pl && payloadIsCopy pl
-  | .object => Kind.lte pl.kind .object
   | word =>
     match pl with
     | .object ty zn _ _ _ =>
@@ -1103,8 +1105,8 @@ def wordReaches (w : NounWord) (b : Referent) : Bool :=
   match w with
   | .ofType word t => wordReaches word b && payloadHasType t b.payload
   | .copied word => wordReaches word b && payloadIsCopy b.payload
-  -- Kind alone: no carrier, zone or type [CR#109.1].
-  | .object => Kind.lte b.kind .object
+  -- Introduced as a source, in any zone [CR#609.7a].
+  | .source => b.introducedAsSource && b.kind == .object
   | w =>
     match b.payload with
     | .object ty zn _ og _ =>
