@@ -38,10 +38,11 @@ The whole ruling is split across five tickets that land one at a time, in this o
 refuses a card holding one; `[internal_expansion]` only suppresses the generated primitive template
 (`Authoring.lean:246-253`). `KeywordLabel`, `AbilityWordLabel` and `Deed` are not
 `semantic_expression` today (`Words.lean:637` tags only `Delta` and `Subtype`), so this ticket tags
-them. **STOP-1 (narrowed, awaiting the owner)**: terms outside `spelled` (about 750 fragment
-definitions in `Cards/` and all of `Proofs/`) are not covered by the boundary; proposed: they are
-fixtures and keep no `known*` check. Every step except the final deletion of the `known*` checks
-proceeds either way.
+them. **Ruled (owner, 2026-10-23), STOP-1 accepted**: the authoring boundary
+(`Authoring.inspect` / `spelled`) covers only `Spelled` cards. Card fragments in `Cards/` and
+everything in `Proofs/` are fixtures and keep no `known*` check; a typo in a fixture surfaces when
+the full card is spelled. No `known*` check is kept for non-`spelled` input, so the deletion steps
+are not gated.
 
 ## Verified (2026-10-22, paths under `lean/Semantics/`)
 
@@ -69,16 +70,23 @@ proceeds either way.
   59 are `paidCost`; 9 more are `paidCost` with no cost parameter: `casualty` (number), `gift`
   (none), `bargain` (none), `conspire` (none), `devour` (number; quality and number),
   `jumpStart` (none), `offering` (quality), `teamwork` (number), `tribute` (number).
-- **STOP-3 (narrowed, awaiting the owner): where `paidCost` comes from.** The ruling's design
+- **Ruled (owner, 2026-10-23), STOP-3: proposal (a) accepted.** `paidCost` resolves the label
+  against the enclosing card's abilities (via the header context, `Check/HeaderContext.lean`) and
+  inspects that node's params and body: a cost parameter, or an `addedCost`/`altCost` in the body.
+  The context-free pins at `Proofs/Faces.lean:795-811` get a card. The original analysis follows.
+  Where `paidCost` comes from: the ruling's design
   ("inspect params/body on the `Ability.keyword` node") needs a node, and `LinkSource` does not
-  carry one. Two ways to give it one: (a) resolve the label against the enclosing card's abilities
+  carry one. Two ways to give it one: (a) (chosen) resolve the label against the enclosing card's abilities
   when checking (the checker already threads a header context, `Check/HeaderContext.lean`) and
   inspect that node's params and body (a cost parameter, or an `addedCost`/`altCost` in the body,
   which covers casualty, bargain, conspire, jump-start, offering...); the context-free pins at
   `Proofs/Faces.lean:795-811` then need a card; or (b) a typed marker on the keyword's definition,
-  which is a one-column table again. **Proposed:** (a). Until ruled, the implementer does steps
-  1-3 and 6 and leaves `paidCost` and its `LinkSource.named` readers in place.
-- **STOP-4 (narrowed, awaiting the owner): the term-level readers of `argumentSchemas`.** The
+  which is a one-column table again (rejected).
+- **Ruled (owner, 2026-10-23), STOP-4: proposal accepted.** The term-level readers derive a
+  keyword's parameter shape from its `semantic_definition`'s own signature at elaboration time, as
+  `spliceSchemas` does (`Authoring.lean:154`). The readers are `KeywordFamily.ok`,
+  `KeywordTerm.known` `.theWith`, `keywordCosts`/`CostNamed.nameable` and `checkKeywordParamsWith`,
+  the last including `qualityDomain`. The original analysis follows. The
   ruling deletes `argumentSchemas` "since Lean types enforce parameters". That holds for invoking
   a keyword (`keywordParamFits`, `Check/Phrase.lean:1587`, used `:4121-4123`). Four other readers
   ask about keyword *terms* and *labels*, where no typed function is called:
@@ -86,11 +94,9 @@ proceeds either way.
   schema), `KeywordTerm.known` `.theWith` (`:109`: needs a number schema), `keywordCosts` and
   `CostNamed.nameable` (`:95-96, :129-131`: "the cost of keyword K" needs a cost schema), and
   `checkKeywordParamsWith` (`Check/Phrase.lean:1613`, which also applies each position's
-  `qualityDomain`: `.object` for equip, cycling, emerge, splice). **Proposed:** derive the shape
+  `qualityDomain`: `.object` for equip, cycling, emerge, splice). **Chosen:** derive the shape
   from the declared function's own signature (the parameter types of the `semantic_definition` in
-  `Definitions/Keywords.lean`, read at elaboration time, as `spliceSchemas` does,
-  `Authoring.lean:154`), or make each term form a typed template over the declaration. The
-  implementer picks only after the owner confirms the direction.
+  `Definitions/Keywords.lean`, read at elaboration time, as `spliceSchemas` does).
 - Remaining readers of `keywordFactsFor`/`knownKeyword`: `Check/Keywords.lean:20-21, 91, 99,
   107, 116-117, 122`, `Check/Card.lean:30-31` (card class, ticket A), `:232`, `Check/Phrase.lean:1644,
   4121`. `distinctKeywordWords` (`Check/Keywords.lean:16`) and `Proofs/Tables.lean`
@@ -110,11 +116,20 @@ proceeds either way.
    spelling `.keyword (.named "…")` inside definition bodies, as `ascend` does at `:240`.
 2. Delete the card-class columns (ticket A; if A has not landed, A first).
 3. `wantsModes`: delete the column; `keywordWantsModes` inspects the body for `.modeChoice`.
-4. `paidCost` and the term-level `argumentSchemas` readers: after STOP-3 and STOP-4.
+4. `paidCost`: make `LinkSource.named` (and `paidCostRead`, `timesPaid`, `costWasPaid`,
+   `choiceWasTaken`, `keywordCostPaid`) resolve the label against the enclosing card's abilities
+   through the header context (`Check/HeaderContext.lean`), and read that node's params and body
+   (a cost parameter, or an `addedCost`/`altCost`): this covers the 59 cost-parameter rows and
+   casualty, bargain, conspire, jump-start, offering and the rest. Then re-spell
+   `Proofs/Faces.lean:795-811` over a card. Term-level `argumentSchemas` readers
+   (`KeywordFamily.ok`, `KeywordTerm.known` `.theWith`, `keywordCosts`/`CostNamed.nameable`,
+   `checkKeywordParamsWith` including `qualityDomain`): derive the parameter shape from the
+   keyword's `semantic_definition` signature at elaboration time, as `spliceSchemas` does; no
+   hand table remains.
 5. Delete `keywordFacts`, `KeywordFacts`, `KeywordParamShape`, `KeywordParamSpec`,
    `KeywordSchema`, `keywordFactsFor`, `knownKeyword`, `distinctKeywordWords`, `keywordParamFits`,
    `keywordSchemaFor`, and the `knownKeywordTerm`/`keywordParamFits` refusals once nothing raises
-   them (after STOP-1 and STOP-4).
+   them (after step 4).
 6. Re-spell or delete the by-label templates above and re-spell their `Proofs/` uses with the
    typed functions.
 
@@ -134,8 +149,12 @@ proceeds either way.
   `Proofs/Mana.lean:102, 107, 113, 118, 224`. Where a pin's claim is also "the arguments are
   stepped", keep the positive half (`Proofs/KeywordArguments.lean:9-33`).
 - **Kept/moved**: `alternativeCostReadbacks`, `modalCostReadbacks` (`Proofs/Faces.lean:795-811`)
-  move with STOP-3's resolution; `hexproof_and_cycling_admit_their_cr_variants` (the retired xtask
+  are re-spelled over a card (STOP-3 ruling: `paidCost` reads the enclosing card's keyword node); `hexproof_and_cycling_admit_their_cr_variants` (the retired xtask
   test) is carried by `Proofs/Keyword.lean:352` and `KeywordArguments.lean:9-33` (confirm).
+- **Added**: `paidCost` pins on a card: a cost-parameter keyword, and one paid through an
+  `addedCost`/`altCost` body (casualty or bargain), read `true`; a keyword with neither reads
+  `false`. Term-level reader pins (family sort needs a quality parameter, `.theWith` a number,
+  keyword cost a cost) now derive from the declaration signature.
 - **Added**: `okEntwineEscalateSpreeTieredWantModes` (each body contains `.modeChoice`), and a
   negative (a keyword without it does not want modes).
 

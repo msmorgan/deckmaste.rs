@@ -53,10 +53,11 @@ The whole ruling is split across five tickets that land one at a time, in this o
 refuses a card holding one; `[internal_expansion]` only suppresses the generated primitive template
 (`Authoring.lean:246-253`). `KeywordLabel`, `AbilityWordLabel` and `Deed` are not
 `semantic_expression` today (`Words.lean:637` tags only `Delta` and `Subtype`), so this ticket tags
-them. **STOP-1 (narrowed, awaiting the owner)**: terms outside `spelled` (about 750 fragment
-definitions in `Cards/` and all of `Proofs/`) are not covered by the boundary; proposed: they are
-fixtures and keep no `known*` check. Every step except the final deletion of the `known*` checks
-proceeds either way.
+them. **Ruled (owner, 2026-10-23), STOP-1 accepted**: the authoring boundary
+(`Authoring.inspect` / `spelled`) covers only `Spelled` cards. Card fragments in `Cards/` and
+everything in `Proofs/` are fixtures and keep no `known*` check; a typo in a fixture surfaces when
+the full card is spelled. No `known*` check is kept for non-`spelled` input, so the deletion steps
+are not gated.
 
 ## Verified (2026-10-22, paths under `lean/Semantics/`)
 
@@ -80,13 +81,20 @@ proceeds either way.
   CardType is genuinely a new shape: a structure whose catalog entries are
   `semantic_definition CardType.creature : CardType := …` (the precedent for a namespaced entry is
   `Subtype.army`, `Definitions/Subtypes.lean`), so `types := [.creature]` keeps resolving.
-- **STOP-2 applies (narrowed, awaiting the owner): `confers : List Conferral` on `CardType` is a
-  type cycle** (full account in `lean-v3-catalog-items-self-contained`): `Conferral`
+- **Ruled (owner, 2026-10-23), STOP-2 accepted, extended to subtypes.** Conferrals do not go on the
+  value: `CardType` carries only non-recursive fields, and its `confers` stay on `Definition.cardType`
+  (`Rules.lean:124`), as counters already do on `Definition.counter`. Subtypes do the same: what a
+  subtype confers (Saga's chapters and lore rule, Siege's protector and last-counter trigger, the
+  rest) lives on a `Definition.subtype` row (`Rules.lean:110`, `rules : List Conferral`), never on
+  the `Subtype` value. Verified today: that variant exists and is checked (`Check/Rules.lean:51`)
+  but `Definitions/Subtypes.lean` has no rows; the `Subtype` value is `.of host label` / `.spell
+  label` with no conferrals, so nothing moves, and Siege and Saga rules are new rows. The owner
+  considered moving `CardType` into the `Abilities.lean` mutual block and declined. Original
+  analysis: `confers : List Conferral` on `CardType` is a type cycle (full account in `lean-v3-catalog-items-self-contained`): `Conferral`
   (`Rules.lean:51`) holds `Ability`/`StaticSpec`, which hold `CardType` (`Predicate.hasType`,
-  `Subtype.of`, `QualitySort.subtype`, `KindAxis.subtype`). **Proposed:** the value carries name,
-  `permanent` and `stats`; the conferrals stay on the separate record `Definition.cardType`
-  (`Rules.lean:124`) already keyed by the value, declared in the same `Definitions/` file. The
-  card-type declarations below are written either way; only where `confers` lives waits.
+  `Subtype.of`, `QualitySort.subtype`, `KindAxis.subtype`). **Chosen:** the value carries name,
+  the Card Class fields and `stats`; the conferrals stay on the separate record `Definition.cardType`
+  (`Rules.lean:124`) already keyed by the value, declared in the same `Definitions/` file.
 - **The existing record already holds three of the four fields**: `Definition.cardType
   (cardType : CardType) (permanentType : Bool) (confers : List Conferral)` (`Rules.lean:124`), checked
   at `Check/Rules.lean:59`, with pins `artifactTypeDefinition`, `creatureTypeDefinition`
@@ -105,29 +113,41 @@ proceeds either way.
   `lean-v3-template-helpers-into-definitions` the Definitions layer sits above Templates, so
   `Subtypes.lean` may import `Templates`; check that `Check.lean:13` still builds, or drop that
   import (nothing in `Check/` should read a catalog item; the checker reads the fields).
+- **Card Class must be computable from the fields.** Card Class (glossary term; permanent card vs
+  instant-or-sorcery card [CR#110.4,110.4a]) is today `cardClassOf` (`Check/Card.lean:17-19`) over
+  `isInstantOrSorcery`. `permanent : Bool` alone does not separate kindred (not a permanent, not
+  an instant or sorcery) from instant and sorcery, so add spell timing (`asInstant` / `asSorcery` /
+  none) or an explicit instant-or-sorcery field. The implementer chooses; say which and why in the
+  landing.
 - **Equality cost**: card types are compared with `decide` throughout the checker
   (`tys.elem .creature`, `typesDistinct`). A structure with `confers : List Conferral` would need
-  `DecidableEq` over `Ability` for each comparison. Under the STOP-2 proposal the value is
-  `name`/`permanent`/`stats` and equality is cheap; if `confers` ends on the value, define `BEq`/
-  `DecidableEq` by `name` and prove it lawful.
+  `DecidableEq` over `Ability` for each comparison. Under the STOP-2 ruling the value has no
+  `confers`, so `deriving DecidableEq` stays cheap.
 
 ## Change
 
-1. `CardType` becomes a structure `{ name : String, permanent : Bool, stats : List Stat }`
-   (STOP-2: plus `confers`), tagged `[semantic_expression, internal_expansion]`, declared in
+1. `CardType` becomes a single-constructor structure `{ name : String, permanent : Bool, stats :
+   List Stat, ... }` plus the field(s) that make Card Class computable (spell timing
+   `asInstant`/`asSorcery`/none, or an explicit instant-or-sorcery field; implementer's choice).
+   No `confers` (STOP-2 ruled). Tagged `[semantic_expression, internal_expansion]`, declared in
    `Words.lean`; each of the ten types is a `semantic_definition CardType.x` in a new
    `Definitions/CardTypes.lean`, over shared primitives and templates, with the CR rules in the
-   clauses above (corrected citations). Siege's protector and last-counter rules go in
-   `Definitions/Subtypes.lean`.
+   clauses above (corrected citations). Siege's protector and last-counter rules, and
+   Saga's chapters and lore rule, go on `Definition.subtype` rows in `Definitions/Subtypes.lean`
+   (not on the `Subtype` value). The card types' own conferrals go on `Definition.cardType` rows.
 2. Replace the hardcoded knowledge above by field reads: `CardType.permanent` becomes the field;
    `Stat.comparedType` and `boxSuitsTypes` read `stats`; `normalizeTypes` takes its order from the
-   declared list; `isInstantOrSorcery` is derived (a non-permanent type with an `asInstant` or
-   `asSorcery` cast permission) or kept as a field if deriving it is unclear (say which).
+   declared list; `isInstantOrSorcery` is derived from the Card Class field(s) above.
+   **`cardClassOf` and the `CardClass` type are NOT deleted** with the checker's card-class lint
+   (`lean-v3-card-class-gate-removal`): they move into the model next to `CardType`
+   (`Words.lean`), computed from the fields, because a planned `byCardClass` ability will select
+   by them. `byCardClass` is pending an owner go-ahead; treat it only as a pending dependency and
+   do not implement it here.
 3. Every `match` on a card-type constructor (`| .kindred | .instant …`, `Check/Words.lean:1820-1826`)
    and every pattern use becomes a field read or an equality test; grep `\.(creature|artifact|land|
    enchantment|instant|sorcery|planeswalker|battle|kindred|dungeon)` in `Check/` and fix each.
-4. Retire `Definition.cardType` (`Rules.lean:124`) and its `Check/Rules.lean:59` arm if `confers`
-   moves to the value; otherwise keep it as the conferral carrier (STOP-2).
+4. Keep `Definition.cardType` (`Rules.lean:124`) and its `Check/Rules.lean:59` arm as the
+   conferral carrier (STOP-2 ruled); drop its `permanentType` argument, now a field of the value.
 5. **Delete `Check/Facts.lean` and `Check/FactTypes.lean`.** By now they should hold only the
    `FrameFeature` type (if B2 chose the subtype-frame option) and empty tables; move
    `FrameFeature` next to `Subtype` (`Words.lean`). Remove their imports (`Check.lean:11-12`,
@@ -142,6 +162,10 @@ proceeds either way.
 - **Rewritten**: `Proofs/Rules.lean:281-300` (`okArtifactType`, `okCreatureType`, `okLandType`,
   `okInstantType`, `okDungeonType`) now check the declared values, not hand-built `Definition`s;
   the claim (what each type confers, CR cited) is unchanged.
+- **Added**: Card Class per type via `cardClassOf` (artifact, battle, creature, enchantment, land and planeswalker cards are permanent cards [CR#110.4a];
+  instant and sorcery cards are instant-or-sorcery cards, and kindred, which is neither, reads as the
+  field(s) say [CR#110.4]); `Definition.subtype` rows for Siege and Saga check
+  with their CR citations.
 - **Added**: `permanent` per type (`instant`, `sorcery`, `kindred`, `dungeon` are not permanents
   [CR#110.4,304.1,307.1,308.1,309.2]; the other six are), `stats` per type (creature `[power,
   toughness]` [CR#302.4], planeswalker `[loyalty]` [CR#306.5], battle `[defense]` [CR#310.4]), a

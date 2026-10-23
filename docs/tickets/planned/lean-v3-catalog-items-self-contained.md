@@ -53,15 +53,15 @@ B1 "Why first".
   `Delta` and `Subtype`, and `classify_semantic_syntax` (`Abilities.lean:1363`) classifies only
   types declared in `Abilities.lean`. A raw `.named "typo"` therefore passes `spelled` today, and
   that is why the `known*` checks are load-bearing today. Each ticket tags its types.
-- **STOP-1 (narrowed, awaiting the owner): fixtures that bypass `spelled`.** The boundary covers
+- **Ruled (owner, 2026-10-23), STOP-1 accepted.** The authoring boundary (`Authoring.inspect` /
+  `spelled`) covers only `Spelled` cards. Card fragments in `Cards/` and everything in `Proofs/`
+  are fixtures and keep no `known*` check; a typo in a fixture surfaces when the full card is
+  spelled. Original analysis: the boundary covers
   only terms run through `spelled <| …`: 835 `: Spelled` card definitions in `Cards/`. About 750
   more `Cards/` items are fragments (`def x : Ability := …; theorem … Ability.check … by decide`,
   e.g. `Cards/Keyword.lean:947-958`) and all of `Proofs/` call `Check` directly, so a typo'd label
-  there is no longer refused once the `known*` checks go. The ruling says "in cards". **Proposed:**
-  fragments and `Proofs/` are fixtures, a typo there is a fixture bug the author sees as a
-  `decide` failure or a missing declaration, and no `known*` check is kept for them. If the owner
-  disagrees, each ticket keeps its `known*` check for non-`spelled` input and only the deletion step
-  waits. Every other step proceeds.
+  there is no longer refused once the `known*` checks go. The ruling says "in cards". Fragments
+  and `Proofs/` are fixtures; no `known*` check is kept for them.
 
 ## Verified (2026-10-22, paths under `lean/Semantics/`)
 
@@ -71,13 +71,25 @@ B1 "Why first".
 - **`counterFacts` has no `confers`.** The row type `CounterFacts` (`Check/FactTypes.lean:46`)
   is `label` and `holder` only. Conferrals live in the separate `Definition.counter kind holder
   confers` (`Rules.lean:107`), read by `Definition.check` (`Check/Rules.lean:47-52`).
-- **STOP-2 (narrowed, awaiting the owner): `confers` on the value is a type cycle.** The ruling puts
+- **Ruled (owner, 2026-10-23), STOP-2 accepted, extended to subtypes.** Conferrals do not go on the
+  value. `CounterKind` and `CardType` carry only non-recursive fields; their `confers` stay on the
+  `Definition.*` rows in `Rules.lean`, as counters already do. For consistency subtypes do the
+  same: whatever a subtype confers (Saga's chapters and lore rule, Siege's protector and
+  last-counter trigger, and the rest) lives on a `Definition.subtype` row, not on the `Subtype`
+  value. Verified how subtypes are encoded today: `Definition.subtype (subtype : Subtype) (rules :
+  List Conferral)` already exists (`Rules.lean:110`, checked at `Check/Rules.lean:51`), the
+  `Subtype` value (`Words.lean:341-344`) carries no conferrals, and `Definitions/Subtypes.lean`
+  holds only bare `semantic_definition x : Subtype := .of host "X"` entries with no
+  `Definition.subtype` rows yet. So nothing moves; the Saga and Siege rules are written as
+  `Definition.subtype` rows (by `lean-v3-card-type-composite-definition` for Siege and the
+  card-type-adjacent ones). Do not add a `confers` field to `Subtype`. The owner considered moving
+  `CardType` into the `Abilities.lean` mutual block and declined. Original analysis: the ruling puts
   `confers` (a `List Conferral`) on `CounterKind`. `Conferral` (`Rules.lean:51`) holds `Ability`,
   `StaticSpec`, `Condition` and `Action` (`Abilities.lean`), and those hold `CounterKind`
   (`Abilities.lean:612-620`, `CounterKindSource.printed`; `ProjAxis.counter`, `Words.lean:573`),
   `CardType` and `Subtype` from `Words.lean`, which `Abilities.lean` imports. A `CounterKind`
   declared in `Words.lean` cannot hold a `Conferral` declared after `Abilities.lean`; putting it
-  in one is one giant mutual block with `Ability`. **Proposed:** the value carries only the
+  in one is one giant mutual block with `Ability`. **Chosen:** the value carries only the
   non-recursive columns (`holder` here), and `confers` stays on the separate `Definition` record
   keyed by the value, as it is today (the checker never reads `confers` from the counter table, so
   nothing the checker needs is lost). The rest of this ticket proceeds with `holder`.
@@ -126,7 +138,9 @@ not already show.
 
 ## Change
 
-1. `CounterKind` gets `holder : Kind := .object` (STOP-2: not `confers`). Because it needs a field
+1. `CounterKind` gets `holder : Kind := .object` (STOP-2: not `confers`; conferrals stay on
+   `Definition.counter`, and likewise on `Definition.subtype` for subtypes, with no new field on
+   `Subtype`). Because it needs a field
    it becomes a structure or a two-field constructor: `.named name (holder := …)`; `name` stays.
    Tag it `[semantic_expression, internal_expansion]`; declare each counter in
    `Definitions/Counters.lean` with its holder (`energy`, `experience`, `poison`, `radCounter` are
@@ -143,7 +157,8 @@ not already show.
    `RelationFacts`, `RelationLabel.facts/.known/.left/.right`, and the `relation.known` refusal at
    `Check/Phrase.lean:3425` (`.knownRelation`). Fix `lean/CONTRACTS.md:1037` to say what the
    checker does.
-4. Subtype frame: per the open choice.
+4. Subtype frame: per the open choice. Per STOP-2, `Subtype` gains no `confers`; only `frame` may be
+   added.
 5. Reconcile `Rules.lean`'s `Definition` variants for these four: `Definition.designation`
    (`zone`/`type`/`half`) and `Definition.relation` (`left`/`right`) carry the same unread columns;
    drop them together, and update `Check/Rules.lean:47-59`, `Proofs/Rules.lean` and the doc comment
@@ -167,6 +182,8 @@ not already show.
   `decide` pins over the declared values: the holder of each of `energy`, `experience`, `poison`,
   `radCounter` is `.player` and `p1p1Counter`'s is `.object`; the scope of `monarch`, `commander`,
   `day`, `citysBlessing`.
+- No fixture-level `known*` pins are kept (STOP-1): `Cards/` fragments and `Proofs/` terms are not
+  checked against the deleted tables.
 - Kept: the `distinct*` pins have nothing to check once each item is its own declaration (a
   duplicate declaration is a Lean error); retire `counterLabelsDistinct`, `designationLabelsDistinct`
   and `subtypeFactsDistinct` with that reason.
