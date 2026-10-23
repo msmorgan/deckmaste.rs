@@ -270,7 +270,7 @@
     (rule: "[CR#702.137]", name: "Spectacle", lemma: "spectacle", parameters: [[Cost]]),
     (rule: "[CR#702.138]", name: "Escape", lemma: "escape", parameters: [[DashNonManaCost]],
         verbs: [
-            (lemma: "escape", frames: [Intransitive]),
+            (lemma: "escape", frames: [Intransitive, Prepositional(["with"])]),
         ],
     ),
     (rule: "[CR#702.139]", name: "Companion", lemma: "companion", parameters: [[DashCondition]]),
