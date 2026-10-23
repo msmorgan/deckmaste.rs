@@ -677,12 +677,12 @@ private def exploreBody (perm : NounPhrase) : Action :=
 
 /-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
 private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
-  .enact (.action "explore") (exploreBody perm) none none
+  .enact explore (exploreBody perm) none none
 
 /-- `endure N` as defined [CR#701.63a]: the enduring permanent's controller chooses between
 the counters on "that permanent" and the Spirit token. -/
 private def literalEndure (n : Nat) : Action :=
-  .enact (.action "endure")
+  .enact endure
     (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),

@@ -124,14 +124,16 @@ theorem castCanCarryExcludedOrigins :
 theorem namedActionCanCarryItsLocus :
     relativeCheckAfter (search yourLibrary) .player
       { subj := .actor .which
-        action := .enact (.action "search") (.search (.zone .library (some .you)) .any) none
+        action := .enact search (.search (.zone .library (some .you)) .any) none
           (some (.zone .library (some .you)))
         within := some .thisWay } = [] := by decide
 
-theorem locusUsesDeclaredActionFeatures :
+/-- The locus a lookback names is read from what the enacted body does: a shuffle is of a library
+[CR#701.24a], so "shuffled your graveyard" names no shuffle. -/
+theorem locusIsReadFromTheEnactedBody :
     relativeCheckAfter shuffle .player
       { subj := .actor .which
-        action := .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
+        action := .enact shuffle (.shuffle (.zone .library (some .you)))
           none (some (.zone .graveyard (some .you)))
         within := some .thisWay } = [.lookbackLocus] := by decide
 

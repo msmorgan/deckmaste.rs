@@ -1,5 +1,4 @@
 import Semantics.Words
-import Semantics.Check.Facts
 
 /-!
 # Semantics.Check.Words
@@ -9,8 +8,8 @@ The checker's vocabulary and Discourse Representation Theory (`DRS`) layer (`sem
 `OwnScopeFrame`, `DRS`), the two-stage anaphor resolver (`J1` accessibility, `J2` clause-mate
 exclusion, `D′` bare pronoun resolution, `AC>R1` demonstrative resolution, Principle A
 reflexives, and the stamped readback of Participial Descriptions), the Reference Scope frame
-stack (`enterOwnScope`, `enterCaller`, `leaveCaller`, `leaveOwnScope`), the facts tables
-(`abilityDeedFacts`, `actFacts`), and the leaf predicates the phrase and ability layers consult.
+stack (`enterOwnScope`, `enterCaller`, `leaveCaller`, `leaveOwnScope`), and the leaf predicates
+the phrase and ability layers consult.
 -/
 
 namespace Semantics
@@ -110,124 +109,18 @@ def atLeastTwo : Nat → Bool
   | _ + 2 => true
   | _ => false
 
-/-! ## The act facts table -/
+/-! ## Deeds the checker reads -/
 
-/-- The keyword actions [CR#701.1] a core constructor must name, declared so a guard reads a
-feature rather than a verb's spelling. -/
-inductive DeedFeature where
-  | librarySearch
-  deriving DecidableEq, Repr
+/-- Whether a Permanent performs `v`: written with no Handoff to a Permanent, the source
+Permanent performs it (`Deed.action`'s `permanentActor`) [CR#701.44a,701.63a]. -/
+def Deed.permanentActor : Deed → Bool
+  | .action _ permanentActor => permanentActor
+  | _ => false
 
-/-- What the checker knows about one deed: what reference resolution and salience read. -/
-structure ActFacts where
-  participle : Option String := none
-  dest : Option Zone := none
-  loci : List Zone := []
-  /-- A Permanent is its Actor: written with no Handoff to a Permanent, the source Permanent
-  performs it [CR#701.44a,701.63a]. -/
-  permanentActor : Bool := false
-  feature : Option DeedFeature := none
-  deriving Repr, BEq
-
-/-- The deeds a keyword ability defines for itself [CR#702.122b,702.171a,702.26a]. -/
-def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
-  [ ((.named "crew"), {}),
-    ((.named "saddle"), {}),
-    ((.named "phasing"), {}),
-    ((.named "cycling"), {}),
-    ((.named "mutate"), {}),
-    ((.named "devour"), {}) ]
-
-/-- What the checker knows about each keyword action [CR#701.1]. -/
-def actFacts : List (KeywordActionLabel × ActFacts) :=
-  [ ("activate", {}),
-    ("adapt", { permanentActor := true }),
-    ("airbend", { dest := some .exile }),
-    ("amass", {}),
-    ("assemble", {}),
-    ("attach", {}),
-    ("behold", {}),
-    ("blight", {}),
-    ("bolster", {}),
-    ("cast", {}),
-    ("clash", {}),
-    ("cloak", { dest := some .battlefield }),
-    ("collectEvidence", { dest := some .exile }),
-    ("connive", { permanentActor := true }),
-    ("convert", {}),
-    ("counter", {}),
-    ("create", { dest := some .battlefield }),
-    ("destroy", { participle := some "destroyed", dest := some .graveyard }),
-    ("detain", {}),
-    ("discard", { participle := some "discarded", dest := some .graveyard }),
-    ("discover", {}),
-    ("double", {}),
-    ("earthbend", {}),
-    ("endure", { permanentActor := true }),
-    ("exchange", {}),
-    ("exert", {}),
-    ("exile", { participle := some "exiled", dest := some .exile }),
-    ("explore", { permanentActor := true }),
-    ("faceAVillainousChoice", {}),
-    ("fateseal", {}),
-    ("fight", { permanentActor := true }),
-    ("forage", {}),
-    ("goad", {}),
-    ("harness", { permanentActor := true }),
-    ("heal", {}),
-    ("incubate", { dest := some .battlefield }),
-    ("investigate", { dest := some .battlefield }),
-    ("learn", {}),
-    ("manifest", { dest := some .battlefield }),
-    ("manifestDread", {}),
-    ("meld", { dest := some .battlefield }),
-    ("mill", { participle := some "milled", dest := some .graveyard }),
-    ("monstrosity", { permanentActor := true }),
-    ("play", {}),
-    ("populate", {}),
-    ("proliferate", {}),
-    ("recruit", {}),
-    ("regenerate", { participle := some "regenerated" }),
-    ("reveal", {}),
-    ("sacrifice",
-      { participle := some "sacrificed", dest := some .graveyard }),
-    ("scry", {}),
-    ("search",
-      { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
-        feature := some .librarySearch }),
-    ("shuffle", { loci := [.library] }),
-    ("support", {}),
-    ("surveil", {}),
-    ("suspect", {}),
-    ("tap", { participle := some "tapped" }),
-    ("theRingTemptsYou", {}),
-    ("timeTravel", {}),
-    ("transform", {}),
-    ("triple", {}),
-    ("untap", { participle := some "untapped" }),
-    ("ventureIntoTheDungeon", {}),
-    ("vote", {}),
-    ("waterbend", {}) ]
-
-def distinctActLabels : List (KeywordActionLabel × ActFacts) → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.1)).elem f.1 && distinctActLabels fs
-
-def distinctAbilityDeedLabels : List (KeywordLabel × ActFacts) → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.1)).elem f.1 && distinctAbilityDeedLabels fs
-
-def deedFacts : Deed → Option ActFacts
-  | .core _ => some {}
-  | .action l => (actFacts.find? (·.1 == l)).map (·.2)
-  | .ofAbility k => (abilityDeedFacts.find? (·.1 == k)).map (·.2)
-
-def knownAct (v : Deed) : Bool := (deedFacts v).isSome
-def deedFeatureOf (v : Deed) : Option DeedFeature := deedFacts v >>= (·.feature)
-def participleOf (v : Deed) : Option String := deedFacts v >>= (·.participle)
-def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
-def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
-def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.permanentActor)
+/-- The deed a search (`Action.search`) stamps on what it finds [CR#701.23a]: a card found by
+searching a library is read back as searched for, and survives the shuffle that follows, whatever
+later deeds stamp it. -/
+def searchDeed : Deed := .action "search"
 /-! ## Discourse Representation Structure (`DRS`) -/
 
 /-- A Zone Change a stamp records: the zone the object left, if known, and the zone it entered
@@ -1220,7 +1113,7 @@ def stampIs (v : Deed) : Option Stamp → Bool
 
 def Referent.stampedBy (b : Referent) (verb : Deed) : Bool :=
   stampIs verb b.payload.prov ||
-    (b.librarySearchResult && deedFeatureOf verb == some .librarySearch)
+    (b.librarySearchResult && verb == searchDeed)
 
 def markTy (ty : List CardType) (b : Referent) : Referent :=
   match b.payload with
@@ -1231,7 +1124,7 @@ def markTy (ty : List CardType) (b : Referent) : Referent :=
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
-    b.librarySearchResult || (st.verb.bind deedFeatureOf) == some .librarySearch
+    b.librarySearchResult || st.verb == some searchDeed
   | .object _ (some .library) none _ _ => false
   | _ => true
 

@@ -585,7 +585,7 @@ def applySearchFound (drs : DRS) (refIds : List ReferentId) (zone : Option Zone)
       match r.payload with
       | .object ty _ _ orig size =>
         { r with
-          payload := .object ty zone (mkStamp (some (.action "search")) none) orig size
+          payload := .object ty zone (mkStamp (some searchDeed) none) orig size
           librarySearchResult := zone == some .library }
       | _ => r) drs
 
@@ -1200,7 +1200,7 @@ def causedPerformer (drs : DRS) (inst : Action) : Kind :=
   let actor := actorShape? drs
   match inst.scopeBody with
   | .enact verb .. =>
-    if actPermanentActorOf verb && actor.all (·.isYou) then .object
+    if verb.permanentActor && actor.all (·.isYou) then .object
     else actor.elim .player (·.kind)
   | _ => actor.elim .player (·.kind)
 
@@ -1330,13 +1330,22 @@ def DRS.thisWayRecordedOrigin (drs : DRS) (subj : Subject) (action : Action) :
     | _ => none
   | _ => none
 
+/-- The zones a lookback at an enacted deed can name as where it was done, by what the deed's body
+does: a search, any zone it can search [CR#701.23a]; a shuffle, a library [CR#701.24a]; any other
+body, none. -/
+def Action.lookbackLoci (body : Action) : List Zone :=
+  match body.scopeBody with
+  | .search .. => [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command]
+  | .shuffle _ => [.library]
+  | _ => []
+
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
   | { subj, action, within, ordinal } =>
     let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
     let locusErrors := match action.scopeBody with
-      | .enact verb _ _ (some zone) =>
-        refuse (zone.sort.any (fun z => (actLociOf verb).elem z)) .lookbackLocus
+      | .enact _ body _ (some zone) =>
+        refuse (zone.sort.any (fun z => body.lookbackLoci.elem z)) .lookbackLocus
       | _ => []
     -- A subject the move moves ("that creature dies") reads the participants introduced before
     -- the clause as the permanents they were, as a patient written inside the move does.
@@ -3376,14 +3385,13 @@ def stepOps : Nat → StepOps
         | .bracketed body => ops.inst phase patientRole drs body
         | .enact verb body becomes locus =>
           let actor := actorShape? drs
-          let defaultsToSource := actPermanentActorOf verb && actor.all (·.isYou)
+          let defaultsToSource := verb.permanentActor && actor.all (·.isYou)
           let (inner, sourceErrors) := if defaultsToSource then
             let (out, ids, errors) := ops.np drs .subj true (.headed .permanent .this)
             let shape : ActorShape := {
               kind := .object, isYou := false, ascribable := true, refIds := ids }
             (out.push { det := .the, plur := .one, payload := .actor shape } .other false, errors)
             else (drs, [])
-          let deedErrors := refuse (knownAct verb) (.knownAct verb)
           let priorMentions := inner.pendingRoles.length
           let (drs1, e1) := ops.inst phase patientRole inner body
           let bodyMentions := if drs1.currentClause == inner.currentClause then
@@ -3397,7 +3405,7 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := match becomes with | some p => ops.pred drs1 p | none => (drs1, [])
           let (drs3, e3) := match locus with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
           let out := if defaultsToSource then dropActorFrame drs3 else drs3
-          (out, sourceErrors ++ deedErrors ++ e1 ++ e2 ++ e3)
+          (out, sourceErrors ++ e1 ++ e2 ++ e3)
         | .instruct subj body =>
           let tracked := { drs with
             outerReferentIds := (drs.referents.map (·.id)) :: drs.outerReferentIds }

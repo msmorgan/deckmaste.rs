@@ -127,7 +127,6 @@ inductive Refusal where
   | kindDomainOk
   | kindAxisSort
   /- tables -/
-  | knownAct (v : Deed)
   | knownKeywordTerm
   | linkedFacetNamed
   | eventHead

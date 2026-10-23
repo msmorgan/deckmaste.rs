@@ -223,7 +223,7 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
         (.putCounters 1 (.printed p1p1Counter) (that .permanent)) ]
 
 private def conniveBy (amount : Amount) : Action :=
-  .enact (.action "connive") (instruct (controllerOf .actor)
+  .enact connive (instruct (controllerOf .actor)
     (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)])) none none
 
 /-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/

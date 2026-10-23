@@ -172,7 +172,7 @@ constructor, and not by the checker. Card fragments and `Proofs/` terms that cal
 directly are fixtures and are not checked against any declaration list (owner ruling,
 2026-10-23). Authored declarations (`semantic_definition`,
 `semantic_template`) are trusted, as for every semantic type. Values that are not `spelled`
-cards are not checked: the checker's tables (`Check/Facts.lean`), and the pins that build a raw
+cards are not checked: the pins that build a raw
 subtype on purpose (`badNamelessSubtype` in `Proofs/Rules.lean`, and the refusal pins in
 `Proofs/Authoring.lean`). `Semantics.Templates` holds every
 `semantic_template` that names no card type and no catalog entry; the `Semantics.Definitions`
@@ -864,7 +864,7 @@ expected child kinds in the incoming `DRS`.
 |---|---|
 | `OptOk` | Optional consumers step a present value and skip an absent one; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kind?` and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
-| `KnownAct` | `knownAct` at deed consumers reads the deed facts; the Definition is trusted to supply the corresponding expansion. |
+| `KnownAct` | The authoring boundary: a card names a keyword action through its Action Definition's generated deed constant (`elabDeedName`), and `Deed.action` is an internal expansion `spelled` refuses. The Definition is trusted to supply the corresponding expansion. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Referent` has no separate kind field that can disagree. The checker-private handoff frame (`Payload.actor`) is not a discourse referent: reflexives, resolution and the published referents pass over it. |
 | `HeadTy` | No Lean type: `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |

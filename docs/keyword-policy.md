@@ -313,10 +313,11 @@ Keyword actions have open labels and expanded instruction bodies. Macros
 construct those bodies; the label records which named action occurred.
 The Lean checker reads declared features for roles and scopes, rather than
 requiring a new syntax constructor for each action name.
-`Semantics/Check/Facts.lean` is hand-maintained Lean: a keyword action or
-keyword ability the checker should know gets its row there, and
-`Semantics/Proofs/Tables.lean` pins the keyword-action labels against the
-checker's `actFacts` in both directions.
+A keyword action is its Action Definition in `Semantics/Definitions/Actions.lean`:
+the Definition generates the deed constant a card names it by (`exile.deed`), and
+that deed carries what the checker reads of it (whether a permanent performs it).
+There is no facts table; a raw or undeclared action label is refused at the
+authoring boundary.
 
 `lean/scripts/build` checks the syntax, laws, card bench and exact-result proof
 pins. It is the active workbench gate. Card data is checked beside it by

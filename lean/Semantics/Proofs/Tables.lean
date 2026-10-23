@@ -4,42 +4,19 @@ import Semantics.Check.Card
 /-!
 # Semantics.Proofs.Tables
 
-Table-integrity pins: not a port of an Idris family, but `decide` theorems asserting what the
-checker's label tables assume of themselves — that `actFacts` and `abilityDeedFacts` each name
-every row once. A duplicate label would let one row shadow another silently, so each table's
-existing `distinct*` validator is asserted here rather than left unchecked. Keyword abilities,
-counters, designations, relations and subtypes have no table: each is its own declaration in
-`Semantics.Definitions`, where a duplicate is a Lean error.
-
-`keywordActionLabels` (`Check.Facts`) and `actFacts` (`Check.Words`) are two hand-written lists
-of the keyword actions, so two theorems here pin them against each other in both directions: a
-row added to one list only is caught. They stay until the declarations themselves supply the
-label list.
-
-The rest read a few declarations and rows back through the accessors the checker uses: a
-counter's holder, a designation's holder and scope, the keyword a keyword's variant is.
+Catalog pins: not a port of an Idris family, but `decide` theorems reading a few declarations
+back through the accessors the checker uses: a counter's holder, a designation's holder and scope,
+the keyword a keyword's variant is, and whether a keyword action is one a permanent performs. No
+catalog has a table: keyword abilities, keyword actions, counters, designations, relations and
+subtypes are each their own declaration in `Semantics.Definitions`, where a duplicate is a Lean
+error.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Tables
 
-theorem actLabelsDistinct : distinctActLabels actFacts = true := by decide
-
-/-- Every keyword action [CR#701.1] in `keywordActionLabels` has a row in the hand-written
-`actFacts` table: a label added without one is caught here, not left to a lookup that silently
-finds nothing. -/
-theorem everyDeclaredActionHasFacts :
-    keywordActionLabels.all (fun l => (actFacts.find? (·.1 == l)).isSome) = true := by decide
-
-/-- And every `actFacts` row names a label in `keywordActionLabels`, so a row left behind when a
-keyword action is retired from one list is caught too. -/
-theorem everyActRowIsDeclared :
-    actFacts.all (fun row => keywordActionLabels.contains row.1) = true := by decide
-
-theorem abilityDeedLabelsDistinct : distinctAbilityDeedLabels abilityDeedFacts = true := by decide
-
-/-! ## Declarations and rows read back -/
+/-! ## Declarations read back -/
 
 /-- A counter's holder is its declaration's: poison and rad counters are a player's
 [CR#122.1f,122.1i], as the declarations say energy and experience counters are; a +1/+1, keyword
@@ -70,5 +47,15 @@ theorem designationHoldersFollowFromScope :
 typecycling are [CR#702.29f]: each variant's Definition generates the label its keyword's does. -/
 theorem hexproofAndCyclingVariantsShareTheirKeyword :
     hexproofFrom.label = hexproof.label ∧ typecycling.label = cycling.label := by decide
+
+/-- A permanent performs these seven keyword actions, so each Definition's generated deed says a
+Permanent performs it
+[CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]; a player performs a search, an
+exile, a scry, a sacrifice, a destroy and a shuffle. -/
+theorem permanentPerformedActions :
+    [adapt.deed, connive.deed, endure.deed, explore.deed, fight.deed, harness.deed,
+        monstrosity.deed].all (·.permanentActor) = true ∧
+      [search.deed, exile.deed, scry.deed, sacrifice.deed, destroy.deed, shuffle.deed].all
+        (!·.permanentActor) = true := by decide
 
 end Semantics.Proofs.Tables
