@@ -404,6 +404,125 @@ theorem numeralsKeepTheLiterals :
     runs (formNumerals (faceOf Cards.charRumbler.authoring)) =
       runs (formNumerals (faceOf charRumblerWritten.authoring)) := rfl
 
+/-! ## A sentence shared by a modal header
+
+`chooseModesOver` writes the sentence a modal header shares with its bullets once, as a supplied
+body over the bullets. `inspect` reads the call before it reduces, so the authoring tree holds the
+header's sentence once and each bullet once, while the card reduces to an ordinary `chooseModes`:
+each mode the sentence completed by its bullet, read in the caller's Reference Scope as a supplied
+body is. -/
+
+mutual
+  /-- The bullets and the supplied body of the first `chooseModesOver` call a Form names. -/
+  private def modesOver? : Authoring.Form → Option (List Authoring.Form × Authoring.Form)
+    | .call ``Templates.chooseModesOver [_, _, items, body] => some (formItems items, body)
+    | .call _ children | .data children | .constructor _ children => modesOverIn? children
+    | .binder _ body => modesOver? body
+    | .literal _ | .parameter _ | .raw _ => none
+
+  private def modesOverIn? : List Authoring.Form → Option (List Authoring.Form × Authoring.Form)
+    | [] => none
+    | form :: forms => (modesOver? form).orElse fun _ => modesOverIn? forms
+
+  /-- The elements of a written list. -/
+  private def formItems : Authoring.Form → List Authoring.Form
+    | .constructor ``List.cons [_, head, tail] => head :: formItems tail
+    | _ => []
+end
+
+/-- The supplied body's parameter and the calls it names. -/
+private def suppliedBody : Authoring.Form → Option (Lean.Name × List Lean.Name)
+  | .binder name body => some (name, formCalls body)
+  | _ => none
+
+/-- *Call Damage Control*: one header, "Return those cards from your graveyard to your hand.", and
+one target per bullet. -/
+theorem callDamageControlWritesEachPartOnce :
+    let calls := formCalls Cards.callDamageControl.authoring
+    calls.count ``Templates.chooseModesOver = 1 ∧ calls.count ``Templates.returnToHand = 1 ∧
+      calls.count ``Semantics.Templates.target = 4 ∧
+      (modesOver? Cards.callDamageControl.authoring).map
+          (fun (items, body) => (items.map fun item => (formCalls item).head?, suppliedBody body)) =
+        some ([some ``Semantics.Templates.target, some ``Semantics.Templates.target, some ``Semantics.Templates.target,
+            some ``Semantics.Templates.target],
+          some (`cards, [``Templates.returnToHand, ``Templates.yourGraveyard])) := by
+  decide
+
+/-- *Call Damage Control* written out as its modes. -/
+private def callDamageControlModes : Card := .singleFaced
+  { characteristics :=
+    { name := "Call Damage Control", cost := some [generic 1, pip .green], types := [.sorcery],
+      text :=
+        [ spell (.chooseModes (upTo 2)
+            [ (none, none, .inCaller (returnToHand (target (and [isArtifact, isCard])) yourGraveyard)),
+              (none, none, .inCaller (returnToHand (target (and [isCreature, isCard])) yourGraveyard)),
+              (none, none,
+                .inCaller (returnToHand (target (and [isEnchantment, isCard])) yourGraveyard)),
+              (none, none,
+                .inCaller (returnToHand (target (and [isLand, isCard])) yourGraveyard)) ]) ] } }
+
+theorem callDamageControlIsAnOrdinaryChooseModes :
+    Cards.callDamageControl.card = callDamageControlModes := rfl
+
+/-- *Wild Shape*: one header, "Until end of turn, target creature you control has that base power
+and toughness, becomes that creature type, and gains that ability.", and one creature shape per
+bullet. -/
+theorem wildShapeWritesEachPartOnce :
+    let calls := formCalls Cards.wildShape.authoring
+    calls.count ``Templates.chooseModesOver = 1 ∧ calls.count ``Templates.establish = 1 ∧
+      calls.count ``Semantics.Templates.target = 1 ∧ calls.count ``Templates.untilEndOfTurn = 1 ∧
+      (modesOver? Cards.wildShape.authoring).map
+          (fun (items, body) => (items.map formCalls, suppliedBody body)) =
+        some ([[``turtle, ``hexproof, ``stat, ``stat], [``spider, ``reach, ``stat, ``stat],
+            [``elephant, ``trample, ``stat, ``stat]],
+          some (`shape,
+            [``Templates.establish, ``Templates.qualityChange, ``Semantics.Templates.target,
+              ``Templates.Predicate.and, ``isCreature, ``youControl, ``Templates.bundle,
+              ``Templates.untilEndOfTurn])) := by
+  decide
+
+/-- *Wild Shape* written out as its modes. -/
+private def wildShapeModes : Card :=
+  let shape (subtype : Subtype) (ability : Ability) (power toughness : Amount) : Action :=
+    .inCaller (establish
+      (qualityChange (target (and [isCreature, youControl])) .sets
+        (bundle { characteristics :=
+          { subtypes := [subtype], text := [ability], power := some power,
+            toughness := some toughness } }))
+      untilEndOfTurn)
+  .singleFaced
+    { characteristics :=
+      { name := "Wild Shape", cost := some [pip .green], types := [.instant],
+        text :=
+          [ spell (.chooseModes (exactly 1)
+              [ (none, none, shape turtle hexproof 1 3),
+                (none, none, shape spider reach 1 5),
+                (none, none, shape elephant trample 3 3) ]) ] } }
+
+theorem wildShapeIsAnOrdinaryChooseModes : Cards.wildShape.card = wildShapeModes := rfl
+
+/-- A supplied body that ignores its bullet gives identical modes: the bullets are written, but
+nothing of them reaches the modes. -/
+theorem ignoredBulletGivesIdenticalModes :
+    chooseModesOver (upTo 2) [target (and [isArtifact, isCard]), target (and [isLand, isCard])]
+        (fun _ => draw 1) =
+      .chooseModes (upTo 2) [(none, none, .inCaller (draw 1)), (none, none, .inCaller (draw 1))] :=
+  rfl
+
+/-- Bullets that are abilities: a supplied body binds a parameter of any semantic type, not only a
+noun phrase. -/
+private def grantedChoice : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Granted choice witness", types := [.instant],
+      text :=
+        [ spell (chooseModesOver (exactly 1) [flying, reach]
+            (fun ability => gain (target isCreature) ability untilEndOfTurn)) ] } }
+
+theorem suppliedBodyBindsAnAbility : grantedChoice.authoring.onlyAuthored = true :=
+  grantedChoice.onlyAuthored
+
+theorem suppliedAbilityBodyChecks : grantedChoice.card.check = [] := grantedChoice.ok
+
 -- A leading-dot name resolves against the expected type before any coercion applies, so an
 -- optional kind keeps its `some` (lean-v3-deal-damage-kind) and a mana cost of leading-dot
 -- symbols alone keeps its `mana`.

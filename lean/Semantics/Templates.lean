@@ -1187,6 +1187,14 @@ semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
+/-- "Choose N. <frame>" over bullets that are not clauses: the header sentence written once as
+`frame`, completed by each bullet in `items` into one mode, no mode costing anything. The modes
+are whole, as `chooseModes` writes them; the header names no plural over them, as modes are chosen
+before targets [CR#601.2b,601.2c] and a mode's targets are chosen only if it is
+[CR#700.2a,700.2c]. -/
+semantic_template chooseModesOver {α : Type} (quantity : Quantity) (items : List α)
+    (frame : splice (α → Action)) : Action :=
+  .chooseModes quantity (items.map fun item => (none, none, frame item))
 /-- "<source> deals damage equal to its power to <recipient>": a Handoff of the damage to
 `source` [CR#120.1], whose "its" is an ordinary possessive pronoun that `D′` resolves to the
 clause subject, `source`. -/

@@ -81,6 +81,42 @@ def rainOfThorns : Action :=
     [destroy (target isArtifact), destroy (target isEnchantment), destroy (target isLand)]
 theorem okRainOfThorns : Action.check (DRS.ofList []) rainOfThorns = [] := by decide
 
+/-- *Call Damage Control*: the header "Return those cards from your graveyard to your hand." is
+the supplied body, written once; each bullet is the target it completes into a mode. -/
+def callDamageControl : Spelled := spelled <| singleFacedCard
+  { name := "Call Damage Control", cost := [generic 1, pip .green], types := [.sorcery],
+    text :=
+      [ spell
+          (chooseModesOver (upTo 2)
+            [ target (and [isArtifact, isCard]),
+              target (and [isCreature, isCard]),
+              target (and [isEnchantment, isCard]),
+              target (and [isLand, isCard]) ]
+            (fun cards => returnToHand cards yourGraveyard)) ] }
+
+/-- *Wild Shape*: the header "Until end of turn, target creature you control has that base power
+and toughness, becomes that creature type, and gains that ability." is the supplied body, written
+once; each bullet is the creature shape it sets, as one set of the shape's characteristics: its
+creature type, its base power and toughness [CR#613.4b] and its ability. -/
+def wildShape : Spelled := spelled <| singleFacedCard
+  { name := "Wild Shape", cost := [pip .green], types := [.instant],
+    text :=
+      [ spell
+          (chooseModesOver (exactly 1)
+            [ { characteristics :=
+                  { subtypes := [turtle], text := [hexproof], power := stat 1,
+                    toughness := stat 3 } },
+              { characteristics :=
+                  { subtypes := [spider], text := [reach], power := stat 1,
+                    toughness := stat 5 } },
+              { characteristics :=
+                  { subtypes := [elephant], text := [trample], power := stat 3,
+                    toughness := stat 3 } } ]
+            (fun shape =>
+              establish
+                (qualityChange (target (and [isCreature, youControl])) .sets (bundle shape))
+                untilEndOfTurn)) ] }
+
 def rankleMasterOfPranks : Action :=
   chooseModes anyNumber
     [ sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them],

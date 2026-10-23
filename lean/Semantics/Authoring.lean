@@ -427,7 +427,9 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
       withLocalDecl name info type fun arg => do
         if bodyParameter && (← isDefEq type (mkConst ``AuthoringContext)) then
           return ← inspectCore cache clean (body.instantiate1 arg) visited arg parameters true
-        if bodyParameter && (← whnf type).isConstOf `Semantics.NounPhrase then
+        -- A supplied body binds a parameter of any type holding semantic content: a noun
+        -- phrase, an ability, or a record of them (`chooseModesOver`'s frame over its items).
+        if bodyParameter && containsExpression (← getEnv) type then
           return .binder name (← inspectCore cache clean (body.instantiate1 arg) visited context
             (arg.fvarId! :: parameters) true)
         -- A binder of an ordinary record that only holds semantic expressions (a `KeywordTerm`,
