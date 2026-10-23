@@ -39,6 +39,11 @@ keyword-ability list, which is always a comma once reminder text is removed
 single inside a double one, and the period or comma after it is written inside
 its closing mark, where its own final period is not written
 (`docs/oracle-style-guide.md` §3, Periods; Quotation marks and apostrophes).
+The square brackets of Bracketed text, which a cleave spell removes
+[CR#702.148a], are derived the same way: an unselected dependent or a whole
+sentence may be Bracketed, with the analysis it has without them
+(`docs/oracle-style-guide.md` §3, Bullets, vertical bars, and square
+brackets).
 
 **Facts about the input.** The supported corpus is the Vintage-playable cards
 (legal or restricted), excluding Scryfall `set_type: funny`. Balanced

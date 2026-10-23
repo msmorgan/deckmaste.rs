@@ -889,7 +889,8 @@ impl CompiledGrammar {
             also: Vec::new(),
         });
         // The head of a function Category bears its function in its phrase.
-        let wraps = self.function_categories.contains(&node.category);
+        let wraps = self.function_categories.contains(&node.category)
+            || self.brackets.contains(&node.production);
         let names = self.child_names(node);
         let raising = self
             .by_id
