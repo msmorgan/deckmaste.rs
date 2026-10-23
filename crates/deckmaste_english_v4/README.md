@@ -341,9 +341,12 @@ or *and*, a fragment of Adjuncts focused by *only* or *not* (*Any player may
 activate this ability but only as a sorcery*). *But* joins a Noun Phrase or a
 Preposition Phrase to a *not*-modified one (*life equal to the damage dealt,
 but not more life than ...*; *from your graveyard, but not from anywhere
-else*). Unlike predicate Adjuncts coordinate serially; a serial coordination
-of Clauses with an imperative first and a declarative last admits either mood
-between; a non-initial Clause conjunct may open, after its coordinator, with a
+else*). Unlike predicate Adjuncts coordinate serially; the conjuncts of an
+unlike serial need only not all be alike, so its first and last may match
+(*indestructible, "...," and equip {0}*); a serial coordination of Clauses
+with an imperative first and a declarative last admits either mood between,
+its last a *then*-linked one too (*reveal cards ..., Kaboom! deals damage
+..., then you put ...*); a non-initial Clause conjunct may open, after its coordinator, with a
 fronted Adjunct set off on both sides (*and, if it's a creature, it enters
 ...*). Plural *those* is a fused determiner-head (*except those that share a
 creature type with ...*), and *either* and *neither* fuse in an implicit

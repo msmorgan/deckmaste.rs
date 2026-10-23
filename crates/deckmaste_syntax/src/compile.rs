@@ -607,7 +607,10 @@ impl<'a> Binder<'a> {
                     list.iter()
                         .find(|f| f.complement == fill && f.relation == relation)
                 };
-                for relation in [SlotRelation::Complement, SlotRelation::PredicativeComplement] {
+                for relation in [
+                    SlotRelation::Complement,
+                    SlotRelation::PredicativeComplement,
+                ] {
                     if let (Some(np), Some(amount)) = (
                         selected(SlotFill::NP, relation),
                         selected(SlotFill::Amount, relation),
@@ -3034,7 +3037,7 @@ impl<'a> Binder<'a> {
                 )?);
             }
             // Serial with the Oxford comma: X , X , Coord X — one tree per
-            // chain; unlike conjuncts differ first to last.
+            // chain; unlike conjuncts are not all alike.
             if !serials {
                 continue;
             }
@@ -3075,7 +3078,7 @@ impl<'a> Binder<'a> {
         more.coordinator = Some(t);
         more.distinct_coordinator = vec![a];
         conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
-        conjoin.carry_unlike(&mut more, t);
+        conjoin.carry_unlike(&mut more, a, t);
         drafts.push(more);
         let mut end = Draft::new(
             format!("Coordination:{}/serial-end", conjoin.tail_name),
@@ -3094,7 +3097,7 @@ impl<'a> Binder<'a> {
         end.coordinator = Some(c);
         end.distinct_coordinator = vec![a, b];
         conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
-        conjoin.carry_unlike(&mut end, b);
+        conjoin.carry_unlike(&mut end, a, b);
         drafts.push(end);
         if conjoin.unlike.is_some() {
             return Ok(drafts);
@@ -3189,7 +3192,7 @@ impl Binder<'_> {
         more.link = Some(identity);
         more.distinct_coordinator = vec![a];
         conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
-        conjoin.carry_unlike(&mut more, t);
+        conjoin.carry_unlike(&mut more, a, t);
         drafts.push(more);
         let mut end = Draft::new(id("serial-end"), conjoin.tail_id, 0);
         let a = end.child("first", conjoin.conjunct(), GapRule::Shared);
@@ -3199,7 +3202,7 @@ impl Binder<'_> {
         end.link = Some(identity);
         end.distinct_coordinator = vec![a, b];
         conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
-        conjoin.carry_unlike(&mut end, b);
+        conjoin.carry_unlike(&mut end, a, b);
         drafts.push(end);
         Ok(drafts)
     }
@@ -3237,6 +3240,9 @@ struct Conjoin {
     /// Equations over every conjunct but the last (`first`) and the last.
     firsts: Vec<Equation>,
     lasts: Vec<Equation>,
+    /// Equations over the initial conjunct alone (`initial`), rewritten over
+    /// the whole coordination's `first` child.
+    initials: Vec<Equation>,
 }
 
 impl Conjoin {
@@ -3336,6 +3342,7 @@ impl Conjoin {
             joints,
             firsts: select("first."),
             lasts: select("last."),
+            initials: select("initial.").iter().map(initial_as_first).collect(),
         })
     }
 
@@ -3396,7 +3403,7 @@ impl Conjoin {
         let t = whole.child("rest", cat(two), GapRule::Shared);
         whole.coordinator = Some(t);
         whole.distinct_coordinator = vec![a];
-        // Unlike conjuncts differ first to last, as in the serial.
+        // Unlike conjuncts are not all alike, as in the serial.
         whole.unlike = self.unlike.map(|f| (a, t, f));
         self.close(binder, &mut whole, &[a, t], Edge::Whole { last: false })?;
         drafts.push(whole);
@@ -3415,7 +3422,7 @@ impl Conjoin {
             link.chained = Some(r);
             link.distinct_coordinator = vec![b];
             self.close(binder, &mut link, &[b, r], Edge::Tail { last: false })?;
-            self.carry_unlike(&mut link, r);
+            self.carry_unlike(&mut link, b, r);
             drafts.push(link);
         }
         // The last link: into `TAIL+`.
@@ -3430,15 +3437,20 @@ impl Conjoin {
         end.coordinator = Some(c);
         end.distinct_coordinator = vec![b];
         self.close(binder, &mut end, &[b], Edge::Tail { last: true })?;
-        self.carry_unlike(&mut end, b);
+        self.carry_unlike(&mut end, b, b);
         drafts.push(end);
         Ok(drafts)
     }
 
     /// A serial tail of unlike conjuncts carries its last conjunct's value of
-    /// the unlike feature, which the whole compares with the first's.
-    fn carry_unlike(&self, draft: &mut Draft, last: usize) {
+    /// the unlike feature, which the whole compares with the first's, and
+    /// records whether its own conjuncts, from `first` to `last` (a conjunct
+    /// or a further tail), already differ (`Summary::unlike_mixed`).
+    fn carry_unlike(&self, draft: &mut Draft, first: usize, last: usize) {
         if let Some(f) = self.unlike {
+            if first != last {
+                draft.unlike = Some((first, last, f));
+            }
             draft
                 .equations
                 .push((Path::Mother(f), Target::Path(Path::Child(last, f))));
@@ -3560,6 +3572,9 @@ impl Conjoin {
         let first = draft.children.iter().any(|c| c.name == "first");
         if first {
             binder.equations(draft, &self.firsts)?;
+            if whole {
+                binder.equations(draft, &self.initials)?;
+            }
         }
         if matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true }) {
             binder.equations(draft, &self.lasts)?;
@@ -3746,11 +3761,28 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     whole
         .weights
         .extend(draft.weights.iter().filter(|(i, _)| *i == 0).copied());
-    whole.scoped.extend(draft.scoped.iter().filter(|i| **i == 0));
+    whole
+        .scoped
+        .extend(draft.scoped.iter().filter(|i| **i == 0));
     whole.frame = Some(frame);
     whole.clusters = Some((at, frame));
     out.push(whole);
     out
+}
+
+/// An equation over the `initial` conjunct, as one over a whole
+/// coordination's `first` child, which is that conjunct.
+fn initial_as_first(equation: &Equation) -> Equation {
+    let first = |p: &Ident| Ident::new(&p.replacen("initial.", "first.", 1));
+    match equation {
+        Equation::Require(p, v) => Equation::Require(first(p), *v),
+        Equation::Exclude(p, v) => Equation::Exclude(first(p), *v),
+        Equation::Carry(p, v) => Equation::Carry(first(p), *v),
+        Equation::Agree(p, q) => Equation::Agree(first(p), first(q)),
+        Equation::ExcludeTogether(conditions) => {
+            Equation::ExcludeTogether(conditions.iter().map(|(p, v)| (first(p), *v)).collect())
+        }
+    }
 }
 
 fn equation_path(equation: &Equation) -> &str {

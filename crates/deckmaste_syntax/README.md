@@ -223,7 +223,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   resolve the whole coordination: a feature they value is still shared by the
   conjuncts but not by the coordination (two singular nominals joined by *and*
   are plural); equations over `first` hold of every conjunct but the last, over
-  `last` of the last (imperatives followed by a declarative); an
+  `last` of the last (imperatives followed by a declarative), over `initial`
+  of the initial conjunct alone (a serial of mixed moods opens with an
+  imperative); an
   `ExcludeTogether` equation over `first` and `last` relates the last conjunct
   to the one before it. A `delimiter` may
   also precede the coordinator of a binary coordination (*X, and Y*). The
@@ -234,7 +236,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   every conjunct admits. A coordination of a function may name its `conjunct`
   Category, and `unlike` a feature its two conjuncts must not share: unlike
   categories coordinated in one function (a depictive *tapped and attacking*),
-  binary unless `serial` is set (an *and*-list of an Object with keywords), whose serial and polysyndetic shapes have unlike first and last conjuncts. A constituent that begins with a dependent set off by
+  binary unless `serial` is set (an *and*-list of an Object with keywords), whose serial and polysyndetic shapes have conjuncts not all of one value
+  (any middle one may differ). A constituent that begins with a dependent set off by
   a comma (*When …, …*) is never the initial conjunct of a coordination
   undelimited before its coordinator: the preposed dependent scopes over the
   whole coordination. The initial conjunct of a coordination delimited before
