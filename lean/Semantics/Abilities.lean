@@ -850,11 +850,19 @@ mutual
 
   /-- Optional modifiers on a deontic rule (`cant`, `can`, `must`, `gatedBy`)
   [CR#702.13b,702.111b,702.145b]: when or how often it applies (`timing`, "each turn", "during
-  each of your turns"), what it applies as though, and the one source it exempts. -/
+  each of your turns"), what it applies as though, the one source it exempts, and, on a
+  prohibition alone, the cause the prohibited event must have. -/
   structure DeonticMods where
     timing : Option Timing := none
     asThough : Option AsThough := none
     except : Option DeonticExcept := none
+    /-- A cause-qualified prohibition: `cant` forbids only an event `cause` causes, as a
+    would-clause's `WouldClause.causedBy` matches only one. "Damage doesn't cause you to lose
+    life" is `cant you (loseLife anyAmount)` with the cause the damage dealt to you: it stops
+    that result of the damage alone, the damage still being dealt and its other results still
+    happening [CR#120.3a,120.3f]; with no cause, "you can't lose life" stops every loss of life
+    [CR#119.8]. Only `cant` takes one (`deonticCause`). -/
+    cause : Option Causing := none
 
   inductive StaticSpec where
     | inCaller (body : StaticSpec)

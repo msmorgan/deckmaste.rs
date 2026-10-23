@@ -528,6 +528,10 @@ lifelink adds life gain to whatever else the Damage does ([CR#120.3f]) — so a
 result is additive, not a replacement of the Damage. A result can itself be
 replaced: wither and infect put counters instead of marking damage or causing
 life loss, which is why a Source with both puts them once ([CR#120.3d,614.6]).
+A result can also be forbidden alone: "damage doesn't cause you to lose life"
+stops the life loss and nothing else, the Damage still being dealt and its
+other results still happening ([CR#120.3a,120.3f]). That is not "you can't
+lose life", which forbids every loss of life, whatever causes it ([CR#119.8]).
 
 **Marked Damage**:
 Damage retained on a Permanent until it is removed, including if the Permanent

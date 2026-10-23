@@ -1002,6 +1002,93 @@ theorem lifelinkIsAnAdditionalResult :
         (asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch)) = [] :=
   ⟨rfl, by decide⟩
 
+/-! ## A result damage doesn't cause -/
+
+/-- Damage a source deals to you, the cause *Archon of Coronation* names. -/
+private def damageToYou : GameEvent := does (a isSource) (dealDamage anyAmount you)
+
+/-- The cause a prohibition is restricted to, if it names one. -/
+private def prohibitionCause? : StaticSpec → Option Causing
+  | .cant _ _ mods => mods.cause
+  | _ => none
+
+/-- The conditional static abilities a single-faced card's text writes. -/
+private def conditionalStatics (card : Spelled) : List (StaticSpec × Condition) :=
+  match card.card with
+  | .singleFaced face => face.characteristics.text.filterMap fun
+    | .static (.conditional spec condition _) => some (spec, condition)
+    | _ => none
+  | _ => []
+
+/-- *Archon of Coronation*: "As long as you're the monarch, damage doesn't cause you to lose life."
+The card checks. -/
+theorem okArchonOfCoronation : Cards.archonOfCoronation.card.check = [] :=
+  Cards.archonOfCoronation.ok
+
+/-- *Archon of Coronation* writes a prohibition of losing life, restricted to a loss the damage
+dealt to you causes [CR#120.3a], while you are the monarch: a cause-qualified prohibition, not a
+replacement, since nothing happens instead [CR#614.1a]. -/
+theorem archonProhibitsTheLifeLossDamageCauses :
+    conditionalStatics Cards.archonOfCoronation =
+        [(cant you (loseLife anyAmount) (causedBy := byEvent damageToYou),
+          is you (hasDesignation monarch))] ∧
+      prohibitionCause? (cant you (loseLife anyAmount) (causedBy := byEvent damageToYou)) =
+        some (.event damageToYou) ∧
+      (loseLife anyAmount).eventVerbs = [.life .lifeLost] :=
+  ⟨rfl, rfl, by decide⟩
+
+/-- The reminder text of *Archon of Coronation*: "When a creature deals combat damage to you, its
+controller still becomes the monarch" [CR#725.2]. -/
+private def monarchStillChanges : Ability :=
+  whenever (does (a isCreature) (dealDamage anyAmount you (kind := some .combat)))
+    (gainDesignation (controllerOf it) monarch)
+
+/-- The damage's other results are untouched: the prohibition names only the loss of life, so the
+damage is still dealt, the monarch's combat-damage trigger still reads that damage and changes the
+monarch [CR#725.2], lifelink still gains its controller that much life [CR#120.3f], and infect's
+and toxic's poison counters are still given [CR#120.3b,120.3g]. None of these events is a loss of
+life, the one class of event the prohibition forbids. -/
+theorem archonLeavesTheDamagesOtherResults :
+    let forbidden := (loseLife anyAmount).eventVerbs
+    let untouched (action : Action) := action.eventVerbs.all (!forbidden.contains ·)
+    untouched (dealDamage anyAmount you (kind := some .combat)) = true ∧
+      Ability.check (DRS.ofList []) monarchStillChanges = [] ∧
+      untouched (gainDesignation (controllerOf it) monarch) = true ∧
+      bodyStatics lifelink = [asEvent (does this_ (dealDamage anyAmount)) (gainLife thatMuch)] ∧
+      untouched (gainLife thatMuch) = true ∧
+      untouched (putCounters thatMuch poison you) = true :=
+  ⟨by decide, by decide, by decide, rfl, by decide, by decide⟩
+
+/-- With no cause, `cant you (loseLife anyAmount)` is "you can't lose life", a different card and
+a different rule [CR#119.8]: it forbids every loss of life, whatever causes it, and is not
+*Archon of Coronation*'s prohibition. -/
+theorem uncausedProhibitionIsYouCantLoseLife :
+    prohibitionCause? (cant you (loseLife anyAmount)) = none ∧
+      prohibitionCause? (cant you (loseLife anyAmount)) ≠
+        prohibitionCause? (cant you (loseLife anyAmount) (causedBy := byEvent damageToYou)) ∧
+      StaticSpec.check (DRS.ofList []) (cant you (loseLife anyAmount)) = [] :=
+  ⟨rfl, by simp [prohibitionCause?, cant], by decide⟩
+
+/-- The cause is stepped as part of the prohibition: "that creature" in it, with no creature in
+scope, is refused. -/
+theorem badProhibitionCauseAnaphor :
+    StaticSpec.check (DRS.ofList [])
+        (cant you (loseLife anyAmount)
+          (causedBy := byEvent (does (a isSource) (dealDamage anyAmount (that creature))))) =
+      [.anaphor (.word creature) .one 0] := by
+  decide
+
+/-- Only a prohibition is restricted by a cause: a requirement or a permission naming one is
+refused. -/
+theorem badDeonticCauseOffAProhibition :
+    StaticSpec.check (DRS.ofList [])
+        (.must (.actor .you) (loseLife anyAmount) { cause := some (.event damageToYou) }) =
+      [.deonticCause] ∧
+      StaticSpec.check (DRS.ofList [])
+        (.can (.actor .you) (loseLife anyAmount) { cause := some (.event damageToYou) }) =
+      [.deonticCause] := by
+  decide
+
 /-! ## "That source" -/
 
 /-- *Deflecting Palm*'s prevention shield with its chosen source written as `chosen`. -/
