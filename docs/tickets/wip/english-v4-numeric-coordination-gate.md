@@ -23,5 +23,5 @@ Acceptance:
 - *2 or 3* has no NounPhrase analysis besides the Amount one.
 - Shared-brief hard acceptance (census, faces, judgments, strata `--check`).
 
-1. **Census delta**: pending.
-2. **Judgment set**: pending.
+1. **Census delta** (`slsptmol` → `tonvxvon`, full corpus): faces read 28,801 → 28,801; total Readings 245,781 → 245,781 (no unit changed); on the refreshed base, faces read 28,802 → 28,802, Readings 250,544 → 250,544 (no unit changed). Lost faces: none.
+2. **Judgment set** (`tonvxvon`): 3,055 enforced, 207 pending; all hold. Owner ruling round 13 item 2 (option c): the Noun Phrase gate is kept, and Triumphant Chomp stays deferred to Stratum 7.
