@@ -86,12 +86,6 @@ theorem okPrintedAfterPresentKeyword :
     printedAfterLaws [.keyword backupLabel [.number 1] [], grantBelowBackup] = [] := by
   decide
 
-/-- An unknown keyword is refused as a keyword term. -/
-theorem badPrintedAfterUnknownKeyword :
-    Ability.check (DRS.ofList []) (.static (abilityGrantSelected (target isCreature) thisCreature
-      (.printedAfter (.named "bakcup")))) = [.knownKeywordTerm] := by
-  decide
-
 /-! ## The eight bodies
 
 Each keyword's Definition (`Semantics.Definitions`) checks clean as an ability; the printed ability is the keyword's parameter. -/

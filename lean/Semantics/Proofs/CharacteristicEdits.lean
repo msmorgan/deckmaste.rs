@@ -52,10 +52,6 @@ theorem allAbilityRemoval :
     StaticSpec.check (DRS.ofList []) (.characteristicChange thisCreature
       [.removedAbilities (.allExcept none)]) = [] := by decide
 
-theorem unknownAbilityFamilyIsRefused :
-    StaticSpec.check (DRS.ofList []) (.characteristicChange thisCreature
-      [.removedAbilities (.family (.keyword (.named "flyign")))]) = [.knownKeywordTerm] := by decide
-
 theorem numericEditsShareOneLocalScope :
     CopyExcept.check (DRS.ofList []) (.edits
       [.stat .sets .power (powerOf (target isCreature)),

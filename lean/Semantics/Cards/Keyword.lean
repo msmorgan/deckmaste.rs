@@ -984,15 +984,6 @@ def thickSkinnedGoblinEchoPayment : Ability :=
     (instead (may (pay [generic 0] .once))))
 theorem okThickSkinnedGoblinEchoPayment :
     Ability.check (DRS.ofList []) thickSkinnedGoblinEchoPayment = [] := by decide
-/-- A payment ties itself to a keyword's cost only when the keyword has one: "the flying cost"
-names nothing. -/
-theorem badPaymentOfCostlessKeyword :
-    Ability.check (DRS.ofList [])
-      (static (replace
-        (would you (pay anyCost .once .paid (some (allOf (and [isPermanent, youControl])))
-          (some flying)))
-        (instead (may (pay [generic 0] .once)))))
-      = [.costNameable] := by decide
 def thickSkinnedGoblin : Spelled := spelled <| singleFacedCard
   { name := "Thick-Skinned Goblin", cost := [generic 1, pip .red], types := [.creature],
     subtypes := [goblin, shaman],

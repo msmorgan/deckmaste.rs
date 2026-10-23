@@ -3,17 +3,10 @@ import Semantics.Check.Words
 /-!
 # Semantics.Check.Keywords
 
-The laws over the keyword shapes and registry rows supplied by `Check.Facts`.
+The laws over keyword terms and the ability words [CR#207.2c].
 -/
 
 namespace Semantics
-
-def distinctKeywordWords : List KeywordFacts → Bool
-  | [] => true
-  | f :: fs => !(fs.map (·.word)).elem f.word && distinctKeywordWords fs
-
-def keywordFactsFor (k : KeywordLabel) : Option KeywordFacts := keywordFacts.find? (·.word == k)
-def knownKeyword (k : KeywordLabel) : Bool := (keywordFactsFor k).isSome
 
 /-- The ability words, as [CR#207.2c] lists and spells them. -/
 def abilityWordNames : List String :=
@@ -82,47 +75,27 @@ def abilityWordNames : List String :=
 /-- Whether an ability word is one [CR#207.2c] lists. -/
 def AbilityWordLabel.known : AbilityWordLabel → Bool
   | .named name => abilityWordNames.contains name
-def keywordSchemas (k : KeywordLabel) : List KeywordSchema :=
-  (keywordFactsFor k).elim [] (·.argumentSchemas)
 
-def KeywordSchema.shapes (schema : KeywordSchema) : List KeywordParamShape := schema.map (·.shape)
-
-def keywordCosts (k : KeywordLabel) : Bool :=
-  (keywordSchemas k).any (fun schema => schema.any (·.shape == .cost))
-
-def KeywordFamily.ok (c : KeywordFamily) : Bool :=
-  match keywordFactsFor c.word with
-  | none => false
-  | some f =>
-    match c.sort with
-    | none => f.argumentSchemas.any (fun schema => !schema.isEmpty)
-    | some _ => f.argumentSchemas.any (fun schema => schema.shapes == [.quality])
+/-- Whether a label names a keyword. Every label a card can write is the authored constant of a
+keyword Definition (`Authoring.keywordLabelConstant`); `keywordOf` gives an ability that is no
+keyword the empty label. -/
+def KeywordLabel.namesKeyword : KeywordLabel → Bool
+  | .named name => !name.isEmpty
 
 def KeywordTerm.known : KeywordTerm → Bool
-  | .the k => knownKeyword k
-  | .anyIn c => c.ok
-  | .theWith k _ => (keywordSchemas k).any (fun schema => schema.shapes == [.number])
+  | .the k | .theWith k _ => k.namesKeyword
+  | .anyIn c => c.word.namesKeyword
 
 def allKnownKeywordTerms : List KeywordTerm → Bool
   | [] => true
   | k :: ks => k.known && allKnownKeywordTerms ks
 
 def LinkSource.named : LinkSource → Bool
-  | .byKeyword kw => (keywordFactsFor kw).elim false (·.paidCost)
-  | .byNthKeyword ordinal kw => ordinal.ok && (keywordFactsFor kw).elim false (·.paidCost)
-  | .theAlternative => true
-  | .theAdditional => true
-
-def AbilityClass.known : AbilityClass → Bool
-  | .keyword k => knownKeyword k
-  | _ => true
+  | .byNthKeyword ordinal _ => ordinal.ok
+  | .byKeyword _ | .theAlternative | .theAdditional => true
 
 def distinctClasses : List AbilityClass → Bool
   | [] => true
   | c :: cs => !cs.elem c && distinctClasses cs
-
-def CostNamed.nameable : CostNamed → Bool
-  | .containing _ => true
-  | .ofKeyword kw => keywordCosts kw
 
 end Semantics

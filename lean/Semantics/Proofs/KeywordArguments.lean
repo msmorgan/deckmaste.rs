@@ -5,30 +5,26 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.KeywordArguments
 
-theorem qualifiedCostUsesDeclaredOrder :
-    Ability.check (DRS.ofList []) (keywordQualityCosting cycling
-      (.hasSubtype (plains)) (.mana [generic 2])) = [] := by decide
-
-theorem reversedQualifiedCostIsRefused :
-    Ability.check (DRS.ofList []) (.keyword (.named "cycling")
-      [.cost (.mana [generic 2]), .quality (.hasSubtype (plains))] []) =
-      [.keywordParamFits (.named "cycling")] := by decide
-
+/-- "Cycling {2}": a keyword's arguments are its typed Definition's, so their number and order
+are fixed by its signature. -/
 theorem unqualifiedCostVariantRemainsAvailable :
-    Ability.check (DRS.ofList []) (keywordCosting cycling (.mana [generic 2])) = [] := by decide
+    Ability.check (DRS.ofList []) (cycling (.mana [generic 2])) = [] := by decide
 
-theorem numberedCostNeedsBothArguments :
-    Ability.check (DRS.ofList []) (keywordCosting suspend (.mana [generic 2])) =
-      [.keywordParamFits (.named "suspend")] := by decide
-
-theorem extraArgumentIsRefused :
-    Ability.check (DRS.ofList []) (.keyword (.named "suspend")
-      [.number 2, .cost (.mana [generic 2]), .number 3] []) =
-      [.keywordParamFits (.named "suspend")] := by decide
-
+/-- "Playercycling" describes no card: typecycling's body searches for a card with the quality,
+so the quality is an object's [CR#702.29e]. -/
 theorem qualifiedCostRequiresObjectQuality :
-    Ability.check (DRS.ofList []) (keywordQualityCosting cycling .anyPlayer (.mana [generic 2])) =
+    Ability.check (DRS.ofList []) (typecycling .anyPlayer (.mana [generic 2])) =
       [.kindMismatch .object .player] := by decide
+
+/-- "Equip player" and "splice onto player" describe no creature and no spell: equip's body
+targets a creature with the quality [CR#702.6c] and splice's reveals a spell with it
+[CR#702.47a], and a conjunction whose conjuncts name kinds that do not overlap describes
+nothing. -/
+theorem equipAndSpliceRequireObjectQuality :
+    Ability.check (DRS.ofList []) (equipQuality .anyPlayer (.mana [generic 1])) =
+        [.kindMismatch .player .object] ∧
+      Ability.check (DRS.ofList []) (Ability.splice .anyPlayer (.mana [generic 1])) =
+        [.kindMismatch .object .player] := by decide
 
 /-- "Plainscycling {2}" through the `typecycling` Definition. -/
 theorem okTypecycling :
@@ -60,8 +56,5 @@ theorem costCannotReadOuterChoice :
     Ability.check [(ChoiceSort.quality .number).binding]
       (keywordCosting ward (payLife (.chosenNumber .theChoice))) =
       [.choiceRef .theChoice (.quality .number) 0] := by decide
-
-theorem emptyAndMissingSchemaAreDistinct :
-    keywordParamFits (.named "flying") [] = true ∧ keywordParamFits (.named "flyign") [] = false := by decide
 
 end Semantics.Proofs.KeywordArguments

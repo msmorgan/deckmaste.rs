@@ -147,7 +147,9 @@ are not gated.
    enchantment|instant|sorcery|planeswalker|battle|kindred|dungeon)` in `Check/` and fix each.
 4. Keep `Definition.cardType` (`Rules.lean:124`) and its `Check/Rules.lean:59` arm as the
    conferral carrier (STOP-2 ruled); drop its `permanentType` argument, now a field of the value.
-5. **Delete `Check/Facts.lean` and `Check/FactTypes.lean`.** By now they should hold only the
+5. **Delete `Check/Facts.lean` and `Check/FactTypes.lean`.** B3 (`lean-v3-keyword-facts-deleted`)
+   already deleted `Check/FactTypes.lean`, which by then held only the keyword row types, and
+   pointed `Check/Facts.lean` at `Semantics.Words`. By now they should hold only the
    `FrameFeature` type (if B2 chose the subtype-frame option) and empty tables; move
    `FrameFeature` next to `Subtype` (`Words.lean`). Remove their imports (`Check.lean:11-12`,
    `Check/Words.lean:2`, `Check/Keywords.lean`), delete `Proofs/Tables.lean` if it holds nothing

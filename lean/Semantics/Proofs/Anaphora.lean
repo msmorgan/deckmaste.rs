@@ -203,17 +203,6 @@ theorem badStackAnaphorOnPlayerUnion :
 theorem okKeywordClassWithSort :
     Predicate.checkAt .object (DRS.ofList []) (.hasKeyword (.anyIn ⟨(.named "protection"), some .color⟩)) = [] := by decide
 
-/-- "a creature with flyings" -/
-theorem badClassOfParamlessKeyword :
-    Predicate.checkAt .object (DRS.ofList []) (.hasKeyword (.anyIn ⟨(.named "flying"), none⟩)) = [.knownKeywordTerm] := by
-  decide
-
-/-- "a creature with renown of any color" -/
-theorem badSortedClassOnNumberKeyword :
-    Predicate.checkAt .object (DRS.ofList []) (.hasKeyword (.anyIn ⟨(.named "renown"), some .color⟩))
-      = [.knownKeywordTerm] := by
-  decide
-
 /-- "{T}: Draw a card. Activate only if you created a creature this turn." -/
 theorem okTokenCreationLookbackComplement :
     Condition.check (DRS.ofList [])
@@ -1002,7 +991,8 @@ theorem okNoHolderOnObject :
 theorem badPlayerDesignationOnObject :
     Condition.check (DRS.ofList [])
       (.not (exists_ (and [isCreature, .hasDesignation (.named "monarch" (.heldBy .player)) none]))) =
-      [.designationHolder (.named "monarch" (.heldBy .player)) .object] := by
+      [ .designationHolder (.named "monarch" (.heldBy .player)) .object,
+        .kindMismatch .object .player ] := by
   decide
 
 /-- "Roll five d6. Store those results on this creature." -/

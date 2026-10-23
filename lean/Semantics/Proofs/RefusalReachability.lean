@@ -92,13 +92,6 @@ theorem zeroMultiplierIsRefused :
     Amount.check emptyContext (.arith .times 1 2) = [] ∧
     Amount.check emptyContext (.arith .plus 0 2) = [] := by decide
 
-/-- Naming payment of a keyword cost requires that keyword to have a cost. -/
-theorem namedPaymentRequiresAPayableKeyword :
-    (stepSpendPurposeWith (stepOps 64) emptyContext
-      (.toPay (.ofKeyword (.named "flying")))).2 = [.costNameable] ∧
-    (stepSpendPurposeWith (stepOps 64) emptyContext
-      (.toPay (.ofKeyword (.named "ward")))).2 = [] := by decide
-
 /-- A word-headed line wraps an ability, not another word-headed line. -/
 theorem wordHeadsCannotBeNested :
     let keyword := Ability.keyword (.named "flying") [] []

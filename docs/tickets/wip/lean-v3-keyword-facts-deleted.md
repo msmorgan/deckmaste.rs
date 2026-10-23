@@ -107,6 +107,40 @@ are not gated.
   cannot pass a raw label, so they are used only by `Proofs/` and `Definitions/` today (0 uses in
   `Cards/`).
 
+## Ruling (owner, 2026-10-23): after the STOP on STOP-3
+
+The STOP-3 premise was false: *Ertai's Trickery* ("Counter target spell if it was kicked.") and
+*Merfolk Falconer* ("Whenever you cast a kicked spell, scry 2.") read the kicker cost of a spell
+they do not print, so no lookup against the enclosing card's abilities can decide `paidCost`.
+STOP-3 (a) and STOP-4 are superseded by this ruling, which governs where the sections above and
+below disagree.
+
+1. **Authored labels.** Each keyword `semantic_definition` generates an authored `KeywordLabel`
+   constant, and `elabKeywordName` emits that constant. `KeywordLabel.named` is
+   `[internal_expansion]`, with `[semantic_expression]`. A typo ("kickre") fails at elaboration.
+2. **Delete the shape checks; no schema collector.** With `Ability.keyword` and the stub helpers
+   (`keywordCosting`, `keywordQualityCosting`, `keywordNumber`, `keywordQuality`,
+   `keywordSubject`) restricted to internal or definition use and `KeywordLabel` authoring-checked,
+   the remaining checks only police authoring mistakes ("if it was flying", "flying costs",
+   "flying abilities"), the principle of ruling #2. Delete `paidCost`/`paysCost`, `KeywordSchema`,
+   `KeywordParamShape`, `keywordParamFits`, the `CostNamed.nameable` keyword-cost check (with the
+   `.pay` keyword check the ability-cost landing added), the `KeywordFamily.ok` schema check and
+   `theWith`'s schema check. Their negative pins are retired (deleted, not flipped), each named
+   with this reason; `badPaymentOfCostlessKeyword` goes too. The linked-cost readback by label
+   stays, so *Ertai's Trickery* and *Merfolk Falconer* still read "kicked"; pin both.
+3. **Object-only qualities come from real bodies.** `emergeFrom` and `Ability.splice` already force
+   `.object` through their bodies. `equipQuality` [CR#702.6c] (the ruling cited the rule after it,
+   on multiple equip abilities; [CR#702.6c] is the quality restriction) and
+   `typecycling` [CR#702.29e] get their CR bodies in place of the `keywordQualityCosting` stubs,
+   and `qualifiedCostRequiresObjectQuality` is rewritten over `typecycling`. No `qualityDomain`
+   field.
+   - *Found while landing:* only `emergeFrom` forced `.object` (through `sacrifice`'s patient
+     kind). The checker did not refuse a conjunction whose conjuncts name kinds that do not
+     overlap, so `Ability.splice .anyPlayer` and the new bodies (`and [isCard, quality]`,
+     `and [quality, isCreature, youControl]`) checked clean. Fixed at the defect: a conjunct
+     naming a kind the head's does not overlap is refused `kindMismatch` (`Check/Phrase.lean`).
+4. **`wantsModes`.** `keywordWantsModes` inspects the body.
+
 ## Change
 
 1. Tag `Ability.keyword` and `KeywordLabel` (and `AbilityWordLabel`, whose `known` table

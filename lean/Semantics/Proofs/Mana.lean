@@ -97,26 +97,6 @@ theorem okCastBeforeCombatDamage :
 theorem okWardCost : Ability.check (DRS.ofList []) (keywordCosting (.named "ward") (.mana [generic 2])) = [] := by
   decide
 
-/-- "Ward" -/
-theorem badBareWardLine :
-    Ability.check (DRS.ofList []) (.keyword (.named "ward") [] []) = [.keywordParamFits (.named "ward")] := by decide
-
-/-- "Ward red" -/
-theorem badWardQuality :
-    Ability.check (DRS.ofList []) (.keyword (.named "ward") [.quality (.colorIs .red)] [])
-      = [.keywordParamFits (.named "ward")] := by
-  decide
-
-/-- "Flying {2}" -/
-theorem badParamOnNullaryKeyword :
-    Ability.check (DRS.ofList []) (keywordCosting (.named "flying") (.mana [generic 2]))
-      = [.keywordParamFits (.named "flying")] := by
-  decide
-
-/-- "Flyign" -/
-theorem badUnknownKeywordLabel :
-    Ability.check (DRS.ofList []) (.keyword (.named "flyign") [] []) = [.keywordParamFits (.named "flyign")] := by decide
-
 /-- "Add {R}." -/
 theorem okSingleProduction :
     Action.check (DRS.ofList []) (.addMana 1 (.runs [[.of .red]]) []) = [] := by
@@ -217,12 +197,6 @@ theorem badChosenColorNoChooser :
 /-- "Cumulative upkeep {2}" -/
 theorem okCostedCumulativeUpkeep :
     Ability.check (DRS.ofList []) (keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])) = [] := by decide
-
-/-- "Cumulative upkeep" -/
-theorem badBareCumulativeUpkeep :
-    Ability.check (DRS.ofList []) (.keyword (.named "cumulativeUpkeep") [] [])
-      = [.keywordParamFits (.named "cumulativeUpkeep")] := by
-  decide
 
 /-- "… pays {1} for each artifact you control." -/
 theorem okForEachScaledMana :

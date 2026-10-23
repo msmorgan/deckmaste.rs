@@ -16,7 +16,7 @@ private def plain : Spelled := spelled <| .singleFaced
 private def withKeyword : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
-      power := stat 1, toughness := stat 1, text := [keyword (.named "flying")] } }
+      power := stat 1, toughness := stat 1, text := [reach] } }
 
 private def withDraw : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -25,7 +25,7 @@ private def withDraw : Spelled := spelled <| .singleFaced
 
 theorem printedDataNeedsNoExpressionTemplate : plain.authoring.onlyAuthored = true := plain.onlyAuthored
 
-theorem keywordRecordsTemplateAuthorship : withKeyword.authoring.onlyAuthored = true :=
+theorem keywordRecordsDefinitionAuthorship : withKeyword.authoring.onlyAuthored = true :=
   withKeyword.onlyAuthored
 
 theorem templateDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored = true :=
@@ -36,7 +36,7 @@ theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withD
 private def rawKeywordCard : Card := .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
-      power := stat 1, toughness := stat 1, text := [.keyword (.named "flying") [] []] } }
+      power := stat 1, toughness := stat 1, text := [.keyword (.named "reach") [] []] } }
 
 theorem expandedValueIsDefinitionallyIdentical : withKeyword.card = rawKeywordCard := by rfl
 
@@ -211,6 +211,52 @@ example : DesignationLabel := Semantics.Primitives.DesignationLabel.named "dusk"
 /-- error: Unknown identifier `Semantics.Primitives.RelationLabel.named` -/
 #guard_msgs in
 example : RelationLabel := Semantics.Primitives.RelationLabel.named "unrelated"
+
+-- A `KeywordLabel` is a catalog item in the same way: each keyword ability Definition generates
+-- its authored label constant (`kicker.label`), which a card writes by the Definition's name
+-- (`keywordCostPaid kicker it`), and `KeywordLabel.named` is an internal expansion. So a card
+-- names only a declared keyword: a raw label is refused and a misspelled one is no identifier.
+-- `Ability.keyword` and the by-label helpers that spell it (`keywordCosting`, …) are internal
+-- too, so a card writes a keyword ability through its typed Definition, whose signature fixes
+-- its parameters. The accepted direction is `withKeyword` above and the corpus (*Ertai's
+-- Trickery*, *Merfolk Falconer*).
+
+private def instantWith (action : Action) : Card := .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.instant], cost := some [generic 1],
+      text := [spell action] } }
+
+theorem keywordLabelIsGenerated : kicker.label = .named "kicker" ∧
+    multikicker.label = .named "kicker" := by decide
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.KeywordLabel.named] -/
+#guard_msgs in
+example : Spelled := spelled <|
+  instantWith (doOnlyIf (counter (target isSpell)) (keywordCostPaid (.named "flyign") it))
+
+/--
+error: Unknown identifier `kickre`
+---
+error: Definition sorryAx has no authoring evidence
+-/
+#guard_msgs in
+example : Spelled := spelled <|
+  instantWith (doOnlyIf (counter (target isSpell)) (keywordCostPaid kickre it))
+
+/-- error: Unknown identifier `Semantics.Primitives.KeywordLabel.named` -/
+#guard_msgs in
+example : KeywordLabel := Semantics.Primitives.KeywordLabel.named "flyign"
+
+/-- error: Unknown identifier `Semantics.Primitives.Ability.keyword` -/
+#guard_msgs in
+example : Ability := Semantics.Primitives.Ability.keyword (.named "flying") [] []
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Ability.keyword] -/
+#guard_msgs in
+example : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.creature], cost := some [generic 1],
+      power := stat 1, toughness := stat 1, text := [keywordCosting ward [generic 2]] } }
 
 /-! ## Coercions and the card envelope
 

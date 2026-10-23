@@ -228,14 +228,6 @@ theorem badMixedKeywordBodies :
         [.the (.named "flying"), .the (.named "menace")]) = [.nonEmpty] := by
   decide
 
-/-- "… The same is true for ward.": ward has no bare form, so the grant the expansion writes for
-it is refused by the keyword's own parameter schema. -/
-theorem badParameterisedKeywordInList :
-    Ability.check (DRS.ofList [])
-        (alsoForKeywords whileExiledHas [.the (.named "flying"), .the (.named "ward")])
-      = [.keywordParamFits (.named "ward")] := by
-  decide
-
 /-- "the number of basic land types among lands you control" -/
 theorem okBasicLandTypeAxis :
     Amount.check (DRS.ofList [])
@@ -252,16 +244,6 @@ theorem badBasicCreatureTypeAxis :
 /-- "Echo {2}{W}" -/
 theorem okParameterisedEcho :
     Ability.check (DRS.ofList []) (keywordCosting (.named "echo") (.mana [generic 2, pip .white])) = [] := by decide
-
-/-- "Echo" -/
-theorem badBareEcho :
-    Ability.check (DRS.ofList []) (.keyword (.named "echo") [] []) = [.keywordParamFits (.named "echo")] := by decide
-
-/-- "each creature with flying" -/
-theorem okKnownKeywordClass : AbilityClass.known (.keyword (.named "flying")) = true := by decide
-
-/-- "each creature with flyign": the refusal names the label and the table -/
-theorem badUnknownKeywordClass : AbilityClass.known (.keyword (.named "flyign")) = false := by decide
 
 /-- "{T}: This deals X damage to any target, where X is 3." -/
 theorem okActivatedOpensItsOwnLetter :
@@ -484,5 +466,14 @@ theorem odricGrantsHexproofVariants :
       (grantForms Cards.urborgScavengers 1).all Option.isSome ∧
       (grantForms Cards.urborgScavengers 1).filterMap (·.bind id) = [Cards.hexproofAbilities] := by
   decide
+
+/-- A keyword wants a modal spell when its own Definition writes a Mode Change: entwine,
+escalate, spree and tiered [CR#702.42a,702.120a,702.172a,702.183a]. -/
+theorem okEntwineEscalateSpreeTieredWantModes :
+    [ entwine (.mana [generic 2]), escalate (.mana [generic 2]), spree, tiered ].all
+      Ability.keywordWantsModes = true := by decide
+
+/-- A keyword whose Definition writes no Mode Change wants none, a cost-bearing one included. -/
+theorem kickerWantsNoModes : (kicker (.mana [generic 2])).keywordWantsModes = false := by decide
 
 end Semantics.Proofs.Keyword

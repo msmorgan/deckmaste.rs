@@ -1,6 +1,8 @@
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
+import Semantics.Cards.Anaphora
+import Semantics.Cards.Keyword
 
 /-!
 # Semantics.Proofs.LinkedReadback
@@ -235,11 +237,13 @@ theorem okChoiceTaken :
     Condition.check (DRS.ofList []) (.not (choiceWasTaken (.byKeyword (.named "kicker")) .this)) = [] := by
   decide
 
-/-- A keyword with no cost names no source for `taken`. -/
-theorem badTakenUnnamed :
-    Condition.check (DRS.ofList []) (choiceWasTaken (.byKeyword (.named "flying")) .this)
-      = [.linkedFacetNamed] := by
-  decide
+/-- A linked cost is read back by its keyword's label, whichever object's cost it is: *Ertai's
+Trickery* ("Counter target spell if it was kicked.") and *Merfolk Falconer* ("Whenever you cast a
+kicked spell, scry 2.") read the kicker cost of a spell neither prints [CR#702.33d], and both are
+spelled and check clean. -/
+theorem kickedReadsAnotherSpellsKicker :
+    Cards.ertaisTrickery.card.check = [] ∧ Cards.merfolkFalconer.card.check = [] :=
+  ⟨Cards.ertaisTrickery.ok, Cards.merfolkFalconer.ok⟩
 
 /-- Required pin: "exile it haunting target creature" relates two objects [CR#702.55a]. -/
 theorem okRelateHaunting :

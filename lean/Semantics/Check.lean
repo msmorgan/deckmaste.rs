@@ -1,4 +1,3 @@
-import Semantics.Check.FactTypes
 import Semantics.Check.Facts
 import Semantics.Check.Words
 import Semantics.Check.Keywords

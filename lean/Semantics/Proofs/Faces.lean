@@ -136,10 +136,6 @@ theorem badStarlessDefinedPt :
 theorem okKnownKeywordPredicate :
     Predicate.checkAt .object (DRS.ofList []) (.hasKeyword (.the (.named "flying"))) = [] := by decide
 
-/-- "each creature with flyign" -/
-theorem badUnknownKeywordPredicate :
-    Predicate.checkAt .object (DRS.ofList []) (.hasKeyword (.the (.named "flyign"))) = [.knownKeywordTerm] := by decide
-
 /-- "Protection from red" on a creature card -/
 theorem okProtectionOnPermanentCard :
     Card.check
@@ -153,12 +149,6 @@ theorem okProtectionOnPermanentCard :
 /-- "Protection from red" -/
 theorem okProtectionFromAColor :
     Ability.check (DRS.ofList []) (keywordQuality (.named "protection") (.colorIs .red)) = [] := by decide
-
-/-- "Protection from player" -/
-theorem badProtectionFromPlayerRestriction :
-    Ability.check (DRS.ofList []) (keywordSubject protection .anyPlayer)
-      = [.keywordParamFits (.named "protection")] := by
-  decide
 
 /-- "Equip {2}" on an Equipment card -/
 theorem okEquipOnEquipment :
@@ -331,7 +321,7 @@ theorem badEscalateWithoutModes :
     Card.check
       (one
         { name := some "", cost := some [pip .black], types := [.instant],
-          text := [keywordCosting (.named "escalate") (.mana [generic 2])] }) = [.modalFrame] := by
+          text := [escalate (.mana [generic 2])] }) = [.modalFrame] := by
   decide
 
 /-- "Entwine {2}" -/
@@ -339,7 +329,7 @@ theorem badEntwineWithoutModes :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [keywordCosting (.named "entwine") (.mana [generic 2])] }) = [.modalFrame] := by
+          text := [entwine (.mana [generic 2])] }) = [.modalFrame] := by
   decide
 
 /-- "You may choose the same mode more than once", with no modes to change: a Mode Change
@@ -423,16 +413,6 @@ theorem badPossessedMonarch :
 /-- "Unearth {B}" -/
 theorem okCostedUnearth :
     Ability.check (DRS.ofList []) (keywordCosting (.named "unearth") (.mana [pip .black])) = [] := by decide
-
-/-- "Unearth" -/
-theorem badBareUnearth :
-    Ability.check (DRS.ofList []) (keyword unearth) = [.keywordParamFits (.named "unearth")] := by decide
-
-/-- "Retrace {1}" -/
-theorem badCostedRetrace :
-    Ability.check (DRS.ofList []) (keywordCosting (.named "retrace") (.mana [generic 1]))
-      = [.keywordParamFits (.named "retrace")] := by
-  decide
 
 /-- "Unearth {B}" on a creature card -/
 theorem okUnearthOnPermanentCard :
