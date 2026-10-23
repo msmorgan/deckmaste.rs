@@ -40,5 +40,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `ztmvqxzl` → this landing, `xrnurmzl`): faces read 28,801 → 28,801, total Readings 245,825 → 245,825, Surplus 106,859 → 106,859; no unit's Readings, verdict or cheapest tier changed; lost faces: none. Adding the Exclude changed nothing: irrealis *were* is third singular only, and the Production already requires a plural head.
+Judgment set: holds (`cargo test -p deckmaste_english_v4`); all 3,258 non-seed entries give identical outcomes, derivation counts and cheapest tiers before and after.
