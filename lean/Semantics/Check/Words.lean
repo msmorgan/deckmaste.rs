@@ -492,9 +492,10 @@ structure DRS where
   contrastAnchors : List ContrastAnchor := []
   /-- The objects a `withContinuation` body or arm stamped ("you may exile it"), escaping it only
   to Participial Descriptions ("each card exiled this way"), which range over the events that
-  happened (owner ruling 2026-10-22). A target an optional body announced is an ordinary referent
-  as announced; only its stamp from the body is here, under its id (owner ruling 2026-10-23). They are not `referents`, so no pronoun, group, count or
-  Contrast Anchor reads them; `DRS.participialReferents` does, and a Participial Description
+  happened (owner ruling 2026-10-22). A target an optional body or one of its arms announced is
+  an ordinary referent as announced; only its stamp from the body or arm is here, under its id
+  (owner ruling 2026-10-23). They are not `referents`, so no pronoun, group, count or Contrast
+  Anchor reads them; `DRS.participialReferents` does, and a Participial Description
   that reads one mentions it, moving it into `referents` (in place of the earlier object of its
   id, if it is one). -/
   participialOnly : List Referent := []

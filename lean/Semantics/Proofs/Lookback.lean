@@ -700,6 +700,44 @@ theorem optionalBodyTargetStampReadOnce :
       (sequentially [may (exile (target isCreature)) none (some (exile it)),
         tap (the (and [isCard, was (exile which) thisWay]))]) = [] := by decide
 
+/-- A target an optional body's arm announces is chosen as the ability is put on the stack too,
+whichever arm later runs, as the arms are part of the same ability [CR#601.2c,603.3d,115.1]
+(owner ruling 2026-10-23): "that artifact" reads a target of the "if you do" arm after the whole
+`may`, in a lookback and out of one. -/
+theorem optionalIfDidArmTargetStaysVisible :
+    Action.check (DRS.ofList [])
+      (sequentially [may (sacrifice (a isCreature)) (some (destroy (target isArtifact))),
+        instruct this_ (dealDamage 3 (controllerOf (that artifact)))]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [may (sacrifice (a isCreature)) (some (destroy (target isArtifact))),
+        doIf (did (that artifact) (putInto .actor graveyard) thisWay) (draw 1)]) = [] := by
+  decide
+
+/-- The same for a target of the "if you don't" arm. -/
+theorem optionalIfNotArmTargetStaysVisible :
+    Action.check (DRS.ofList [])
+      (sequentially [may (sacrifice (a isCreature)) none (some (tap (target isArtifact))),
+        untap (that artifact)]) = [] := by decide
+
+/-- Each arm's target takes its own id past both arms, though the arms number from overlapping
+ids, and a stamp an arm left on its own target escapes participial-only under the target's id:
+after "you may sacrifice a creature. If you do, exile target creature. If you don't, tap target
+artifact", the two targets are ordinary referents 4 and 5, and the exiled creature's stamp is
+read under 4. -/
+theorem optionalArmTargetsTakeDistinctIds :
+    let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (may (sacrifice (a isCreature)) (some (exile (target isCreature)))
+        (some (tap (target isArtifact))))).1
+    (out.referents.map fun ref => (ref.id, ref.det == .target)) = [(4, true), (5, true)] ∧
+      (out.participialOnly.map (·.id)).contains 4 ∧ out.nextId = 7 := by decide
+
+/-- A "when you do" reflexive trigger is a separate ability that chooses its own targets as it is
+put on the stack [CR#603.12,603.3d]: its target does not escape into the text after it. -/
+theorem reflexiveTriggerTargetStaysItsOwn :
+    Action.check (DRS.ofList [])
+      (sequentially [offerWhen (sacrifice (a isCreature)) (destroy (target isArtifact)),
+        untap (that artifact)]) = [.anaphor (.word artifact) .one 0] := by decide
+
 /-- The recorded origin reads the permanent only when it is the battlefield. After "Exile target
 artifact, then put it from exile into a graveyard", the matched event moved the artifact from
 exile, so "that artifact" finds nothing, though the card once left the battlefield; after a mill
