@@ -4,7 +4,8 @@ import Semantics.Primitives
 # Semantics.Definitions.Designations
 
 The rules-defined designation labels: each declaration's name is its `DesignationLabel`. A leaf
-catalog, spelled over primitives only, so `Semantics.Templates` can name its entries.
+catalog, spelled over primitives only. `Semantics.Templates` names none of its
+entries.
 
 Two rules-defined designations are not here. The sector designations [CR#702.158b] exist only
 for space sculptor, on an Unfinity card, so they are deferred with the Un-sets. A battle's

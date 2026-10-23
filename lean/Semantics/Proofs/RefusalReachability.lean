@@ -1,6 +1,7 @@
 import Semantics.Check.AbilityRules
 import Semantics.Definitions.Subtypes
 import Semantics.Templates
+import Semantics.Definitions.Phrasings
 
 namespace Semantics.Proofs.RefusalReachability
 
@@ -21,7 +22,7 @@ theorem existentialRequiresAnExistentialMention :
       (.exists_ (.described (.count (.range (some 2) none) none) (.hasType .creature))) = [] ∧
     Condition.check emptyContext (.exists_ .you) = [.existentialMention] := by decide
 
-open Semantics.Templates in
+open Semantics.Templates Semantics.Definitions in
 /-- The domain "the number of …" counts and "the greatest … among …" ranges over is closed after
 the measure (`semantics-v3.md` §1.3): no later pronoun reads it back. In *Tears of Rage*, *Mishra,
 Claimed by Gix* and *Highcliff Felidar* the reference after the measure reads something else. -/
@@ -34,7 +35,7 @@ theorem measuredDomainIsNotAnAntecedent :
           .setStatus .tapped them]) =
       [.anaphor .bare .many 0] := by decide
 
-open Semantics.Templates in
+open Semantics.Templates Semantics.Definitions in
 /-- A target announced inside a measured domain survives its closure, being chosen as the spell or
 ability is put on the stack [CR#601.2c,115.1]: *Tibalt, the Fiend-Blooded*'s "deals damage equal
 to the number of cards in target player's hand to that player", and the same through "the
@@ -49,7 +50,7 @@ theorem measureKeepsItsAnnouncedTargets :
               (and [isCreature, .hasPossessor .controller (target isOpponent)])),
             instruct (that player) (draw 1) ]) = [] := by decide
 
-open Semantics.Templates in
+open Semantics.Templates Semantics.Definitions in
 /-- An existential's domain is read in a self-replacement's replacement and closed after it, as
 after a `doIf`: "You gain 1 life. If there are two or more creature cards in your graveyard, you
 gain 2 life instead. Choose one of them." refuses "them". -/
@@ -61,7 +62,7 @@ theorem replacementConditionClosesItsExistentialDomain :
                 (instead (gainLife 2))),
             choose (someOf (exactly 1) them) ]) = [.anaphor .bare .many 0] := by decide
 
-open Semantics.Templates in
+open Semantics.Templates Semantics.Definitions in
 /-- *Tears of Rage*: "Attacking creatures you control get +X/+0 until end of turn, where X is the
 number of attacking creatures. Sacrifice those creatures …": "those creatures" reads the
 creatures that got +X/+0 (the subject, referent 1), not the attacking creatures counted. -/

@@ -4,7 +4,8 @@ import Semantics.Primitives
 # Semantics.Definitions.Counters
 
 The rules-defined counter kinds: each declaration's name is its `CounterKind`. A leaf catalog,
-spelled over primitives only, so `Semantics.Templates` can name its entries.
+spelled over primitives only. `Semantics.Templates` names none of its
+entries.
 -/
 
 namespace Semantics.Definitions

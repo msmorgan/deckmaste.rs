@@ -4,8 +4,9 @@ import Semantics.Primitives
 # Semantics.Definitions.Subtypes
 
 The rules-defined subtypes: each declaration's name is its `Subtype`. A leaf catalog, spelled
-over the raw `Subtype` constructors, which have no primitive (the subtype-word templates live above
-it, in `Semantics.Templates`), so `Semantics.Templates` can name its entries. A card names these
+over the raw `Subtype` constructors, which have no primitive. The templates that name its entries
+("this Aura", "outlaw", "your party") live above it, in `Semantics.Definitions.Phrasings`, and
+`Semantics.Templates` names none of them. A card names these
 entries: `spelled` refuses a raw `Subtype` constructor in a card. Attraction [CR#205.3g] is an
 Un-set artifact type, deferred with the Un-sets.
 -/

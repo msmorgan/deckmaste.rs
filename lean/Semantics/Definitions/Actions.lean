@@ -1,4 +1,4 @@
-import Semantics.Templates
+import Semantics.Definitions.Phrasings
 import Semantics.Check.Phrase
 
 /-!
