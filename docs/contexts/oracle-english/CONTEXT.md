@@ -583,6 +583,13 @@ _Avoid_: extraposed modifier
 A Clause whose Predicate contains no verb; a reducible Clause Complement of a
 Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
 
+**Absolute Clause**:
+The Complement of *with* or *without*: a non-finite or Verbless Clause that
+keeps its Subject (*play with [your hand revealed]*). Its Preposition Phrase is
+an Adjunct of a Clause or a Modifier in a Noun Phrase, never a selected
+Complement (CGEL, Ch. 14 §8.3, p. 1262, and §10(a), p. 1267).
+_Avoid_: small clause
+
 **Gerund-participial Clause**:
 A nonfinite Clause headed by a verb in its gerund-participle Word Form (CGEL,
 Ch. 14 §1.1, pp. 1173–1174).

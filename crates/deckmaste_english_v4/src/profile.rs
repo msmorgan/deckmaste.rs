@@ -1080,7 +1080,9 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             a.preposition_frames.iter().map(|f| &f.complement).fold(
                 (false, true),
                 |(any, all), fill| {
-                    let c = matches!(fill, SlotFill::Clause(_));
+                    // An Absolute Clause (*with your hand revealed*) is
+                    // profiled as its own family, not a clausal preposition.
+                    let c = matches!(fill, SlotFill::Clause(k) if *k != ClauseKind::Absolute);
                     (any || c, all && c)
                 },
             )

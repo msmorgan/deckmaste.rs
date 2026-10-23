@@ -262,8 +262,10 @@ extraction works across finite, plain, progressive, perfect and passive forms wi
 no per-form Productions.
 
 A clause Frame Slot is finite (*when this creature enters*), present-tense
-finite (*whenever you cast a spell*), verbless (*if able*) or interrogative
-(*choose which creatures attack*), each filled by its own Category.
+finite (*whenever you cast a spell*), verbless (*if able*), absolute, a Subject
+and its non-finite or verbless predicate (*with your hand revealed*), or
+interrogative (*choose which creatures attack*), each filled by its own
+Category.
 
 A Gap is an `NP` (an extracted Object or Complement of a preposition), a `Pred`
 (an extracted predicative Complement, *whose turn it is*) or an `Adjunct` (*the

@@ -47,3 +47,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+1. **Census delta** (measured on `skkuyopulqop`): faces read 32,687 → 32,692 (Enduring Renewal, Field of Dreams, Future Sight, Telepathy, Eureka); total Readings 333,708 → 336,332 (+2,624 across 84 units, none decreasing; largest Maralen, Fae Ascendant 7,354 → 8,164); lost faces: none.
+2. **Judgment set**: `cargo test -p deckmaste_english_v4` passes; `starting_with_adjunct.txt:3` holds. Remaining: `play_with_absolute.txt:12` (*Players attack with their hands revealed.*) needs same-head complement priority to consider the selected slot's Complement kind: *attack* selects PP[with], which refuses an Absolute Clause, yet the priority still blocks the with-phrase as an Adjunct.
