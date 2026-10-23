@@ -445,6 +445,7 @@ pub(crate) fn resolve(
             host_extensions: 0,
             adjunct_extension: None,
             internal_comma: false,
+            unwritten_period: false,
         },
     })
 }
@@ -524,6 +525,9 @@ pub(crate) struct Summary {
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
     pub auxiliary: bool,
+    /// It ends in the final period of a quotation, which is not written
+    /// (`chart::quotations`): no other period follows it there.
+    pub unwritten_period: bool,
 }
 
 /// A lexical leaf as a child sees it.
@@ -596,6 +600,9 @@ pub(crate) struct State {
     adjunct_extension: Option<Extension>,
     /// A child so far carries `Summary::internal_comma` up.
     internal_comma: bool,
+    /// The last child so far ends in a period not written
+    /// (`Summary::unwritten_period`).
+    pub unwritten_period: bool,
 }
 
 impl Production {
@@ -1079,6 +1086,8 @@ impl Production {
         let (first, last) = self.boundaries(position, child);
         next.first_glues.get_or_insert(first);
         next.last_glues = last;
+        next.unwritten_period =
+            matches!(child, ChildView::Node(summary) if summary.unwritten_period);
         next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
         self.track_head_final(&mut next, position, child);
         self.track_final_preposition(grammar, &mut next, position, child)?;
@@ -1288,6 +1297,7 @@ impl Production {
                 || self.delimits
                 || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
+            unwritten_period: state.unwritten_period,
         })
     }
 }

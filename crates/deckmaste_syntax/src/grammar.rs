@@ -204,6 +204,15 @@ pub enum SymbolDecl {
     /// A Preposition Phrase headed by one of the named Closed Words, as a
     /// Frame Slot `PP([...])` selects one.
     Selected(Ident, Ident, Vec<Ident>),
+    /// A Constituent of a Category set in quotation marks, which the engine
+    /// supplies: double at even nesting depth, single at odd ("If quoted rules
+    /// text itself quotes an ability, use straight single quotation marks";
+    /// `docs/oracle-style-guide.md` §3, Quotation marks and apostrophes). A
+    /// period or comma that follows a closing quotation mark is written
+    /// inside it, and the Constituent's own final period is not written: the
+    /// punctuation is derived from the structure (CGEL, Ch. 20 §6,
+    /// pp. 1753–1755; style guide §3, Periods).
+    Quoted(Ident, Ident),
     /// Literal punctuation: it may decide an analysis but is not stored in a
     /// Reading.
     Punct(char),

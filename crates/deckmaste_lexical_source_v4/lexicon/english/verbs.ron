@@ -69,7 +69,9 @@
     (lemma: "finish", frames: [Catenative(Gerund)]),
     (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Monotransitive]),
     (lemma: "follow", frames: [Monotransitive]),
-    (lemma: "gain", frames: [Monotransitive, Transitive(KeywordPhrase)]),
+    // *Gain* and *have* grant an ability ([CR#113.1a]), a keyword or a quoted
+    // one; *lose* takes away either.
+    (lemma: "gain", frames: [Monotransitive, Transitive(KeywordPhrase), Transitive(QuotedAbility)]),
     // Oracle *get* takes only an object: *gets +2/+2*, *get an emblem*.
     // *gets +2/+2*: a slash measure is a Noun Phrase only where selected.
     (lemma: "get", preterite: "got", past_participle: "gotten", gerund: "getting",
@@ -86,7 +88,7 @@
     (lemma: "leave", past: "left", frames: [Monotransitive, TransitiveWithPP(["in"])]),
     (lemma: "lock", frames: [Monotransitive]),
     (lemma: "look", frames: [Prepositional(["at"])]),
-    (lemma: "lose", past: "lost", frames: [Monotransitive, Transitive(KeywordPhrase)]),
+    (lemma: "lose", past: "lost", frames: [Monotransitive, Transitive(KeywordPhrase), Transitive(QuotedAbility)]),
     (lemma: "make", past: "made", frames: [Monotransitive]),
     // *damage marked on it*
     (lemma: "mark", frames: [TransitiveWithPP(["on"])]),

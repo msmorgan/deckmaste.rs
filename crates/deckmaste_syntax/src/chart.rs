@@ -10,6 +10,7 @@ use deckmaste_lexical::Lexicon;
 
 use crate::compile::CompiledGrammar;
 use crate::hash::ChartHasher;
+use crate::reading::glues_after;
 use crate::step::ChildView;
 use crate::step::LeafFacts;
 use crate::step::State;
@@ -147,15 +148,19 @@ pub struct Parse<'g> {
     pub(crate) grammar: &'g CompiledGrammar,
     /// The Category parsed for.
     pub(crate) root: usize,
-    /// The analyzed text, as chars.
+    /// The analyzed text, as chars, in logical order: a period or comma
+    /// written inside a closing quotation mark follows it ([`quotations`]).
     pub(crate) tokens: Vec<char>,
+    /// The analyzed text as written.
+    pub(crate) source: String,
     pub forest: PackedForest,
     /// Words no declared lexeme spells, as char ranges.
     pub vocabulary_gaps: Vec<Range<usize>>,
 }
 
 impl<'g> Parse<'g> {
-    /// The analyzed text, as chars.
+    /// The analyzed text, as chars, in logical order (a period or comma
+    /// written inside a closing quotation mark follows it).
     #[must_use]
     pub fn tokens(&self) -> &[char] {
         &self.tokens
@@ -169,6 +174,97 @@ impl<'g> Parse<'g> {
     pub fn reparse(&self, analyzed: &AnalyzedText) -> Parse<'g> {
         self.grammar.run(analyzed, self.root)
     }
+}
+
+/// The quotation mark a `Quoted` child is compiled with
+/// ([`crate::grammar::SymbolDecl::Quoted`]): it stands for whichever mark its
+/// nesting depth takes ([`quotation_mark`]).
+pub(crate) const QUOTATION_MARK: char = '"';
+
+/// Whether a char is a quotation mark, double or single.
+pub(crate) fn is_quotation_mark(c: char) -> bool {
+    matches!(c, '"' | '\'')
+}
+
+/// The quotation mark at a nesting depth: double at even depth, single at odd
+/// ("If quoted rules text itself quotes an ability, use straight single
+/// quotation marks for the inner quotation"; `docs/oracle-style-guide.md`
+/// §3, Quotation marks and apostrophes).
+pub(crate) fn quotation_mark(depth: usize) -> char {
+    if depth.is_multiple_of(2) { '"' } else { '\'' }
+}
+
+/// A char's part in quotation: a mark that opens or closes one, or a period
+/// or comma written after a closing mark, where Oracle never writes one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Quote {
+    Open,
+    Close,
+    Outside,
+}
+
+/// The quotation marks of a text, paired, and the text in logical order.
+///
+/// A quotation mark that no word of two or more chars covers (an apostrophe
+/// inside *can't*) opens a quotation where it is the mark of its
+/// depth, follows a space, a line start or an opening mark, and precedes no
+/// space; it closes the innermost open quotation of the same mark where it
+/// follows no space and precedes no letter or digit. A mark left unpaired is
+/// no quotation mark.
+///
+/// Oracle writes a period or comma that follows a quotation inside its
+/// closing mark (`docs/oracle-style-guide.md` §3, Periods; Quotation marks
+/// and apostrophes): *has "… a card."*, *"A," "B," and "C."*. In logical
+/// order it follows the closing marks, where the Production that punctuates
+/// the quotation finds it, and the quotation's own final period is not
+/// written at all: a `.` matches no char just before a closing mark, and no
+/// written period or comma does. One written after a closing mark is
+/// `Outside`, and matches nothing.
+pub(crate) fn quotations(tokens: &[char], covered: &[bool]) -> (Vec<char>, Vec<Option<Quote>>) {
+    let n = tokens.len();
+    let mut marks = vec![None; n];
+    let mut open: Vec<usize> = Vec::new();
+    for at in 0..n {
+        let c = tokens[at];
+        if covered[at] || !is_quotation_mark(c) {
+            continue;
+        }
+        let before = at.checked_sub(1).map(|b| tokens[b]);
+        let after = tokens.get(at + 1).copied();
+        if open.last().is_some_and(|&o| tokens[o] == c)
+            && before.is_some_and(|b| !b.is_whitespace())
+            && after.is_none_or(|a| !a.is_alphanumeric())
+        {
+            let o = open.pop().expect("an open quotation");
+            marks[o] = Some(Quote::Open);
+            marks[at] = Some(Quote::Close);
+        } else if c == quotation_mark(open.len())
+            && before.is_none_or(|b| b.is_whitespace() || open.last() == Some(&(at - 1)))
+            && after.is_some_and(|a| !a.is_whitespace())
+        {
+            open.push(at);
+        }
+    }
+    let mut logical = tokens.to_vec();
+    let mut at = 0;
+    while at < n {
+        if marks[at] != Some(Quote::Close) {
+            at += 1;
+            continue;
+        }
+        let run = at;
+        while at < n && marks[at] == Some(Quote::Close) {
+            at += 1;
+        }
+        if at < n && matches!(logical[at], '.' | ',') && !covered[at] {
+            marks[at] = Some(Quote::Outside);
+        }
+        if run > 0 && matches!(logical[run - 1], '.' | ',') && !covered[run - 1] {
+            logical[run - 1..at].rotate_left(1);
+            marks[run - 1..at].rotate_left(1);
+        }
+    }
+    (logical, marks)
 }
 
 /// The spans of the multiword nouns of one input whose words also reach the
@@ -303,8 +399,20 @@ impl CompiledGrammar {
 
     #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
     pub(crate) fn run<'g>(&'g self, analyzed: &AnalyzedText, root: usize) -> Parse<'g> {
-        let tokens = &analyzed.tokens;
-        let n = tokens.len();
+        let n = analyzed.tokens.len();
+        let mut covered = vec![false; n];
+        // A word spelled by a quotation mark alone (the genitive apostrophe
+        // of *owners'*) leaves it a candidate mark, and so does a Flavor
+        // Word's label, which spans any text before an em dash.
+        for found in analyzed
+            .matches
+            .iter()
+            .filter(|m| matches!(m.reading, LexicalReading::Word(_)) && m.end - m.start > 1)
+        {
+            covered[found.start..found.end].fill(true);
+        }
+        let (logical, marks) = quotations(&analyzed.tokens, &covered);
+        let tokens = &logical;
         let skip = |mut p: usize| {
             // A structural line break consumes its own boundary. Indentation
             // is not an interword space and has no atom to realize it.
@@ -401,7 +509,11 @@ impl CompiledGrammar {
             }
             self.prediction.add_punctuation(
                 tokens.get(position).copied(),
-                tokens.get(at).copied(),
+                if marks.get(at).is_some_and(Option::is_some) {
+                    Some(QUOTATION_MARK)
+                } else {
+                    tokens.get(at).copied()
+                },
                 &mut active,
             );
             if position == 0 {
@@ -559,17 +671,38 @@ impl CompiledGrammar {
                             }
                         }
                     }
-                    Symbol::Punct(c, _) => {
-                        let at = if c.is_whitespace() { position } else { skip(position) };
-                        if at < n
-                            && tokens[at] == *c
+                    Symbol::Punct(c, binding) => {
+                        let mut at = if c.is_whitespace() { position } else { skip(position) };
+                        let mut end = at + 1;
+                        let found = if *c == QUOTATION_MARK {
+                            let role =
+                                if glues_after(*binding) { Quote::Open } else { Quote::Close };
+                            marks.get(at) == Some(&Some(role))
+                        } else if at < n && tokens[at] == *c {
+                            // Written punctuation is no quotation's, and
+                            // never precedes a closing mark.
+                            marks[at].is_none()
+                                && !(matches!(c, '.' | ',')
+                                    && marks.get(at + 1) == Some(&Some(Quote::Close)))
+                        } else if *c == '.'
+                            && marks.get(position) == Some(&Some(Quote::Close))
+                            && !forest.items[id].state.unwritten_period
+                        {
+                            // A quotation's own final period is not written,
+                            // and is the one period there.
+                            (at, end) = (position, position);
+                            true
+                        } else {
+                            false
+                        };
+                        if found
                             && production.spacing_matches(
                                 &forest.items[id].state,
                                 dot,
                                 &ChildView::Punct,
                                 &tokens[position..at],
                             )
-                            && let Some(state) = production.accept(
+                            && let Some(mut state) = production.accept(
                                 self,
                                 &forest.items[id].state,
                                 dot,
@@ -579,16 +712,17 @@ impl CompiledGrammar {
                                 skip(start),
                                 previous.map(|_| (forest.items[id].end, forest.items[id].seam)),
                                 at,
-                                at + 1,
+                                end,
                             )
                         {
+                            state.unwritten_period = at == end;
                             add(
                                 &mut forest,
                                 &mut sets,
                                 production_id,
                                 dot + 1,
                                 start,
-                                at + 1,
+                                end,
                                 state,
                                 seam,
                                 Some((previous, ChildRef::Punct)),
@@ -611,7 +745,8 @@ impl CompiledGrammar {
         Parse {
             grammar: self,
             root,
-            tokens: tokens.clone(),
+            source: analyzed.tokens.iter().collect(),
+            tokens: logical,
             forest,
             vocabulary_gaps: analyzed.unknown_words(),
         }

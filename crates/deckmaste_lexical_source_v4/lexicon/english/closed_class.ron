@@ -169,7 +169,7 @@
         // restricted to active voice (CGEL, Ch. 16 §10.1.2, p. 1432, [17]);
         // the perfect auxiliary is the grammar's.
         (lemma: "have", third_singular: "has", past: "had",
-            frames: [Monotransitive, Transitive(KeywordPhrase), Catenative(ToInf), ComplexCatenative(BareInf)],
+            frames: [Monotransitive, Transitive(KeywordPhrase), Transitive(QuotedAbility), Catenative(ToInf), ComplexCatenative(BareInf)],
             active_only: true),
         // Only the perfect auxiliary (*hasn't been chosen*), which the grammar
         // names; no frame selects a past participle.

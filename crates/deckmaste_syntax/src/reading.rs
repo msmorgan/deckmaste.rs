@@ -17,6 +17,8 @@ use serde::Serialize;
 
 use crate::chart::ChildRef;
 use crate::chart::Parse;
+use crate::chart::QUOTATION_MARK;
+use crate::chart::quotation_mark;
 use crate::compile::CompiledGrammar;
 use crate::frames::Frame;
 use crate::step::ChildView;
@@ -438,7 +440,7 @@ type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(Anchors, Sequences)>
 /// Modifier or Supplement, and its first conjunct, read by the last. One
 /// item packs prefixes that may divide its text differently, so the forest's
 /// walks keep a result per `Anchors`, and each key is the one its tree has.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Ord, PartialOrd)]
 struct Anchors {
     head: Option<(usize, usize)>,
     first: Option<(usize, usize)>,
@@ -856,7 +858,9 @@ impl CompiledGrammar {
                 let at = offsets.get(first).map_or(text.len(), |r| r.start);
                 at..at
             } else {
-                offsets[first].start..offsets[last - 1].end
+                let atoms = &offsets[first..last];
+                let start = atoms.iter().map(|r| r.start).min().unwrap_or_default();
+                start..atoms.iter().map(|r| r.end).max().unwrap_or_default()
             };
         }
         Ok((text, out))
@@ -1026,20 +1030,22 @@ impl CompiledGrammar {
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
-        out: &mut Vec<(String, Binding, bool)>,
+        out: &mut Vec<Atom>,
         located: &mut dyn FnMut(usize, (usize, usize)),
     ) -> Result<(), AdmissionError> {
         let mut next = 0;
-        self.atoms_from(reading, lexicon, out, located, &mut next)
+        let mut depth = 0;
+        self.atoms_from(reading, lexicon, out, located, &mut next, &mut depth)
     }
 
     fn atoms_from(
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
-        out: &mut Vec<(String, Binding, bool)>,
+        out: &mut Vec<Atom>,
         located: &mut dyn FnMut(usize, (usize, usize)),
         next: &mut usize,
+        depth: &mut usize,
     ) -> Result<(), AdmissionError> {
         match reading {
             Reading::Leaf(value) => {
@@ -1051,7 +1057,7 @@ impl CompiledGrammar {
                         .map_or(Binding::Free, |f| f.binding),
                     _ => Binding::Free,
                 };
-                out.push((text, binding, false));
+                out.push((text, binding, AtomKind::Word));
             }
             Reading::Node(node) => {
                 let &index = self.by_id.get(&node.production).ok_or_else(|| {
@@ -1063,15 +1069,38 @@ impl CompiledGrammar {
                 located(me, (first, first));
                 let mut children = node.children.iter();
                 for symbol in &self.productions[index].rhs {
-                    if let Symbol::Punct(c, binding) = symbol {
-                        out.push((c.to_string(), *binding, false));
+                    if let Symbol::Punct(QUOTATION_MARK, binding) = symbol {
+                        if glues_after(*binding) {
+                            out.push((
+                                quotation_mark(*depth).to_string(),
+                                *binding,
+                                AtomKind::Punct,
+                            ));
+                            *depth += 1;
+                        } else {
+                            *depth -= 1;
+                            // A quotation's own final period is not written.
+                            if let Some(last) = out.last_mut()
+                                && last.2 == AtomKind::Punct
+                                && last.0 == "."
+                            {
+                                last.0.clear();
+                            }
+                            out.push((
+                                quotation_mark(*depth).to_string(),
+                                *binding,
+                                AtomKind::Close,
+                            ));
+                        }
+                    } else if let Symbol::Punct(c, binding) = symbol {
+                        out.push((c.to_string(), *binding, AtomKind::Punct));
                     } else {
                         let child = children.next().ok_or_else(|| AdmissionError::Rejected {
                             production: node.production.to_string(),
                             reason: "missing child".to_owned(),
                         })?;
                         let first = out.len();
-                        self.atoms_from(child, lexicon, out, located, next)?;
+                        self.atoms_from(child, lexicon, out, located, next, depth)?;
                         if let Symbol::Cat {
                             binding: Some(binding),
                             ..
@@ -1118,20 +1147,50 @@ pub struct Constituent {
     pub also: Vec<(Ident, usize)>,
 }
 
+/// What a realized atom is: a word, punctuation, or a closing quotation
+/// mark.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AtomKind {
+    Word,
+    Punct,
+    Close,
+}
+
+/// A realized atom: its text, binding and kind.
+pub(crate) type Atom = (String, Binding, AtomKind);
+
 /// Joins atoms with the spacing their bindings call for, returning the text
-/// and each atom's byte range in it.
-pub(crate) fn join(atoms: &[(String, Binding, bool)]) -> (String, Vec<Range<usize>>) {
+/// and each atom's byte range in it. A period or comma after closing
+/// quotation marks is written inside them (`docs/oracle-style-guide.md` §3,
+/// Periods; Quotation marks and apostrophes), so ranges need not ascend.
+pub(crate) fn join(atoms: &[Atom]) -> (String, Vec<Range<usize>>) {
     let mut out = String::new();
-    let mut ranges = Vec::with_capacity(atoms.len());
+    let mut ranges: Vec<Range<usize>> = Vec::with_capacity(atoms.len());
     let mut glue_next = true;
-    for (text, binding, punct) in atoms {
-        if !(glue_next || *punct || glues_before(*binding)) {
+    // The byte and atom index where the closing marks the text ends in begin.
+    let mut closing: Option<(usize, usize)> = None;
+    for (text, binding, kind) in atoms {
+        if !(glue_next || glues_before(*binding)) {
             out.push(' ');
+        }
+        glue_next = glues_after(*binding);
+        if let (AtomKind::Punct, Some((at, first)), "." | ",") = (kind, closing, text.as_str()) {
+            out.insert_str(at, text);
+            for range in &mut ranges[first..] {
+                *range = range.start + text.len()..range.end + text.len();
+            }
+            ranges.push(at..at + text.len());
+            closing = Some((at + text.len(), first));
+            continue;
         }
         let start = out.len();
         out.push_str(text);
         ranges.push(start..out.len());
-        glue_next = glues_after(*binding) && !punct;
+        closing = match kind {
+            AtomKind::Close => closing.or(Some((start, ranges.len() - 1))),
+            _ if text.is_empty() => closing,
+            _ => None,
+        };
     }
     (out, ranges)
 }
