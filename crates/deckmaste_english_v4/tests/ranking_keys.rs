@@ -93,3 +93,33 @@ fn a_face_s_own_name_ranks_before_another_card_s_name_spelled_alike() {
         assert_eq!(grammar.ranking_key(reading, &env.lexicon, &scope), Ok(*key));
     }
 }
+
+/// One forest item packs prefixes that divide its text differently: here the
+/// postposed relative's head and Object meet before or after *tapped*, a
+/// depictive in the head or a premodifier in the Object. The Adjunct *at
+/// random* reads its head's words, so each prefix keeps its own key, and every
+/// Reading's forest key is the key of its own tree.
+#[test]
+fn forest_keys_follow_each_packed_prefix_s_own_division_of_the_text() {
+    let env = LexicalEnvironment::load().unwrap();
+    let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
+    let scope = std::collections::BTreeSet::new();
+    let text = "Return to the battlefield tapped creature cards at random that were put into your graveyard this turn.";
+    let parse = grammar.parse_analyzed(&env.lexicon.analyze_source_scoped(text, None, &scope));
+    let ranked = parse.best_ranked(usize::MAX);
+    let mut objects = std::collections::BTreeSet::new();
+    for (key, reading) in &ranked {
+        assert_eq!(grammar.ranking_key(reading, &env.lexicon, &scope), Ok(*key));
+        let (realized, constituents) = grammar.constituents(reading, &env.lexicon).unwrap();
+        objects.extend(
+            constituents
+                .iter()
+                .filter(|c| c.function.is_some_and(|f| f.as_str() == "object"))
+                .map(|c| realized[c.span.clone()].to_owned()),
+        );
+    }
+    assert!(objects.contains("tapped creature cards"), "{objects:?}");
+    assert!(objects.contains("creature cards"), "{objects:?}");
+    let (least, _) = parse.cheapest_tier().unwrap();
+    assert_eq!(least, ranked[0].0);
+}
