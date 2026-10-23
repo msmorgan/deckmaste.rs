@@ -653,4 +653,79 @@ theorem costPaidLifeGroundsPaidAndLost :
       (stepCost 64 (DRS.ofList []) (perform (loseLife 2))).1.causedEvents.eraseDups) = true := by
   decide
 
+/-! ## A procedure records its own deed -/
+
+private def stepped (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
+
+private def castSpell : Action := cast (target (and [isInstantOrSorcery, .isCard]))
+private def playLand : Action := play (target (and [isLand, .isCard]))
+private def playSpell : Action := play (target (and [isInstantOrSorcery, .isCard]))
+private def activateAbility : Action := activate (target (.abilityHead .anyActivated))
+
+/-- Casting puts the card onto the stack as a spell [CR#601.2a], read back as cast: "each spell
+cast this way", "if you cast a spell this way". -/
+theorem castStillRecordsCast :
+    Action.check (DRS.ofList [])
+      (sequentially [castSpell,
+        doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [castSpell, doIf (did you (cast (a isSpell)) thisWay) (draw 1)]) = [] := by
+  decide
+
+/-- Playing a card is playing it as a land or casting it as a spell [CR#701.18b]. A land play
+uses no stack: the land is put onto the battlefield, stamped "play" and never cast [CR#701.18a],
+so "each land played this way" reads it and "each spell cast this way" does not. A spell play is
+a cast, and is played as well: both lookbacks read it. -/
+theorem playRecordsALandPlayOrASpellCast :
+    (stepped playLand).referents.map (·.payload.prov.bind (·.verb)) = [some (.action "play")] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playLand,
+        doForEach (each (and [isLand, was (play which) thisWay])) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playLand,
+        doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) =
+      [.participialDescription (.deed (.action "cast")) 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playSpell,
+        doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playSpell,
+        doForEach (each (and [isSpell, was (play which) thisWay])) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playLand, doIf (did you (play (a isCard)) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [playSpell, doIf (did you (cast (a isSpell)) thisWay) (draw 1)]) = [] := by
+  decide
+
+/-- Activating puts the ability onto the stack [CR#602.2a,701.2a], where it is not a card
+[CR#602.2a], so no card is cast: the ability referent is on the stack, no card is read as cast,
+and "if you activated an ability this way" reads the activation. -/
+theorem activateRecordsActivateNotCast :
+    (stepped activateAbility).referents.map (·.payload) = [.ability none (some .stack)] ∧
+    (stepped activateAbility).causedEvents.map (·.deed) = [some (.action "activate"), none] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [activateAbility,
+        doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) =
+      [.participialDescription (.deed (.action "cast")) 0] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [activateAbility,
+        doIf (did you (activate (target (.abilityHead .anyActivated))) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [activateAbility, doIf (did you (cast (a isSpell)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] := by
+  decide
+
+/-- A resolution moves nothing itself: the resolving spell is stamped by no deed and is read as
+cast by no lookback, while the resolution is recorded as the event it is [CR#608.1]. -/
+theorem resolveRecordsNoStackMove :
+    (stepped (resolve (target isSpell))).referents.map (·.payload.prov) = [none] ∧
+    (stepped (resolve (target isSpell))).causedEvents.map (·.deed) =
+      [some (.action "resolve"), none] ∧
+    Action.check (DRS.ofList [])
+      (sequentially [resolve (target isSpell),
+        doForEach (each (and [isSpell, was (cast which) thisWay])) (draw 1)]) =
+      [.participialDescription (.deed (.action "cast")) 0] := by
+  decide
+
 end Semantics.Proofs.Lookback
