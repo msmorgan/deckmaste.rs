@@ -238,15 +238,18 @@ def excruciator : Spelled := spelled <| singleFacedCard
   { name := "Excruciator", cost := [generic 6, pip .red, pip .red], types := [.creature],
     subtypes := [avatar],
     text :=
-      [ static (preventionBan (damageDealt (dealtBy thisCreature) everywhere)
-          .noPreventionOnly) ],
+      [ static
+          (cant any
+            (preventDamage allDamage
+              (damage := would (by_ thisCreature) (dealDamage anyAmount)))) ],
     power := stat 7, toughness := stat 7 }
 
 def flaringPain : Spelled := spelled <| singleFacedCard
   { name := "Flaring Pain", cost := [generic 1, pip .red], types := [.instant],
     text :=
-      [ spell (establishThroughout (preventionBan (damageDealt unattributed everywhere)
-              .noPreventionOnly) thisTurn),
+      [ spell (establishThroughout
+            (cant any (preventDamage allDamage (damage := would any (dealDamage anyAmount))))
+            thisTurn),
         flashback [pip .red] ] }
 
 def gideonJura : Spelled := spelled <| singleFacedCard
@@ -268,7 +271,7 @@ def gideonJura : Spelled := spelled <| singleFacedCard
                         subtypes := [human, soldier],
                         power := stat 6, toughness := stat 6 } }
                     (some .planeswalker))) untilEndOfTurn,
-              preventAll (toRecipient it) thisTurn ]) ],
+              preventAll it thisTurn ]) ],
     loyalty := stat 6 }
 
 def pinpointAvalanche : Spelled := spelled <| singleFacedCard
@@ -277,14 +280,20 @@ def pinpointAvalanche : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ instruct this_ (dealDamage 4 (target isCreature)),
-            establish (preventionBan thatDamage .noPreventionOnly)
-              (some modifiesPrecedingAction) ]) ] }
+            establish (cant any (preventDamage allDamage)) (some modifiesPrecedingAction) ]) ] }
 
 def whippoorwillImmunity : Action :=
   sequentially
     [ establishThroughout (cant any (regeneration (target isCreature))) thisTurn,
-      establishThroughout (preventionBan (damageDealt unattributed
-             (toRecipient (that creature))) .noRedirectEither) thisTurn ]
+      establishThroughout
+        (conjunction
+          [ cant any
+              (preventDamage allDamage
+                (damage := would any (dealDamage anyAmount (that creature)))),
+            cant any
+              (redirectDamage allDamage (a (and [or [isPermanent, isPlayer], isOther]))
+                (damage := would any (dealDamage anyAmount (that creature)))) ])
+        thisTurn ]
 theorem okWhippoorwillImmunity : Action.check (DRS.ofList []) whippoorwillImmunity = [] := by decide
 
 def callInAProfessional : Spelled := spelled <| singleFacedCard
@@ -292,8 +301,9 @@ def callInAProfessional : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ establishThroughout (cant (bare isPlayer) (gainLife anyAmount)) thisTurn,
-            establishThroughout (preventionBan (damageDealt unattributed everywhere)
-                                   .noPreventionOnly) thisTurn,
+            establishThroughout
+              (cant any (preventDamage allDamage (damage := would any (dealDamage anyAmount))))
+              thisTurn,
             instruct this_ (dealDamage 3 (target isAnyTarget)) ]) ] }
 
 /-- Council of the Absolute -/
@@ -323,9 +333,11 @@ def gideonsIntervention : Spelled := spelled <| singleFacedCard
     text :=
       [ static (entersChoosing thisEnchantment .cardName),
         static (cant yourOpponents (cast (allOf (and [isSpell, named chosenName])))),
-        static (damageRule (dealtBy (allOf (and [isSource, named chosenName])))
-          (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
-          (prevent allDamage) .repeatedly) ] }
+        static
+          (replace
+            (would (by_ (allOf (and [isSource, named chosenName])))
+              (dealDamage anyAmount (youAnd (allOf (and [isPermanent, youControl])))))
+            (instead (preventDamage allDamage))) ] }
 
 /-- Academic Probation -/
 def academicProbationNameMode : Action :=
@@ -466,8 +478,8 @@ def glacialChasm : Spelled := spelled <| singleFacedCard
       [ cumulativeUpkeep (payLife 2),
         when (does thisLand enter) (sacrifice (a isLand)),
         static (cant (allOf (and [isCreature, youControl])) attack),
-        static (damageRule unattributed (toRecipient you) (prevent allDamage)
-          .repeatedly) ] }
+        static
+          (replace (would any (dealDamage anyAmount you)) (instead (preventDamage allDamage))) ] }
 
 /-- Peacekeeper -/
 def peacekeeperCant : Ability :=

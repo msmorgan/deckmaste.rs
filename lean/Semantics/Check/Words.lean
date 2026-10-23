@@ -269,7 +269,7 @@ by whether it is gained or lost [CR#119.3], an exposure by whether cards are loo
 revealed, damage or counters divided as dealt or put, and a payment of a cost, however written
 [CR#118.1]. -/
 inductive EventVerb where
-  | damageDealt | damageMarked | damageCleared
+  | damageDealt | damageMarked | damageCleared | damagePrevented | damageRedirected
   | status (status : Status)
   | turnedOver | turnedFaceDown | combat | attacked | blocked | attackedUnblocked
   | targeted | tappedForMana | crimeCommitted | attachment (move : AttachMove)
@@ -1777,6 +1777,13 @@ def ProjAxis.scope : ProjAxis → Kind
   | .boundCounter => .join .object .player
   | .chapter => .object
   | .markedDamage => .object
+  | .keywordNumber _ => .object
+
+/-- Whether an axis projects one object to several values, read only through a fold
+[CR#714.2d,702.164b]. -/
+def ProjAxis.multiValued : ProjAxis → Bool
+  | .chapter | .keywordNumber _ => true
+  | _ => false
 
 def ProjAxis.type : ProjAxis → Option CardType
   | .stat c => c.comparedType

@@ -3,15 +3,15 @@ import Semantics.Card
 /-!
 # Semantics.Rules
 
-The rules-as-data tables a plugin authors beside its cards: state-based actions, conferrals,
-damage results, and the predefined-token catalog. A card says what one object does; these say
-what the *rules* do to every object that matches a scope, so they are the same syntax read
-against a scope predicate rather than against a printed face.
+The rules-as-data tables a plugin authors beside its cards: state-based actions, conferrals (the
+results of damage among them), and the predefined-token catalog. A card says what one object
+does; these say what the *rules* do to every object that matches a scope, so they are the same
+syntax read against a scope predicate rather than against a printed face.
 
-Nothing here is a new grammar. A conferral confers an ordinary `Ability`; a state-based
-action performs an ordinary `Action` under an ordinary `Condition`; a predefined token is
-the `CharacteristicBundle` a `TokenSpec.written` already carries. The tables add the scope and
-the naming, and `Semantics.Check.Rules` adds the obligations that scope imposes.
+Nothing here is a new grammar. A conferral confers an ordinary `Ability` or `StaticSpec`; a
+state-based action performs an ordinary `Action` under an ordinary `Condition`; a predefined
+token is the `CharacteristicBundle` a `TokenSpec.written` already carries. The tables add the
+scope and the naming, and `Semantics.Check.Rules` adds the obligations that scope imposes.
 -/
 
 namespace Semantics
@@ -26,15 +26,6 @@ structure SbaRule where
   scope : Predicate
   when : Condition
   then_ : Action
-
-/-- A rules-defined conferral, authored under `rules/grant/`: *every object matching `scope`
-has `confer`*. There is no `when`, because a conferred ability carries its own conditionality —
-[CR#306.5b]'s planeswalker loyalty is a replacement effect [CR#614.1c] whose event is its
-gate. Intrinsic abilities of a type or subtype [CR#305.6] are the other rows this shape
-takes. -/
-structure ConferralRule where
-  scope : Predicate
-  confer : Ability
 
 /-- One entry of the predefined-token catalog [CR#111.10], authored under `tokens/`: the name
 an effect creating the token writes ("create a Treasure token") and the characteristics the
@@ -73,6 +64,17 @@ inductive Conferral where
   | stateBased (when : Condition) (then_ : Action)
   /-- A turn-based action the definition puts on every object it names [CR#703.1]. -/
   | turnBased (part : TurnPart) (then_ : Action)
+
+/-- A rules-defined conferral, authored under `rules/grant/`: *every object or player matching
+`scope` has `confer`*. There is no `when`, because a conferral carries its own conditionality —
+[CR#306.5b]'s planeswalker loyalty is a replacement effect [CR#614.1c] whose event is its
+gate. Intrinsic abilities of a type or subtype [CR#305.6] are the other rows this shape takes,
+as an `ability` conferral. A rule the game applies to everything in scope, which no effect
+removing abilities can switch off, is a `property` conferral: the results of damage are
+[CR#120.3a,120.3c,120.3e,120.3g,120.3h]. In a row scoped to players, "you" is the player. -/
+structure ConferralRule where
+  scope : Predicate
+  confer : Conferral
 
 /-- What one registry declaration MEANS: the rules content the declared name stands for. A
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
@@ -132,12 +134,11 @@ the registry holds under the name, which `cargo xtask facts` and `cargo xtask le
 read; the name never expands to it (ruling 2026-10-10, retiring the `Definition.*Term`
 projections that read the term back out of the record). -/
 
-/-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
+/-- The two tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes
 them under `tokens/` rather than `rules/`. -/
 structure RulesTables where
   sba : List SbaRule := []
   conferral : List ConferralRule := []
-  damageResult : List DamageResult := []
 
 end Semantics

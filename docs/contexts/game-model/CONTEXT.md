@@ -240,6 +240,10 @@ explicit exception described by [CR#614.15].
 A Continuous Effect that watches for a damage Event and prevents some or all of
 that damage ([CR#615.1]).
 
+**Redirection Effect**:
+A Replacement Effect that has damage that would be dealt to one battle,
+creature, planeswalker or Player dealt instead to another ([CR#614.9]).
+
 **Event**:
 Anything that happens in a game ([CR#700.1]). Whether one happening is one
 Event or several depends on the observer defined by the relevant rule or text.
@@ -373,9 +377,10 @@ Having 0 or less life, for example, causes a Player to lose the game
 from losing for other reasons.
 
 **Rules Table** (project term):
-A set of rules-defined rows a plugin authors as data — State-Based Actions,
-Conferrals, Damage Results — each row scoped by a Predicate over the Objects or
-Players it applies to, evaluated generically rather than recognized by name.
+A set of rules-defined rows a plugin authors as data — State-Based Actions and
+Conferrals, the Damage Results among them — each row scoped by a Predicate over
+the Objects or Players it applies to, evaluated generically rather than
+recognized by name.
 _Avoid_: Registry for a Rules Table; a registry declares a namespace's members,
 a Rules Table states what the rules do to what it scopes.
 
@@ -520,7 +525,9 @@ One of the outcomes Damage has, chosen by whether its recipient is a Player or
 a Permanent and by the characteristics of its Source and recipient
 ([CR#120.3]). One Damage event may have several results at once — a Source with
 lifelink adds life gain to whatever else the Damage does ([CR#120.3f]) — so a
-result is additive, not a replacement of the Damage.
+result is additive, not a replacement of the Damage. A result can itself be
+replaced: wither and infect put counters instead of marking damage or causing
+life loss, which is why a Source with both puts them once ([CR#120.3d,614.6]).
 
 **Marked Damage**:
 Damage retained on a Permanent until it is removed, including if the Permanent

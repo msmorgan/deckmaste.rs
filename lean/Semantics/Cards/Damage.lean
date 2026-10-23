@@ -132,14 +132,14 @@ def thunderwave : Spelled := spelled <| singleFacedCard
                     (dealDamage 6 (each (and [isCreature, opponentsControl])))) ] ]) ] }
 
 /-- Fog, Holy Day, Darkness, Root Snare -/
-def fog : Action := preventAll everywhere thisTurn (some .combat)
+def fog : Action := preventAll any thisTurn (some .combat)
 theorem okFog : Action.check (DRS.ofList []) fog = [] := by decide
 /-- Indestructible Aura, Shielded Passage -/
 def indestructibleAura : Action :=
-  preventAll (toRecipient (target isCreature)) thisTurn
+  preventAll (target isCreature) thisTurn
 theorem okIndestructibleAura : Action.check (DRS.ofList []) indestructibleAura = [] := by decide
 def shieldmatesBlessing : Action :=
-  preventNext (toRecipient (target isAnyTarget)) 3 thisTurn
+  preventNext (target isAnyTarget) 3 thisTurn
 theorem okShieldmatesBlessing : Action.check (DRS.ofList []) shieldmatesBlessing = [] := by decide
 def moonlitWake : Ability := whenever (does (a isCreature) die) (gainLife 1)
 theorem okMoonlitWake : Ability.check (DRS.ofList []) moonlitWake = [] := by decide
@@ -150,7 +150,7 @@ def eliteJavelineer : Ability :=
 theorem okEliteJavelineer : Ability.check (DRS.ofList []) eliteJavelineer = [] := by decide
 /-- Glacial Chasm -/
 def glacialChasmShield : Ability :=
-  static (damageRule unattributed (toRecipient you) (prevent allDamage) .repeatedly)
+  static (replace (would any (dealDamage anyAmount you)) (instead (preventDamage allDamage)))
 theorem okGlacialChasmShield : Ability.check (DRS.ofList []) glacialChasmShield = [] := by decide
 def corneredCrook : Ability :=
   when (does thisCreature enter)
@@ -294,37 +294,38 @@ theorem okChandraNalaarsX : Ability.check (DRS.ofList []) chandraNalaarsX = [] :
 def etherealHaze : Spelled := spelled <| singleFacedCard
   { name := "Ethereal Haze", cost := [pip .white], types := [.instant],
     subtypes := [arcane],
-    text := [spell (preventAllBy (allOf isCreature) everywhere thisTurn)] }
+    text := [spell (preventAllBy (allOf isCreature) any thisTurn)] }
 
 def defang : Spelled := spelled <| singleFacedCard
   { name := "Defang", cost := [generic 1, pip .white], types := [.enchantment],
     subtypes := [aura],
     text :=
       [ enchant isCreature,
-        static (damageRule (dealtBy (enchanted creature)) everywhere
-          (prevent allDamage) .repeatedly) ] }
+        static (replace (would (by_ (enchanted creature)) (dealDamage anyAmount))
+          (instead (preventDamage allDamage))) ] }
 
 def sphereOfPurity : Spelled := spelled <| singleFacedCard
   { name := "Sphere of Purity", cost := [generic 3, pip .white], types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a isArtifact)) (toRecipient you)
-          (prevent (ofThatDamage 1)) .repeatedly) ] }
+      [ static (replace (would (a isArtifact) (dealDamage anyAmount you))
+          (instead (preventDamage (ofThatDamage 1)))) ] }
 
 def dazzlingReflection : Spelled := spelled <| singleFacedCard
   { name := "Dazzling Reflection", cost := [generic 1, pip .white], types := [.instant],
     text :=
       [ spell (sequentially
           [ gainLife (powerOf (target isCreature)),
-            establishThroughout (damageRule (dealtBy (that creature)) everywhere
-                                   (prevent allDamage)
-                .nextTimeOnly) thisTurn ]) ] }
+            establishThroughout
+              (replace (would (that creature) (dealDamage anyAmount))
+                (instead (preventDamage allDamage)) (use := .nextTimeOnly))
+              thisTurn ]) ] }
 
 def thunderstaff : Spelled := spelled <| singleFacedCard
   { name := "Thunderstaff", cost := [generic 3], types := [.artifact],
     text :=
       [ static (onlyWhile
-          (damageRule (dealtBy (a isCreature)) (toRecipient you)
-            (prevent (ofThatDamage 1)) .repeatedly (some .combat))
+          (replace (would (a isCreature) (dealDamage anyAmount you (some .combat)))
+            (instead (preventDamage (ofThatDamage 1))))
           (is thisArtifact isUntapped)),
         activated (compound [[generic 2], tapSymbol])
           (get (allOf (and [isCreature, isAttacking])) (up 1) (up 0)
@@ -343,7 +344,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| singleFacedCard
                         subtypes := [human, soldier, ally],
                         text := [indestructible], power := stat 5, toughness := stat 5 } }
                     (some .planeswalker))) untilEndOfTurn,
-              preventAll (toRecipient it) thisTurn ]),
+              preventAll it thisTurn ]),
         activated (loyaltySymbol (up 0))
           (createToken (creatureToken 2 2 [.white] [knight, ally])),
         activated (loyaltySymbol (down 4))
@@ -354,9 +355,9 @@ def gideonAllyOfZendikar : Spelled := spelled <| singleFacedCard
 def turnTheTables : Spelled := spelled <| singleFacedCard
   { name := "Turn the Tables", cost := [generic 3, pip .white, pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule unattributed (toRecipient you)
-            (redirect allDamage
-               (target (and [isCreature, isAttacking]))) .repeatedly (some .combat))
+      [ spell (establishThroughout
+            (replace (would any (dealDamage anyAmount you (some .combat)))
+              (instead (redirectDamage allDamage (target (and [isCreature, isAttacking])))))
             thisTurn) ] }
 
 def pariah : Spelled := spelled <| singleFacedCard
@@ -364,16 +365,16 @@ def pariah : Spelled := spelled <| singleFacedCard
     subtypes := [aura],
     text :=
       [ enchant isCreature,
-        static (damageRule unattributed (toRecipient you)
-          (redirect allDamage (enchanted creature)) .repeatedly) ] }
+        static (replace (would any (dealDamage anyAmount you))
+          (instead (redirectDamage allDamage (enchanted creature)))) ] }
 
 def martyrsOfKorlis : Spelled := spelled <| singleFacedCard
   { name := "Martyrs of Korlis", cost := [generic 3, pip .white, pip .white],
     types := [.creature], subtypes := [human],
     text :=
       [ static (onlyWhile
-          (damageRule (dealtBy (allOf isArtifact)) (toRecipient you)
-            (redirect allDamage thisCreature) .repeatedly)
+          (replace (would (by_ (allOf isArtifact)) (dealDamage anyAmount you))
+            (instead (redirectDamage allDamage thisCreature)))
           (is thisCreature isUntapped)) ],
     power := stat 1, toughness := stat 6 }
 
@@ -384,25 +385,29 @@ def wardOfPiety : Spelled := spelled <| singleFacedCard
       [ enchant isCreature,
         activated [generic 1, pip .white]
           (establishThroughout
-             (damageRule unattributed (toRecipient (enchanted creature))
-              (redirect (theNext 1) (target isAnyTarget)) .repeatedly) thisTurn) ] }
+             (replace (would any (dealDamage anyAmount (enchanted creature)))
+               (instead (redirectDamage (theNext 1) (target isAnyTarget))))
+             thisTurn) ] }
 
 def mirrorwoodTreefolk : Spelled := spelled <| singleFacedCard
   { name := "Mirrorwood Treefolk", cost := [generic 3, pip .green], types := [.creature],
     subtypes := [treefolk],
     text :=
       [ activated [generic 2, pip .red, pip .white]
-          (establishThroughout (damageRule unattributed (toRecipient thisCreature)
-              (redirect allDamage (target isAnyTarget)) .nextTimeOnly) thisTurn) ],
+          (establishThroughout
+            (replace (would any (dealDamage anyAmount thisCreature))
+              (instead (redirectDamage allDamage (target isAnyTarget))) (use := .nextTimeOnly))
+            thisTurn) ],
     power := stat 2, toughness := stat 4 }
 
 def carom : Spelled := spelled <| singleFacedCard
   { name := "Carom", cost := [generic 1, pip .white], types := [.instant],
     text :=
       [ spell (sequentially
-          [ establishThroughout (damageRule unattributed (toRecipient (target isCreature))
-                (redirect (theNext 1)
-                   (target (and [isCreature, isOther]))) .repeatedly) thisTurn,
+          [ establishThroughout
+              (replace (would any (dealDamage anyAmount (target isCreature)))
+                (instead (redirectDamage (theNext 1) (target (and [isCreature, isOther])))))
+              thisTurn,
             draw 1 ]) ] }
 
 def daughterOfAutumn : Spelled := spelled <| singleFacedCard
@@ -411,106 +416,130 @@ def daughterOfAutumn : Spelled := spelled <| singleFacedCard
     text :=
       [ activated [pip .white]
           (establishThroughout
-             (damageRule unattributed
-                (toRecipient (target (and [isCreature, hasColor .white])))
-              (redirect (theNext 1) thisCreature) .repeatedly) thisTurn) ],
+             (replace
+               (would any (dealDamage anyAmount (target (and [isCreature, hasColor .white]))))
+               (instead (redirectDamage (theNext 1) thisCreature)))
+             thisTurn) ],
     power := stat 2, toughness := stat 4 }
 
 def aegisOfHonor : Spelled := spelled <| singleFacedCard
   { name := "Aegis of Honor", cost := [pip .white], types := [.enchantment],
     text :=
       [ activated [generic 1]
-          (establishThroughout (damageRule (dealtBy (a isInstantOrSorcery)) (toRecipient you)
-              (redirect allDamage (controllerOf it)) .nextTimeOnly) thisTurn) ] }
+          (establishThroughout
+            (replace (would (a isInstantOrSorcery) (dealDamage anyAmount you))
+              (instead (redirectDamage allDamage (controllerOf it))) (use := .nextTimeOnly))
+            thisTurn) ] }
 
 def candlesGlow : Spelled := spelled <| singleFacedCard
   { name := "Candles' Glow", cost := [generic 1, pip .white], types := [.instant],
     subtypes := [arcane],
     text :=
       [ spell
-          (establishThroughout (damageRule unattributed (toRecipient (target isAnyTarget))
-            (prevent (theNext 3) (gainLife preventedThisWay))
-                .repeatedly) thisTurn) ] }
+          (establishThroughout
+            (replace (would any (dealDamage anyAmount (target isAnyTarget)))
+              (instead (preventDamage (theNext 3) (also := gainLife preventedThisWay))))
+            thisTurn) ] }
 
 /-- Inkshield -/
 def inkshieldRider : Action :=
-  establishThroughout (damageRule unattributed (toRecipient you)
-      (prevent allDamage (createToken (creatureToken 2 1 [.white, .black] []) (count := preventedThisWay)))
-      .repeatedly) thisTurn
+  establishThroughout
+    (replace (would any (dealDamage anyAmount you))
+      (instead
+        (preventDamage allDamage
+          (also :=
+            createToken (creatureToken 2 1 [.white, .black] []) (count := preventedThisWay)))))
+    thisTurn
 theorem okInkshieldRider : Action.check (DRS.ofList []) inkshieldRider = [] := by decide
 
 def urzasArmor : Spelled := spelled <| singleFacedCard
   { name := "Urza's Armor", cost := [generic 6], types := [.artifact],
     text :=
-      [ static (damageRule (dealtBy (a isSource)) (toRecipient you)
-          (prevent (ofThatDamage 1)) .repeatedly) ] }
+      [ static (replace (would (a isSource) (dealDamage anyAmount you))
+          (instead (preventDamage (ofThatDamage 1)))) ] }
 
 def circleOfProtectionRed : Spelled := spelled <| singleFacedCard
   { name := "Circle of Protection: Red", cost := [generic 1, pip .white], types := [.enchantment],
     text :=
       [ activated [generic 1]
           (establishThroughout
-             (damageRule (dealtBy (aYourChoice (and [isSource, hasColor .red])))
-                (toRecipient you)
-              (prevent allDamage) .nextTimeOnly) thisTurn) ] }
+             (replace
+               (would (aYourChoice (and [isSource, hasColor .red])) (dealDamage anyAmount you))
+               (instead (preventDamage allDamage)) (use := .nextTimeOnly))
+             thisTurn) ] }
 
 def healingGrace : Spelled := spelled <| singleFacedCard
   { name := "Healing Grace", cost := [pip .white], types := [.instant],
     text :=
       [ spell (sequentially
           [ establishThroughout
-              (damageRule (dealtBy (aYourChoice isSource)) (toRecipient (target isAnyTarget))
-                (prevent (theNext 3)) .repeatedly) thisTurn,
+              (replace
+                (would (by_ (aYourChoice isSource)) (dealDamage anyAmount (target isAnyTarget)))
+                (instead (preventDamage (theNext 3))))
+              thisTurn,
             gainLife 3 ]) ] }
 
 def reverseDamage : Spelled := spelled <| singleFacedCard
   { name := "Reverse Damage", cost := [generic 1, pip .white, pip .white], types := [.instant],
     text :=
       [ spell
-          (establishThroughout (damageRule (dealtBy (aYourChoice isSource)) (toRecipient you)
-            (prevent allDamage (gainLife preventedThisWay)) .nextTimeOnly) thisTurn) ] }
+          (establishThroughout
+            (replace (would (aYourChoice isSource) (dealDamage anyAmount you))
+              (instead (preventDamage allDamage (also := gainLife preventedThisWay)))
+              (use := .nextTimeOnly))
+            thisTurn) ] }
 
 def deflectingPalm : Spelled := spelled <| singleFacedCard
   { name := "Deflecting Palm", cost := [pip .red, pip .white], types := [.instant],
     text :=
       [ spell
-          (establishThroughout (damageRule (dealtBy (aYourChoice isSource)) (toRecipient you)
-            (prevent allDamage
-               (some
-                  (instruct this_
-                     (dealDamage thatMuch (controllerOf it))))) .nextTimeOnly) thisTurn) ] }
+          (establishThroughout
+            (replace (would (aYourChoice isSource) (dealDamage anyAmount you))
+              (instead
+                (preventDamage allDamage
+                  (also := instruct this_ (dealDamage thatMuch (controllerOf it)))))
+              (use := .nextTimeOnly))
+            thisTurn) ] }
 
 def templeAltisaur : Spelled := spelled <| singleFacedCard
   { name := "Temple Altisaur", cost := [generic 4, pip .white], types := [.creature],
     subtypes := [dinosaur],
     text :=
-      [ static (damageRule (dealtBy (a isSource))
-          (toRecipient (a (and [dinosaur, youControl])))
-          (prevent (allBut 1)) .repeatedly) ],
+      [ static (replace (would (a isSource) (dealDamage anyAmount (a (and [dinosaur, youControl]))))
+          (instead (preventDamage (allBut 1)))) ],
     power := stat 3, toughness := stat 4 }
 
 def darkSphere : Spelled := spelled <| singleFacedCard
   { name := "Dark Sphere", cost := some [], types := [.artifact],
     text :=
       [ activated (compound [tapSymbol, sacrifice thisArtifact])
-          (establishThroughout (damageRule (dealtBy (aYourChoice isSource)) (toRecipient you)
-              (prevent (half .down)) .nextTimeOnly) thisTurn) ] }
+          (establishThroughout
+            (replace (would (aYourChoice isSource) (dealDamage anyAmount you))
+              (instead (preventDamage (half .down))) (use := .nextTimeOnly))
+            thisTurn) ] }
 
 def shadowbane : Spelled := spelled <| singleFacedCard
   { name := "Shadowbane", cost := [generic 1, pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-            (toRecipient (andOr [you, allOf (and [isCreature, youControl])]))
-            (prevent allDamage
-              (doIf (preventedFromSource (and [isSource, hasColor .black]))
-                (gainLife preventedThisWay)))
-            .nextTimeOnly) thisTurn) ] }
+      [ spell (establishThroughout
+            (replace
+              (would (aYourChoice isSource)
+                (dealDamage anyAmount (andOr [you, allOf (and [isCreature, youControl])])))
+              (instead
+                (preventDamage allDamage
+                  (also := doIf (did any (preventDamage allDamage
+                                    (damage := would (a (and [isSource, hasColor .black]))
+                                      (dealDamage anyAmount)))
+                                  thisWay)
+                    (gainLife thatMuch))))
+              (use := .nextTimeOnly))
+            thisTurn) ] }
 
 def sphereOfLaw : Spelled := spelled <| singleFacedCard
   { name := "Sphere of Law", cost := [generic 3, pip .white], types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a (and [isSource, hasColor .red]))) (toRecipient you)
-          (prevent (ofThatDamage 2)) .repeatedly) ] }
+      [ static (replace (would (a (and [isSource, hasColor .red])) (dealDamage anyAmount you))
+          (instead (preventDamage (ofThatDamage 2)))) ] }
 
 def lavaAxe : Spelled := spelled <| singleFacedCard
   { name := "Lava Axe", cost := [generic 4, pip .red], types := [.sorcery],
@@ -541,89 +570,107 @@ def forcefield : Spelled := spelled <| singleFacedCard
     text :=
       [ activated [generic 1]
           (establishThroughout
-             (damageRule (dealtBy (aYourChoice (and [isCreature, isUnblocked])))
-              (toRecipient you) (prevent (allBut 1)) .nextTimeOnly (some .combat))
+             (replace
+               (would (aYourChoice (and [isCreature, isUnblocked]))
+                 (dealDamage anyAmount you (some .combat)))
+               (instead (preventDamage (allBut 1))) (use := .nextTimeOnly))
             thisTurn) ] }
 
 def endure : Spelled := spelled <| singleFacedCard
   { name := "Endure", cost := [generic 3, pip .white, pip .white], types := [.instant],
     text :=
-      [ spell (preventAll (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
-            thisTurn) ] }
+      [ spell (preventAll (youAnd (allOf (and [isPermanent, youControl]))) thisTurn) ] }
 
 def harmsWay : Spelled := spelled <| singleFacedCard
   { name := "Harm's Way", cost := [pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule (dealtBy (aYourChoice isSource))
-            (toRecipient (andOr [you, allOf (and [isPermanent, youControl])]))
-            (redirect (theNext 2) (target isAnyTarget)) .repeatedly) thisTurn) ] }
+      [ spell (establishThroughout
+            (replace
+              (would (aYourChoice isSource)
+                (dealDamage anyAmount (andOr [you, allOf (and [isPermanent, youControl])])))
+              (instead (redirectDamage (theNext 2) (target isAnyTarget))))
+            thisTurn) ] }
 
 def divineDeflection : Spelled := spelled <| singleFacedCard
   { name := "Divine Deflection", cost := [.variable, pip .white], types := [.instant],
     text :=
-      [ spell (establishThroughout (damageRule unattributed
-            (toRecipient (andOr [you, allOf (and [isPermanent, youControl])]))
-            (prevent (theNext (letter .x)) (instruct this_ (dealDamage thatMuch (target isAnyTarget))))
-            .repeatedly) thisTurn) ] }
+      [ spell (establishThroughout
+            (replace
+              (would any
+                (dealDamage anyAmount (andOr [you, allOf (and [isPermanent, youControl])])))
+              (instead
+                (preventDamage (theNext (letter .x))
+                  (also := instruct this_ (dealDamage thatMuch (target isAnyTarget))))))
+            thisTurn) ] }
 
 def glarecasterShield : Ability :=
   activated [generic 5, pip .white]
-    (establishThroughout (damageRule unattributed (toRecipient (andOr [thisCreature, you]))
-        (redirect allDamage (target isAnyTarget)) .nextTimeOnly) thisTurn)
+    (establishThroughout
+      (replace (would any (dealDamage anyAmount (andOr [thisCreature, you])))
+        (instead (redirectDamage allDamage (target isAnyTarget))) (use := .nextTimeOnly))
+      thisTurn)
 theorem okGlarecasterShield : Ability.check (DRS.ofList []) glarecasterShield = [] := by decide
 
 def furnaceOfRath : Spelled := spelled <| singleFacedCard
   { name := "Furnace of Rath", cost := [generic 1, pip .red, pip .red, pip .red],
     types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a isSource))
-          (toRecipient (a (or [isPermanent, isPlayer]))) (scale (multiplied .doubled))
-          .repeatedly) ] }
+      [ static (replace (would (a isSource) (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+          (instead (instruct it (dealDamage (times 2 thatMuch) thatJoin)))) ] }
 
 def gratuitousViolence : Spelled := spelled <| singleFacedCard
   { name := "Gratuitous Violence", cost := [generic 2, pip .red, pip .red, pip .red],
     types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a (and [isCreature, youControl])))
-          (toRecipient (a (or [isPermanent, isPlayer]))) (scale (multiplied .doubled))
-          .repeatedly) ] }
+      [ static
+          (replace
+            (would (a (and [isCreature, youControl]))
+              (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+            (instead (instruct it (dealDamage (times 2 thatMuch))))) ] }
 
 def fieryEmancipation : Spelled := spelled <| singleFacedCard
   { name := "Fiery Emancipation", cost := [generic 3, pip .red, pip .red, pip .red],
     types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a (and [isSource, youControl])))
-          (toRecipient (a (or [isPermanent, isPlayer]))) (scale (multiplied .tripled))
-          .repeatedly) ] }
+      [ static
+          (replace
+            (would (a (and [isSource, youControl]))
+              (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+            (instead (instruct it (dealDamage (times 3 thatMuch) thatJoin)))) ] }
 
 def sulfuricVapors : Spelled := spelled <| singleFacedCard
   { name := "Sulfuric Vapors", cost := [generic 3, pip .red], types := [.enchantment],
     text :=
-      [ static (damageRule (dealtBy (a (and [isSpell, hasColor .red])))
-          (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted (up 1)))
-          .repeatedly) ] }
+      [ static
+          (replace
+            (would (a (and [isSpell, hasColor .red]))
+              (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+            (instead (instruct it (dealDamage (plus thatMuch 1) thatJoin)))) ] }
 
 def lashknifeBarrier : Spelled := spelled <| singleFacedCard
   { name := "Lashknife Barrier", cost := [generic 2, pip .white], types := [.enchantment],
     text :=
       [ when (does thisEnchantment enter) (draw 1),
-        static (damageRule (dealtBy (a isSource)) (toRecipient (a (and [isCreature, youControl])))
-          (scale (shifted (down 1))) .repeatedly) ] }
+        static
+          (replace (would (a isSource) (dealDamage anyAmount (a (and [isCreature, youControl]))))
+            (instead (instruct it (dealDamage (minus thatMuch 1) (that creature))))) ] }
 
 def ghostsOfTheInnocent : Spelled := spelled <| singleFacedCard
   { name := "Ghosts of the Innocent", cost := [generic 5, pip .white, pip .white],
     types := [.creature], subtypes := [spirit],
     text :=
-      [ static (damageRule (dealtBy (a isSource))
-          (toRecipient (a (or [isPermanent, isPlayer]))) (scale (halved .down)) .repeatedly) ],
+      [ static (replace (would (a isSource) (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+          (instead (instruct it (dealDamage (half .down thatMuch) thatJoin)))) ],
     power := stat 4, toughness := stat 5 }
 
 def fireServant : Spelled := spelled <| singleFacedCard
   { name := "Fire Servant", cost := [generic 3, pip .red, pip .red], types := [.creature],
     subtypes := [elemental],
     text :=
-      [ static (damageRule (dealtBy (a (and [isInstantOrSorcery, hasColor .red, youControl])))
-          everywhere (scale (multiplied .doubled)) .repeatedly) ],
+      [ static
+          (replace
+            (would (a (and [isInstantOrSorcery, hasColor .red, youControl])) (dealDamage anyAmount))
+            (instead (instruct it (dealDamage (times 2 thatMuch))))) ],
     power := stat 4, toughness := stat 3 }
 
 def platedPegasus : Spelled := spelled <| singleFacedCard
@@ -632,8 +679,40 @@ def platedPegasus : Spelled := spelled <| singleFacedCard
     text :=
       [ flash,
         flying,
-        static (damageRule (dealtBy (a isSpell)) (toRecipient (a (or [isPermanent, isPlayer])))
-          (prevent (ofThatDamage 1)) .repeatedly) ],
+        static (replace (would (a isSpell) (dealDamage anyAmount (a (or [isPermanent, isPlayer]))))
+          (instead (preventDamage (ofThatDamage 1)))) ],
+    power := stat 1, toughness := stat 2 }
+
+/-! ## The results of damage, on cards
+
+Lifelink adds a result to its damage [CR#702.15b]; wither and infect replace the result the
+damage would otherwise have [CR#702.80a,702.90b,702.90c] (`Definitions/Keywords.lean`).
+*Soul-Scar Mage* replaces the damage itself, not its result [CR#614.1a]. -/
+
+def vampireNighthawk : Spelled := spelled <| singleFacedCard
+  { name := "Vampire Nighthawk", cost := [generic 1, pip .black, pip .black],
+    types := [.creature], subtypes := [vampire, shaman],
+    text := [flying, deathtouch, lifelink], power := stat 2, toughness := stat 3 }
+
+def punctureBlast : Spelled := spelled <| singleFacedCard
+  { name := "Puncture Blast", cost := [generic 2, pip .red], types := [.instant],
+    text := [wither, spell (instruct this_ (dealDamage 3 (target isAnyTarget)))] }
+
+def glistenerElf : Spelled := spelled <| singleFacedCard
+  { name := "Glistener Elf", cost := [pip .green], types := [.creature],
+    subtypes := [phyrexian, elf, warrior],
+    text := [infect], power := stat 1, toughness := stat 1 }
+
+def soulScarMage : Spelled := spelled <| singleFacedCard
+  { name := "Soul-Scar Mage", cost := [pip .red], types := [.creature],
+    subtypes := [human, wizard],
+    text :=
+      [ prowess,
+        static
+          (replace
+            (would (a (and [isSource, youControl]))
+              (dealDamage anyAmount (a (and [isCreature, anOpponentControls])) (some .noncombat)))
+            (instead (putCounters thatMuch m1m1Counter (that creature)))) ],
     power := stat 1, toughness := stat 2 }
 
 def spitemare : Spelled := spelled <| singleFacedCard
@@ -1164,11 +1243,13 @@ def inquisitorsFlail : Spelled := spelled <| singleFacedCard
   { name := "Inquisitor's Flail", cost := [generic 2], types := [.artifact],
     subtypes := [equipment],
     text :=
-      [ static (damageRule (dealtBy (equipped creature)) everywhere
-          (scale (multiplied .doubled)) .repeatedly (some .combat)),
-        static (damageRule (dealtBy (a (and [isCreature, isOther])))
-          (toRecipient (equipped creature)) (scale (multiplied .doubled))
-          .repeatedly (some .combat)),
+      [ static (replace (would (equipped creature) (dealDamage anyAmount (kind := some .combat)))
+          (instead (instruct it (dealDamage (times 2 thatMuch))))),
+        static
+          (replace
+            (would (a (and [isCreature, isOther]))
+              (dealDamage anyAmount (equipped creature) (some .combat)))
+            (instead (instruct it (dealDamage (times 2 thatMuch) (equipped creature))))),
         equip [generic 2] ] }
 
 /-- Oath of Kaya -/
@@ -1230,9 +1311,10 @@ def blindFury : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ establishThroughout (abilityLoss (allOf isCreature) [written trample]) untilEndOfTurn,
-            establishThroughout (damageRule (dealtBy (a isCreature))
-                                   (toRecipient (a isCreature))
-                (scale (multiplied .doubled)) .repeatedly (some .combat)) thisTurn ]) ] }
+            establishThroughout
+              (replace (would (a isCreature) (dealDamage anyAmount (a isCreature) (some .combat)))
+                (instead (instruct it (dealDamage (times 2 thatMuch) (that creature)))))
+              thisTurn ]) ] }
 
 /-- Chandra, Awakened Inferno's emblem -/
 def chandraAwakenedInfernoEmblem : Action :=

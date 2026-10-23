@@ -80,15 +80,14 @@ effect writes, including token qualities [CR#111.3].
 ## Rules tables
 
 `Rules.lean` is the rules-as-data a plugin authors beside its cards: an
-`SbaRule` [CR#704.1], a `ConferralRule` [CR#306.5b], a `DamageResultRule`
-[CR#120.3], and a `PredefinedToken` catalog entry [CR#111.10]. Each row is
-scoped by a `Predicate` instead of printed on a face, and `Check/Rules`
-checks it with the same functions a card's text obeys — the row's own
-obligations are only what the scope adds: the kind it may bind, that a
-state-based action's effect is untargeted, that a conferred ability is one an
-effect could grant, and that a damage result's counter is a declared one whose
-holder is the kind the recipient binds. A conferral is an ordinary `Ability`
-and a catalog entry an ordinary `CharacteristicBundle`, checked through
+`SbaRule` [CR#704.1], a `ConferralRule` [CR#306.5b], and a `PredefinedToken`
+catalog entry [CR#111.10]. The results of damage [CR#120.3] are conferral rows
+that confer a property, not an ability. Each row is scoped by a `Predicate`
+instead of printed on a face, and `Check/Rules` checks it with the same
+functions a card's text obeys — the row's own obligations are only what the
+scope adds: the kind it may bind, and that a damage result's counter is a
+declared one. A conferral is an ordinary `Ability` or `StaticSpec` and a
+catalog entry an ordinary `CharacteristicBundle`, checked through
 `TokenSpec.written`; neither is a twin type. The pins are `Proofs/Rules`, whose
 bench items are the rows `plugins/builtin/rules` and `plugins/builtin/tokens`
 write.

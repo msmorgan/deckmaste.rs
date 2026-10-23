@@ -1072,6 +1072,8 @@ def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
   | n + 1, .enact _ body _ _ => body.eventVerbs n
   | _ + 1, .dealDamage .. => [.damageDealt]
   | _ + 1, .markDamage .. => [.damageMarked]
+  | _ + 1, .preventDamage .. => [.damagePrevented]
+  | _ + 1, .redirectDamage .. => [.damageRedirected]
   | _ + 1, .clearDamage .. => [.damageCleared]
   | _ + 1, .setStatus status _ => [.status status]
   | _ + 1, .turnOver .. => [.turnedOver]
@@ -1832,52 +1834,29 @@ def stepCostShiftWith (ops : StepOps) (drs : DRS) (cs : CostShift) : DRS × List
         (drs', e)
   (out, errors ++ cs.localChecks)
 
-def stepDamageAgentWith (ops : StepOps) (drs : DRS) (da : DamageAgent) : DRS × List Refusal :=
-  match da with
-  | .unattributed => (drs, [])
-  | .dealtBy src =>
-    let (drs', _, e) := ops.np drs .subj true src
-    (drs', e)
-
-def stepDamageScopeWith (ops : StepOps) (drs : DRS) (ds : DamageScope) : DRS × List Refusal :=
-  match ds with
-  | .everywhere => (drs, [])
-  | .toRecipient rec =>
-    let (drs', _, e) := ops.np drs .obj true rec
-    (drs', e)
-
-/-- Step a damage rule's agent with its recipient in view, read forward by the agent's bare
-"another"/"other" ("another creature would deal combat damage to equipped creature"). -/
-def stepDamageAgentAheadWith (ops : StepOps) (drs : DRS) (da : DamageAgent) (ds : DamageScope) :
-    DRS × List Refusal :=
-  let agent := match da with | .dealtBy src => some src | .unattributed => none
-  stepAgentAhead drs agent (fun d => (stepDamageScopeWith ops d ds).1)
-    (stepDamageAgentWith ops · da)
-
 def stepPreventCutWith (ops : StepOps) (drs : DRS) (pc : PreventCut) : DRS × List Refusal :=
   match pc with
   | .all | .half _ => (drs, [])
   | .some amt | .shield amt | .allBut amt => ops.amt drs amt
 
-def stepDamageOpWith (ops : StepOps) (drs : DRS) (dop : DamageOp) : DRS × List Refusal :=
-  match dop with
-  | .prevent cut optAlso =>
-    let (drs1, e1) := stepPreventCutWith ops drs cut
-    let drs2 := drs1.push (outcomeB .damagePrevented) .other false
-    let (drs3, e2) := match optAlso with
-      | some inst => ops.inst .postEvent .obj (nextClause drs2) inst
-      | none => (drs2, [])
-    (drs3, e1 ++ e2)
-  | .redirect cut to =>
-    let (drs1, e1) := stepPreventCutWith ops drs cut
-    let (drs2, ids, e2) := ops.np drs1 .other true to
-    let kind := (ids.head?.bind drs2.findById?).map (·.kind) |>.getD (to.kindIn drs2 .object)
-    (drs2, e1 ++ e2 ++ refuse (to.plur == .one) .singular ++
-      refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
-  | .scale (.multiplied _) | .scale (.halved _) => (drs, [])
-  | .scale (.shifted change) =>
-    let (out, errors) := ops.amt drs change.amount
-    (out, errors ++ refuse (!change.isSet) .shiftSets)
+/-- The damage a prevention or redirection acts on: the damage event `damage` names, read as a
+replacement reads the event it watches, or, with none written, "that damage", the damage in scope:
+the damage a replacement watches, or the damage an action just dealt [CR#615.1,614.9]. -/
+def stepActedDamageWith (ops : StepOps) (drs : DRS) : Option WouldClause → DRS × List Refusal
+  | some clause =>
+    let (out, errors) := stepWouldClauseWith ops drs clause
+    ({ out with actionPattern := drs.actionPattern }, errors)
+  | none => (drs, refuse (damageDealtInScope drs) .damageDealtInScope)
+
+/-- After a prevention, the damage it prevented, read back by its additional effect ("you gain
+that much life", "for each 1 damage prevented this way") [CR#615.5]: the latest damage in scope
+becomes the damage prevented, so "that much" reads one amount and not the damage and its
+prevention as two. With no damage in scope, the outcome is published new. -/
+def DRS.withDamagePrevented (drs : DRS) : DRS :=
+  match drs.visibleReferents.find? (fun ref =>
+      ref.plur == .one && ref.payload == .outcome .damageDealt) with
+  | some ref => drs.updateById ref.id (fun r => { r with payload := .outcome .damagePrevented })
+  | none => drs.push (outcomeB .damagePrevented) .other false
 
 /-- A copy's source, read as a characteristic read: copying reads the original's copiable values
 [CR#707.2], a departed object's by its last known information [CR#608.2h], so "a copy of that
@@ -2918,7 +2897,7 @@ def stepOps : Nat → StepOps
           let plural := subj.det == some .each || subj.plur == .many ||
             (ids.filterMap out.findById?).any (fun ref => ref.plur == .many)
           (leaveMeasure drs out, errors ++ refuse (axis.scope == kind) (.projScope kind) ++
-            refuse (plural || axis == .chapter) .plural)
+            refuse (plural || axis.multiValued) .plural)
         | .countOf subj =>
           -- The counted domain is closed like a relative clause, but for the targets announced
           -- in it: no later pronoun reads it back (*Tears of Rage*: "those creatures" are the
@@ -3009,7 +2988,20 @@ def stepOps : Nat → StepOps
         | .did clause =>
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
-          ({ out with relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses },
+          -- A grounded "this way" names an event its own text already caused, whose outcome is
+          -- in scope: the condition restates that outcome rather than publishing a second, so
+          -- "that much" after it reads one amount ("If damage from a black source is prevented
+          -- this way, you gain that much life") [CR#608.2c,615.5]. An outcome of a sort not yet
+          -- in scope is still published.
+          let grounded := (match clause.within with | some .thisWay => true | _ => false) &&
+            !errs.contains .thisWayUngrounded
+          let restated : Referent → Bool := fun ref =>
+            grounded && ref.id ≥ drs.nextId && ref.plur == .one && match ref.payload with
+              | .outcome s => outcomeInScope s drs
+              | _ => false
+          ({ out with
+              referents := out.referents.filter (!restated ·)
+              relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses },
             errs ++ refuse clause.within.isSome .unanchoredLookback)
         | .gameHas designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .matches subj pred =>
@@ -3047,10 +3039,6 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.amt drs l
           let (drs2, e2) := ops.amt drs1 r
           (drs2.push differenceB .other false, e1 ++ e2 ++ refuse l.read .readAmount)
-        | .preventedFromSource pred =>
-          let (drs1, e1) := ops.pred drs pred
-          let n := countOutcomes .damagePrevented drs
-          (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .damagePrevented n]))
         | .voteLead _ _ =>
           let n := countOutcomes .voteHeld drs
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
@@ -3230,9 +3218,38 @@ def stepOps : Nat → StepOps
                 (fun ref => { ref with plur := .many })) drs2
             else drs2
           let drs3 := recipients.push (outcomeB outcome) .other false
-          (drs3, e1 ++ e2 ++ refuse recipient.perMemberOk .perMember ++
+          -- A pattern's recipient says which recipients an event matches, member by member
+          -- ("damage that would be dealt to you and/or permanents you control"); an instruction's
+          -- says who is dealt the amount, so a group must be each or all of it.
+          (drs3, e1 ++ e2 ++ refuse (drs.actionPattern || recipient.perMemberOk) .perMember ++
             refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
-        | .markDamage subj amt | .skipUntap subj amt =>
+        | .preventDamage cut damage also =>
+          let (drs1, e1) := stepActedDamageWith ops drs damage
+          -- The cut is sized before the prevention publishes what it prevented
+          -- (`badShieldSizedByItsOwnPrevention`).
+          let (drs2, e2) := stepPreventCutWith ops drs1 cut
+          -- The prevention is the event its additional effect's "this way" reads
+          -- ("If damage from a black source is prevented this way") [CR#615.5].
+          let drs3 := drs2.withDamagePrevented.withCaused drs phase (.preventDamage cut damage none)
+          let (drs4, e3) := match also with
+            | some action => ops.inst .postEvent .obj (nextClause drs3) action
+            | none => (drs3, [])
+          (drs4, e1 ++ e2 ++ e3)
+        | .redirectDamage cut to damage =>
+          let (drs1, e1) := stepActedDamageWith ops drs damage
+          let (drs2, e2) := stepPreventCutWith ops drs1 cut
+          let (drs3, ids, e3) := ops.np drs2 .other true to
+          let kind := (ids.head?.bind drs3.findById?).map (·.kind) |>.getD (to.kindIn drs3 .object)
+          -- The same damage is dealt to one other permanent or player [CR#614.9].
+          (drs3, e1 ++ e2 ++ e3 ++ refuse (to.plur == .one) .singular ++
+            refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
+        | .markDamage subj amt =>
+          let (drs1, _, e1) := ops.np drs patientRole true subj
+          let (drs2, e2) := ops.amt drs1 amt
+          -- The damage marked, which a replacement of the marking reads back ("put that many
+          -- −1/−1 counters on that creature instead") [CR#120.3d,120.3e].
+          (drs2.push (outcomeB .damageMarked) .other false, e1 ++ e2)
+        | .skipUntap subj amt =>
           let (drs1, _, e1) := ops.np drs patientRole true subj
           let (drs2, e2) := ops.amt drs1 amt
           (drs2, e1 ++ e2)
@@ -3946,31 +3963,11 @@ def stepOps : Nat → StepOps
           -- …" defines it after [CR#107.3i].
           let letters := drs2.visibleReferents.filter fun ref =>
             ref.id ≥ drs.nextId && (match ref.payload with | .letter _ => true | _ => false)
-          ({ drs with referents := letters ++ drs.referents, nextId := Nat.max drs.nextId drs2.nextId },
+          ({ drs with
+              referents := letters ++ drs.referents
+              nextId := Nat.max drs.nextId drs2.nextId
+              contrastAnchors := drs2.contrastAnchors },
             e1 ++ e2 ++ e3)
-        | .damageResult r =>
-          match r with
-          | ⟨_, source, recipient, _, does⟩ =>
-            let (drs1, e1) := ops.pred drs recipient
-            let recipientKind := recipient.kindOr .object
-            let recipientErrors := refuse (Kind.lte recipientKind (.join .object .player))
-              (.kindLte recipientKind (.join .object .player))
-            let resultContext := drs1.push (outcomeB .damageDealt) .other false
-            let (drs2, e2) := stepSubjectBeforeWith ops (nextClause resultContext) source
-            let (drs3, e3) := ops.inst .postEvent source.patientRole drs2 does
-            let (_, e4) := stepSubjectAfterWith ops drs3 source
-            (drs, e1 ++ recipientErrors ++ e2 ++ e3 ++ e4)
-        | .damageRule da ds dop _ _ =>
-          let (drs1, e1) := stepDamageAgentAheadWith ops drs da ds
-          let (drs2, e2) := stepDamageScopeWith ops drs1 ds
-          let (drs3, e3) := stepDamageOpWith ops drs2 dop
-          (drs3, e1 ++ e2 ++ e3)
-        | .preventionBan (.described da ds) _ _ =>
-          let (drs1, e1) := stepDamageAgentAheadWith ops drs da ds
-          let (drs2, e2) := stepDamageScopeWith ops drs1 ds
-          (drs2, e1 ++ e2)
-        | .preventionBan .thatDamage _ _ =>
-          (drs, refuse (damageDealtInScope drs) .damageDealtInScope)
         | .additionalTriggers ev q =>
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := stepQuantityWith ops drs1 q

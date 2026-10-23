@@ -47,7 +47,8 @@ def auraHost? : StaticSpec → Option NounPhrase
 
 /-- The recipient of a damage-prevention clause, if the clause is one. -/
 def preventedRecipient? : StaticSpec → Option NounPhrase
-  | .damageRule _ (.toRecipient recipient) _ _ _ => some recipient
+  | .replace (.would _ (.dealDamage _ recipient _)) (.instead (.preventDamage ..)) .. =>
+    some recipient
   | _ => none
 
 /-- Protection's enchant and damage clauses read its holder: a "permanent or player" can't be

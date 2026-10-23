@@ -515,6 +515,10 @@ semantic_template opponentsControl : Predicate := controlledBy yourOpponents
 semantic_template ownedBy (who : NounPhrase) : Predicate := .hasPossessor .owner who
 /-- "you own" -/
 semantic_template youOwn : Predicate := ownedBy you
+/-- "<player>" as the quality of "protection from <player>": each object `player` controls, and
+each object `player` owns that no player controls [CR#702.16k]. -/
+semantic_template objectsOfPlayer (player : NounPhrase) : Predicate :=
+  .or [controlledBy player, .and [ownedBy player, .not (controlledBy (a .anyPlayer))]]
 /-- "your opponents own" -/
 semantic_template opponentsOwn : Predicate := ownedBy yourOpponents
 /-- "in <loc>", as "in your graveyard" or "exiled with this artifact". -/
@@ -979,6 +983,10 @@ semantic_template countersOn (kind : CounterKind) (holder : NounPhrase) : Amount
 /-- "<saga>'s final chapter number": the greatest of its chapter numbers, 0 with none
 [CR#714.2d]. -/
 semantic_template finalChapterNumber (saga : NounPhrase) : Amount := .aggregate .max .chapter saga
+/-- "<subject>'s total toxic value": the sum of the N values of its toxic abilities
+[CR#702.164b]. -/
+semantic_template totalToxicValue (subject : NounPhrase) : Amount :=
+  .aggregate .sum (.keywordNumber (.named "toxic")) subject
 /-- "a chapter ability of <saga>" [CR#714.2,714.2a] -/
 semantic_template chapterAbilityOf (saga : NounPhrase) : Predicate :=
   .and [.abilityOf saga, .compare [.chapter] .atLeast 1]
@@ -1144,6 +1152,10 @@ semantic_template Action.target (subject : NounPhrase) : Action := .target subje
 semantic_template dealDamage (amount : Amount := anyAmount)
     (to : NounPhrase := Templates.NounPhrase.any) (kind : Option DamageKind := none) : Action :=
   .dealDamage amount to kind
+/-- "<amount> damage is marked on <subject>": the result of damage dealt to a creature by a source
+with neither wither nor infect [CR#120.3e]. -/
+semantic_template markDamage (subject : NounPhrase) (amount : Amount := anyAmount) : Action :=
+  .markDamage subject amount
 /-- "<subject> wins the game" -/
 semantic_template winGame : Action := .conclude .winGame
 /-- "<subject> loses the game [for <cause>]": the cause rides the act ("can't lose the game for
@@ -1458,19 +1470,30 @@ semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)
 semantic_template replaceEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
   .establish (.replace clause replacement none .repeatedly none) duration
-/-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
-semantic_template preventAll (scope : DamageScope) (duration : Option Duration)
+/-- "Prevent all <kind> damage that would be dealt [to <to>] [duration]": a prevention effect,
+a replacement of each such damage event by its prevention [CR#615.1]. `to` left `any` is damage
+dealt to anything. -/
+semantic_template preventAll (to : NounPhrase) (duration : Option Duration)
     (kind : Option DamageKind := none) : Action :=
-  .establish (.damageRule .unattributed scope (.prevent .all none) .repeatedly kind) duration
-/-- "Prevent the next N <kind> damage that would be dealt <scope> [duration]." -/
-semantic_template preventNext (scope : DamageScope) (amount : Amount) (duration : Option Duration)
-    (kind : Option DamageKind := none) : Action :=
-  .establish (.damageRule .unattributed scope (.prevent (.shield amount) none) .repeatedly kind)
+  .establish
+    (.replace (.would .any (.dealDamage .anyAmount to kind))
+      (.instead (.preventDamage .all none none)) none .repeatedly none)
     duration
-/-- "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]." -/
-semantic_template preventAllBy (source : NounPhrase) (scope : DamageScope)
+/-- "Prevent the next N <kind> damage that would be dealt [to <to>] [duration]": a shield, used
+up as it prevents [CR#615.7]. -/
+semantic_template preventNext (to : NounPhrase) (amount : Amount) (duration : Option Duration)
+    (kind : Option DamageKind := none) : Action :=
+  .establish
+    (.replace (.would .any (.dealDamage .anyAmount to kind))
+      (.instead (.preventDamage (.shield amount) none none)) none .repeatedly none)
+    duration
+/-- "Prevent all <kind> damage that would be dealt [to <to>] by <source> [duration]" [CR#615.1]. -/
+semantic_template preventAllBy (source : NounPhrase) (to : NounPhrase)
     (duration : Option Duration) (kind : Option DamageKind := none) : Action :=
-  .establish (.damageRule (.dealtBy source) scope (.prevent .all none) .repeatedly kind) duration
+  .establish
+    (.replace (.would (.by source) (.dealDamage .anyAmount to kind))
+      (.instead (.preventDamage .all none none)) none .repeatedly none)
+    duration
 /-- "The next time <clause> would happen, <replacement> instead [duration]." -/
 semantic_template replaceNextEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
@@ -1992,9 +2015,6 @@ semantic_template copyOf (source : NounPhrase) (exceptions : List CopyExcept := 
   .copyOf source exceptions
 semantic_template costShift (subject : NounPhrase) (shift : CostShift) : StaticSpec :=
   .costShift subject shift
-semantic_template damageRule (source : DamageAgent) (scope : DamageScope) (op : DamageOp)
-    (use : ReplUse) (kind : Option DamageKind := none) : StaticSpec :=
-  .damageRule source scope op use kind
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
 /-- "If <event> would …, <replacement> instead", "<subject> enters tapped", "As <subject> enters,
 …": a replacement effect, `event` modified by `replacement` [CR#614.1a,614.1c,614.1d]. -/
@@ -2061,9 +2081,6 @@ life [CR#119.4]; a player who can't lose life can't pay it [CR#119.8]. In a cost
 coerced to `perform (payLife amount)`, one payment of that life. -/
 semantic_template payLife (amount : Amount := anyAmount) : Action :=
   pay (perform (loseLife amount)) .once
-semantic_template preventionBan (damage : Unpreventable) (ban : PreventionBan)
-    (kind : Option DamageKind := none) : StaticSpec :=
-  .preventionBan damage ban kind
 /-- "<subject>'s power [and toughness] [are each] [is] equal to <amount>": a
 Characteristic-Defining Ability setting each stat `slots` names [CR#604.3a,613.4a]. -/
 semantic_template ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount) :
@@ -2141,8 +2158,6 @@ semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) 
 `not`): the condition that `subject` matches `predicate` (`matches` is Lean's word). -/
 semantic_template is (subject : NounPhrase) (predicate : Predicate) : Condition :=
   .matches subject predicate
-semantic_template preventedFromSource (predicate : Predicate) : Condition :=
-  .preventedFromSource predicate
 semantic_template rolledDoubles : Condition := .rolledDoubles
 semantic_template voteLead (label : String) (orTied : Bool) : Condition := .voteLead label orTied
 /- The verb `target` (`Action`) shares its name with the determiner `target` (`NounPhrase`), and
@@ -2371,23 +2386,19 @@ semantic_template holds (cond : Condition) : AsThough := .condition cond
 /-- A condition reads as the "as though" it states. -/
 instance [AuthoringContext] : Coe Condition AsThough := ⟨holds⟩
 
-/-! ## Damage rules -/
+/-! ## Prevention and redirection -/
 
-/-- "damage <source> would deal" -/
-semantic_template dealtBy (source : NounPhrase) : DamageAgent := .dealtBy source
-/-- damage from any source -/
-semantic_template unattributed : DamageAgent := .unattributed
-/-- "damage that would be dealt to <recipient>" -/
-semantic_template toRecipient (recipient : NounPhrase) : DamageScope := .toRecipient recipient
-/-- damage that would be dealt to anything -/
-semantic_template everywhere : DamageScope := .everywhere
-/-- "prevent <cut> [and <also>]" [CR#615.1] -/
-semantic_template prevent (cut : PreventCut) (also : Option Action := none) : DamageOp :=
-  .prevent cut also
-/-- "<cut> is dealt to <to> instead" [CR#614.9] -/
-semantic_template redirect (cut : PreventCut) (to : NounPhrase) : DamageOp := .redirect cut to
-/-- "it deals <scale> that damage instead" -/
-semantic_template scale (scale : DamageScale) : DamageOp := .scale scale
+/-- "prevent <cut> [of <damage>]. [<also>]": prevent `cut` of the damage `damage` names, or of
+"that damage", the damage in scope, then do `also`, the prevention's additional effect
+[CR#615.1,615.5]. Under `cant`, "<damage> can't be prevented" [CR#615.12]. -/
+semantic_template preventDamage (cut : PreventCut) (damage : Option WouldClause := none)
+    (also : Option Action := none) : Action :=
+  .preventDamage cut damage also
+/-- "<cut> [of <damage>] is dealt to <to> instead": a redirection effect [CR#614.9]. Under
+`cant`, "<damage> can't be dealt instead to <to>". -/
+semantic_template redirectDamage (cut : PreventCut) (to : NounPhrase)
+    (damage : Option WouldClause := none) : Action :=
+  .redirectDamage cut to damage
 /-- "all of that damage" -/
 semantic_template allDamage : PreventCut := .all
 /-- "<amount> of that damage" -/
@@ -2398,17 +2409,6 @@ semantic_template theNext (amount : Amount) : PreventCut := .shield amount
 semantic_template PreventCut.allBut (amount : Amount) : PreventCut := .allBut amount
 /-- "half that damage, rounded <rounding>" -/
 semantic_template PreventCut.half (rounding : RoundMode) : PreventCut := .half rounding
-/-- "<factor> that damage", as "double" or "triple" -/
-semantic_template multiplied (factor : ScaleFactor) : DamageScale := .multiplied factor
-/-- "half that damage, rounded <rounding>" -/
-semantic_template halved (rounding : RoundMode) : DamageScale := .halved rounding
-/-- "that much damage plus or minus <amount>" -/
-semantic_template shifted (change : Delta Amount) : DamageScale := .shifted change
-/-- "damage <source> would deal <scope>", as a prevention ban names it -/
-semantic_template damageDealt (source : DamageAgent) (scope : DamageScope) : Unpreventable :=
-  .described source scope
-/-- "that damage can't be prevented" -/
-semantic_template thatDamage : Unpreventable := .thatDamage
 
 /-! ## Cost shifts -/
 
