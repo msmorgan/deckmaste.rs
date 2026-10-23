@@ -31,11 +31,16 @@ cast it for a foretell cost on a later turn [CR#702.143a,702.143c,702.143d]. -/
 semantic_definition foretold : DesignationLabel := .named "foretold" (.heldBy .object)
 semantic_definition goaded : DesignationLabel := .named "goaded" (.heldBy .object)
 semantic_definition harnessed : DesignationLabel := .named "harnessed" (.heldBy .object)
-semantic_definition initiative : DesignationLabel := .named "initiative" (.heldBy .player)
+/-- The initiative: only one player can have it at a time [CR#726.3], so "the player who has the
+initiative" names one player. -/
+semantic_definition initiative : DesignationLabel :=
+  .named "initiative" (.heldBy .player) (sole := true)
 semantic_definition leftHalfUnlocked : DesignationLabel :=
   .named "leftHalfUnlocked" (.heldBy .object)
 semantic_definition level : DesignationLabel := .named "level" (.heldBy .object)
-semantic_definition monarch : DesignationLabel := .named "monarch" (.heldBy .player)
+/-- The monarch: only one player can be the monarch at a time [CR#725.3], so "the monarch" names
+one player. -/
+semantic_definition monarch : DesignationLabel := .named "monarch" (.heldBy .player) (sole := true)
 semantic_definition monstrous : DesignationLabel := .named "monstrous" (.heldBy .object)
 /-- Plotted, a state of a card in exile: a card exiled by the plot special action "becomes a
 plotted card", an effect may make a card in exile become one, and its owner may cast it without

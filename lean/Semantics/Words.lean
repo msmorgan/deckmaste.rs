@@ -262,9 +262,12 @@ English: the phrase a card prints ("the monarch", "Ring-bearer") is the declarat
 Each designation is its own declaration in `Semantics.Definitions.Designations`, and the
 constructor is an internal expansion, so a card names a declared designation or none; the
 grammar carries only the mechanism. Plotted [CR#702.170a,702.170c] and foretold
-[CR#702.143c,702.143d], states of a card in exile, are designations like the rest. -/
+[CR#702.143c,702.143d], states of a card in exile, are designations like the rest. `sole` is
+whether at most one holder has it at a time, so "the" and the designation name one entity: only
+one player can be the monarch [CR#725.3] or have the initiative [CR#726.3]; several players can
+each have the city's blessing. -/
 inductive DesignationLabel where
-  | named (name : String) (scope : DesignationScope)
+  | named (name : String) (scope : DesignationScope) (sole : Bool := false)
   deriving DecidableEq, Repr
 
 /-- A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation declaration that defines
