@@ -57,5 +57,5 @@ residual ticket is added to win a rank (item 8).
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on xykuylsq → wxownvmo): faces read 28,801 → 28,801; total Readings 245,825 → 245,781; Surplus 106,859 → 106,817; cheapest tier singleton in 15,633 of 18,353 → 15,624 of 18,344; no verdict changed; no unit grew; lost faces: none.
+Judgment set: all enforced entries hold at `COMPLETED_STRATUM` 6; S/A/P/F 704/233/10/92 (a statistic, not a gate).

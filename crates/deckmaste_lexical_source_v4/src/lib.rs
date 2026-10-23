@@ -384,7 +384,6 @@ impl Sources {
             builder.preposition(
                 &entry.lemma,
                 &entry.frames,
-                entry.marking,
                 core(PREPOSITIONS, &id),
             );
         }
@@ -418,7 +417,6 @@ impl Sources {
                 builder.preposition(
                     &preposition.lemma,
                     &preposition.frames,
-                    preposition.marking,
                     source.clone(),
                 );
             }
