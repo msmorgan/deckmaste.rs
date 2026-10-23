@@ -264,6 +264,30 @@ pub enum Equation {
     ExcludeTogether(Vec<(Ident, Ident)>),
 }
 
+/// The Categories of a Valence schema's Complement Clusters: right
+/// nonce-constituent coordination, whose coordinates are sequences of a
+/// shared head's dependents that form constituents only by being coordinated
+/// (CGEL, Ch. 15 §4.3, pp. 1341–1343, [20]).
+///
+/// A Cluster is the Frame Slots of one frame, then an optional Adjunct; one
+/// of a single Slot has its Adjunct, since a Slot alone coordinates as itself.
+/// The coordinates are parallel: every Cluster of one coordination is of the
+/// head's frame (p. 1341, [17ii]). The head takes the coordination as the
+/// child `clusters`, which bears no function; each dependent in a Cluster
+/// bears its own in the head's phrase too (`Constituent::also`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClustersDecl {
+    /// The Category of one Cluster.
+    pub cluster: Ident,
+    /// The Category of a coordination of Clusters, which a Coordination
+    /// schema declares.
+    pub coordination: Ident,
+    /// The Category of the Adjunct that may end a Cluster.
+    #[serde(default)]
+    pub adjunct: Option<Ident>,
+}
+
 /// An instance of one of the engine's built-in Schema kinds.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -358,12 +382,13 @@ pub enum SchemaDecl {
         /// (a Preposition Phrase takes its Complement's Number).
         #[serde(default)]
         agree: Vec<(Ident, Ident)>,
-        /// Coordinators of complement clusters: a verb with two or more
-        /// Frame Slots heads a coordination of their sequences (*put one of
-        /// them into your hand and the rest into your graveyard*; CGEL,
-        /// Ch. 15 §4.3, p. 1341).
+        /// Complement Clusters: a verb heads a coordination of parallel
+        /// sequences of its Frame Slots, each sequence optionally ending in
+        /// an Adjunct (*put one of them into your hand and the rest into your
+        /// graveyard*; *has lifelink if you control a Cleric and deathtouch
+        /// if you control a Rogue*; CGEL, Ch. 15 §4.3, pp. 1341–1343).
         #[serde(default)]
-        clusters: Option<Ident>,
+        clusters: Option<ClustersDecl>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {

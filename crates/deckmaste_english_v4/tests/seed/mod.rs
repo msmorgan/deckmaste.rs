@@ -119,7 +119,7 @@ fn pronoun(lemma: &str, person: Person, number: Option<Number>) -> Lexeme {
 
 /// Fused heads, partitive heads and comparative and superlative
 /// determinatives the grammar names.
-const DEPENDENT_HEADS: [&str; 15] = [
+const DEPENDENT_HEADS: [&str; 16] = [
     "both",
     "either",
     "neither",
@@ -128,6 +128,7 @@ const DEPENDENT_HEADS: [&str; 15] = [
     "much",
     "anywhere",
     "this",
+    "those",
     "none",
     "less",
     "fewer",
@@ -284,6 +285,9 @@ pub fn lexicon() -> Lexicon {
     // Interrogative *how*, a Closed Word of the grammar.
     lexemes.push(invariant("adv", "how", Category::Adverb, Core));
     lexemes.push(invariant("adv", "as", Category::Adverb, Core));
+    // Negative *not* and focusing *only*, Closed Words of the grammar.
+    lexemes.push(invariant("adv", "not", Category::Adverb, Core));
+    lexemes.push(invariant("adv", "only", Category::Adverb, Core));
     for lemma in ["which", "who"] {
         let mut relative = pronoun(lemma, Third, None);
         relative

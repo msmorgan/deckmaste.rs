@@ -61,3 +61,21 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Outcome
+
+Landed: Complement Clusters ending in an optional Adjunct, any number of them,
+parallel by frame shape (Multiclass Baldric, Scion of Draco, Tribal Golem; the
+gapped *get* of Eidolon of Countless Battles beside its *for each* Reading);
+qualifying end-attachment *but only* / *and only* (CGEL, Ch. 15 §4.5, p. 1347;
+nine *Any player may activate ...* faces, Detention Vortex, Oft-Nabbed Goat,
+Capricopian); *X, but not Y* (Haakon, Soul Burn, Drain Life); serial unlike
+predicate Adjuncts (Grizzled Wolverine); mixed-mood serial Clauses (Opportunistic
+Dragon, Gandalf, Westward Voyager, Olivia, Clackbridge Troll, Eye of Jace); a
+fronted Adjunct delimited after a coordinator (Moritte of the Frost); fused
+*those*, *either* and *neither* (Everything Comes to Dust, Worms of the Earth).
+Felisa's *it had __ on it* Reading and Monument to Perfection already held.
+The rest moved to `english-v4-s7-gapping-remnants`, with their analyses.
+
+1. **Census delta** (measured on `yltzvnpt`): faces read 32,692 → 32,718 (+26: Stratum 6 +8, Stratum 7 +18); total Readings (derivation product) 336,332 → 339,455 (+0.9%), Surplus 139,621 → 140,741; lost faces: none.
+2. **Judgment set**: `tests/judgments.rs` passes (6 of 6); every new Stratum 7 entry holds, and the census reports 0 known-wrong-only.

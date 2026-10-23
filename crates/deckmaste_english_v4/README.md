@@ -332,6 +332,23 @@ and a Noun Phrase also selects their unlike coordination (*equal to 2 or the
 greatest power among ...*), and a trailing Adjunct may scope over a
 coordination of Clauses.
 
+Complement Clusters end in an optional Adjunct, and any number coordinate
+after their shared verb, parallel by frame shape (*has lifelink if you control
+a Cleric, deathtouch if you control a Rogue, ..., and flying if you control a
+Wizard*; *has trample as long as ..., and "{B}: Regenerate this creature" as
+long as ...*). A main Clause may take a qualifying added element after *but*
+or *and*, a fragment of Adjuncts focused by *only* or *not* (*Any player may
+activate this ability but only as a sorcery*). *But* joins a Noun Phrase or a
+Preposition Phrase to a *not*-modified one (*life equal to the damage dealt,
+but not more life than ...*; *from your graveyard, but not from anywhere
+else*). Unlike predicate Adjuncts coordinate serially; a serial coordination
+of Clauses with an imperative first and a declarative last admits either mood
+between; a non-initial Clause conjunct may open, after its coordinator, with a
+fronted Adjunct set off on both sides (*and, if it's a creature, it enters
+...*). Plural *those* is a fused determiner-head (*except those that share a
+creature type with ...*), and *either* and *neither* fuse in an implicit
+partitive (*If a player does either*).
+
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)
 belongs to Stratum 3 even inside a keyword parameter.

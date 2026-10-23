@@ -1218,11 +1218,22 @@ Conjunct (CGEL, Ch. 15 §1.1, p. 1276), whose Conjuncts are each set off by a
 comma (*A, or B, or C*).
 
 **Complement Cluster** (project term):
-A sequence of a verb's Complements coordinated with a parallel sequence after
-the shared verb, as in *put one of them into your hand and the rest into your
-graveyard*: right nonce-constituent coordination (CGEL, Ch. 15 §4.3, p. 1341).
-Each Complement keeps its own function within its Conjunct.
+A sequence of a verb's Complements, optionally ending in an Adjunct,
+coordinated with parallel sequences after the shared verb, as in *put one of
+them into your hand and the rest into your graveyard* or *has lifelink if you
+control a Cleric and deathtouch if you control a Rogue*: right
+nonce-constituent coordination (CGEL, Ch. 15 §4.3, pp. 1341–1343). The
+sequences are parallel in function: each holds the same functions in the same
+order. A single Complement is a Cluster only with its Adjunct. Each dependent
+keeps its own function within its Conjunct.
 _Avoid_: gapping, which elides the verb from a second Clause
+
+**End-attachment Coordination**:
+A Coordination whose second Conjunct is attached at the end of a Clause
+rather than beside the first (CGEL, Ch. 15 §4.5, pp. 1345–1348). In its
+qualifying use, *but* or *and* adds to a whole main Clause a fragment of
+Adjuncts focused by *only* or *not*: *Any player may activate this ability
+but only as a sorcery*.
 
 **Extraction**:
 A grammatical dependency between a displaced expression and its Gap, subject to

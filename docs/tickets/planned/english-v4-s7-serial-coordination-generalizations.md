@@ -19,6 +19,11 @@ Two general limits on serial coordination keep ordinary Oracle text unread.
    conjunct (see the Linked Coordination added by
    `english-v4-s7-then-coordination`).
 
+`english-v4-s7-gapping-and-ellipsis` landed part of item 2: a serial
+coordination of Clauses with an imperative first and a declarative last
+admits either mood between (Clackbridge Troll, Opportunistic Dragon, Gandalf,
+Westward Voyager now read); the *then*-linked last conjunct (Kaboom!) remains.
+
 Witnesses: Nahiri, the Lithomancer; Kaboom!; Clackbridge Troll. Check the
 corpus for other units blocked only by these two limits.
 

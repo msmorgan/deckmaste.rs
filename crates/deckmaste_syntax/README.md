@@ -149,12 +149,22 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   noun in a fossilised Preposition Phrase: *until end of turn*, *in excess
   of*, but *on top*). A non-verbal head's `Intransitive` frame derives no
   phrase of its own: the bare phrase is it.
-  With `clusters`, a verb with two or more Frame Slots also heads a coordination
-  of their sequences, its head shared on the left as the mirror of Right Node
-  Raising (*put one of them into your hand and the rest into your graveyard*,
-  *deals 2 damage to any target and 1 damage to you*); each copy of a Slot
-  bears its function (right nonce-constituent coordination, CGEL, Ch. 15
-  §4.3, p. 1341).
+  With `clusters` (a `cluster` Category, the `coordination` Category of
+  their coordination, and an optional `adjunct` Category), an active verb
+  phrase's Frame Slots also form a Complement Cluster, optionally ending in an
+  Adjunct, and the verb heads a coordination of Clusters, its head shared on
+  the left as the mirror of Right Node Raising (*put one of them into your
+  hand and the rest into your graveyard*, *has lifelink if you control a
+  Cleric and deathtouch if you control a Rogue*; right nonce-constituent
+  coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343). A single Slot is a Cluster
+  only with its Adjunct. A Coordination schema over the `coordination`
+  Category joins Clusters, any number of them; its Clusters are parallel:
+  their frames share a shape, the relation of each Slot and, but for an
+  Object, what fills it (`Summary::cluster`), the first Cluster's frame is
+  the head's, and the head declares any other (a keyword phrase and a quoted
+  ability are each the Object of *has*). The coordination is the child
+  `clusters`, with no function; each dependent in a Cluster bears its own in
+  the verb's phrase too (`Constituent::also`).
   A `MeasureNP` slot is a Monotransitive Object filled by the grammar's
   measure Noun Phrase Category, which no `NP` slot accepts (*gets +2/+2*, but
   not *draw 2/2*); like a keyword-phrase Object it derives no passive.
@@ -220,7 +230,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   every conjunct admits. A coordination of a function may name its `conjunct`
   Category, and `unlike` a feature its two conjuncts must not share: unlike
   categories coordinated in one function (a depictive *tapped and attacking*),
-  binary unless `serial` is set (an *and*-list of an Object with keywords). A constituent that begins with a dependent set off by
+  binary unless `serial` is set (an *and*-list of an Object with keywords), whose serial and polysyndetic shapes have unlike first and last conjuncts. A constituent that begins with a dependent set off by
   a comma (*When …, …*) is never the initial conjunct of a coordination
   undelimited before its coordinator: the preposed dependent scopes over the
   whole coordination. The initial conjunct of a coordination delimited before

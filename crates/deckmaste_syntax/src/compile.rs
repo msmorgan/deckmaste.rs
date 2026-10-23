@@ -111,6 +111,13 @@ pub struct CompiledGrammar {
     /// variant), which analysis admits only within their card's scope.
     pub(crate) card_scoped: BTreeSet<(LexemeId, usize)>,
     pub(crate) frames: Vec<Frame>,
+    /// Each frame's shape for Complement Clusters, as the index of the first
+    /// frame with the same: the relation of each Frame Slot, and what fills
+    /// it unless it is an Object. Clusters coordinate only with Clusters of
+    /// one shape, like sequences of dependents with like functions (CGEL,
+    /// Ch. 15 §4.3, p. 1341, [17ii]: *blame X for Y* and *blame Y on X* do
+    /// not coordinate).
+    pub(crate) cluster_shapes: Vec<u16>,
     pub(crate) preposition_frames: Vec<PrepositionFrame>,
     /// Prepositions whose `PP` slot would extend a head's selected frame,
     /// by (lexeme, selected frame), as an index into `extension_sets`.
@@ -293,6 +300,11 @@ struct Draft {
     elliptical: Option<u16>,
     /// A Linked Coordination's identity (`Production::link`).
     link: Option<LexemeId>,
+    /// It builds a Complement Cluster of this frame (`Production::cluster`).
+    cluster: Option<usize>,
+    /// The child that must be a coordination of Complement Clusters of this
+    /// frame (`Production::clusters`).
+    clusters: Option<(usize, usize)>,
 }
 
 /// What a Valence schema declares its derived phrases carry, beyond their
@@ -369,6 +381,8 @@ impl Draft {
             omits_complement: false,
             elliptical: None,
             link: None,
+            cluster: None,
+            clusters: None,
         }
     }
 
@@ -765,6 +779,7 @@ impl<'a> Binder<'a> {
                     .map(|value| (value.lexeme, value.variant))
                     .collect(),
                 frames,
+                cluster_shapes: Vec::new(),
                 preposition_frames,
                 extensions,
                 extension_sets,
@@ -890,6 +905,7 @@ impl<'a> Binder<'a> {
                 self.out.categories[id].clone_from(category);
             }
         }
+        self.out.cluster_shapes = cluster_shapes(&self.out.frames);
         self.out.prediction = crate::prediction::Prediction::compile(&self.out);
         Ok(self.out)
     }
@@ -1701,6 +1717,12 @@ impl<'a> Binder<'a> {
             crate::step::Omission::None
         };
         production.link = draft.link;
+        production.cluster = draft
+            .cluster
+            .map(|frame| u16::try_from(frame).expect("frame index fits"));
+        production.clusters = draft
+            .clusters
+            .map(|(at, frame)| (at, u16::try_from(frame).expect("frame index fits")));
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -1829,26 +1851,20 @@ impl<'a> Binder<'a> {
                     self.internalised_equations(draft, internalised)?;
                 }
                 self.slot_agreement(phrase, &mut drafts, agree)?;
-                if let Some(coordinators) = clusters {
-                    let coordinator = self.coordinator_test(coordinators)?;
-                    let between = interleaved
-                        .as_deref()
-                        .map(|i| self.category(i))
-                        .transpose()?;
-                    let clustered: Vec<Draft> = drafts
-                        .iter()
-                        .filter_map(|d| complement_clusters(d, &coordinator, None, false))
-                        .chain(
-                            drafts
-                                .iter()
-                                .filter_map(|d| complement_clusters(d, &coordinator, None, true)),
-                        )
-                        .chain(drafts.iter().filter_map(|d| {
-                            between
-                                .and_then(|b| complement_clusters(d, &coordinator, Some(b), false))
-                        }))
-                        .collect();
-                    drafts.extend(clustered);
+                let mut clustered = Vec::new();
+                if let Some(decl) = clusters {
+                    let categories = ClusterCategories {
+                        cluster: self.category(&decl.cluster)?,
+                        coordination: self.category(&decl.coordination)?,
+                        adjunct: decl
+                            .adjunct
+                            .as_deref()
+                            .map(|a| self.category(a))
+                            .transpose()?,
+                    };
+                    for draft in &drafts {
+                        clustered.extend(complement_clusters(draft, &categories));
+                    }
                 }
                 let postposed = postposed.as_deref().map(|p| self.category(p)).transpose()?;
                 // A verb's interleaved Adjunct is a Predicate's; a noun's
@@ -1864,6 +1880,7 @@ impl<'a> Binder<'a> {
                 if let Some(modifier) = postposed {
                     ordered.extend(self.postposed_modifiers(&drafts, modifier));
                 }
+                ordered.extend(clustered);
                 Ok(ordered)
             }
             SchemaDecl::Adjunct {
@@ -3338,6 +3355,8 @@ impl Conjoin {
         let t = whole.child("rest", cat(two), GapRule::Shared);
         whole.coordinator = Some(t);
         whole.distinct_coordinator = vec![a];
+        // Unlike conjuncts differ first to last, as in the serial.
+        whole.unlike = self.unlike.map(|f| (a, t, f));
         self.close(binder, &mut whole, &[a, t], Edge::Whole { last: false })?;
         drafts.push(whole);
         // A link and a further tail: into `TAIL++` and `TAIL+`.
@@ -3355,6 +3374,7 @@ impl Conjoin {
             link.chained = Some(r);
             link.distinct_coordinator = vec![b];
             self.close(binder, &mut link, &[b, r], Edge::Tail { last: false })?;
+            self.carry_unlike(&mut link, r);
             drafts.push(link);
         }
         // The last link: into `TAIL+`.
@@ -3369,6 +3389,7 @@ impl Conjoin {
         end.coordinator = Some(c);
         end.distinct_coordinator = vec![b];
         self.close(binder, &mut end, &[b], Edge::Tail { last: true })?;
+        self.carry_unlike(&mut end, b);
         drafts.push(end);
         Ok(drafts)
     }
@@ -3547,107 +3568,148 @@ fn postposed_modifier(draft: &Draft, postposed: usize) -> Option<Draft> {
     Some(postposing)
 }
 
-/// The coordination of an active phrase's complement sequence, its head
-/// shared on the left (the mirror of Right Node Raising): the head, its
-/// Frame Slots, a coordinator, and the Frame Slots again; `serial` makes three
-/// sequences with the Oxford comma (*one into your hand, one on top of your
-/// library, and one on the bottom*); with `between`, an Adjunct of that
-/// Category ends the first of two (*on top of your library in any order and
-/// the rest on the bottom*).
-fn complement_clusters(
-    draft: &Draft,
-    coordinator: &Test,
-    between: Option<usize>,
-    serial: bool,
-) -> Option<Draft> {
+/// Each frame's Complement Cluster shape (`CompiledGrammar::cluster_shapes`).
+fn cluster_shapes(frames: &[Frame]) -> Vec<u16> {
+    use crate::frames::SlotRelation;
+    let shape = |frame: &Frame| -> Vec<(SlotRelation, Option<SlotFill>)> {
+        frame
+            .slots
+            .iter()
+            .map(|slot| {
+                let fill = (slot.relation != SlotRelation::Object).then(|| slot.fill.clone());
+                (slot.relation, fill)
+            })
+            .collect()
+    };
+    let shapes: Vec<_> = frames.iter().map(shape).collect();
+    shapes
+        .iter()
+        .map(|s| {
+            let first = shapes.iter().position(|t| t == s).expect("its own shape");
+            u16::try_from(first).expect("frame index fits")
+        })
+        .collect()
+}
+
+/// The Categories a Valence schema's Complement Clusters are built in
+/// (`grammar::ClustersDecl`).
+struct ClusterCategories {
+    cluster: usize,
+    coordination: usize,
+    adjunct: Option<usize>,
+}
+
+/// An active phrase's Complement Clusters (right nonce-constituent
+/// coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343): its Frame Slots as a
+/// Cluster of the frame, with an optional Adjunct after them, and the head
+/// with a coordination of such Clusters (*put [one of them into your hand]
+/// and [the rest into your graveyard]*; *has [lifelink if you control a
+/// Cleric], [deathtouch if you control a Rogue], and [flying if you control
+/// a Wizard]*). A single Slot forms a Cluster only with its Adjunct: alone it
+/// coordinates as itself. Equations on the Slots move into the Cluster; those
+/// on the head and the mother stay with the head.
+fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Draft> {
     let derived = ["/gap", "/passive", "/adjectival"];
-    if draft.children.len() < 3
-        || draft.frame.is_none()
+    let Some(frame) = draft.frame else {
+        return Vec::new();
+    };
+    if draft.children.len() < 2
         || derived.iter().any(|d| draft.id.contains(d))
         || draft.children[0].name != "head"
-        || (serial && between.is_some())
     {
-        return None;
+        return Vec::new();
     }
-    let mut clustered = draft.clone();
-    let tag = match (serial, between) {
-        (true, _) => "clusters-serial",
-        (false, Some(_)) => "clusters-interleaved",
-        (false, None) => "clusters",
-    };
-    clustered.id = Ident::new(&format!("{}/{tag}", draft.id));
-    for child in &mut clustered.children[1..] {
-        child.gap = GapRule::Closed;
-    }
-    let mut offsets = Vec::new();
-    let mut push_copy = |clustered: &mut Draft| {
-        offsets.push(clustered.children.len() - 1);
-        for child in draft.children[1..].iter().cloned() {
-            clustered.child(child.name.as_ref(), child.symbol, GapRule::Closed);
-        }
-    };
-    if serial {
-        clustered.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-        push_copy(&mut clustered);
-        clustered.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-    }
-    if let Some(category) = between {
-        clustered.child(
-            "adjunct",
-            Symbol::Cat {
-                category,
-                binding: None,
-                prepositions: None,
-                host: None,
-            },
-            GapRule::Closed,
-        );
-    }
-    clustered.child(
-        "coordinator",
-        Symbol::Leaf(coordinator.clone()),
-        GapRule::Closed,
-    );
-    push_copy(&mut clustered);
+    let slots = draft.children.len() - 1;
     let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
-    for offset in offsets {
-        // A copied sequence's children follow the copy's position.
-        let copy = |i: usize| if i == 0 { 0 } else { i + offset };
-        let moved = |p: Path| match p {
-            Path::Child(i, f) => Path::Child(copy(i), f),
-            mother @ Path::Mother(_) => mother,
-        };
+    let on_head_or_mother = |p: &Path| !on_slot(p);
+    // A Slot's position in the Cluster, one less than in the phrase.
+    let into_cluster = |p: Path| match p {
+        Path::Child(i, f) => Path::Child(i - 1, f),
+        mother @ Path::Mother(_) => mother,
+    };
+    let symbol = |category| Symbol::Cat {
+        category,
+        binding: None,
+        prepositions: None,
+        host: None,
+    };
+    let mut out = Vec::new();
+    let adjuncts = [Some(None), categories.adjunct.map(Some)];
+    for adjunct in adjuncts.into_iter().flatten() {
+        if adjunct.is_none() && slots < 2 {
+            continue;
+        }
+        let tag = if adjunct.is_some() { "cluster+adjunct" } else { "cluster" };
+        let mut cluster = Draft::new(format!("{}/{tag}", draft.id), categories.cluster, 0);
+        for child in &draft.children[1..] {
+            cluster.child(child.name.as_ref(), child.symbol.clone(), GapRule::Closed);
+        }
+        if let Some(category) = adjunct {
+            cluster.child("adjunct", symbol(category), GapRule::Closed);
+        }
         for (path, target) in &draft.equations {
-            let target_on_slot = matches!(target, Target::Path(t) if on_slot(t));
-            if on_slot(path) || target_on_slot {
+            let target_on_slot = match target {
+                Target::Path(t) => on_slot(t),
+                Target::Value(_) => true,
+            };
+            if on_slot(path) && target_on_slot {
                 let target = match target {
-                    Target::Path(t) => Target::Path(moved(*t)),
+                    Target::Path(t) => Target::Path(into_cluster(*t)),
                     value @ Target::Value(_) => value.clone(),
                 };
-                clustered.equations.push((moved(*path), target));
+                cluster.equations.push((into_cluster(*path), target));
             }
         }
         for (list, original) in [
-            (&mut clustered.exclusions, &draft.exclusions),
-            (&mut clustered.carried, &draft.carried),
+            (&mut cluster.exclusions, &draft.exclusions),
+            (&mut cluster.carried, &draft.carried),
         ] {
             list.extend(
                 original
                     .iter()
                     .filter(|(i, ..)| *i > 0)
-                    .map(|&(i, f, v)| (copy(i), f, v)),
+                    .map(|&(i, f, v)| (i - 1, f, v)),
             );
         }
-        clustered.weights.extend(
+        cluster.weights.extend(
             draft
                 .weights
                 .iter()
                 .filter(|(i, _)| *i > 0)
-                .map(|&(i, w)| (copy(i), w)),
+                .map(|&(i, w)| (i - 1, w)),
         );
+        cluster.cluster = Some(frame);
+        out.push(cluster);
     }
-    clustered.predicative = None;
-    Some(clustered)
+    if out.is_empty() {
+        return out;
+    }
+    let mut whole = Draft::new(format!("{}/clusters", draft.id), draft.lhs, draft.cost);
+    whole.child("head", draft.children[0].symbol.clone(), GapRule::Closed);
+    let at = whole.child("clusters", symbol(categories.coordination), GapRule::Closed);
+    for (path, target) in &draft.equations {
+        let target_on_head_or_mother = match target {
+            Target::Path(t) => on_head_or_mother(t),
+            Target::Value(_) => true,
+        };
+        if on_head_or_mother(path) && target_on_head_or_mother {
+            whole.equations.push((*path, target.clone()));
+        }
+    }
+    for (list, original) in [
+        (&mut whole.exclusions, &draft.exclusions),
+        (&mut whole.carried, &draft.carried),
+    ] {
+        list.extend(original.iter().filter(|(i, ..)| *i == 0).copied());
+    }
+    whole
+        .weights
+        .extend(draft.weights.iter().filter(|(i, _)| *i == 0).copied());
+    whole.scoped.extend(draft.scoped.iter().filter(|i| **i == 0));
+    whole.frame = Some(frame);
+    whole.clusters = Some((at, frame));
+    out.push(whole);
+    out
 }
 
 fn equation_path(equation: &Equation) -> &str {
