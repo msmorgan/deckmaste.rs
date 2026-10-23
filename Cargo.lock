@@ -801,6 +801,7 @@ name = "deckmaste_syntax"
 version = "0.1.0"
 dependencies = [
  "deckmaste_lexical",
+ "deckmaste_syntax",
  "dpsi",
  "ron",
  "serde",

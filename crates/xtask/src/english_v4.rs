@@ -185,7 +185,7 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         .collect::<Result<Vec<_>>>()?;
     let env = LexicalEnvironment::load().context("loading the v4 lexical environment")?;
     let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames)?;
-    let frame = deckmaste_english_v4::segment_frame(&grammar)?;
+    let frame = deckmaste_english_v4::segments::segment_frame(&grammar)?;
     let judge = Judge {
         grammar: &grammar,
         lexicon: &env.lexicon,
@@ -228,14 +228,14 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         writeln!(output, "Vocabulary gaps: {:?}", parse.vocabulary_gaps)?;
         let derivations = parse.derivation_count();
         writeln!(output, "Packed Forest derivations: {derivations}")?;
-        let segmentation = parse.segments(&frame);
+        let segmentation = deckmaste_english_v4::segments::segments(&parse, &frame);
         let segments = match &segmentation {
-            deckmaste_syntax::Segmentation::Segments(segments) => segments
+            deckmaste_english_v4::segments::Segmentation::Segments(segments) => segments
                 .iter()
                 .map(|s| format!("{} {:?}", s.derivations, s.text))
                 .collect::<Vec<_>>()
                 .join(" | "),
-            deckmaste_syntax::Segmentation::NotSegmentable(why) => {
+            deckmaste_english_v4::segments::Segmentation::NotSegmentable(why) => {
                 format!("not segmentable: {why:?}")
             }
         };
@@ -249,13 +249,13 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
             )?,
             None => writeln!(output, "Cheapest tier: none")?,
         }
-        for (index, reading) in parse.best_readings(args.limit).iter().enumerate() {
+        for (index, (key, reading)) in parse.best_ranked(args.limit).iter().enumerate() {
             parse.admit(reading, &env.lexicon)?;
             dump_reading(
                 &grammar,
                 &env,
+                *key,
                 reading,
-                &judgment::scope(&entry),
                 index + 1,
                 output,
             )?;
@@ -268,8 +268,8 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
 fn dump_reading(
     grammar: &deckmaste_syntax::CompiledGrammar,
     env: &LexicalEnvironment,
+    key: deckmaste_syntax::RankingKey,
     reading: &deckmaste_syntax::Reading,
-    scope: &std::collections::BTreeSet<deckmaste_lexical::LexemeId>,
     number: usize,
     output: &mut dyn Write,
 ) -> Result<()> {
@@ -278,7 +278,7 @@ fn dump_reading(
         output,
         "Reading {} (ranking key {}): {text:?}",
         number,
-        format_key(grammar.ranking_key(reading, &env.lexicon, scope)?)
+        format_key(key)
     )?;
     let mut nodes = Vec::new();
     preorder_nodes(reading, &mut nodes);

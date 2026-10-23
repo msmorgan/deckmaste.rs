@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 /// Results by forest node, and the current path of open nodes.
-pub(crate) struct NodeMemo<T> {
+pub struct NodeMemo<T> {
     done: HashMap<usize, T>,
     path: HashSet<usize>,
     /// Whether the walk met a cycle since the innermost open node or item
@@ -31,7 +31,7 @@ impl<T> Default for NodeMemo<T> {
 }
 
 /// What a walk does with a node it reaches.
-pub(crate) enum Visit<T> {
+pub enum Visit<T> {
     /// Its result is known.
     Known(T),
     /// It is on the current path: no Derivation reaches it again here.
@@ -41,13 +41,13 @@ pub(crate) enum Visit<T> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct Frame {
+pub struct Frame {
     node: usize,
     outer: bool,
 }
 
 impl<T: Clone> NodeMemo<T> {
-    pub(crate) fn enter(&mut self, node: usize) -> Visit<T> {
+    pub fn enter(&mut self, node: usize) -> Visit<T> {
         if let Some(value) = self.done.get(&node) {
             return Visit::Known(value.clone());
         }
@@ -62,7 +62,7 @@ impl<T: Clone> NodeMemo<T> {
     }
 
     /// Closes an open node with its result, memoized if no cycle lies below it.
-    pub(crate) fn leave(&mut self, frame: Frame, value: &T) {
+    pub fn leave(&mut self, frame: Frame, value: &T) {
         self.path.remove(&frame.node);
         if self.settle(frame.outer) {
             self.done.insert(frame.node, value.clone());
@@ -71,13 +71,13 @@ impl<T: Clone> NodeMemo<T> {
 
     /// Starts a result that is not a node's (an item's), for
     /// [`NodeMemo::settle`].
-    pub(crate) fn mark(&mut self) -> bool {
+    pub fn mark(&mut self) -> bool {
         std::mem::replace(&mut self.cyclic, false)
     }
 
     /// Ends a result begun by [`NodeMemo::mark`]: whether no cycle lies below
     /// it, so that it may be memoized.
-    pub(crate) fn settle(&mut self, mark: bool) -> bool {
+    pub fn settle(&mut self, mark: bool) -> bool {
         let clean = !self.cyclic;
         self.cyclic |= mark;
         clean
@@ -88,9 +88,9 @@ impl<T: Clone> NodeMemo<T> {
 /// Derivations, so each item's result is built once; like a node's, it is
 /// kept only when no cycle lies below it ([`NodeMemo::mark`] and
 /// [`NodeMemo::settle`]).
-pub(crate) struct ForestMemo<N, I> {
-    pub(crate) nodes: NodeMemo<N>,
-    pub(crate) items: HashMap<usize, I>,
+pub struct ForestMemo<N, I> {
+    pub nodes: NodeMemo<N>,
+    pub items: HashMap<usize, I>,
 }
 
 impl<N, I> Default for ForestMemo<N, I> {

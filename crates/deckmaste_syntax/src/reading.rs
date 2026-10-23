@@ -118,7 +118,9 @@ impl Parse<'_> {
             .fold(0u128, u128::saturating_add)
     }
 
-    fn count_node(&self, node: usize, memo: &mut ForestMemo<u128, u128>) -> u128 {
+    /// The Derivations of a completed Constituent.
+    #[must_use]
+    pub fn count_node(&self, node: usize, memo: &mut ForestMemo<u128, u128>) -> u128 {
         let frame = match memo.nodes.enter(node) {
             Visit::Known(count) => return count,
             Visit::Cycle => return 0,
@@ -439,36 +441,6 @@ pub(crate) struct ChildFacts {
     pub high_attachment: bool,
 }
 
-/// What computing a Reading's key from its tree reads: its realized text
-/// and Constituents.
-struct KeyContext<'r> {
-    lexicon: &'r Lexicon,
-    /// The card-name Lexemes the Reading's text is in the scope of.
-    scope: &'r BTreeSet<LexemeId>,
-    text: &'r str,
-    constituents: &'r [Constituent],
-}
-
-impl KeyContext<'_> {
-    /// The words of Constituent `index`.
-    fn words(&self, index: usize) -> u64 {
-        self.text_words(
-            self.constituents[index].span.start,
-            self.constituents[index].span.end,
-        )
-    }
-
-    /// The words of the realized text between two byte offsets.
-    fn text_words(&self, start: usize, end: usize) -> u64 {
-        u64::try_from(
-            self.text
-                .get(start..end)
-                .map_or(0, |text| text.split_whitespace().count()),
-        )
-        .unwrap_or(u64::MAX)
-    }
-}
-
 /// A forest node's or item's cheapest tier: its least key and how many
 /// Derivations have it.
 type Tier = Option<(RankingKey, u128)>;
@@ -492,141 +464,6 @@ fn truncate<T: Ord>(set: BTreeSet<(RankingKey, T)>, limit: Option<usize>) -> Vec
 }
 
 impl CompiledGrammar {
-    /// A Reading's Ranking Key, computed from the tree: the sum of its
-    /// Productions' keys and of the Right Association words each of its
-    /// children adds, counted on the Reading's realized text. `scope` is the
-    /// card-name scope its text was analyzed in.
-    ///
-    /// # Errors
-    /// The Reading cannot be realized with this lexicon.
-    pub fn ranking_key(
-        &self,
-        reading: &Reading,
-        lexicon: &Lexicon,
-        scope: &BTreeSet<LexemeId>,
-    ) -> Result<RankingKey, AdmissionError> {
-        let (text, constituents) = self.constituents(reading, lexicon)?;
-        let context = KeyContext {
-            lexicon,
-            scope,
-            text: &text,
-            constituents: &constituents,
-        };
-        let mut at = 0;
-        self.key_of(reading, &context, &mut at)
-    }
-
-    /// The key of the Reading whose root is Constituent `*at` in preorder.
-    fn key_of(
-        &self,
-        reading: &Reading,
-        context: &KeyContext<'_>,
-        at: &mut usize,
-    ) -> Result<RankingKey, AdmissionError> {
-        let Reading::Node(node) = reading else {
-            return Ok(RankingKey::default());
-        };
-        let me = *at;
-        *at += 1;
-        let Some(&production) = self.by_id.get(&node.production) else {
-            return Ok(RankingKey::default());
-        };
-        let mut key = self.production_key(production);
-        // Each Node child's preorder index, by its position among the
-        // children.
-        let mut indices = Vec::with_capacity(node.children.len());
-        for child in &node.children {
-            indices.push(child.node().map(|_| *at));
-            key = key + self.key_of(child, context, at)?;
-        }
-        let names = self.child_names(node);
-        let positions: Vec<usize> = self.productions[production]
-            .rhs
-            .iter()
-            .enumerate()
-            .filter(|(_, symbol)| !matches!(symbol, Symbol::Punct(..)))
-            .map(|(i, _)| i)
-            .collect();
-        for (child, &at) in node.children.iter().zip(&positions) {
-            if let Reading::Leaf(leaf) = child {
-                key = key + self.leaf_key(production, at, self.scoped(leaf, context.scope));
-            }
-        }
-        let first = names
-            .iter()
-            .position(|name| name.as_str() == "first")
-            .and_then(|i| Some((indices[i]?, &node.children[i])));
-        let head = match names.iter().position(|name| name.as_str() == "head") {
-            Some(i) => match &node.children[i] {
-                Reading::Node(_) => indices[i].map(|index| context.words(index)),
-                leaf @ Reading::Leaf(_) => Some(self.leaf_words(leaf, context.lexicon)?),
-            },
-            None => None,
-        };
-        let start = context.constituents[me].span.start;
-        for (i, child) in node.children.iter().enumerate() {
-            let Some(index) = indices[i] else {
-                continue;
-            };
-            let facts = ChildFacts {
-                words: context.words(index),
-                coordination: self.is_coordination(child),
-                head_final: self.head_final(child),
-                high_attachment: self.is_high_attachment(child),
-            };
-            key = key
-                + self.attachment_key(
-                    production,
-                    positions[i],
-                    facts,
-                    || head,
-                    || first.map(|(index, first)| (context.words(index), self.head_final(first))),
-                    || context.text_words(start, context.constituents[index].span.start),
-                );
-        }
-        Ok(key)
-    }
-
-    /// Whether a Reading is formed by a coordination.
-    fn is_coordination(&self, reading: &Reading) -> bool {
-        reading.node().is_some_and(|node| {
-            self.by_id
-                .get(&node.production)
-                .is_some_and(|&p| self.productions[p].coordinator.is_some())
-        })
-    }
-
-    /// Whether a Reading ends in its head: its last child is in the head line
-    /// and ends in its head (a leaf does), as the chart tracks it.
-    fn head_final(&self, reading: &Reading) -> bool {
-        let Reading::Node(node) = reading else {
-            return true;
-        };
-        let Some(&p) = self.by_id.get(&node.production) else {
-            return false;
-        };
-        let production = &self.productions[p];
-        let last = production
-            .rhs
-            .iter()
-            .enumerate()
-            .filter(|(_, symbol)| !matches!(symbol, Symbol::Punct(..)))
-            .map(|(i, _)| i)
-            .zip(&node.children)
-            .last();
-        last.is_some_and(|(position, child)| {
-            production.head_line[position] && self.head_final(child)
-        })
-    }
-
-    /// Whether a Reading attaches high by its Attachment Class.
-    fn is_high_attachment(&self, reading: &Reading) -> bool {
-        reading.node().is_some_and(|node| {
-            self.category_id(node.category.as_str())
-                .is_some_and(|category| self.attaches_high(&node.features, category))
-        })
-    }
-
     /// Whether a Constituent of `category` with these features attaches high
     /// by its Attachment Class: the grammar declares its Category with a
     /// value it carries in `high_attachment` (a Preposition Phrase whose
@@ -637,13 +474,6 @@ impl CompiledGrammar {
             .any(|(declared, feature, value)| {
                 self.categories[category] == *declared && features.get(feature) == Some(value)
             })
-    }
-
-    /// The words a leaf realizes.
-    fn leaf_words(&self, leaf: &Reading, lexicon: &Lexicon) -> Result<u64, AdmissionError> {
-        let mut atoms = Vec::new();
-        self.atoms(leaf, lexicon, &mut atoms, &mut |_, _| {})?;
-        Ok(u64::try_from(join(&atoms).0.split_whitespace().count()).unwrap_or(u64::MAX))
     }
 
     /// The Attachment Class and Right Association words
@@ -1134,7 +964,7 @@ impl CompiledGrammar {
 
     /// The names of a node's children, in order: the grammatical function
     /// each bears in it.
-    fn child_names(&self, node: &ReadingNode) -> Vec<Ident> {
+    pub(crate) fn child_names(&self, node: &ReadingNode) -> Vec<Ident> {
         self.by_id
             .get(&node.production)
             .map_or_else(Vec::new, |&p| {
@@ -1174,7 +1004,7 @@ impl CompiledGrammar {
 
     /// Pushes a Reading's atoms (text, binding, punctuation) in order, and
     /// reports each node's preorder index with its atom range.
-    fn atoms(
+    pub(crate) fn atoms(
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
@@ -1303,250 +1133,4 @@ pub(crate) fn with_before(binding: Binding) -> Binding {
 }
 pub(crate) fn with_after(binding: Binding) -> Binding {
     if glues_before(binding) { Binding::Bound } else { Binding::Prefix }
-}
-
-/// A grammar's outer structure, which delimits a parse's Segments: the
-/// Categories a Segment walk descends through, and the structural
-/// punctuation it ignores at a Segment's edges.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SegmentFrame {
-    outer: BTreeSet<usize>,
-    edges: Vec<char>,
-}
-
-impl CompiledGrammar {
-    /// Resolves an outer structure by Category name.
-    ///
-    /// # Errors
-    /// A name that is not a Category of this grammar.
-    pub fn segment_frame(
-        &self,
-        outer: &[&str],
-        edges: &[char],
-    ) -> Result<SegmentFrame, crate::LoadError> {
-        let outer = outer
-            .iter()
-            .map(|name| {
-                self.category_id(name).ok_or_else(|| {
-                    crate::LoadError::Invalid(format!("unknown outer category `{name}`"))
-                })
-            })
-            .collect::<Result<_, _>>()?;
-        Ok(SegmentFrame {
-            outer,
-            edges: edges.to_vec(),
-        })
-    }
-}
-
-/// A top-level stretch of a parse and its Derivations.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct Segment {
-    /// Its extent in the analyzed text, in chars, without structural
-    /// punctuation or spaces at its edges.
-    pub span: Range<usize>,
-    pub text: String,
-    /// The Derivations of everything the walk reached at this extent.
-    pub derivations: u128,
-}
-
-/// A parse's Segments, or why it has none.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum Segmentation {
-    /// One segmentation whose counts multiply to the parse's Derivations;
-    /// empty when there is no Derivation.
-    Segments(Vec<Segment>),
-    NotSegmentable(NotSegmentable),
-}
-
-/// Why a parse has no Segments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub enum NotSegmentable {
-    /// Its Derivations divide the text into Segments in more than one way,
-    /// or in more ways than the walk keeps.
-    Segmentations,
-    /// One segmentation, under more than one outer structure: the Segments'
-    /// counts do not multiply to the Derivations.
-    NonProduct,
-}
-
-impl Segmentation {
-    /// Σ(nᵢ − 1) over the Segments' Derivations; for a parse with no
-    /// Segments, its Derivations less one.
-    #[must_use]
-    pub fn surplus(&self, derivations: u128) -> u128 {
-        match self {
-            Self::Segments(segments) if !segments.is_empty() => segments
-                .iter()
-                .map(|s| s.derivations.saturating_sub(1))
-                .fold(0u128, u128::saturating_add),
-            _ => derivations.saturating_sub(1),
-        }
-    }
-}
-
-/// The most segmentations a node or item keeps before the walk gives up.
-const SEGMENTATION_BOUND: usize = 64;
-
-/// Raw extents, in order, of one way to divide a span into Segments.
-type Segmentations = BTreeSet<Vec<(usize, usize)>>;
-
-/// What a Segment walk reached below the outer structure.
-#[derive(Default)]
-struct Reached {
-    nodes: BTreeSet<usize>,
-    leaves: BTreeSet<usize>,
-    overflow: bool,
-}
-
-impl Parse<'_> {
-    /// The parse's Segments: the walk descends from the roots through the
-    /// frame's outer Categories, and the first Constituent on each path of
-    /// another Category, or a leaf of an outer Production, is a Segment.
-    /// Segments are identified by extent alone, so two Categories over one
-    /// extent are Ambiguity inside one Segment. A sentence sequence nested
-    /// in a Segment stays in it and multiplies into its count.
-    #[must_use]
-    pub fn segments(&self, frame: &SegmentFrame) -> Segmentation {
-        let derivations = self.derivation_count();
-        if derivations == 0 {
-            return Segmentation::Segments(Vec::new());
-        }
-        let mut reached = Reached::default();
-        let mut memo: ForestMemo<Segmentations, Segmentations> = ForestMemo::default();
-        let mut all = Segmentations::new();
-        for &root in &self.forest.roots {
-            all.extend(self.segment_node(root, frame, &mut reached, &mut memo));
-        }
-        let trimmed: BTreeSet<Vec<(usize, usize)>> = all
-            .iter()
-            .map(|raw| {
-                raw.iter()
-                    .map(|&(start, end)| self.trim(start, end, frame))
-                    .filter(|&(start, end)| start < end)
-                    .collect()
-            })
-            .collect();
-        let mut trimmed = trimmed.into_iter();
-        let (Some(only), None, false) = (trimmed.next(), trimmed.next(), reached.overflow) else {
-            return Segmentation::NotSegmentable(NotSegmentable::Segmentations);
-        };
-        let mut counts: BTreeMap<(usize, usize), u128> = BTreeMap::new();
-        let mut count_memo = ForestMemo::default();
-        for &node in &reached.nodes {
-            let n = &self.forest.nodes[node];
-            let count = self.count_node(node, &mut count_memo);
-            let entry = counts.entry(self.trim(n.start, n.end, frame)).or_default();
-            *entry = entry.saturating_add(count);
-        }
-        for &leaf in &reached.leaves {
-            let l = &self.forest.leaves[leaf];
-            let entry = counts.entry(self.trim(l.start, l.end, frame)).or_default();
-            *entry = entry.saturating_add(1);
-        }
-        let segments: Vec<Segment> = only
-            .into_iter()
-            .map(|(start, end)| Segment {
-                span: start..end,
-                text: self.tokens[start..end].iter().collect(),
-                derivations: counts.get(&(start, end)).copied().unwrap_or(0),
-            })
-            .collect();
-        let product = segments
-            .iter()
-            .map(|s| s.derivations)
-            .fold(1u128, u128::saturating_mul);
-        if product == derivations {
-            Segmentation::Segments(segments)
-        } else {
-            Segmentation::NotSegmentable(NotSegmentable::NonProduct)
-        }
-    }
-
-    /// An extent without the frame's edge punctuation and spaces.
-    fn trim(&self, mut start: usize, mut end: usize, frame: &SegmentFrame) -> (usize, usize) {
-        let edge = |c: char| c.is_whitespace() || frame.edges.contains(&c);
-        while start < end && edge(self.tokens[start]) {
-            start += 1;
-        }
-        while end > start && edge(self.tokens[end - 1]) {
-            end -= 1;
-        }
-        (start, end)
-    }
-
-    fn segment_node(
-        &self,
-        node: usize,
-        frame: &SegmentFrame,
-        reached: &mut Reached,
-        memo: &mut ForestMemo<Segmentations, Segmentations>,
-    ) -> Segmentations {
-        let n = &self.forest.nodes[node];
-        if !frame.outer.contains(&n.category) {
-            reached.nodes.insert(node);
-            return Segmentations::from([vec![(n.start, n.end)]]);
-        }
-        let open = match memo.nodes.enter(node) {
-            Visit::Known(segmentations) => return segmentations,
-            Visit::Cycle => return Segmentations::new(),
-            Visit::Open(open) => open,
-        };
-        let mut out = Segmentations::new();
-        for &(_, item) in &n.families {
-            out.extend(self.segment_item(item, frame, reached, memo));
-        }
-        bound(&mut out, reached);
-        memo.nodes.leave(open, &out);
-        out
-    }
-
-    fn segment_item(
-        &self,
-        item: usize,
-        frame: &SegmentFrame,
-        reached: &mut Reached,
-        memo: &mut ForestMemo<Segmentations, Segmentations>,
-    ) -> Segmentations {
-        if let Some(known) = memo.items.get(&item) {
-            return known.clone();
-        }
-        let mark = memo.nodes.mark();
-        let mut out = Segmentations::new();
-        for &(previous, child) in &self.forest.items[item].families {
-            let before = match previous {
-                None => Segmentations::from([Vec::new()]),
-                Some(p) => self.segment_item(p, frame, reached, memo),
-            };
-            let here = match child {
-                ChildRef::Node(n) => self.segment_node(n, frame, reached, memo),
-                ChildRef::Leaf(l) => {
-                    reached.leaves.insert(l);
-                    let leaf = &self.forest.leaves[l];
-                    Segmentations::from([vec![(leaf.start, leaf.end)]])
-                }
-                ChildRef::Punct => Segmentations::from([Vec::new()]),
-            };
-            for b in &before {
-                for h in &here {
-                    let mut joined = b.clone();
-                    joined.extend(h.iter().copied());
-                    out.insert(joined);
-                }
-            }
-            bound(&mut out, reached);
-        }
-        if memo.nodes.settle(mark) {
-            memo.items.insert(item, out.clone());
-        }
-        out
-    }
-}
-
-/// Keeps a walk's segmentations within [`SEGMENTATION_BOUND`].
-fn bound(segmentations: &mut Segmentations, reached: &mut Reached) {
-    while segmentations.len() > SEGMENTATION_BOUND {
-        reached.overflow = true;
-        segmentations.pop_last();
-    }
 }

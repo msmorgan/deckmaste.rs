@@ -10,7 +10,6 @@ use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::FrameCatalog;
 use deckmaste_syntax::Grammar;
 use deckmaste_syntax::LoadError;
-use deckmaste_syntax::SegmentFrame;
 
 /// The Oracle English grammar data file.
 pub const GRAMMAR: &str = include_str!("../grammar/english.ron");
@@ -56,15 +55,8 @@ pub const OUTER_CATEGORIES: &[&str] = &[
 /// Structural punctuation a Segment's extent ignores at its edges.
 pub const SEGMENT_EDGES: &[char] = &['.', '•', '—', ':', '|', ','];
 
-/// The Oracle English outer structure, resolved in a bound grammar.
-///
-/// # Errors
-/// An outer Category the grammar does not declare.
-pub fn segment_frame(grammar: &CompiledGrammar) -> Result<SegmentFrame, LoadError> {
-    grammar.segment_frame(OUTER_CATEGORIES, SEGMENT_EDGES)
-}
-
 pub mod corpus;
+pub mod segments;
 pub mod judgment;
 pub mod profile;
 

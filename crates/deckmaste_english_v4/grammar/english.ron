@@ -129,7 +129,10 @@
         "AdjunctGapClause": (category: Some("Clause"), features: ["VerbForm"], gap: true),
         // A finite clause that opens with its Subject, as a bare relative's
         // does: no preposed adjunct comes before it (CGEL, Ch. 12 §3.5.5,
-        // p. 1055).
+        // p. 1055). A kept gate (ADR english-v4.md §4.4 item 10): "Bare
+        // relatives always have the subject in initial position", so the
+        // Category restates the Clause Productions that open with the Subject
+        // and omits those that front an adjunct.
         "SubjectInitialClause": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
         // A participle premodifying a nominal (*attacking creature*).
         "Participle": (category: Some("VerbPhrase"), features: ["Inflection"]),
@@ -566,7 +569,7 @@
         // noun heads the same Quality, as a colour word's conversion does
         // (*protection from red*; CGEL, Ch. 19 §3.3, p. 1642; Ch. 5 §9.3,
         // p. 417), the adjective ranks behind it.
-        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], cost: 4),
+        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], cost: 1),
         // Another card's full name costs one more than the face's own name,
         // so the face's own Shortened Name [CR#201.5c] ranks first where the
         // two are spelled alike (*Nicol Bolas* on Nicol Bolas, the Ravager).
