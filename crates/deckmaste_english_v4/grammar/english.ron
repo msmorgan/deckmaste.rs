@@ -62,9 +62,9 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Cost", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Intransitive", "AmountOrNP"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Cost", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
         // quantificational noun (*any number of target creatures*; CGEL,
         // Ch. 5 §3.3, pp. 349–351) that TransparentQuantity, TargetedQuantity
@@ -80,6 +80,10 @@
         // Manner Adjunct without a governing preposition (*do it this way*;
         // CGEL, Ch. 8 §2.1, p. 671); MannerAdjunct reads it.
         "NounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
+        // A noun whose values are cited names, the variable of a specifying
+        // copular clause (*the new creature type can't be Wall*; CGEL, Ch. 4
+        // §5.5, pp. 266-269): *type*. Carried by the Noun Phrase it heads.
+        "Variable": ["Cited"],
         // The NounKind of a head's *of* oblique.
         "ObliqueNounKind": ["Ordinary", "Temporal", "Manner", "Numeric", "Quantity"],
         "Determination": ["Bare", "Overt"],
@@ -252,14 +256,14 @@
         // A noun's Amount Complement is a Nominal dependent, so a slash
         // Measure is shared only by coordinated Nominals (*base power and
         // toughness 4/4*): a Noun Phrase never passes up a Measure Gap.
-        "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "FirstConjunctNumber"], gap: true, closed_gaps: ["Measure"]),
+        "NounPhrase": (features: ["Variable", "Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "FirstConjunctNumber"], gap: true, closed_gaps: ["Measure"]),
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
-        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], gap: true),
+        "Nominal": (features: ["Variable", "Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], gap: true),
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         // A temporal nominal bounded by a relative clause (*next time you cast a
@@ -272,7 +276,7 @@
         // bounded durations). RelativeTime and RelativeTimePostmodifier
         // restate NominalPostmodifier and TemporalPostmodifier for that reason.
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
-        "BareNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "CompoundPart"], gap: true),
+        "BareNominal": (category: Some("Nominal"), features: ["Variable", "Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "CompoundPart"], gap: true),
         "NounPremodifier": (category: Some("Nominal"), features: ["Polarity"]),
         // A Word-Part Coordination of Compound Nouns that share their head
         // word (*a +1/+1, first strike, or vigilance counter*), and each of
@@ -460,6 +464,8 @@
         // and *Wall* in *other than Wall*. It fills only a slot a head's
         // frame selects, never an ordinary Noun Phrase's.
         "Mention": (),
+        "MentionModifier": (),
+        "QuotedCost": (),
         // An interrogative content clause (CGEL, Ch. 11 §5.1, pp. 972–973).
         "InterrogativeClause": (category: Some("Clause")),
         // An interrogative phrase with *which* (*which creatures*).
@@ -674,6 +680,17 @@
         // legendary creatures."*), never a term's.
         (name: "QuotedKeywordPremodifier", lhs: "BareNominal", rhs: [Quoted("modifier", "KeywordPhrase"), Cat("head", "BareNominal")], equations: [Exclude("modifier.FinalParameter", "SetOffAbility"), Exclude("modifier.FinalParameter", "Cost")]),
         (name: "QuotedNominal", lhs: "BareNominal", rhs: [Quoted("head", "BareNominal")], equations: [Require("head.Number", "Singular")]),
+        // A quoted imperative names the cost it states (*cost an additional
+        // "Sacrifice a land" to activate*; [CR#118.8]): the clause is
+        // mentioned, not used, as the quoted term of QuotedNominal is (CGEL,
+        // Ch. 5 §8.2, p. 401; Ch. 20 §6, p. 1753), and has no period of its
+        // own (style guide §3, Quotation marks and apostrophes). It is a
+        // singular count noun that a modifier premodifies, never a Conjunct
+        // of its own: any other quoted clause is a granted ability's
+        // (QuotedAbility).
+        (name: "QuotedCost", lhs: "QuotedCost", rhs: [Quoted("head", "Clause")], equations: [Carry("head.VerbForm", "Plain")]),
+        (name: "QuotedCostPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "QuotedCost")],
+            equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative"), Agree("modifier.Determination", "$.Determination"), Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
 
         (name: "TextSymbols", lhs: "Document", rhs: [Cat("head", "Symbols")]),
         // A symbol sequence is also a noun under a determiner (*each {B} in a
@@ -857,6 +874,34 @@
                 Require("$.ClauseMarking", "Unmarked"),
             ],
             transparent: ["head"]),
+        // A specifying copular clause names the value of the variable its
+        // Subject's head noun denotes: *type* has cited names as values (*the
+        // new creature type can't be Wall*; CGEL, Ch. 4 §5.5, pp. 266-269),
+        // so only a Subject headed by such a noun takes a subtype name as
+        // the value, never a Noun Phrase after any copular verb.
+        (name: "SpecifyingClause", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Class("head", "BeVerb"), Class("value", "Subtype")],
+            equations: [
+                Carry("subject.Variable", "Cited"),
+                Require("value.Number", "Singular"),
+                Agree("subject.Number", "head.Number"),
+                Agree("subject.Person", "head.Person"),
+                Require("head.VerbForm", "Finite"),
+                Exclude("subject.Case", "Accusative"),
+                Exclude("subject.Case", "Genitive"),
+                Require("$.ClauseMarking", "Unmarked"),
+            ]),
+        (name: "SpecifyingModalClause", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Class("head", "StrandableModal"), Class("be", "BeVerb"), Class("value", "Subtype")],
+            equations: [
+                Carry("subject.Variable", "Cited"),
+                Require("value.Number", "Singular"),
+                Require("head.VerbForm", "Finite"),
+                Require("be.VerbForm", "Plain"),
+                Agree("subject.Number", "head.Number"),
+                Agree("subject.Person", "head.Person"),
+                Exclude("subject.Case", "Accusative"),
+                Exclude("subject.Case", "Genitive"),
+                Require("$.ClauseMarking", "Unmarked"),
+            ]),
         // A bound auxiliary clitic (*'s*, *'re*, *'ve*, *'m*) has a
         // nominative pronoun host (*it's*, *you're*, *they've*).
         // Restated as RelativeCliticSubjectPredicate; a change to one must be
@@ -1636,7 +1681,17 @@
         // nonland*; CGEL, Ch. 5 §8.2, p. 401): bare and singular, whatever its
         // countability, since it names the word, not what the word denotes.
         (name: "WordMention", lhs: "Mention", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular")]),
-        (name: "NegativeMention", lhs: "Mention", rhs: [Lex("prefix", Affix), Cat("head", "Mention")], uncoordinated: ["head"]),
+        (name: "NegativeMention", lhs: "Mention", rhs: [Lex("prefix", Affix), Cat("head", "Mention")], uncoordinated: ["head"], light: ["head"]),
+        // A cited noun premodified by an attributive adjective or by a
+        // cited word with *non-* is a composite nominal (*choose white
+        // Citizen*, *non-Aura enchantment*; CGEL, Ch. 5 §14.4, pp. 448-450).
+        // Only those modify: a cited noun before a cited noun (*choose
+        // target creature*) is an ordinary Noun Phrase. The head is one word,
+        // so that a longer term is left-branching, one tree.
+        (name: "CompoundMention", lhs: "Mention", rhs: [Cat("modifier", "MentionModifier"), Cat("head", "Mention")], uncoordinated: ["head"], light: ["head"]),
+        (name: "AdjectiveMentionModifier", lhs: "MentionModifier", rhs: [Cat("head", "AdjectivePhrase")], light: ["head"],
+            equations: [Require("head.ComplementKind", "Intransitive"), Exclude("head.AdjectivePosition", "Predicative")]),
+        (name: "NegativeMentionModifier", lhs: "MentionModifier", rhs: [Lex("prefix", Affix), Cat("head", "Mention")], uncoordinated: ["head"], light: ["head"]),
         // A count noun prefixed by *non-* heads a nominal, naming what is not
         // of its kind (*four or more nonlands*; CGEL, Ch. 19 §5.5.1, p. 1689:
         // *non-member*, *non-resident*): one noun, never a compound under the

@@ -500,6 +500,7 @@ impl Sources {
                 countability: vec![deckmaste_lexical::Countability::Count],
                 plural: None,
                 frames: Vec::new(),
+                variable: false,
             };
             builder.noun(&id, &entry, catalog(COUNTERS, &id));
             // A counter's name is its kind, the first base of its Compound
