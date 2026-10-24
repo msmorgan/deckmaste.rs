@@ -770,15 +770,6 @@
         (name: "PawprintSequence", lhs: "Pawprints", rhs: [Class("first", "Pawprint"), Attached("rest", "Pawprints", Suffix)]),
         (name: "SingleSentence", lhs: "Sentences", rhs: [Cat("head", "Sentence")]),
         (name: "SentenceSequence", lhs: "Sentences", rhs: [Cat("first", "Sentence"), Cat("rest", "Sentences")]),
-        // A whole sentence Bracketed: set in the square brackets that mark
-        // the text a cleave spell cast for its cleave cost removes
-        // [CR#702.148a] (*Draw
-        // three cards. [Your maximum hand size is reduced by three for the
-        // rest of the game.]*; `docs/oracle-style-guide.md` §3, Bullets,
-        // vertical bars, and square brackets): its period is inside the
-        // brackets, since it goes with the sentence. The engine derives a Bracketed
-        // unselected dependent itself.
-        (name: "BracketedSentence", lhs: "Sentence", rhs: [Mark('[', Prefix), Cat("head", "Sentence"), Punct(']')], cost: 0),
         (name: "SentenceEffect", lhs: "Effect", rhs: [Cat("head", "Sentences")]),
         (name: "ModeInstruction", lhs: "ModeEffect", rhs: [Cat("head", "Effect")]),
         (name: "ModeMeasure", lhs: "ModeEffect", rhs: [Cat("head", "Measure"), Punct('.')]),

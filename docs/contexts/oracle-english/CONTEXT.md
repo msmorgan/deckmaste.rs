@@ -466,14 +466,19 @@ writes the period or comma that follows a quotation inside its closing mark
 (*has "A" and flying.*, *"A," "B," and "C."*; `docs/oracle-style-guide.md` §3,
 Periods; Quotation marks and apostrophes).
 
-**Bracketed Constituent**:
-A Modifier, an Adjunct or a whole sentence set in square brackets: the
-Bracketed text (Game Model) that a cleave spell cast for its cleave cost
-removes ([CR#702.148a]; `docs/oracle-style-guide.md` §3, Bullets, vertical
-bars, and square brackets). It has the analysis it has without its brackets,
-and only a dependent its head does not select, or a whole sentence, can be
-removed and leave the text whole (*Destroy target [attacking] creature.*).
-_Avoid_: optional text (the brackets mark removal, not optionality)
+**Uncleaved Text**:
+A line of a cleave spell read without its square brackets, which are no
+Constituent: the Bracketed text (Game Model) that a cleave spell cast for its
+cleave cost removes ([CR#702.148a]; `docs/oracle-style-guide.md` §3, Bullets,
+vertical bars, and square brackets) stays in place, and the brackets are
+written back around it from outside any Reading.
+_Avoid_: Bracketed Constituent, optional text (the brackets mark removal, not
+optionality)
+
+**Cleaved Text**:
+A line of a cleave spell read with its Bracketed text removed, as the spell's
+text is when its cleave cost was paid ([CR#702.148a]). It is read as English
+of its own, beside the line's Uncleaved Text.
 
 **Serial Comma**:
 The comma written before the Coordinator of a flat Coordination of three or

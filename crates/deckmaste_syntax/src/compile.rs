@@ -137,13 +137,6 @@ pub struct CompiledGrammar {
     /// The grammar's `high_attachment` declarations: `(Category, feature,
     /// value)`.
     pub(crate) high_attachment: Vec<(Ident, Ident, Ident)>,
-    /// The Category of each Bracketed Constituent ([`Binder::bracketed`]),
-    /// by the Category it brackets.
-    pub(crate) bracketed: BTreeMap<usize, usize>,
-    /// The Productions that set a Constituent in square brackets: each
-    /// passes its function to its bracketed head, as a function Category
-    /// does.
-    pub(crate) brackets: BTreeSet<Ident>,
     pub(crate) prediction: crate::prediction::Prediction,
     report: LoadReport,
 }
@@ -803,8 +796,6 @@ impl<'a> Binder<'a> {
                 unadjoined_categories: BTreeSet::new(),
                 projected,
                 high_attachment: grammar.high_attachment.clone(),
-                bracketed: BTreeMap::new(),
-                brackets: BTreeSet::new(),
                 prediction: crate::prediction::Prediction::default(),
                 report,
             },
@@ -1608,81 +1599,9 @@ impl<'a> Binder<'a> {
         }
     }
 
-    /// Adds a Production, and a twin of it for each nonempty set of its
-    /// unselected dependents (`adjunct`, `modifier`) Bracketed: set in the
-    /// square brackets that mark the text a cleave spell removes when cast
-    /// for its cleave cost [CR#702.148a], which an approved keyword template
-    /// marks with literal square brackets (`docs/oracle-style-guide.md` §3,
-    /// Bullets, vertical bars, and square brackets). Only an unselected
-    /// dependent leaves its head's phrase whole when removed (*Destroy target
-    /// [attacking] creature*, *Counter target spell [that wasn't cast from
-    /// its owner's hand]*). The twin is the same analysis with its brackets
-    /// written, so the text reads with and without them, and realization
-    /// writes them back from structure.
-    fn add(&mut self, draft: Draft) -> Result<(), LoadError> {
-        self.record_holders(&draft);
-        let bracketable: Vec<usize> = draft
-            .children
-            .iter()
-            .enumerate()
-            .filter(|(_, c)| {
-                matches!(c.name.as_str(), "adjunct" | "modifier")
-                    && matches!(c.symbol, Symbol::Cat { binding: None, .. })
-            })
-            .map(|(at, _)| at)
-            .collect();
-        for set in 1..1_usize << bracketable.len() {
-            let mut twin = draft.clone();
-            let mut marked = Vec::new();
-            for (bit, &at) in bracketable.iter().enumerate() {
-                if set & 1 << bit == 0 {
-                    continue;
-                }
-                if let Symbol::Cat { category, .. } = &mut twin.children[at].symbol {
-                    *category = self.bracketed(*category)?;
-                }
-                marked.push(at.to_string());
-            }
-            twin.id = Ident::new(&format!("{}/[{}]", draft.id, marked.join(",")));
-            self.add_production(twin)?;
-        }
-        self.add_production(draft)
-    }
-
-    /// The Category of a Bracketed Constituent of `category`
-    /// ([`Binder::add`]): its one Production writes the brackets around its
-    /// `head`, which bears the bracketed Constituent's features, preposition
-    /// and Gap.
-    fn bracketed(&mut self, category: usize) -> Result<usize, LoadError> {
-        if let Some(&bracketed) = self.out.bracketed.get(&category) {
-            return Ok(bracketed);
-        }
-        let bracketed = self.private_category(category);
-        self.out.bracketed.insert(category, bracketed);
-        let mut draft = Draft::new(
-            format!("Bracketed:{}", self.out.categories[category]),
-            bracketed,
-            0,
-        );
-        draft.child("", Symbol::Punct('[', Binding::Prefix), GapRule::Closed);
-        draft.child(
-            "head",
-            Symbol::Cat {
-                binding: None,
-                category,
-                prepositions: None,
-                host: None,
-            },
-            GapRule::Transparent,
-        );
-        draft.child("", Symbol::Punct(']', Binding::Suffix), GapRule::Closed);
-        self.out.brackets.insert(draft.id);
-        self.add_production(draft)?;
-        Ok(bracketed)
-    }
-
     /// Resolves a draft's equations into variables and adds it.
-    fn add_production(&mut self, mut draft: Draft) -> Result<(), LoadError> {
+    fn add(&mut self, mut draft: Draft) -> Result<(), LoadError> {
+        self.record_holders(&draft);
         if let Some(head) = draft.children.iter().position(|c| c.name == "head") {
             for &feature in &self.out.category_features[draft.lhs] {
                 if !draft.unshared.contains(&feature)

@@ -61,14 +61,10 @@ It has no proc macros and no generated code: a grammar is data.
    inside a closing mark follows it and the quotation's own final period is
    not written (`docs/oracle-style-guide.md` §3). Realization writes them back
    from structure, so no quotation punctuation is stored.
-   An unselected dependent (a child named `adjunct` or `modifier`) may be
-   Bracketed: set in the square brackets that mark the text a cleave spell
-   removes [CR#702.148a]. Binding derives, for every Production with such
-   children, a twin for each nonempty set of them in which the child is
-   `Bracketed:{Category}`, a private Category whose one Production writes
-   `[` and `]` around its `head`; the head bears the bracketed child's
-   function in Readings. The text reads with and without its brackets, and
-   realization writes them back from structure.
+   A square bracket is an ordinary punctuation char to the engine. The
+   brackets that mark the text a cleave spell removes [CR#702.148a] never
+   reach it: `deckmaste_english_v4::cleave` parses a cleave line without
+   them, and again without the text they enclose.
 6. `parse_analyzed(analyzed)` parses a text already analyzed (for example with a
    card's names in scope); `parse_category(analyzed, category)` parses it as any
    Category, and `Parse::admit` admits at the Category the Parse was made for.
