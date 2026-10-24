@@ -1,0 +1,24 @@
+# A quantity with an implicit-partitive oblique *each*, its set recovered from the context (CGEL, Ch. 5 §9.3, p. 413); *of* before a second *of* phrase still takes the whole partitive (anchored_abilities.txt).
++ <card=Academy Manufactor> If you would create a Clue, Food, or Treasure token, instead create one of each. => NounPhrase "one of each" as Object of create
++ Create two of each. => NounPhrase "two of each" as Object of create; readings 1
+# *All* before a fused cardinal, the head of its Noun Phrase unexpressed (CGEL, Ch. 5 §12, p. 434 and §9.3(a), pp. 415-416); *both* takes no numeral, and *all one* is no plural.
+# A trigger names a bending action alone ([CR#701.65b], [CR#701.66b], [CR#701.67c]).
++ <card=Avatar Aang> Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform Avatar Aang. => NounPhrase "all four" as Object of do
++NounPhrase all four => readings 1
+*NounPhrase all one
+*NounPhrase both four
+# A degree modifier of a comparative determinative with no *than* Complement (CGEL, Ch. 13 §4.4, p. 1126).
++ <card=All Hallow's Eve> If there are no more scream counters on it, put it into your graveyard. => DeterminerPhrase "no more"; readings 1
++NounPhrase no fewer cards => DeterminerPhrase "no fewer" as Determiner of card; readings 1
+*NounPhrase no more counter
+# A superlative determinative fused with its head, its article unexpressed (CGEL, Ch. 13 §6.3.4, pp. 1168-1169).
++ <card=Goblin Game> If two or more players are tied for fewest, each loses half their life, rounded up. => Nominal "fewest" as Complement of for
+# A card's flavor word labels a modal header as it labels an ability.
++ <card=Hawkeye, Master Marksman> Trick Arrows — Whenever Hawkeye becomes tapped, you may pay {1} up to three times. When you do, choose up to that many — => DeterminerPhrase "that many"
+# Contrastive *but* joins Clauses as it joins Verb Phrases (CGEL, Ch. 15 §2.5, p. 1310).
++ <card=Wolverine, Fierce Fighter> If damage would be dealt to Wolverine, instead that damage is dealt, but all other damage already dealt to him is healed. => Clause "instead that damage is dealt, but all other damage already dealt to him is healed"
++ That damage is dealt, but all other damage is prevented. => Clause "That damage is dealt, but all other damage is prevented"
+# A frequency adverb and a temporal Noun Phrase are separate Adjuncts of the Verb Phrase, as in *once each turn* (`english-lexical-analysis.md` §2, frequency interval); *twice* multiplies a quantity only (*twice that many*).
++ Draw a card twice this turn. => AdverbPhrase "twice" as Adjunct of draw; NounPhrase "this turn" as Adjunct of draw; readings 1
++ Draw a card twice each turn. => AdverbPhrase "twice" as Adjunct of draw; NounPhrase "each turn" as Adjunct of draw; readings 1
++NounPhrase twice that many cards => readings 1

@@ -50,3 +50,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 ## Review notes (hypotheses, verify first)
 
 - Well scoped, with no engine changes expected.
+
+Census delta (measured on `qwlsoonxkxpl`, merged onto `long-tail-pp-coordination`): faces read 32,770 → 32,782, six of them this ticket's (Academy Manufactor, All Hallow's Eve, Avatar Aang, Goblin Game, Hawkeye, Master Marksman, Wolverine, Fierce Fighter: 0 → 1–24 Readings each; Wolverine's *but* Clause coordination is that ticket's); total Readings 337,354 → 337,038 and Surplus 141,594 → 141,660. The 17 units that fell all contain *twice* (frequency interval canonicalization). Lost faces: none.
+Judgment set (`qwlsoonxkxpl`): 3,582 enforced and 3 pending, all enforced holding.

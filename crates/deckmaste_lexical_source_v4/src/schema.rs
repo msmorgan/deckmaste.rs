@@ -367,9 +367,13 @@ pub enum AdverbPosition {
     Central,
     /// After the verb and its Complements.
     End,
-    /// Inside a phrase, focusing or multiplying it (*only one target*,
-    /// *twice the damage*, *just beneath*) rather than modifying a clause.
+    /// Inside a phrase, focusing it (*only one target*, *just beneath*)
+    /// rather than modifying a clause.
     Phrasal,
+    /// Multiplying a quantity (*twice the damage*): a frequency adverb that
+    /// is also a clause's `End` adverb (*draw a card twice*) takes this
+    /// position, and no `Phrasal` one.
+    Multiplying,
     /// Bounding a quantity: its determinative or numeral (*at least two*,
     /// *exactly one*; CGEL p. 1129).
     Bounding,

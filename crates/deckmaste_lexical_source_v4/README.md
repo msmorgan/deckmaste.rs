@@ -94,7 +94,8 @@ modifier-head NP: `Some(Ordinary)` for *each other* and *the other*, or
 `Some(DefiniteArticle)` for anaphoric *the same* (CGEL, Ch. 5 §9.3, p. 416;
 Ch. 17, p. 1545).
 Adverbs record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
-`EndAdverb`, `PhrasalAdverb` for a focusing or multiplying one, `BoundingAdverb`
+`EndAdverb`, `PhrasalAdverb` for a focusing one, `MultiplyingAdverb` for a multiplier,
+`BoundingAdverb`
 for one bounding a quantity, *at least*, *exactly*). Interrogative *how* is a Closed
 Word of the grammar (`How`), not a class. Subtypes record their families as classes
 (`CreatureType`, `PlaneswalkerType`, …).

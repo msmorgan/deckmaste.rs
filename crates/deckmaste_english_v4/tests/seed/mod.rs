@@ -119,7 +119,7 @@ fn pronoun(lemma: &str, person: Person, number: Option<Number>) -> Lexeme {
 
 /// Fused heads, partitive heads and comparative and superlative
 /// determinatives the grammar names.
-const DEPENDENT_HEADS: [&str; 16] = [
+const DEPENDENT_HEADS: [&str; 17] = [
     "both",
     "either",
     "neither",
@@ -135,6 +135,7 @@ const DEPENDENT_HEADS: [&str; 16] = [
     "most",
     "least",
     "fewest",
+    "no",
     "some",
 ];
 
