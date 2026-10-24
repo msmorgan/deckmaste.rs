@@ -119,7 +119,7 @@ Every component is a sum over the Reading's attachments or Productions, and lexi
 5. **Measure.** Every change to the grammar, its compiler, its lexicon or the census is measured by the census before and after: no face is lost, and the units that change are reported.
 6. **Boundaries.** `deckmaste_syntax` never names a grammar feature, value or Category, except in the lexicon feature-bundle mapping table, the one declared lexicon-to-syntax interface; purely structural `Summary` bits computed from the engine's own host check, coordinators, extensions and punctuation are allowed. Vocabulary lives in the catalogs and lexicon, and no word the CR enumerates appears in a grammar declaration (§2).
 
-**Scope.** Every card first printed in 8th Edition or later (8ED, released 2003-07-28) must parse. A card first printed before 8th Edition may be declined when its construction is unique to it and costly to support. Declined cards are listed in `crates/deckmaste_english_v4/declined.txt`, each with its reason, and the census reports them separately from unread. A declined card is scope, not an accepted wrong reading.
+**Scope.** Every card not on the Reserved List must parse. A Reserved List card may be declined when its construction is unique to it and costly to support. Declined cards are listed in `crates/deckmaste_english_v4/declined.txt`, each with its reason, and the census reports them separately from unread. A declined card is scope, not an accepted wrong reading.
 
 ### 4.5 Gates in the grammar
 

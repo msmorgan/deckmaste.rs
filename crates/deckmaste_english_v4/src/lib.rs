@@ -70,7 +70,7 @@ pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(7);
 /// unread on purpose, each owned by a ticket (`census::deferrals`).
 pub const DEFERRED: &str = include_str!("../deferred.txt");
 
-/// The tracked list of declined units: pre-8th-Edition cards whose
+/// The tracked list of declined units: Reserved List cards whose
 /// construction is unique to them and costly to support (`census::declined`).
 pub const DECLINED: &str = include_str!("../declined.txt");
 

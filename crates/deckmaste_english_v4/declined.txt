@@ -1,4 +1,4 @@
-# Units of cards first printed before 8th Edition (2003-07-28) left unread
+# Units of Reserved List cards left unread
 # because their construction is unique to the card and costly to support:
 # `NAME | TEXT`, one per line, each preceded by comment lines giving the
 # construction and the reason. The census counts them apart from unread. A
