@@ -768,7 +768,7 @@
         (name: "BoundKeywordItem", lhs: "KeywordParameters", rhs: [Cat("head", "BoundKeyword")]),
         // A comparative bound on a number is no Noun Phrase: predicated, it
         // is the comparative adjective's (*Its power is less than 3*).
-        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Exclude("head.ComplementKind", "PP"), Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Exclude("head.ComplementKind", "PP"), Exclude("head.ComplementKind", "Amount"), Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Fused *each*, an implicit partitive, is a Subject only (*each
         // enters with ...*): a Complement is the explicit partitive *each of
         // them* (`docs/oracle-style-guide.md` §6, Target: "Put a +1/+1
@@ -1489,14 +1489,14 @@
         // understood standard (*power 3 or greater*, *X is 2 or less*,
         // *five or greater*).
         (name: "ComparativeBoundedAlternative", lhs: "AdjectivePhrase", rhs: [Cat("first", "DeterminerPhrase"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
-            equations: [Require("first.DeterminativeDistribution", "Numerical"), Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "Amount")]),
+            equations: [Require("first.DeterminativeDistribution", "Numerical"), Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "Amount"), Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive")]),
         // A postpositive comparative quantity (*for each card fewer than
         // three in their hand*).
         // The same alternative as the value of a noun that takes an Amount
         // (*power 3 or less*, *mana value X or greater*): the noun's frame,
         // not a postmodifier, licenses it.
         (name: "ComparativeBoundedAmount", lhs: "Amount", rhs: [Cat("first", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
-            equations: [Agree("$.QuantityNumber", "first.QuantityNumber")]),
+            equations: [Agree("$.QuantityNumber", "first.QuantityNumber"), Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive"), Require("$.ComplementKind", "Amount")]),
         // A scalar comparative bound on a number as an Amount: the endpoint
         // of a scalar change, like the number it bounds (*reduce it to less
         // than 1* beside *reduce it to 1*, *reduced to 0 or less*; CGEL, Ch. 8

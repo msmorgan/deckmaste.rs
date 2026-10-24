@@ -25,3 +25,8 @@
 *NounPhrase more than one creatures
 *NounPhrase one or more card
 *NounPhrase fewer than six creature card
+# A number bounded by a comparative adjective (*13 or less*) is an adjective phrase after *be* and has one Reading; the alternative's last member must be a comparative (CGEL, Ch. 13 §2.1, p. 1104), so *2 or tapped* and *2 or green* are not English
++Clause X is 13 or less => AdjectivePhrase "13 or less" as PredicativeComplement of be; readings 1
++Clause its power is 3 or greater => AdjectivePhrase "3 or greater" as PredicativeComplement of be; readings 1
+*Clause X is 2 or tapped
+*Clause its power is 2 or green
