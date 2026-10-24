@@ -4439,6 +4439,17 @@ def stepOps : Nat → StepOps
             | some rider => ops.inst .postEvent .obj (nextClause permitting) rider
             | none => (permitting, [])
           (out, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
+        | .asThough subj action cond =>
+          -- Stepped as a permission is, but it permits nothing [CR#609.4,101.2]: the statement
+          -- describes how the act happens, so it writes no act for a later "this way" to read.
+          let headErr := if action.deonticHeadOk then [] else [.eventHead]
+          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
+          let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
+          -- The agent of a passive ("all damage is dealt [by a source]") is a participant of the
+          -- event, so the condition reads it: "as though its source had wither".
+          let (drs3, e3) := stepSubjectAfterWith ops drs2 subj
+          let (drs4, e4) := stepAsThoughWith ops drs3 cond
+          ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .gatedBy cost subj action mods =>
           let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
             refuse mods.cause.isNone .deonticCause ++ refuse mods.rider.isNone .deonticRider

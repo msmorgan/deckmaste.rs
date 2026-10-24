@@ -1012,6 +1012,12 @@ semantic_template can (subj : Subject) (action : Action)
     (except : Option DeonticExcept := none)
     (rider : Option Action := none) : StaticSpec :=
   .can subj action { timing, asThough, except, rider }
+/-- "<subj> <action>s as though <condition>": an indicative statement that the act happens as
+though the condition were true, for that event only [CR#609.4]; not a permission, which is
+`can` [CR#101.2]. -/
+semantic_template asThough (subj : Subject) (action : Action) (condition : AsThough) :
+    StaticSpec :=
+  .asThough subj action condition
 /-- "<subj> <action>s if able", "<subj> must <action>". A requirement with the unspecified agent
 `any` is one requirement on the whole clause: "this creature must be blocked if able" is one
 requirement on the declaration of blockers [CR#509.1c], met when at least one creature blocks it.

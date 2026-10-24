@@ -123,6 +123,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .letterDefinition _ amount => [(amount, .signed)]
   | _n + 1, .cant _ _ mods | _n + 1, .must _ _ mods | _n + 1, .can _ _ mods | _n + 1, .gatedBy _ _ _ mods =>
     mods.asThough.toList.flatMap AsThough.numberSlots
+  | _n + 1, .asThough _ _ cond => cond.numberSlots
   | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ => []
   | _n + 1, .retention _ _ => []
   | _n + 1, .copyChange _ _ _ | _n + 1, .controlGrant _ _ => []

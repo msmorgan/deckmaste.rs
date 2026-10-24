@@ -686,21 +686,21 @@ def retroMutation : Spelled := spelled <| singleFacedCard
             cant it attack,
             allAbilityLoss it ]) ] }
 
-/-- Hotshot Mechanic -/
+/-- Hotshot Mechanic: "This creature crews Vehicles as though its power were 2 greater." An
+indicative "as though" statement about how it crews, not a permission to crew [CR#609.4]. -/
 def hotshotMechanic : Spelled := spelled <| singleFacedCard
   { name := "Hotshot Mechanic", cost := [pip .white], types := [.artifact, .creature],
     subtypes := [fox, pilot],
     text :=
-      [ static (can thisCreature (crew (allOf (hasSubtype
-      vehicle))) (asThough := greaterBy .power 2)) ],
+      [ static (asThough thisCreature (crew (allOf (hasSubtype vehicle))) (greaterBy .power 2)) ],
     power := stat 2, toughness := stat 1 }
 
-/-- Cloudspire Captain -/
+/-- Cloudspire Captain: "This creature saddles Mounts and crews Vehicles as though its power were
+2 greater.", indicative as Hotshot Mechanic's is [CR#609.4]. -/
 def cloudspireCaptainCrewLine : StaticSpec :=
-  conjunction [ can thisCreature (saddle (allOf (hasSubtype
-          mount))) (asThough := greaterBy .power 2),
-      can thisCreature (crew (allOf (hasSubtype
-          vehicle))) (asThough := greaterBy .power 2) ]
+  conjunction
+    [ asThough thisCreature (saddle (allOf (hasSubtype mount))) (greaterBy .power 2),
+      asThough thisCreature (crew (allOf (hasSubtype vehicle))) (greaterBy .power 2) ]
 theorem okCloudspireCaptainCrewLine : StaticSpec.check (DRS.ofList []) cloudspireCaptainCrewLine = [] := by
   decide
 

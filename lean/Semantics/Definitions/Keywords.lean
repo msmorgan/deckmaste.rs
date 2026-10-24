@@ -869,10 +869,10 @@ treated as meeting its exception [CR#609.4]. -/
 semantic_definition haste : Ability :=
   .keyword (.named "haste") []
     [ static (can thisCreature attack
-        (asThough := some (.condition (controlledSinceTheirTurnBegan it)))),
+        (asThough := holds (controlledSinceTheirTurnBegan it))),
       static (can (controllerOf thisCreature)
         (activate (allOf (and [abilityHead .anyActivated, abilityOf it, tapOrUntapInCost])))
-        (asThough := some (.condition (controlledSinceTheirTurnBegan (that (.type .creature)))))) ]
+        (asThough := holds (controlledSinceTheirTurnBegan (that (.type .creature))))) ]
 /-- "<subject> gains haste [until …]" -/
 semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration := none) : Action :=
   gain subject haste duration

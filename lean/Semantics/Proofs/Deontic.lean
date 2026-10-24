@@ -534,5 +534,58 @@ theorem durationConventionWitnesses :
       | _ => none) = some none := by
   refine ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
+/-! ## Indicative "as though" statements [CR#609.4] -/
+
+/-- Everlasting Torment and Phyrexian Unlife check, their damage lines written as indicative
+"as though" statements and their other lines (the life-gain and damage-prevention prohibitions,
+the loses-the-game exception) unchanged. -/
+theorem okAsThoughSourceHadKeywordCards :
+    Cards.everlastingTorment.card.check = [] ∧ Cards.phyrexianUnlife.card.check = [] :=
+  ⟨Cards.everlastingTorment.ok, Cards.phyrexianUnlife.ok⟩
+
+/-- The damage lines name the keywords by reference, as a condition on the damage's source
+("as though its source had wither"), so they take wither's and infect's own rows
+[CR#702.80a,702.90b]. The condition grants nothing: for a source that has the keyword already it
+is simply true, and the keyword's result happens once [CR#120.3d,702.80d,702.90f]. -/
+theorem asThoughSourceHadKeywordByReference :
+    (match printedText Cards.everlastingTorment with
+      | [_, _, .static (.asThough subj action cond)] => some (subj, action, cond)
+      | _ => none) =
+      some (by_ (a isSource), dealDamage anyAmount, holds (is thatSource (hasKeyword wither))) ∧
+    (match printedText Cards.phyrexianUnlife with
+      | [_, .static (.conditional (.asThough subj action cond) _ _)] => some (subj, action, cond)
+      | _ => none) =
+      some (by_ (a isSource), dealDamage anyAmount you,
+        holds (is thatSource (hasKeyword infect))) := by
+  refine ⟨rfl, rfl⟩
+
+/-- "Its source" reads the passive's agent: with no agent in the clause there is no source for
+it to read. -/
+theorem badAsThoughSourceWithoutAgent :
+    StaticSpec.check (DRS.ofList [])
+      (asThough any (dealDamage anyAmount) (holds (is thatSource (hasKeyword wither)))) =
+      [.anaphor (.word .source) .one 0] := by decide
+
+/-- Whether stepping `spec` records any act it names as permitted. -/
+private def recordsPermitted (spec : StaticSpec) : Bool :=
+  (stepStaticSpec 64 (DRS.ofList []) spec).1.causedEvents.any (·.permitted)
+
+/-- An indicative "as though" statement is not a permission [CR#101.2]: "this creature crews
+Vehicles as though its power were 2 greater" records no permitted crew, where "this creature can
+crew Vehicles as though …" does. -/
+theorem asThoughIsNotRecordedAsPermitted :
+    recordsPermitted
+        (asThough thisCreature (crew (allOf (hasSubtype vehicle))) (greaterBy .power 2)) = false ∧
+      recordsPermitted
+        (can thisCreature (crew (allOf (hasSubtype vehicle))) (asThough := greaterBy .power 2)) =
+        true := by
+  decide
+
+/-- Hotshot Mechanic and Cloudspire Captain check in the indicative form. -/
+theorem okIndicativeCrewAsThough :
+    Cards.hotshotMechanic.card.check = [] ∧
+      StaticSpec.check (DRS.ofList []) Cards.cloudspireCaptainCrewLine = [] :=
+  ⟨Cards.hotshotMechanic.ok, Cards.okCloudspireCaptainCrewLine⟩
+
 end Semantics.Proofs.Deontic
 

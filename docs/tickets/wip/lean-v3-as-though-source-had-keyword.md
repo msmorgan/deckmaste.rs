@@ -3,7 +3,7 @@ needs: []
 ---
 # "As though its source had <keyword>" has no by-reference form
 
-Standard constraints apply. Proposed, not ruled.
+Standard constraints apply. Ruled by the owner, 2026-10-24 (below).
 
 ## Problem
 
@@ -29,17 +29,35 @@ referenced: wither makes damage to a creature put −1/−1 counters instead of 
 [CR#702.80a]; infect makes damage to a player give poison counters rather than life loss
 [CR#702.90b]; both through [CR#120.3].
 
-## Proposal (proposed, not ruled)
+## Ruling (owner, 2026-10-24)
 
-A static rule carrying "as though its source had <keyword>", applying to the damage (all damage, or
-damage to a player) and resolving to the keyword's own rows, so these cards compose with wither's
-and infect's definitions. The form must decide: what the keyword's rows are applied to (sources,
-not permanents), how it interacts with a source that really has the keyword (once, not twice), and
-whether it is a new `AsThough` arm or a new `StaticSpec`.
+- "<subject> <verbs> as though …" is an indicative, mandatory statement [CR#609.4], not a
+  "can"/"may" permission [CR#101.2].
+- New `StaticSpec.asThough (subj : Subject) (action : Action) (asThough : AsThough)`, stepped like
+  `can` but not recorded as permitted. It reuses `AsThough` and `AsThough.condition`; no new
+  `AsThough` arm. `StaticSpec.can` stays strictly for "can"/"may" permissions.
+- *Everlasting Torment*: an indicative `asThough` over `dealDamage` dealt by any source, with the
+  condition `holds (is <its source> (hasKeyword wither))`. *Phyrexian Unlife*: the same over
+  damage dealt to you, with infect, under
+  `onlyWhile (compareAmt (lifeTotalOf you) .atMost 0)`. The hand-written replacements go.
+- Wither and infect apply to the source treated as having them [CR#702.80c,702.90d], and a
+  source that really has the keyword gets the effect once [CR#120.3d]. The rows' subjects change
+  only if the CR requires it.
+  (Infect's any-zone rule, the counterpart of [CR#702.80c], is [CR#702.90e]; [CR#702.90d] is its
+  last-known-information rule, the counterpart of [CR#702.80b]. Neither changes the rows: both
+  are written of "an object with" the keyword, which the source treated as having it is
+  [CR#609.4], so `this_` stays their subject.)
+- *Hotshot Mechanic* and *Cloudspire Captain* ("crews Vehicles / saddles Mounts as though its
+  power were 2 greater") move from `can` to the new form, as does every other indicative
+  "as though" static the bench spells with `can`.
+- The raw `asThough := some (.condition …)` sites in `Definitions/Keywords.lean` (haste) are
+  fixed here if they become this form or `holds` (authoring-surface §2.5).
 
 ## Tests
 
 - `everlastingTorment` and `phyrexianUnlife` re-authored by reference, checking clean.
+- The indicative form is not recorded as a permission.
+- *Hotshot Mechanic* still checks.
 - A source that really has wither or infect gets the keyword's effect once.
 - Both cards' other lines (`cant … gainLife`, the damage-prevention prohibition, the
   loses-the-game exception) are unchanged.

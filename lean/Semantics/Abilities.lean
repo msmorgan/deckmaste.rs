@@ -941,6 +941,13 @@ mutual
     /-- Deontic permission ("can", "may play …") [CR#101.2]. "May" for an optional one-shot action
     is `Action.withContinuation .optional` [CR#603.5]. -/
     | can (subj : Subject) (action : Action) (mods : DeonticMods)
+    /-- An indicative "as though" statement, "<subj> <action>s as though <asThough>": `action`
+    happens, whenever it happens, as though `asThough` were true, for that event only
+    [CR#609.4]. It permits nothing: "all damage is dealt as though its source had wither" is a
+    statement about how all damage is dealt, not a "can" or "may" [CR#101.2], so no act it names
+    is recorded as permitted and no "this way" reads it back. The condition's pronouns read the
+    event's participants, as a deontic's "as though" does. -/
+    | asThough (subj : Subject) (action : Action) (asThough : AsThough)
     /-- Cost-gated deontic rule ("can't … unless … pays …") [CR#508.1d,509.1c]. -/
     | gatedBy (cost : Cost) (subj : Subject) (action : Action) (mods : DeonticMods)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)

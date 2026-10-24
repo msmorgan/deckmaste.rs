@@ -310,7 +310,9 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   constructor instead of the `holds` Template (`Templates.lean:2367-2369`) the rest of the corpus
   uses (e.g. `Cards/Keyword.lean:93-95`). The queued indicative-`asThough` ticket (next in the
   queue; not yet on disk at reconcile time) rewrites the `asThough` sites, so fold this into it or
-  land it first and let that ticket rebase. **Reconciled 2026-10-24: live.**
+  land it first and let that ticket rebase. **Reconciled 2026-10-24: done** by
+  [lean-v3-as-though-source-had-keyword](../wip/lean-v3-as-though-source-had-keyword.md): haste's
+  two rows stay `can` permissions [CR#702.10b,702.10c] and now spell `asThough := holds (…)`.
 - Replace `AsThough.of (predicate : Predicate)` with
   `AsThough.condition (cond : Condition)` (with coercion from `Condition` to
   `AsThough`) so the subject pronoun in *"as though **it** didn't have
