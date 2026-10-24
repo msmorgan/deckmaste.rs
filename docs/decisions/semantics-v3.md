@@ -421,7 +421,7 @@ Of the 27 domain `GameEvent` constructors in `semantics-v2` (`lean/Semantics/Phr
 | `verbedEvent (deed, subject, by, becomes, locus)` | `does(subj, action)` | Covers `CoreDeed` (`tap`, `untap`, `destroy`, `sacrifice`, `exile`, `discard`, `mill`, `scry`, `surveil`, `explore`, `connive`, `forage`, `bolster`, `adapt`, `amass`, `populate`, `proliferate`, `regenerate`, `reveal`, `search`, `shuffle`, `vote`, etc.) and `Deed.ofAbility` (`crew`, `saddle`, `mutate`, `devour`), carrying optional `becomes : Option Predicate` and `locus : Option ZoneExpr` on `.enact`. |
 | `casts (caster, spell, from_)` | `does(caster, cast(spell, from_))` | `Instruction.cast` carries `from_ : Option EventSource`. |
 | `activates (actor, ability, of_)` | `does(actor, activate(ability, of_))` | Uses `Instruction.activate`. |
-| `tappedForMana (permanent, by)` | `does(by, tapForMana(permanent))` | Uses `CoreDeed.tapForMana` (`subj = any` when `by = none`, `subj = by(p)` when `by = some p`). |
+| `tappedForMana (permanent, by)` | `does(by, tapForMana(permanent))` | Uses the `Action.tapForMana` head (`subj = any` when `by = none`, `subj = by(p)` when `by = some p`). |
 | `commitsCrime (actor)` | `does(actor, commitCrime)` | `[CR#700.13]` crime action primitive. |
 | `losesGame (player)` | `does(player, loseTheGame)` | Uses `Instruction.loseTheGame`. |
 | `paysCost (payer, cost, outcome)` | `does(payer, pay(cost, outcome))` | `Instruction.pay` carries `outcome : PaymentOutcome := .paid` (`.paid | .unpaid`). |

@@ -310,14 +310,16 @@ generates its authored deed constant (`attachTo.deed`), which a card names by th
 name, so an undeclared action is no identifier at all. -/
 abbrev KeywordActionLabel := String
 
-/-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
-[CR#508.1,509.1], tapping a permanent for mana [CR#106.12a], and the other actions the rules
-define in their own sections. Closed, so a law matches them structurally instead of naming a
-lexeme. "Put" and "return" name no deed: each is ordinary English for a Zone Change [CR#400.7],
-written as the move itself. -/
+/-- Deeds the core rules define outside the keyword actions of [CR#701.1], each one a deed the
+checker stamps on what it acts on or records as a caused event: targeting [CR#115.1] ("the
+targeted creature"), drawing [CR#121.1] ("the drawn card"), triggering [CR#603.2], gaining
+control [CR#613.1b] and fully unlocking [CR#709.5i]. Closed, so a law matches them structurally
+instead of naming a lexeme. Any other act the core rules define (attacking, blocking, copying, a
+life change, tapping for mana) is its own `Action` head and names no deed here. "Put" and
+"return" name none either: each is ordinary English for a Zone Change [CR#400.7], written as the
+move itself. -/
 inductive CoreDeed where
-  | attack | block | target | copy | draw | gainLife | loseGame | winGame | spend | trigger
-  | gainControl | unlock | fullyUnlock | tapForMana
+  | target | draw | trigger | gainControl | fullyUnlock
   deriving DecidableEq, Repr
 
 /-- A condition that causes a state-based action [CR#704.1]. -/
@@ -327,7 +329,7 @@ inductive StateBasedCause where
   deriving DecidableEq, Repr
 
 /-- A deed: something a card's text says is done. Three sources define one, and only the middle
-one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the Action Definitions
+one is open: the core rules [CR#115.1,121.1,709.5i], the keyword actions the Action Definitions
 declare [CR#701.1], and the verb a keyword ability defines for itself
 [CR#702.122b,702.171a,702.26a]. -/
 inductive Deed where
