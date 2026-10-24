@@ -607,6 +607,8 @@ pub(crate) fn resolve(
             host_extensions: 0,
             adjunct_extension: None,
             internal_comma: false,
+            open_comma: false,
+            forced: false,
             unwritten_period: false,
             unclosed: false,
             headed_link: None,
@@ -719,6 +721,10 @@ pub(crate) struct Summary {
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
+    /// No Nominal hosts it unselected: a Preposition Phrase whose frame's
+    /// Host Categories exclude a Nominal (*at random*), or a phrase that is
+    /// only such a phrase (`Bare::unforced`).
+    pub nominal_unhosted: bool,
     /// Whether it begins with a fronted dependent of its head, and how that
     /// dependent scopes over a coordination it would begin. Such a Clause
     /// hosts no comma-set post-dependent, which attaches inside the fronted
@@ -740,6 +746,13 @@ pub(crate) struct Summary {
     /// §3.2.1, p. 1739), so it sets no bit (*If [A are attacking, and you
     /// both own and control them], …*).
     pub internal_comma: bool,
+    /// It ends in a comma-set post-dependent, through its last child: what
+    /// follows it begins with a mark, which closes that comma, since a comma
+    /// that sets off a dependent is closed by the next mark or runs to the
+    /// end of its sentence (CGEL, Ch. 20 §3.2.5, p. 1745 [25]). No sibling
+    /// follows it unpunctuated: *from black if [you control a Swamp, from
+    /// red] if …* is no Cluster.
+    pub open_comma: bool,
     /// It is an uncoordinated auxiliary Verb Phrase (`Production::auxiliary`):
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
@@ -803,7 +816,11 @@ pub(crate) struct Summary {
 /// card of their library], [a card at random from their graveyard], and [a
 /// card at random from their hand]*). A coordination of single Objects is the
 /// coordination of the Objects, never also of Clusters
-/// (`english-lexical-analysis.md` §2).
+/// (`english-lexical-analysis.md` §2). Each Cluster with Adjuncts beside it
+/// holds one that no Nominal hosts (*at random*), so it is a Cluster of
+/// necessity: where every Adjunct could be its Object's Modifier, the
+/// coordination of Objects is parallel, and a bare Cluster beside them is
+/// the breach CGEL stars (Ch. 15 §4.3, p. 1341, [17iia]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Bare {
     /// It holds a bare Cluster.
@@ -815,6 +832,8 @@ pub(crate) struct Bare {
     /// How many Adjuncts each of those ends in (0: none held; `MIXED`: not
     /// all as many).
     adjuncts: u8,
+    /// One of those holds no Adjunct that a Nominal cannot host.
+    unforced: bool,
 }
 
 impl Bare {
@@ -823,17 +842,20 @@ impl Bare {
         last: false,
         adjoined: 0,
         adjuncts: 0,
+        unforced: false,
     };
     const MIXED: u8 = u8::MAX;
 
-    /// A Cluster of `children` dependents, `adjuncts` of them Adjuncts.
-    fn cluster(children: usize, adjuncts: usize) -> Self {
+    /// A Cluster of `children` dependents, `adjuncts` of them Adjuncts,
+    /// `forced` if one of those no Nominal hosts.
+    fn cluster(children: usize, adjuncts: usize, forced: bool) -> Self {
         let bare = children == 1;
         Self {
             held: bare,
             last: bare,
             adjoined: u8::from(adjuncts > 0),
             adjuncts: u8::try_from(adjuncts).unwrap_or(Self::MIXED),
+            unforced: adjuncts > 0 && !forced,
         }
     }
 
@@ -848,12 +870,14 @@ impl Bare {
                 (a, b) if a == b => a,
                 _ => Self::MIXED,
             },
+            unforced: self.unforced || next.unforced,
         }
     }
 
     /// Whether a coordination of these Clusters licenses its bare ones.
     fn licensed(self) -> bool {
-        !self.held || (!self.last && self.adjoined >= 2 && self.adjuncts != Self::MIXED)
+        !self.held
+            || (!self.last && self.adjoined >= 2 && self.adjuncts != Self::MIXED && !self.unforced)
     }
 }
 
@@ -951,6 +975,12 @@ pub(crate) struct State {
     adjunct_extension: Option<Extension>,
     /// A child so far carries `Summary::internal_comma` up.
     internal_comma: bool,
+    /// The last child so far ends in a comma-set post-dependent
+    /// (`Summary::open_comma`).
+    open_comma: bool,
+    /// A Cluster's Adjunct so far, or a sole child, is one no Nominal hosts
+    /// (`Summary::nominal_unhosted`).
+    forced: bool,
     /// The last child so far ends in a period not written
     /// (`Summary::unwritten_period`).
     pub unwritten_period: bool,
@@ -1733,6 +1763,7 @@ impl Production {
     }
 
     /// Adds child `position` to `state`, or `None` if it does not fit.
+    #[expect(clippy::too_many_lines, reason = "one admission gate per Summary field")]
     pub fn accept(
         &self,
         grammar: &CompiledGrammar,
@@ -1761,6 +1792,17 @@ impl Production {
         }
         next.unclosed = matches!(child, ChildView::Node(summary) if summary.unclosed);
         let (first, last) = self.boundaries(position, child);
+        // A comma that sets off a post-dependent is closed by the mark after
+        // it, a comma or a stronger indicator (*choose up to X, where X is
+        // … —*), or else runs to the end of its sentence: no sibling follows
+        // it unpunctuated (CGEL, Ch. 20 §3.2.5, p. 1745 [25]).
+        if state.open_comma
+            && !first
+            && !matches!(self.rhs[position], Symbol::Punct(_, binding) if !crate::reading::glues_after(binding))
+        {
+            return None;
+        }
+        next.open_comma = false;
         next.first_glues.get_or_insert(first);
         next.last_glues = last;
         next.unwritten_period =
@@ -1844,6 +1886,14 @@ impl Production {
                         return None;
                     }
                     next.internal_comma = true;
+                }
+                next.open_comma = summary.open_comma
+                    || (self.hosts_comma_set_dependent() && position == self.rhs.len() - 1);
+                if summary.nominal_unhosted
+                    && (self.rhs.len() == 1
+                        || (self.cluster.is_some() && self.names[position] == "adjunct"))
+                {
+                    next.forced = true;
                 }
                 if self.comma_scope_excludes(position, summary) {
                     return None;
@@ -1937,6 +1987,15 @@ impl Production {
                 None => last_resolved[i] = state.last[i],
             }
         }
+        let hosts = match state.preposition {
+            Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
+            _ => crate::frames::conjoined_hosts(
+                state.conjunct_hosts,
+                state.plain_hosts,
+                state.conjoined_host,
+                state.other_preposition.is_none() && !state.mixed_prepositions,
+            ),
+        };
         Some(Summary {
             first_glues: state.first_glues.unwrap_or(false),
             last_glues: state.last_glues,
@@ -1986,15 +2045,9 @@ impl Production {
                 || state.coordinator.is_some()
                 || state.coordinated_head
                 || state.head_coordination,
-            hosts: match state.preposition {
-                Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
-                _ => crate::frames::conjoined_hosts(
-                    state.conjunct_hosts,
-                    state.plain_hosts,
-                    state.conjoined_host,
-                    state.other_preposition.is_none() && !state.mixed_prepositions,
-                ),
-            },
+            hosts,
+            nominal_unhosted: hosts & crate::frames::host_bit(crate::grammar::HostKind::Nominal) == 0
+                || (self.rhs.len() == 1 && state.forced),
             fronted: if !self.fronts() {
                 Fronting::None
             } else if self.host_check.is_some_and(|(host, adjunct, kind)| {
@@ -2005,6 +2058,7 @@ impl Production {
                 Fronting::Wide
             },
             internal_comma: state.internal_comma || self.hosts_comma_set_dependent(),
+            open_comma: state.open_comma,
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
             unclosed: self.unclosed || state.unclosed,
@@ -2024,6 +2078,7 @@ impl Production {
                 Bare::cluster(
                     self.rhs.len(),
                     self.names.iter().filter(|n| n.as_str() == "adjunct").count(),
+                    state.forced,
                 )
             } else {
                 state.bare

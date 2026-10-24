@@ -160,8 +160,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   control a Cleric and deathtouch if you control a Rogue*; right
   nonce-constituent coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343). A single
   Slot with no Adjunct is a Cluster only where it alone breaks parallelism:
-  never last, beside at least two Clusters that end in as many Adjuncts
-  (`Summary::bare`). A Coordination schema
+  never last, beside at least two Clusters that end in as many Adjuncts,
+  each holding one that no Nominal hosts (*at random*), so that they are
+  Clusters of necessity (`Summary::bare`, `Summary::nominal_unhosted`). A Coordination schema
   over the `coordination` Category joins Clusters, any number of them; its Clusters are parallel:
   their frames share a shape, the relation of each Slot and, but for an
   Object, what fills it (`Summary::cluster`), the first Cluster's frame is
@@ -323,7 +324,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   delimited (*A, and B*) or serial, separates coordinates and needs no closing
   mark (CGEL, Ch. 20 §3.1, pp. 1736–1737 [3]–[4]; §3.2.1, p. 1739), so a
   dependent set off before its head may contain one (*If [A are attacking, and
-  you both own and control them], …*).
+  you both own and control them], …*). A phrase that ends in a comma-set
+  post-dependent is followed by a mark, which closes that comma, or by
+  nothing in its Production (`Summary::open_comma`): no sibling follows it
+  unpunctuated (*from black if [you control a Swamp, from red] if …* is no
+  Cluster).
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so

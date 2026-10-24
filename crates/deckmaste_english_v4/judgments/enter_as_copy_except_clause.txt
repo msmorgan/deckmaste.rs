@@ -1,8 +1,11 @@
 # An "except" preposition phrase with a clause complement as an Adjunct of the verb "enter" in copy-replacement text
 + <card=Evil Twin> You may have this creature enter as a copy of any creature on the battlefield, except it has "{U}{B}, {T}: Destroy target creature with the same name as this creature." => PrepositionPhrase "except it has \"{U}{B}, {T}: Destroy target creature with the same name as this creature.\"" as Adjunct of may
 + <card=Copycrook> You may have this creature enter as a copy of any creature on the battlefield, except it has "Whenever this creature attacks, it connives." => PrepositionPhrase "except it has \"Whenever this creature attacks, it connives.\"" as Adjunct of may
-+ <card=Phantasmal Image> You may have this creature enter as a copy of any creature on the battlefield, except it's an Illusion in addition to its other types and it has "When this creature becomes the target of a spell or ability, sacrifice it." => PrepositionPhrase "except it's an Illusion in addition to its other types and it has \"When this creature becomes the target of a spell or ability, sacrifice it.\"" as Adjunct of may || PrepositionPhrase "except it's an Illusion in addition to its other types" as Adjunct of may
-+ <card=Machine God's Effigy> You may have this artifact enter as a copy of any creature on the battlefield, except it's an artifact and it has "{T}: Add {U}." => PrepositionPhrase "except it's an artifact and it has \"{T}: Add {U}.\"" as Adjunct of may || PrepositionPhrase "except it's an artifact" as Adjunct of may
+# *Except* takes the whole coordination: a comma that sets off a
+# post-dependent is closed by the next mark, so [A, except B] and [C]
+# would need a comma before *and* (CGEL, Ch. 20 §3.2.5, p. 1745 [25]).
++ <card=Phantasmal Image> You may have this creature enter as a copy of any creature on the battlefield, except it's an Illusion in addition to its other types and it has "When this creature becomes the target of a spell or ability, sacrifice it." => PrepositionPhrase "except it's an Illusion in addition to its other types and it has \"When this creature becomes the target of a spell or ability, sacrifice it.\"" as Adjunct of may
++ <card=Machine God's Effigy> You may have this artifact enter as a copy of any creature on the battlefield, except it's an artifact and it has "{T}: Add {U}." => PrepositionPhrase "except it's an artifact and it has \"{T}: Add {U}.\"" as Adjunct of may
 # from: Omni-Changeling
 + <card=Evil Twin> You may have this creature enter as a copy of any creature on the battlefield, except it has flying. => PrepositionPhrase "except it has flying" as Adjunct of may
 # from: Phyrexian Metamorph

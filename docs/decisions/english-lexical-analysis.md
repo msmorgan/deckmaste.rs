@@ -169,9 +169,14 @@ of the text.** Eleven canonicalizations apply:
   parallelism (note 64); Oracle English prints this one. A coordination of bare single Objects (*Exile target
   creature and target land*; *has lifelink, deathtouch, and flying*) is the
   coordination of those Objects, the verb's one Object, never also a
-  coordination of Clusters: the two trees differ in no meaning. The canonical
-  site is built structurally: the coordination of Clusters a verb heads
-  licenses each bare Cluster it holds (`Summary::bare`).
+  coordination of Clusters: the two trees differ in no meaning. The sibling
+  Clusters must be Clusters of necessity: each holds an Adjunct no Nominal
+  hosts (*at random*). Where every Adjunct could be its Object's Modifier,
+  the coordination of Objects is parallel, and a bare Cluster beside them is
+  the breach CGEL stars (p. 1341, [17iia]): *exile [this artifact], [all
+  creatures …] [on it], and …* is not admitted. The canonical site is built
+  structurally: the coordination of Clusters a verb heads licenses each bare
+  Cluster it holds (`Summary::bare`).
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

@@ -27,7 +27,10 @@
 # A later Cluster's Object may be a remnant, its keyword head elided and
 # recovered from the initial Cluster's Object (CGEL, Ch. 15 §4.3, p. 1343,
 # note 65: *We'll be in Paris for a week and Bonn for three days*).
-+ Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest. => ComplementCluster "protection from white if you control a Plains"; ComplementCluster "from blue if you control an Island"; ComplementCluster "from green if you control a Forest"; KeywordPhrase "protection from white" as Object of gain; ParameterRemnant "from blue" as Object of gain; PredicateAdjunct "if you control an Island" as Adjunct of gain; ParameterRemnant "from green" as Object of gain
+# A comma that sets off a post-dependent is closed by the next mark, or runs
+# to the end of its sentence, so no Adjunct ends in *, from blue* before the
+# next *if* (CGEL, Ch. 20 §3.2.5, p. 1745 [25]).
++ Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest. => ComplementCluster "protection from white if you control a Plains"; ComplementCluster "from blue if you control an Island"; ComplementCluster "from green if you control a Forest"; KeywordPhrase "protection from white" as Object of gain; ParameterRemnant "from blue" as Object of gain; PredicateAdjunct "if you control an Island" as Adjunct of gain; ParameterRemnant "from green" as Object of gain; !Clause "you control a Plains, from blue"; !Clause "you control an Island, from black"; !Clause "you control a Swamp, from red"
 # Clusters of Adjuncts alone after a head with no Complement, two Preposition
 # Phrases each; a later Cluster may elide the initial one's first preposition
 # (CGEL, Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and Bonn
@@ -39,3 +42,10 @@
 # (english-lexical-analysis.md §2; CGEL, Ch. 15 §4.3, p. 1342, note 64).
 # from: Crabomination
 + Target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. => ComplementCluster "the top card of their library"; ComplementCluster "a card at random from their graveyard"; ComplementCluster "a card at random from their hand"; NounPhrase "the top card of their library" as Object of exile; NounPhrase "a card" as Object of exile; PredicateAdjunct "at random" as Adjunct of exile; PredicateAdjunct "from their graveyard" as Adjunct of exile; PredicateAdjunct "from their hand" as Adjunct of exile; !NounPhrase "a card at random"
+# The Clusters beside a bare one are Clusters of necessity, each holding an
+# Adjunct no Nominal hosts. Where every Adjunct could be its Object's
+# Modifier, the Objects coordinate in parallel, and a bare Cluster beside
+# them is the breach CGEL stars (english-lexical-analysis.md §2; CGEL,
+# Ch. 15 §4.3, p. 1341, [17iia]).
+# from: Sphere of Annihilation
++ <card=Sphere of Annihilation> At the beginning of your upkeep, exile this artifact, all creatures and planeswalkers with mana value less than or equal to the number of void counters on it, and all creature and planeswalker cards in graveyards with mana value less than or equal to the number of void counters on it. => NounPhrase "this artifact, all creatures and planeswalkers with mana value less than or equal to the number of void counters on it, and all creature and planeswalker cards in graveyards with mana value less than or equal to the number of void counters on it" as Object of exile; !ComplementCluster "this artifact"
