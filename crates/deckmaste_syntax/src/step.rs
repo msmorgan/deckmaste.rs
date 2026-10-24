@@ -198,6 +198,7 @@ pub(crate) fn form_bit(form: WordForm) -> u16 {
 
 /// A compiled Production.
 #[derive(Debug, Clone)]
+#[expect(clippy::struct_excessive_bools, reason = "independent production facts")]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
     /// Combinations of (child, feature, value) conditions that may not all
@@ -304,6 +305,12 @@ pub(crate) struct Production {
     /// It opens with a dash only its sentence's end closes
     /// (`Summary::unclosed`).
     pub unclosed: bool,
+    /// Its phrase is only a conjunct of a coordination other than the last
+    /// (`Summary::nonfinal`).
+    pub nonfinal: bool,
+    /// The children that are conjuncts of its coordination other than the
+    /// last: the only positions a `Summary::nonfinal` phrase may fill.
+    pub nonfinal_conjuncts: Vec<usize>,
     /// The child whose `Summary::head_forms` the mother takes: its head, or
     /// the first conjunct of a coordination.
     pub lexical_head: Option<usize>,
@@ -523,6 +530,8 @@ pub(crate) fn resolve(
         auxiliary: None,
         omission: Omission::None,
         unclosed: false,
+        nonfinal: false,
+        nonfinal_conjuncts: Vec::new(),
         lexical_head,
         link: None,
         cluster: None,
@@ -731,6 +740,9 @@ pub(crate) struct Summary {
     /// only its sentence's end closes (`ProductionDecl::unclosed`): nothing
     /// but a period follows it.
     pub unclosed: bool,
+    /// It is only a conjunct of a coordination other than the last
+    /// (`SchemaDecl::Adjunct::nonfinal`): no other position takes it.
+    pub nonfinal: bool,
     /// The identity of the Linked Coordination it is, or that its head line
     /// ends in through `head` children (*then [draw a card, then discard a
     /// card]*). No Conjunct of a Linked Coordination carries the
@@ -1677,7 +1689,9 @@ impl Production {
         }
         match child {
             ChildView::Node(summary) => {
-                if !self.slot_admits(grammar, position, summary) {
+                if !self.slot_admits(grammar, position, summary)
+                    || (summary.nonfinal && !self.nonfinal_conjuncts.contains(&position))
+                {
                     return None;
                 }
                 if summary.gap != Gap::None {
@@ -1879,6 +1893,7 @@ impl Production {
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
             unclosed: self.unclosed || state.unclosed,
+            nonfinal: self.nonfinal,
             link: self.link.or(state.headed_link),
             cluster: self
                 .cluster

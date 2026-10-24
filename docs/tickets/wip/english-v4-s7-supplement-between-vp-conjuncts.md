@@ -14,3 +14,6 @@ Decided shape: the Supplement attaches to a Verb Phrase conjunct only where it i
 ## Landing note
 
 Per `docs/tickets/README.md`, end the ticket with the two landing lines.
+
+**Census delta** (`svkxlwso`): faces read 32,813 → 32,814 of 32,828; Readings 338,233 → 338,243 (Collective Voyage 0 → 8, the internal ambiguities its clause-final variant also has; Candlekeep Inspiration 2 → 4, a grammatical second grouping in which *have …, where X is … instant cards* coordinates with *are sorcery cards, and/or have an Adventure*); lost faces: none.
+**Judgment set** (`svkxlwso`): all hold (`cargo test -p deckmaste_english_v4 --test judgments`, 6 passed).
