@@ -367,7 +367,13 @@ require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
 more than one, as a single postpositive participle differs from a participial
 clause, or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
-imperative Clauses), or `unlinked`, neither a Linked Coordination nor headed
+imperative Clauses), or `coordinated`, itself one. For both, a phrase built by
+a Production of its own Category whose later children are all `adjunct`s is a
+coordination when its head is one: a dependent after a coordination leaves it
+a coordination, so *[untap target creature and gain control of it] until end
+of turn* heads no Imperative, and its shared Adjunct is the coordinated
+Clauses' (structural `Summary::coordinated`, computed from the engine's own
+coordinators), or `unlinked`, neither a Linked Coordination nor headed
 by one through `head` children (a subordinate clause, which a sole connective
 never links). A child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that its Production, or a

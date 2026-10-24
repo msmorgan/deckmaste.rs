@@ -504,6 +504,7 @@ pub(crate) fn resolve(
             preposition: None,
             extensions: 0,
             coordinator: None,
+            coordinated_head: false,
             conjunct_coordinators: [None; MAX_DISTINCT_COORDINATORS],
             other_preposition: None,
             mixed_prepositions: false,
@@ -610,6 +611,12 @@ pub(crate) struct Summary {
     pub extensions: u16,
     /// The coordinator of a coordination.
     pub coordinator: Option<LexemeId>,
+    /// It is a coordination, or a post-adjunct host's Production
+    /// (`Production::post_adjunct_host`) over one: a dependent after a
+    /// coordination leaves it a coordination for the `coordinated` and
+    /// `uncoordinated` children (*[draw a card and discard a card] at …* is
+    /// not an uncoordinated Verb Phrase).
+    pub coordinated: bool,
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
@@ -729,6 +736,9 @@ pub(crate) struct State {
     preposition: Option<(LexemeId, usize)>,
     extensions: u16,
     coordinator: Option<LexemeId>,
+    /// The head of a post-adjunct host's Production is a coordination
+    /// (`Summary::coordinated`).
+    coordinated_head: bool,
     conjunct_coordinators: [Option<LexemeId>; MAX_DISTINCT_COORDINATORS],
     other_preposition: Option<LexemeId>,
     /// The conjuncts of a coordination have more than two prepositions, or
@@ -1500,12 +1510,15 @@ impl Production {
                 {
                     return None;
                 }
-                if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
+                if self.uncoordinated.contains(&position) && summary.coordinated {
                     return None;
                 }
                 self.track_link(&mut next, position, summary)?;
-                if self.coordinated.contains(&position) && summary.coordinator.is_none() {
+                if self.coordinated.contains(&position) && !summary.coordinated {
                     return None;
+                }
+                if self.post_adjunct_host(position) {
+                    next.coordinated_head = summary.coordinated;
                 }
                 // A comma that no bracket closes stays inside every phrase
                 // that contains it, to the end of its sentence.
@@ -1646,6 +1659,7 @@ impl Production {
             unlike_mixed: self.tail && state.unlike_mixed,
             extensions: state.extensions,
             coordinator: self.link.or(state.coordinator),
+            coordinated: self.link.is_some() || state.coordinator.is_some() || state.coordinated_head,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
