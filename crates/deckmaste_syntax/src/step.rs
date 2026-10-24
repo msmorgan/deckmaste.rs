@@ -111,11 +111,18 @@ pub(crate) enum GapRule {
     Raise(Gap),
 }
 
-/// How many lexical leaves a child must span: one, or more than one.
+/// How heavy a child must be: one lexical leaf, more than one, or
+/// postposable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Weight {
     Light,
     Heavy,
+    /// A phrase that ends in a dependent of its head or is a coordination:
+    /// heavy enough relative to a dependent of its verb to be postposed
+    /// past it (CGEL, Ch. 16 §4, pp. 1382–1384; [1iv] *put on the table [a
+    /// large blue bucket full of ice-cubes]*). A head-final phrase (*this
+    /// turn*, *a card*) or a single word stays in place.
+    Postposable,
 }
 
 /// A lexical leaf test.
@@ -520,6 +527,7 @@ pub(crate) fn resolve(
             extensions: 0,
             coordinator: None,
             coordinated_head: false,
+            head_coordination: false,
             conjunct_coordinators: [None; MAX_DISTINCT_COORDINATORS],
             other_preposition: None,
             mixed_prepositions: false,
@@ -636,6 +644,9 @@ pub(crate) struct Summary {
     /// `uncoordinated` children (*[draw a card and discard a card] at …* is
     /// not an uncoordinated Verb Phrase).
     pub coordinated: bool,
+    /// It is a coordination, or its head is one, through head children: a
+    /// coordinated phrase is heavy (`Weight::Postposable`).
+    pub head_coordination: bool,
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
@@ -769,6 +780,8 @@ pub(crate) struct State {
     /// The head of a post-adjunct host's Production is a coordination
     /// (`Summary::coordinated`).
     coordinated_head: bool,
+    /// The head child's `Summary::head_coordination`.
+    head_coordination: bool,
     conjunct_coordinators: [Option<LexemeId>; MAX_DISTINCT_COORDINATORS],
     other_preposition: Option<LexemeId>,
     /// The conjuncts of a coordination have more than two prepositions, or
@@ -876,6 +889,7 @@ impl Production {
             return None;
         }
         if self.head == Some(position) {
+            next.head_coordination = summary.head_coordination;
             next.preposition = summary.preposition;
             next.other_preposition = summary.other_preposition;
             next.extensions = summary.extensions;
@@ -1214,6 +1228,11 @@ impl Production {
         match self.weights.iter().find(|(at, _)| *at == position) {
             Some((_, Weight::Light)) if leaves != 1 => None,
             Some((_, Weight::Heavy)) if leaves < 2 => None,
+            Some((_, Weight::Postposable))
+                if !matches!(child, ChildView::Node(s) if !s.head_final || s.head_coordination) =>
+            {
+                None
+            }
             _ => Some(leaves),
         }
     }
@@ -1757,6 +1776,10 @@ impl Production {
             coordinated: self.link.is_some()
                 || state.coordinator.is_some()
                 || state.coordinated_head,
+            head_coordination: self.link.is_some()
+                || state.coordinator.is_some()
+                || state.coordinated_head
+                || state.head_coordination,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,

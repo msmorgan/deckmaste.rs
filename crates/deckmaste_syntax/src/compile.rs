@@ -1403,6 +1403,32 @@ impl<'a> Binder<'a> {
         Ok(paths)
     }
 
+    /// Whether every child an equation names carries its feature.
+    fn carries_paths(&self, draft: &Draft, equations: &[Equation]) -> Result<bool, LoadError> {
+        for equation in equations {
+            let paths: Vec<&Ident> = match equation {
+                Equation::Agree(a, b) => vec![a, b],
+                Equation::Require(a, _) | Equation::Exclude(a, _) | Equation::Carry(a, _) => {
+                    vec![a]
+                }
+                Equation::ExcludeTogether(list) => list.iter().map(|(a, _)| a).collect(),
+            };
+            for path in paths {
+                let Some((owner, feature)) = path.split_once('.') else { continue };
+                let feature = self.feature(feature)?;
+                if owner != "$"
+                    && !draft
+                        .children
+                        .iter()
+                        .any(|c| c.name == owner && self.carries(&c.symbol, feature))
+                {
+                    return Ok(false);
+                }
+            }
+        }
+        Ok(true)
+    }
+
     fn carries(&self, symbol: &Symbol, feature: usize) -> bool {
         match symbol {
             Symbol::Cat { category, .. } => {
@@ -1858,6 +1884,7 @@ impl<'a> Binder<'a> {
                 interleaved,
                 interleaved_internalised,
                 heavy_shift,
+                shifted_object,
                 postposed,
                 obligatory,
                 agree,
@@ -1897,15 +1924,15 @@ impl<'a> Binder<'a> {
                     adjunct: interleaved.as_deref(),
                     internalised: interleaved_internalised.as_deref(),
                 };
-                let mut ordered =
-                    self.valence_order(drafts.clone(), interleaved, *heavy_shift, host)?;
+                let shifted = heavy_shift.then_some(shifted_object.as_slice());
+                let mut ordered = self.valence_order(drafts.clone(), interleaved, shifted, host)?;
                 if let Some(modifier) = postposed {
                     ordered.extend(self.postposed_modifiers(&drafts, modifier));
                 }
                 // An Adjunct interleaves in a Complement Cluster as in the
                 // phrase (*deals [half X damage, rounded down, to any target],
                 // and [half X damage, rounded up, to you]*).
-                ordered.extend(self.valence_order(clustered, interleaved, false, host)?);
+                ordered.extend(self.valence_order(clustered, interleaved, None, host)?);
                 Ok(ordered)
             }
             SchemaDecl::Adjunct {
@@ -2856,7 +2883,7 @@ impl<'a> Binder<'a> {
         &mut self,
         drafts: Vec<Draft>,
         interleaving: Interleaving<'_>,
-        heavy: bool,
+        shifted_object: Option<&[Equation]>,
         host: HostKind,
     ) -> Result<Vec<Draft>, LoadError> {
         let adjunct = interleaving
@@ -2868,20 +2895,37 @@ impl<'a> Binder<'a> {
             .map(|name| self.category(name))
             .transpose()?;
         let mut ordered = Vec::new();
+        // A postposed Object with no Complement to cross is postposed only
+        // past an interleaved Adjunct: it has no order of its own.
+        let mut unordered = BTreeSet::new();
         for draft in drafts {
             ordered.extend(Self::internalised_orders(&draft));
-            if heavy
-                && draft.children.len() > 2
+            let pp = |c: &Child| {
+                matches!(
+                    c.symbol,
+                    Symbol::Cat {
+                        prepositions: Some(_),
+                        ..
+                    }
+                )
+            };
+            // An Object postposes to the end of its phrase (CGEL, Ch. 16 §4,
+            // pp. 1382–1384): past selected Preposition Phrases ([1iv] *put
+            // on the table [a large blue bucket full of ice-cubes]*), and,
+            // when heavy, past a predicative Complement ([7ii] *found rather
+            // more promising [the proposals …]*; *turns face up [all cards
+            // they own …]*) or an interleaved Adjunct alone ([7i] *have read
+            // very carefully [all the articles she has written]*; *chooses
+            // from among them [an artifact, a creature, …]*). Heavy is
+            // relative to what it crosses (p. 1383): it ends in a dependent
+            // or is a coordination, never a head-final phrase (*attacked
+            // [with two or more creatures] [this turn]*), and it satisfies
+            // the schema's `shifted_object` equations.
+            if let Some(equations) = shifted_object
+                && draft.children.len() > 1
                 && draft.children[1].name == "object"
-                && draft.children[2..].iter().all(|c| {
-                    matches!(
-                        c.symbol,
-                        Symbol::Cat {
-                            prepositions: Some(_),
-                            ..
-                        }
-                    )
-                })
+                && (2..draft.children.len())
+                    .all(|i| pp(&draft.children[i]) || draft.predicative == Some(i))
             {
                 let mut shifted = draft.clone();
                 shifted.id = Ident::new(&format!("{}/shifted-object", shifted.id));
@@ -2896,9 +2940,25 @@ impl<'a> Binder<'a> {
                     _ => i - 1,
                 };
                 remap_draft(&mut shifted, map);
+                if last == 1 || !draft.children[2..].iter().all(pp) {
+                    // Only an Object that carries their features is heavy:
+                    // not one of another Slot Kind (a keyword phrase).
+                    if !self.carries_paths(&shifted, equations)? {
+                        ordered.push(draft);
+                        continue;
+                    }
+                    shifted.weights.push((last, Weight::Postposable));
+                    self.equations(&mut shifted, equations)?;
+                }
+                if last == 1 {
+                    unordered.insert(shifted.id.to_string());
+                }
                 ordered.push(shifted);
             }
             ordered.push(draft);
+        }
+        if adjunct.is_none() {
+            ordered.retain(|draft| !unordered.contains(draft.id.as_str()));
         }
         let Some(adjunct) = adjunct else { return Ok(ordered) };
         let mut out = Vec::new();
@@ -2943,6 +3003,7 @@ impl<'a> Binder<'a> {
                 base.joint_exclusions
                     .retain(|joint| joint.iter().all(|(i, _, _)| *i < split));
                 base.carried.retain(|(i, _, _)| *i < split);
+                base.weights.retain(|(i, _)| *i < split);
                 base.predicative = base.predicative.filter(|&i| i < split);
                 // A Nominal's unselected dependent is its Modifier.
                 let function = match host {
@@ -2984,11 +3045,14 @@ impl<'a> Binder<'a> {
                     .joint_exclusions
                     .retain(|joint| joint.iter().all(|(i, _, _)| *i >= split));
                 suffix.carried.retain(|(i, _, _)| *i >= split);
+                suffix.weights.retain(|(i, _)| *i >= split);
                 suffix.predicative = suffix.predicative.filter(|&i| i >= split);
                 remap_draft(&mut suffix, |i| i - split + 1);
                 out.push(suffix);
             }
-            out.push(draft);
+            if !unordered.contains(draft.id.as_str()) {
+                out.push(draft);
+            }
         }
         Ok(out)
     }
@@ -4101,6 +4165,9 @@ fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
         .chain(&mut draft.carried)
         .chain(draft.joint_exclusions.iter_mut().flatten())
     {
+        *i = map(*i);
+    }
+    for (i, _) in &mut draft.weights {
         *i = map(*i);
     }
     draft.predicative = draft.predicative.map(&map);

@@ -2213,7 +2213,10 @@
         // participle. An auxiliary verb derives no
         // prepositional passive and no Adjectival Passive, nor does a verb
         // whose Adjectival Passive is a declared Adjective (*tapped*), which
-        // stands in its place; an Adjectival Passive is predicative.
+        // stands in its place; an Adjectival Passive is predicative. A heavy
+        // Object postposed past a predicative Complement or an Adjunct is
+        // determined, as every Object Oracle postposes is (*chooses from among
+        // them [an artifact, a creature, …]*; CGEL, Ch. 16 §4, pp. 1382–1384).
         Valence(head: Verb, phrase: "VerbPhrase",
             active: [Require("$.Voice", "Active")],
             passive: Some("By"),
@@ -2222,7 +2225,7 @@
             internalised: [Require("internalised.ComplementKind", "NP")],
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
-            interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, postposed: Some("PostposedModifier"),
+            interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, shifted_object: [Carry("object.Determination", "Overt")], postposed: Some("PostposedModifier"),
             clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")]))),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.

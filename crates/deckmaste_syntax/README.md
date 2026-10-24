@@ -374,7 +374,8 @@ Production can require that a Preposition Phrase child admit a Host Category
 (`Hosted`), as a predicative PP must be able to modify a nominal. It can also
 require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
 more than one, as a single postpositive participle differs from a participial
-clause, or `uncoordinated`, not itself a coordination, where the coordination
+clause (the engine's own `Postposable` weight, for a postposed Object, is a
+phrase that ends in a dependent or is a coordination), or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
 imperative Clauses), or `coordinated`, itself one. For both, a phrase built by
 a Production of its own Category whose later children are all `adjunct`s is a
@@ -451,7 +452,11 @@ The Valence Schema can interleave PP Adjuncts before selected complements and
 postpose an Object. Its `interleaved` Category interleaves before any selected
 PP Complement or shifted Object; its `interleaved_internalised` Category only
 before the Internalised Complement of a passive, a non-core Complement (CGEL,
-Ch. 4 §3.2.1, p. 241). With `postposed`, a phrase whose Object is followed only by
+Ch. 4 §3.2.1, p. 241). With `heavy_shift`, the Object postposes past selected
+PP Complements; past a predicative Complement, or past an `interleaved` Adjunct
+alone, only a heavy Object does: one that ends in a dependent or is a
+coordination, and satisfies the `shifted_object` equations (*chooses from among
+them [an artifact, a creature, …]*; CGEL, Ch. 16 §4, pp. 1382–1384). With `postposed`, a phrase whose Object is followed only by
 selected PP complements also ends in a `modifier` of that function Category,
 postposed out of the Object past them and agreeing with it in each feature
 both carry (*put a number of counters on it equal to …*; CGEL, Ch. 12 §4,
