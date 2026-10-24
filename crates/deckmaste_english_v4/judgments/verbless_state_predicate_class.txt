@@ -1,4 +1,5 @@
 # State adjectives and participles as verbless complements of while/if (This creature attacks while tapped), and be + participle ambiguity
+# from: Gilded Ghoda
 + This creature attacks while saddled. => PrepositionPhrase "while saddled" as Adjunct of attack
 + This creature attacks while prepared. => PrepositionPhrase "while prepared" as Adjunct of attack
 + This creature attacks while tapped. => PrepositionPhrase "while tapped" as Adjunct of attack

@@ -4,6 +4,7 @@
 + If the gift was promised, draw a card. => NounPhrase "the gift" as Subject of be
 + Whenever you give a gift, draw a card. => NounPhrase "a gift" as Object of give
 + When a player doesn't pay this enchantment's cumulative upkeep, that player exiles all cards from their library. => NounPhrase "this enchantment's cumulative upkeep" as Object of pay
+# from: Lightning Runner
 + Pay six {E}. => NounPhrase "six {E}" as Object of pay; readings 1
 + Add an additional {G}. => NounPhrase "an additional {G}" as Object of add; readings 1
 + Add {G}. => readings 1

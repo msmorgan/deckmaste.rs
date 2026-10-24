@@ -27,6 +27,7 @@
 + Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card.
 # "instead" in central position, before a bare infinitival or a finite Verb Phrase
 + You may instead draw a card. => PrepositionPhrase "instead" as Adjunct of draw
+# from: Land Equilibrium
 +Clause That player instead puts that card onto the battlefield => PrepositionPhrase "instead" as Adjunct of put
 # the Complement of the *of* that *instead* selects: a gerund-participial, or a goal Preposition Phrase
 +PrepositionPhrase instead of drafting a card => VerbPhrase "drafting a card" as Complement of of

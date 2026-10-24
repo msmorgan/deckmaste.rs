@@ -4,6 +4,7 @@
 +VerbPhrase lose the flip => NounPhrase "the flip" as Object of lose
 +NounPhrase your life total => Nominal "life total" head "life total"
 +NounPhrase a mana ability => Nominal "mana ability" head ability
+# from: Orcish Mine
 +VerbPhrase removed from this land => PrepositionPhrase "from this land" as Complement of remove
 +VerbPhrase put them back => PrepositionPhrase "back" as Complement of put; NounPhrase "them" as Object of put
 +VerbPhrase put them back in any order => PrepositionPhrase "back" as Complement of put; PrepositionPhrase "in any order"

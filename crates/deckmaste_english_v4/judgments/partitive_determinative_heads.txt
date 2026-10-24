@@ -25,6 +25,7 @@
 +NounPhrase less of that mana => PrepositionPhrase "of that mana" as Complement of less
 +NounPhrase more of that mana => PrepositionPhrase "of that mana" as Complement of more
 +NounPhrase none of that mana => PrepositionPhrase "of that mana" as Complement of none
+# from: Mnemonic Betrayal
 + If any of those cards remain exiled, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
 + If any of those cards shares a card type, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
 +NounPhrase any of those cards => PrepositionPhrase "of those cards" as Complement of any

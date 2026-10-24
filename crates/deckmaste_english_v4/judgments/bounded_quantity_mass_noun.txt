@@ -10,9 +10,12 @@
 # a mass-noun subject agrees in the singular
 +Clause 4 or more damage was dealt to it this turn => NounPhrase "4 or more damage"; DeterminerPhrase "4 or more" as Determiner of damage
 * 4 or more damage were dealt to it this turn.
+# from: Toluz, Clever Conductor
 +NounPhrase 5 or more cards => DeterminerPhrase "5 or more" as Determiner of card
+# from: Doubling Season
 +NounPhrase 4 or more counters => DeterminerPhrase "4 or more" as Determiner of counter
 + A player has 13 life.
 + You have at least 7 life.
+# from: Scroll of Origins
 + You have 5 or more cards in hand.
 +NounPhrase mana value 3 or less

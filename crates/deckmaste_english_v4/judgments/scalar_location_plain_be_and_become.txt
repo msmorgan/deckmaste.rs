@@ -11,6 +11,7 @@
 +VerbPhrase can be 1 or less => Predicative "1 or less" as PredicativeComplement of be
 +VerbPhrase can't be 0 => Predicative "0" as PredicativeComplement of be
 +VerbPhrase can't be X => Predicative "X" as PredicativeComplement of be
+# from: Lair of the Hydra
 +VerbPhrase can't be two => Predicative "two" as PredicativeComplement of be
 +VerbPhrase can't be 1 or less => Predicative "1 or less" as PredicativeComplement of be
 +VerbPhrase could be 0 => Predicative "0" as PredicativeComplement of be
@@ -38,15 +39,21 @@
 +VerbPhrase would be two => Predicative "two" as PredicativeComplement of be
 +VerbPhrase would be 1 or less => Predicative "1 or less" as PredicativeComplement of be
 +Clause X can't be 0
+# from: Inferno of the Star Mounts
 +Clause its power becomes 0
+# from: Wand of Wonder
 + X is 0.
+# from: Savage Swipe
 + Its power is 0.
 + Your life total is 1.
 + X can't be greater than 3.
+# from: The Endstone
 + Your life total becomes half your starting life total.
 + Its power becomes equal to 3.
 + You have no maximum hand size.
 + It can't be a creature.
 + It can't be blocked.
+# from: Tawnos's Tinkering
 + It becomes a 1/1 creature.
+# from: Tawnos's Tinkering
 + It becomes a 1/1 creature. => NounPhrase "a 1/1 creature" as PredicativeComplement of become

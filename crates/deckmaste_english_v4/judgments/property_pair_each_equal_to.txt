@@ -5,6 +5,7 @@
 + <card=Sydri, Galvanic Genius> {U}: Target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value until end of turn. => Nominal "power and toughness"; AdjectivePhrase "each equal to its mana value"; AdjectivePhrase "equal to its mana value"
 + It becomes an artifact creature with power and toughness equal to its mana value. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
 + It has power and toughness equal to its mana value. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
+# from: Duggan, Private Detective
 + This creature's power and toughness are each equal to the number of cards in your hand. => VerbPhrase "are each equal to the number of cards in your hand"
 + It becomes an artifact creature with power and toughness 4/4.
 + It has base power and toughness 3/3.

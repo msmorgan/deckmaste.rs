@@ -10,6 +10,7 @@
 +NounPhrase an amount of {G}
 +NounPhrase an 8/8 creature
 +NounPhrase a 1/1 creature
+# from: Illusionary Mask
 +NounPhrase a +8/+8 creature
 +NounPhrase Two target creatures
 +PrepositionPhrase At the beginning

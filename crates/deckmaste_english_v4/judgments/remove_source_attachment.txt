@@ -5,6 +5,7 @@
 + {T}: Untap target attacking creature an opponent controls and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
 + Whenever this creature becomes blocked, you may untap it and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
 + Untap target attacking creature and remove it from combat. Gain control of that creature until end of turn. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
+# from: Temple of Cyclical Time
 + Remove a counter from this land. => PrepositionPhrase "from this land" as Complement of remove; !PrepositionPhrase "from this land" as Adjunct of remove
 + Remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
 + Draw a card during combat. => PrepositionPhrase "during combat" as Adjunct of draw

@@ -1,5 +1,6 @@
 # Frame-selected objects and complements: amass Orcs N, share ... with ..., enter the battlefield, remove ... from ..., and a subject relative clause with a negated copula
 +VerbPhrase amass Orcs 1 => NounPhrase "Orcs" as Object of amass
+# from: Faces of the Past
 +VerbPhrase share a creature type with that creature => NounPhrase "a creature type" as Object of share; PrepositionPhrase "with that creature" as Complement of share
 +VerbPhrase shares a creature type with that creature => NounPhrase "a creature type" as Object of share; PrepositionPhrase "with that creature" as Complement of share
 +VerbPhrase enter the battlefield => NounPhrase "the battlefield" as Object of enter

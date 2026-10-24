@@ -17,5 +17,6 @@
 + Enchantment — Aura
 + Basic Land — Forest
 + Instant — Arcane
+# from: Aang and Katara
 + Aang and Katara enter. => NounPhrase "Aang and Katara" as Subject of enter
 +VerbPhrase <card=The Hive> named Wasp

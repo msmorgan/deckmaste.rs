@@ -14,8 +14,10 @@
 + <card=Lily Bowen, Raging Grandma> At the beginning of your upkeep, double the number of +1/+1 counters on Lily Bowen if its power is 16 or less. Otherwise, remove all but one +1/+1 counter from it, then you gain 1 life for each +1/+1 counter removed this way. => DeterminerPhrase "all but one" as Determiner of "+1/+1 counter"
 +VerbPhrase <card=Aladdin's Lamp> put all but one of them on the bottom of your library in a random order, then draw a card => DeterminerPhrase "all but one"
 *NounPhrase all but that many permanent
+# from: Nine Lives
 + If a source would deal damage to you, prevent that damage.
 + If a source would deal damage to you, prevent 1 damage.
+# from: Capricious Efreet
 + Destroy one of them.
 + Whenever this creature attacks, tap all creatures defending player controls.
 + At the beginning of your upkeep, if you have 40 or more life, you win the game.

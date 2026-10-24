@@ -9,6 +9,7 @@
 + <card=Arcum's Whistle> {3}, {T}: Choose target non-Wall creature the active player has controlled continuously since the beginning of the turn. That player may pay {X}, where X is that creature's mana value. If they don't pay, the creature attacks this turn if able, and at the beginning of the next end step, destroy it if it didn't attack this turn. Activate only before attackers are declared. => Clause "they don't pay"; RelativeClause "the active player has controlled continuously since the beginning of the turn" gap "non-Wall creature"
 + <card=Chaos Defiler> Battle Cannon — When this creature enters or dies, for each opponent, choose a nonland permanent that player controls. Destroy one of them chosen at random. => NounPhrase "one of them chosen at random" as Object of destroy; VerbPhrase "chosen at random"
 # Expandability is selected by the preposition (CGEL, Ch. 11 §4.8, p. 971).
+# from: Donal, Herald of Wings
 + Copy target spell, except the copy is red. => PrepositionPhrase "except the copy is red" as Adjunct of copy
 * When that this creature enters, draw a card.
 * Copy target spell, except that that the copy is red.

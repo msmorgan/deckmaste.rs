@@ -9,6 +9,7 @@
 +NounPhrase one that hasn't been chosen => RelativeClause "that hasn't been chosen" gap "one"
 + <card=Eye of Ojer Taq> Craft with two that share a card type {6} => RelativeClause "that share a card type" gap "two"
 +NounPhrase two +1/+1 counters => !RelativeClause "+1/+1 counters"
+# from: Conservator
 +NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn" gap "next 3 damage"
 +NounPhrase a spell targeting this creature => VerbPhrase "targeting this creature" as Modifier of spell
 + <card=Verazol, the Split Current> Verazol enters with a +1/+1 counter on it for each mana spent to cast it. => NounPhrase "each mana spent to cast it"; VerbPhrase "spent to cast it" as Modifier of mana

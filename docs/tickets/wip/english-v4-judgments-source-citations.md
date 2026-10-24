@@ -23,6 +23,10 @@ Produce a short list of entries the script could not source, for the owner to re
 - The census is unchanged.
 - Each retirement is reported with its reason, per CLAUDE.md.
 
+## Progress
+
+Steps 1 to 3 are done mechanically; no entry was retired or replaced. A fresh sweep found 880 non-verbatim entries (91 more pass once the first letter's case is ignored). 135 now carry a `# from: CARD` comment (a source sentence checked to exist in that card's unit, or a match differing only in numbers or mana symbols). 150 `*` entries pin a wrong inflectional form and stay as they are. 595 remain for the owner to decide: 300 to retire (no card prints the construction), 251 to replace with real or cited text, 44 unsure. The list is kept outside the repo, with the proposed replacement for each entry; replacements are not yet run through the parser. Retirements and replacements remain, so the ticket stays in `wip/`.
+
 ## Landing note
 
 Per `docs/tickets/README.md`, end with the two landing lines.

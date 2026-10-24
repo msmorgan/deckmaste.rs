@@ -1,8 +1,10 @@
 # Number agreement of a clause with a coordinated subject; singular-selecting determiners over coordinated nominals
 + Its power and toughness are equal to this creature's power and toughness. => NounPhrase "Its power and toughness" as Subject of be; Nominal "power and toughness"
 * Its power and toughness is equal to this creature's power and toughness.
+# from: Lord of Extinction
 + Lord of Extinction's power and toughness are equal to the number of cards in all graveyards. => NounPhrase "Lord of Extinction's power and toughness" as Subject of be; Nominal "power and toughness"
 * Lord of Extinction's power and toughness is equal to the number of cards in all graveyards.
+# from: Gemini Engine
 + Its power is equal to this creature's power.
 +NounPhrase each creature and planeswalker they control => RelativeClause "they control" gap "creature and planeswalker"; Nominal "creature and planeswalker" || RelativeClause "they control" gap "planeswalker"; readings 2
 + <card=Brightcap Badger> Each Fungus and Saproling you control has "{T}: Add {G}." => RelativeClause "you control" gap "Fungus and Saproling" || RelativeClause "you control" gap "Saproling"

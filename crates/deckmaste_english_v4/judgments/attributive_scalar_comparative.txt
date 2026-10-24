@@ -15,6 +15,7 @@
 +NounPhrase power greater than 3 => AdjectivePhrase "greater than 3" as Modifier of power
 +NounPhrase mana value less than or equal to X
 +AdjectivePhrase 5 or greater
+# from: Stand Up for Yourself
 +AdjectivePhrase five or greater
 + <card=Amrou Kithkin> This creature can't be blocked by creatures with power 3 or greater. => NounPhrase "power 3 or greater"
 +AdjectivePhrase equal to X => PrepositionPhrase "to X" as Complement of equal

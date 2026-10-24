@@ -7,6 +7,7 @@
 + <card=Call Damage Control> • Target artifact card. => NounPhrase "Target artifact card"; DeterminerPhrase "Target" as Determiner of card
 + <card=Wild Shape> • 1/3 Turtle with hexproof. => Nominal "1/3 Turtle with hexproof"; PrepositionPhrase "with hexproof" as Modifier of Turtle
 + <card=Shredder's Armor> Equip—Sacrifice another nonland permanent. Activate only once each turn. => KeywordParameters "Equip—Sacrifice another nonland permanent."; NounPhrase "another nonland permanent" as Object of sacrifice
+# from: Elminster's Simulacrum
 + For each opponent, you create a token. => PrepositionPhrase "For each opponent" as Adjunct of create; NounPhrase "a token" as Object of create
 + Destroy all creatures, except for Walls. => PrepositionPhrase "except for Walls" as Adjunct of destroy
 

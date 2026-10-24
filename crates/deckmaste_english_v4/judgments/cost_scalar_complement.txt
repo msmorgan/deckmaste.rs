@@ -8,6 +8,7 @@
 +VerbPhrase cost {1} less
 +VerbPhrase costs {1} less to cast
 +VerbPhrase costs {0}
+# from: Hour of Need
 +VerbPhrase cost {1}{U} more to cast
 *VerbPhrase to costs
 * This spell cost {1} less to casts.

@@ -4,6 +4,7 @@
 + You may have this land enter tapped as a copy of any land on the battlefield. => PrepositionPhrase "as a copy of any land on the battlefield" as Adjunct of enter
 + You may have this creature enter as a copy of any creature card in a graveyard. => PrepositionPhrase "as a copy of any creature card" as Adjunct of enter || PrepositionPhrase "as a copy of any creature card in a graveyard" as Adjunct of enter
 + You may have this Equipment enter as a copy of any Equipment on the battlefield. => PrepositionPhrase "as a copy of any Equipment on the battlefield" as Adjunct of enter
+# from: Kinjalli's Sunwing
 + Creatures you control enter tapped.
 + You may have this creature enter tapped.
 + Activate as a sorcery. => PrepositionPhrase "as a sorcery" as Adjunct of activate

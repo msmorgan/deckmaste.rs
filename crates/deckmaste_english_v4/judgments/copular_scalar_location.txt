@@ -5,6 +5,7 @@
 +Clause enchanted creature's power is 4 or greater => NounPhrase "enchanted creature's power" as Subject of be; Predicative "4 or greater" as PredicativeComplement of be
 +Clause its mana value is 2 or less => NounPhrase "its mana value" as Subject of be; Predicative "2 or less" as PredicativeComplement of be
 +Clause its power is 6 or greater => NounPhrase "its power" as Subject of be; Predicative "6 or greater" as PredicativeComplement of be
+# from: Disrupting Shoal
 +Clause that spell's mana value is X => NounPhrase "that spell's mana value" as Subject of be; Predicative "X" as PredicativeComplement of be
 +Clause X is 2 => NounPhrase "X" as Subject of be; VerbPhrase "is 2"; Predicative "2" as PredicativeComplement of be
 + The number of cards in your hand is three. => NounPhrase "The number of cards in your hand" as Subject of be

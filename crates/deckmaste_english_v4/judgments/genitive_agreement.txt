@@ -1,10 +1,14 @@
 # Independent genitives agree with the possessed referent, not its owner.
 +Clause yours attacks => NounPhrase "yours" as Subject of attack
 +Clause yours attack => NounPhrase "yours" as Subject of attack
+# from: Flunk
 +NounPhrase enchanted creature's controller's hand => NounPhrase "enchanted creature's controller's" as Determiner of hand
+# from: Flunk
 +NounPhrase target creature's controller's hand => NounPhrase "target creature's controller's" as Determiner of hand
 
+# from: Watcher in the Web
 +NounPhrase an additional two creatures => AdjectivePhrase "additional"; Nominal "two creatures"
+# from: Kaervek's Hex
 +NounPhrase an additional 2 damage => AdjectivePhrase "additional"; Nominal "2 damage"
 +NounPhrase another two creatures
 +NounPhrase every two turns => Nominal "two turns"

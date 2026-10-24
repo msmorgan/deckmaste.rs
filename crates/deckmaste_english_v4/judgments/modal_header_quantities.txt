@@ -2,6 +2,7 @@
 +Clause Choose one or both => NounPhrase "one or both" as Object of choose
 +Clause Choose one or more => NounPhrase "one or more" as Object of choose
 +Clause When this creature enters, choose up to one => NounPhrase "up to one" as Object of choose
+# from: Wail of the Forgotten
 +Clause Choose two or more => NounPhrase "two or more" as Object of choose
 +Clause Choose up to one => NounPhrase "up to one" as Object of choose
 +Clause Choose up to two => NounPhrase "up to two" as Object of choose
