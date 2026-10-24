@@ -4017,14 +4017,21 @@ def stepOps : Nat → StepOps
           (drs2, e1 ++ e2)
         | .establish spec dur =>
           -- A prohibition that modifies the preceding action ("Destroy target creature. That
-          -- creature can't be regenerated.") reads that action's objects as the action found
-          -- them, a destroyed permanent by its last known information [CR#608.2h,701.19c].
+          -- creature can't be regenerated.") reads that action's own objects, the patients of
+          -- the clause before it, as the action found them: a destroyed permanent by its last
+          -- known information [CR#608.2h,701.19c]. No other departed object is read so.
           let modifies := match dur with
             | some .modifiesPrecedingAction => true
             | _ => false
+          let patients := (drs.visibleReferents.filter fun ref =>
+            ref.clause + 1 == drs.currentClause && ref.role == .obj).map (·.id)
           let (drs1, e1) := ops.spec
-            (if modifies then { drs with characteristicRead := true } else drs) spec
-          let drs1 := if modifies then { drs1 with characteristicRead := drs.characteristicRead }
+            (if modifies then
+              { drs with historicalMoveFrom := some .battlefield, historicalReferentIds := patients }
+             else drs) spec
+          let drs1 := if modifies then
+              { drs1 with historicalMoveFrom := drs.historicalMoveFrom
+                          historicalReferentIds := drs.historicalReferentIds }
             else drs1
           let (drs2, e2) := match dur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           (drs2, e1 ++ e2 ++ refuse (!spec.writesDefining) .cdaGranted)

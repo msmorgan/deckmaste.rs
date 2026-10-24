@@ -633,5 +633,20 @@ theorem gatedProhibitionClosesItsBoxButPublishesItsTarget :
         (.sequentially [.establish gate (some thisTurn), .setStatus .tapped it]) = [] := by
   decide
 
-end Semantics.Proofs.Deontic
+/-- A prohibition that modifies the preceding action reads that action's own objects by last
+known information [CR#608.2h]: Nekrataal's "Destroy target creature. That creature can't be
+regenerated." reads the destroyed creature, but after "Exile target creature." or "Sacrifice a
+creature." and then "Destroy target artifact.", "that creature" finds no creature the destroy
+acted on, and is refused. -/
+theorem modifyingProhibitionReadsOnlyThePrecedingActionsObjects :
+    let rider := fun (before : List Action) (destroyed : Predicate) =>
+      Action.check (DRS.ofList []) (.sequentially (before ++
+        [doUnderProhibition (destroy (target destroyed)) (regeneration (that (.type .creature)))]))
+    rider [] isCreature = [] ∧
+      rider [exile (target isCreature)] isArtifact =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      rider [sacrifice (a isCreature)] isArtifact =
+        [.anaphor (.word (.type .creature)) .one 0] := by
+  decide
 
+end Semantics.Proofs.Deontic
