@@ -363,6 +363,24 @@ theorem badOtherwiseReadsLeadingArm :
       = [.anaphor .bare .one 0] := by
   decide
 
+/-- "Tap target creature. If you control an artifact, exile that creature. Otherwise, sacrifice
+it. Return the exiled card to the battlefield." Whichever branch is taken, what it did to a
+referent in scope before the `doIf` stands after it (`semantics-v3.md` §1.3, box 2): "the exiled
+card" and "the sacrificed card" each read the target as the branch that moved it left it; a deed
+neither branch did is still no antecedent. -/
+theorem otherwiseKeepsWhatEitherBranchDidToAnOuterReferent :
+    let line := fun (later : Action) => Action.sequentially
+      [ .setStatus .tapped (target isCreature),
+        .doIf (exists_ (and [isArtifact, youControl])) (exile (that (.type .creature)))
+          (some (sacrifice it)),
+        later ]
+    let returned := fun (deed : Predicate) =>
+      Action.check (DRS.ofList []) (line (putInto (the (and [deed, isCard])) battlefield))
+    returned (was (exile which)) = [] ∧ returned (was (sacrifice which)) = [] ∧
+      returned (was (destroy which)) =
+        [.participialDescription (.deed (.action "destroy")) 0] := by
+  decide
+
 theorem noElseConditionExportsItsOpponent :
     let conditional := .doIf (.compareAmt (lifeTotalOf .you) .less
       (lifeTotalOf anOpponent)) (gainLife 6) none

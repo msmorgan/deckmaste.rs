@@ -4212,8 +4212,20 @@ def stepOps : Nat → StepOps
               (nextClause { withTargets with
                 referents := amounts ++ withTargets.referents
                 nextId := max withTargets.nextId drs2.nextId }) el
-            -- Either branch's events are read back by a later "this way".
+            -- Either branch's events are read back by a later "this way". What the branches
+            -- leave the text after the `doIf` (`semantics-v3.md` §1.3, box 2) are the referents
+            -- in scope before it and the targets the then-branch announced, as either branch
+            -- left them, the then-branch's version first: one a branch moved is read under the
+            -- id the move gave it [CR#400.7], and under its earlier id too where the other branch
+            -- left it in place. What the condition or a branch introduced is closed with them.
+            let outer := fun (id : ReferentId) => id < drs.nextId || targetIds.contains id
+            let survives := fun (ref : Referent) => outer ref.id || ref.movedFrom.any outer
+            let fromThen := drs2.referents.filter survives
+            let fromElse := alternative.referents.filter fun ref =>
+              survives ref && !fromThen.any (·.id == ref.id)
+            let referents := fromThen ++ fromElse
             ({ withTargets with
+                referents
                 nextId := max drs2.nextId alternative.nextId
                 causedEvents := newlyCaused drs drs2 ++ newlyCaused drs alternative ++
                   drs.causedEvents }, e1 ++ e2 ++ e3)
