@@ -1377,10 +1377,59 @@ def DRS.thisWayRecordedOrigin (drs : DRS) (subj : Subject) (action : Action) :
     | _ => none
   | _ => none
 
+/-- Whether stepping `action`'s head checks its performer's kind itself, in any context: a draw
+is a player's [CR#121.1], imperative or handed off ("target creature draws a card" is refused) as
+in a clause. -/
+def Action.checksItsPerformer (action : Action) : Bool :=
+  match action.scopeBody with
+  | .draw _ => true
+  | _ => false
+
+/-- The refusals of a clause's performer at the kind its action needs (`clauseActorKind`): the
+performer in context once the clause's subject is stepped, unless the head checks it as it steps
+(`Action.checksItsPerformer`), so the obligation is refused once. -/
+def clauseActorRefusals (action : Action) (drs : DRS) : List Refusal :=
+  if action.checksItsPerformer then [] else
+  match clauseActorKind action, actorShape? drs with
+  | some expected, some shape => kindCheck expected (some shape.kind)
+  | _, _ => []
+
+/-- Whether an action's head is targeting, so a passive's agent must be able to target. -/
+def Action.targetsHead (action : Action) : Bool :=
+  match action.scopeBody with
+  | .target _ => true
+  | _ => false
+
+/-- The action-clause spine every clause that embeds an `action` under a `Subject` shares
+(`semantics-v3.md` §3.1): `does`, `would`, `did`, and the deontic rules `cant`, `can`/`must`,
+`gatedBy` and `asThough`. In order: the head gate `gate`; the subject before the action
+(`stepEventSubjectWith`), and the performer it hands the action to, at the kind the action needs
+(`clauseActorRefusals`); the action in `phase`, as a pattern, in the context `enter` makes of the
+subject's output; `between`, what the context adds after the action (a deontic rule's modifiers,
+a lookback's restored history); a passive's agent after the action (`stepSubjectAfterWith`); then
+`finish` (a lookback's span, an `asThough` condition). An event clause (`event`) also checks its
+voice and a procedure's number; a deontic rule constrains a pattern, so neither applies. The
+context's own mode is restored on exit. -/
+def stepActionClauseWith (ops : StepOps) (drs : DRS) (subj : Subject) (action : Action)
+    (phase : StepPhase) (gate : Action → Bool) (event : Bool)
+    (enter : DRS → DRS := fun d => { d with actionPattern := true })
+    (between : DRS → DRS × List Refusal := fun d => (d, []))
+    (finish : DRS → DRS × List Refusal := fun d => (d, [])) : DRS × List Refusal :=
+  let headErr := refuse (gate action) .eventHead ++
+    (if event then eventActionRefusals action else [])
+  let (drs1, e1) := stepEventSubjectWith ops drs subj phase action
+  let actorErrors := clauseActorRefusals action drs1
+  let (drs2, e2) := ops.inst phase subj.patientRole (enter drs1) action
+  let (drs3, e3) := between drs2
+  let (drs4, e4) := stepSubjectAfterWith ops drs3 subj (clauseActorKind action) action.targetsHead
+  let (drs5, e5) := finish drs4
+  ({ drs5 with actionPattern := drs.actionPattern },
+    headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ e5 ++
+      (if event then eventVoiceChecks drs subj action else []))
+
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
   | { subj, action, within, ordinal } =>
-    let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
     -- A subject the move moves ("that creature dies") reads the participants introduced before
     -- the clause as the permanents they were, as a patient written inside the move does.
     -- A grounded "this way" lookback whose move writes no origin reads it from the events the
@@ -1389,44 +1438,37 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
     let subjectContext := if action.subjectReadsDepartedPermanent recorded then
       { drs with historicalMoveFrom := some .battlefield
                  historicalReferentIds := drs.referents.map (·.id) } else drs
-    let (drs1, e1) := stepEventSubjectWith ops subjectContext subj .postEvent action
-    let drs1 := { drs1 with historicalMoveFrom := drs.historicalMoveFrom
-                            historicalReferentIds := drs.historicalReferentIds }
-    let subjectKind : Option Kind := match subj with
-      | .actor _ => (actorShape? drs1).map (·.kind)
-      | .by np => some (np.kindIn drs .object)
-      | .any => none
-    let groundErrors := lookbackGroundRefusals drs action subjectKind within
-    let actorErrors := match action.scopeBody with
-      | .draw _ => []
-      | _ => match clauseActorKind action, actorShape? drs1 with
-        | some expected, some shape => kindCheck expected (some shape.kind)
-        | _, _ => []
     -- With no agent written, or one written with "by", no performer of the enclosing action
     -- performs the deed looked back at: its handoffs are hidden while the clause steps.
     let hidden := match subj with
       | .actor _ => []
-      | .any | .by _ => drs1.performers
-    let historical : DRS := {
+      | .any | .by _ => drs.performers
+    let historical (drs1 : DRS) : DRS := {
       drs1 with
       performers := if hidden.isEmpty then drs1.performers else []
       actionPattern := true
       historicalReferentIds := drs.referents.map (·.id)
-      historicalMoveFrom := if recorded.isSome then recorded else drs1.historicalMoveFrom
+      historicalMoveFrom := if recorded.isSome then recorded else drs.historicalMoveFrom
       participialAnchorRead := none }
-    let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
-    let drs2 := { drs2 with historicalMoveFrom := drs.historicalMoveFrom }
-    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
-    let (drs4, e4) := match within with
-      | some span => stepLookbackSpanWith ops drs3 span
-      | none => (drs3, [])
-    ({ drs4 with
-        performers := hidden ++ drs4.performers
-        actionPattern := drs.actionPattern
+    -- After the action, the performer the subject handed it to is still in view: the lookback's
+    -- ground is read at its kind.
+    let restored (d : DRS) : DRS × List Refusal :=
+      let subjectKind : Option Kind := match subj with
+        | .actor _ => (actorShape? d).map (·.kind)
+        | .by np => some (np.kindIn drs .object)
+        | .any => none
+      ({ d with historicalMoveFrom := drs.historicalMoveFrom },
+        lookbackGroundRefusals drs action subjectKind within)
+    let (out, errors) := stepActionClauseWith ops subjectContext subj action .postEvent
+      Action.eventHeadOk true historical restored
+      (fun d => match within with
+        | some span => stepLookbackSpanWith ops d span
+        | none => (d, []))
+    ({ out with
+        performers := hidden ++ out.performers
         historicalReferentIds := drs.historicalReferentIds
         participialAnchorRead := drs.participialAnchorRead },
-      headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
-        eventVoiceChecks drs subj action ++ eventOrdinalRefusals ordinal)
+      errors ++ eventOrdinalRefusals ordinal)
 
 /-- Whether a relative clause's agent is this object, written with "by" ("put onto the
 battlefield with Necromancy", "created with this"): the phrase that links an ability to the one
@@ -1485,16 +1527,7 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
   match fuel, wc with
   | 0, _ => (drs, [.recursionLimit])
   | _ + 1, .would subj action =>
-    let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
-    let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
-    let actorErrors := match action.scopeBody with
-      | .draw _ => []
-      | _ => match clauseActorKind action, actorShape? drs1 with
-        | some expected, some shape => kindCheck expected (some shape.kind)
-        | _, _ => []
-    let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
-    ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ eventVoiceChecks drs subj action)
+    stepActionClauseWith ops drs subj action .preEvent Action.eventHeadOk true
   | n + 1, .wouldAny cs =>
     let (branches, errors) := cs.foldl (fun (branches, errors) c =>
       let (out, errs) := stepWouldClauseWith ops drs c n
@@ -3531,16 +3564,7 @@ def stepOps : Nat → StepOps
           let (callerDrs, errs) := ops.ev (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
         | .does subj action =>
-          let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
-          let (drs1, e1) := stepEventSubjectWith ops drs subj .postEvent action
-          let actorErrors := match action.scopeBody with
-            | .draw _ => []
-            | _ => match clauseActorKind action, actorShape? drs1 with
-              | some expected, some shape => kindCheck expected (some shape.kind)
-              | _, _ => []
-          let (drs2, e2) := ops.inst .postEvent subj.patientRole { drs1 with actionPattern := true } action
-          let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
-          ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ eventVoiceChecks drs subj action)
+          stepActionClauseWith ops drs subj action .postEvent Action.eventHeadOk true
         | .beginningOf _ whose turn | .endOf _ whose turn =>
           let (drs1, errors) := match whose with
             | none => (drs, [])
@@ -4482,71 +4506,62 @@ def stepOps : Nat → StepOps
           (applyInPlaceStamp drs2 ids (some (.core .gainControl)), e1 ++ e2)
         | .modeChoice mc => stepModeChangeWith ops drs mc
         | .cant subj action mods =>
-          let headErr := if action.deonticHeadOk then [] else [.eventHead]
           -- A cause-qualified prohibition steps its cause first, as `WouldClause.causedBy` does,
           -- so the prohibited clause reads what the cause introduces.
           let (drs0, e0) := match mods.cause with
             | some cause => stepCausingWith ops drs cause
             | none => (drs, [])
-          let (drs1, e1) := stepEventSubjectWith ops drs0 subj .preEvent action
-          let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
-          let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
-          (closeModalBox drs drs4,
-            headErr ++ e0 ++ e1 ++ e2 ++ e3 ++ e4 ++ refuse mods.rider.isNone .deonticRider)
+          let (out, errors) := stepActionClauseWith ops drs0 subj action .preEvent
+            Action.deonticHeadOk false (between := (stepDeonticModsWith ops · mods))
+          (closeModalBox drs out, e0 ++ errors ++ refuse mods.rider.isNone .deonticRider)
         | .must subj action mods | .can subj action mods =>
-          let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
-            refuse mods.cause.isNone .deonticCause ++
+          let modErrors := refuse mods.cause.isNone .deonticCause ++
             refuse (mods.rider.isNone || s matches .can ..) .deonticRider
-          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
-          let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
-          let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
           -- The text writes the act it permits or requires, so a later "this way" reads it back
           -- ("You may cast spells from the top of your library. If you cast a spell this way,
           -- …"); whether anyone takes it is the engine's (`semantics-v3.md` §3.8). A
-          -- prohibition writes none.
-          let permitted := if drs.actionPattern then [] else
-            (action.describedEvents (match subj with
-              | .actor _ => (actorShape? drs1).map (·.kind)
-              | .any | .by _ => none)).map ({ · with permitted := true })
-          let permitting := { drs4 with
-              actionPattern := drs.actionPattern
-              causedEvents := permitted ++ drs4.causedEvents }
+          -- prohibition writes none. Its performer is the one the subject handed the act to,
+          -- still in view after the act.
+          let permitting (d : DRS) : DRS × List Refusal :=
+            let (d, errors) := stepDeonticModsWith ops d mods
+            let permitted := if drs.actionPattern then [] else
+              (action.describedEvents (match subj with
+                | .actor _ => (actorShape? d).map (·.kind)
+                | .any | .by _ => none)).map ({ · with permitted := true })
+            ({ d with causedEvents := permitted ++ d.causedEvents }, errors)
+          let (permitted, errors) := stepActionClauseWith ops drs subj action .preEvent
+            Action.deonticHeadOk false (between := permitting)
           -- A rider modifies the permitted act, so it reads the permission's clause back
           -- [CR#608.2c].
           let (out, e5) := match mods.rider with
-            | some rider => ops.inst .postEvent .obj (nextClause permitting) rider
-            | none => (permitting, [])
-          (closeModalBox drs out, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
+            | some rider => ops.inst .postEvent .obj (nextClause permitted) rider
+            | none => (permitted, [])
+          (closeModalBox drs out, modErrors ++ errors ++ e5)
         | .asThough subj action cond =>
           -- Stepped as a permission is, but it permits nothing [CR#609.4,101.2]: the statement
           -- describes how the act happens, so it writes no act for a later "this way" to read.
-          let headErr := if action.deonticHeadOk then [] else [.eventHead]
-          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
-          let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           -- The agent of a passive ("all damage is dealt [by a source]") is a participant of the
           -- event, so the condition reads it: "as though its source had wither".
-          let (drs3, e3) := stepSubjectAfterWith ops drs2 subj
-          let (drs4, e4) := stepAsThoughWith ops drs3 cond
-          ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
+          stepActionClauseWith ops drs subj action .preEvent Action.deonticHeadOk false
+            (finish := (stepAsThoughWith ops · cond))
         | .gatedBy cost subj action mods =>
-          let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
-            refuse mods.cause.isNone .deonticCause ++ refuse mods.rider.isNone .deonticRider
-          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
-          let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
-          let payerId := drs3.nextId
-          let payer := kindBinding .player
-          let costContext := { (nextClause drs3) with
-            actionPattern := drs.actionPattern
-            groupSizeScope := (actorShape? drs3).map (fun (shape : ActorShape) => shape.refIds) }
-          let (paid, costErrors) := ops.cost (costContext.push payer .other false) cost
-          let withoutPayer := { paid with
-            referents := paid.referents.filter (·.id != payerId)
-            pendingRoles := paid.pendingRoles.filter (fun mention => mention.1 != payerId) }
-          let (out, agentErrors) := stepSubjectAfterWith ops withoutPayer subj
-          (closeModalBox drs out, headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
+          let modErrors := refuse mods.cause.isNone .deonticCause ++
+            refuse mods.rider.isNone .deonticRider
+          let gated (d : DRS) : DRS × List Refusal :=
+            let (drs3, e3) := stepDeonticModsWith ops d mods
+            let payerId := drs3.nextId
+            let payer := kindBinding .player
+            let costContext := { (nextClause drs3) with
+              actionPattern := drs.actionPattern
+              groupSizeScope := (actorShape? drs3).map (fun (shape : ActorShape) => shape.refIds) }
+            let (paid, costErrors) := ops.cost (costContext.push payer .other false) cost
+            ({ paid with
+                referents := paid.referents.filter (·.id != payerId)
+                pendingRoles := paid.pendingRoles.filter (fun mention => mention.1 != payerId) },
+              e3 ++ costErrors)
+          let (out, errors) := stepActionClauseWith ops drs subj action .preEvent
+            Action.deonticHeadOk false (between := gated)
+          (closeModalBox drs out, modErrors ++ errors)
         | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
           let (drs2, e2) := stepReplacementWith ops (nextClause drs1) repl ev.isEntering

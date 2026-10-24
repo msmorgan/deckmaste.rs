@@ -661,4 +661,23 @@ theorem publishedEachDomainIsSingular :
         (.sequentially [.setStatus .tapped (each isCreature), .setStatus .untapped it]) = [] := by
   decide
 
+/-- A deontic rule and an event read their clause through one spine (`stepActionClauseWith`), so
+a performer of the wrong kind is refused alike in both: a player casts a spell [CR#601.2,701.5a],
+so "creatures can't cast spells" is refused as "whenever a creature casts a spell" is. -/
+theorem prohibitionAndEventRefuseANonPlayerCasterAlike :
+    StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf isCreature)) (cast (a isSpell)) {}) =
+        [.kindMismatch .player .object] ∧
+      GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (cast (a isSpell))) =
+        [.kindMismatch .player .object] := by
+  decide
+
+/-- A draw checks its own performer as it steps [CR#121.1], so a clause over one refuses a
+non-player once, not twice: a prohibition and an event alike. -/
+theorem drawRefusesANonPlayerOnceInEveryClause :
+    StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf isCreature)) (draw 1) {}) =
+        [.kindMismatch .player .object] ∧
+      GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (draw 1)) =
+        [.kindMismatch .player .object] := by
+  decide
+
 end Semantics.Proofs.Deontic

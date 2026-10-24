@@ -328,6 +328,8 @@ All seven action-clause contexts embed `action : Instruction` directly—with **
 | **6. Deontic (`StaticSpec`)** | `cant(subj, action)`<br>`must(subj, action)`<br>`may(subj, action)`<br>`gatedBy(cost, subj, action)` | `"This creature can't block."` → `cant(this, block(any))` | `"This creature can't be blocked."` → `cant(any, block(this))` | `"This creature can't be blocked by Goblins."` → `cant(by(a(goblin)), block(this))` |
 | **7. Lookback (`Condition` / `Predicate` / `Amount`)** | `did(subj, action, within)` | `"if you sacrificed a creature this turn"` → `did(you, sacrifice(a(creature)), thisTurn)` | `"if this creature was blocked this turn"` → `did(any, becomeBlocked(this), thisTurn)` | `"if this creature was blocked by a creature this turn"` → `did(by(a(creature)), block(this), thisTurn)` |
 
+The checker steps contexts 4–7 through one shared action-clause spine (`stepActionClauseWith`, `Check/Phrase.lean`): the head gate (§3.6 for events and lookbacks, §3.7 for deontic rules, both reading a `Definition` by its `ownScope` header), the subject before the action, the performer's kind as the action needs it (refused once, by the head itself where it checks its own performer, as a draw does `[CR#121.1]`), the action as a pattern in its phase (§3.5), then a passive's agent. A context adds only what is its own, through the spine's hooks: a lookback's history, ground and span (§3.8), a deontic rule's modifiers, cost and box (§1.3, box 3), an `asThough` condition; an event clause alone checks its voice and a procedure's number.
+
 ### 3.2 Voice, `Subject`, and Grammatical-Role Promotion in DRT
 
 The `Subject` of `does`, `would`, `cant`, `must`, `may`, `gatedBy`, and `did` has three constructors:
