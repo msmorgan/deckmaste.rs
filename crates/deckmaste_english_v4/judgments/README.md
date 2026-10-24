@@ -93,6 +93,13 @@ Oracle text is witnessed by a `+` entry on that text, with a `!` assertion or
 a Reading count. A rule, feature or production that would exist only to reject
 some text is never added, and no entry asks for one.
 
+An entry's text is real Oracle text (a corpus unit, or a contiguous span of one
+under a Category mark), or a simplification of a named card's text that keeps
+the construction under test. A simplification names its source with
+`<card=NAME>` or a `# from: NAME` comment on the line above, and that card's
+text must contain the construction. An entry whose construction no card prints
+gets no entry. The `*` inflection entries above are the one exception.
+
 Punctuation that the construction determines is never stored in a Reading.
 The separator between the keywords of a keyword line is always a comma: Oracle's
 semicolons there exist only beside reminder text, and become commas when it is
