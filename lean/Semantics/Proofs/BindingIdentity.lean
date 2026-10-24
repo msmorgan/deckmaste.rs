@@ -23,7 +23,7 @@ private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
 
 /-- Kind, number and determiner of each binding, newest first. -/
 private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
-  bs.referents.filter (fun b => match b.payload with | .actor _ => false | _ => true) |>.map fun b => (b.kind, b.plur, b.det)
+  bs.referents.map fun b => (b.kind, b.plur, b.det)
 
 /-- How many targets a context holds. -/
 private def targets (bs : DRS) : Nat := bs.referents.countP (·.det == .target)

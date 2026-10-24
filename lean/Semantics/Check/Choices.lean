@@ -35,7 +35,7 @@ def linkedTextContext (drs : DRS) : DRS :=
           ref.id < grantor.since &&
             (ref.linked || (grantor.before.find? (·.id == ref.id)).all
               (·.payload.prov != ref.payload.prov))
-      if ref.isActorFrame || !acted then none
+      if !acted then none
       else if ref.linked then some ref
       else some { ref with linked := true, linkSite := drs.nextId, linkArms := [] }
     | _ => none

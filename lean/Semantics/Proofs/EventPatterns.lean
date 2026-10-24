@@ -58,7 +58,7 @@ theorem damagePublishesParticipantsAndOutcome :
       (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .anyPlayer)))
     countOutcomes .damageDealt after = 1 ∧
       (after.findById? 0).map (·.role) = some .subj ∧
-      (after.findById? 2).map (·.role) = some .obj := by decide
+      (after.findById? 1).map (·.role) = some .obj := by decide
 
 theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
     (drs : DRS) (kind : Option DamageKind) (source patient : NounPhrase) :
@@ -78,7 +78,7 @@ theorem observedDamageDoesNotExportOrRefineReferents (kind : Option DamageKind) 
 
 theorem patientOnlyDoesNotManufactureSource :
     (GameEvent.extend (DRS.ofList [])
-      (.does .any (.dealDamage .anyAmount thisCreature))).performer = none := by decide
+      (.does .any (.dealDamage .anyAmount thisCreature))).performers = [] := by decide
 
 theorem entryAndAttachmentChoicesRemainDistinct :
     entersChoosing thisCreature .color ≠ attachChoosing thisCreature .color := by

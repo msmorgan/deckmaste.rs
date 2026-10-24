@@ -151,6 +151,35 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   constructors, or fold `.difference` into `OutcomeSort` and keep `.ability`/`.pile`/`.join`.
   Removing the frames renumbers every referent after a handoff, so the `Proofs/ControllerSacrifice`
   structural proofs and many id pins move with either. No change landed.
+  **Owner ruling 2026-10-24: option (a).** `DRS.performers : List ActorShape`, innermost first,
+  outside `referents`; `Payload.actor` and `isActorFrame` retired; ADR §1.2 amended to list
+  `performers` and the live `Payload` constructors; id pins that move only by renumbering are
+  updated with that reason; the `ControllerSacrifice` structural proofs keep their statements.
+  **Done 2026-10-24: qzllommp** (`ActorShape` gains `plur`, the frame's number; `DRS.performer`
+  is replaced by `performers`; `DRS.pushPerformer`/`dropActorFrame` push and pop. Id pins
+  renumbered only because a performer no longer takes a `ReferentId`: `DrtCards`'s three
+  *Weeping Angel* pins, `EventPatterns.damagePublishesParticipantsAndOutcome`,
+  `MovementScopes.distributedMovementKeepsAnOuterCardSingular`, `Choice`'s
+  `distributedRestPreservesTheUnrelatedOuterGroup` and
+  `distributedSacrificeConsumesTheOuterRemainder`, `Damage`'s
+  `fightUsesTheTwoBoundParticipantsInOppositeDirections`, `recentSecondOpponentIsSelected`,
+  `okShortOfCeilingAnnounced`, `okThatCreatureAfterDamage`, `karplusanYetiItsReadsThatCreature`,
+  `garrukRelentlessItsReadsThatCreature`, `deflectingPalmThatSourceReadsTheChosenSource`,
+  `ContrastAnchor.inquisitorsFlailAnchorsOnTheEquippedCreature`,
+  `Turn.okDelayedOtherAnchorsOnTheSettledTarget`, `Counters`'s
+  `agreeingAlternativeHeadersSelectTheOtherCreature` and `thranduilsCompanyItIsTheTargetCreature`,
+  `GetsBothDeltas`'s `jeskaiAscendancyUntapsItsPumpedGroup` and
+  `cycleOfLifeKeepsItsCastCreatureTarget`, and `ControllerSacrifice`'s
+  `existingReferenceIsNotIntroducedAgain`, `riderReadsTheStampedPatient`,
+  `repeatedControllerSacrificesKeepDistinctPatients`, `laterCardIsTheSacrificedObject`,
+  `outerArtifactDoesNotStealThePatient`. `EventPatterns.patientOnlyDoesNotManufactureSource`
+  reads `performers = []`. `ControllerSacrifice`: the conclusions of
+  `sacrificeMovePreservesEveryUnrelatedOuterReferent` and
+  `nestedDescriptionMovesOnlyItsOwnReferent` are unchanged; each drops the hypothesis about actor
+  frames in the outer context (`notActor`, `actorLinks`), which named the retired `Payload.actor`
+  and is now vacuous; the private helpers lost the frame (`argumentPrefix`, `afterPrefix` and the
+  moved creature renumbered from `fresh + 5` to `fresh + 4`), and `dropFirst_append`,
+  `dropActorFrame_append` and `remapFixed` are gone with it).
 - **Consistent disjunction, conditional, and negation scoping (§2.6):** Fix
   `NounPhrase.or` (`stepNounAlternativesWith` in `Check/Phrase.lean:1532-1553`),
   `Timing.or`/`.and` (`Check/Phrase.lean:965-968`), `Location.or` (now

@@ -144,7 +144,7 @@ theorem consumingActionChecksThePreMoveZone :
 theorem distributedMovementKeepsAnOuterCardSingular :
     let action := Action.instruct (.described .each .anyPlayer) moveOuter
     let result := stepAction 64 .postEvent .obj original action
-    result.2 = [] ∧ (result.1.findById? 3).map (fun ref => (ref.plur, ref.zone)) =
+    result.2 = [] ∧ (result.1.findById? 2).map (fun ref => (ref.plur, ref.zone)) =
       some (.one, some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem unqualifiedSourceDoesNotInventAZone :

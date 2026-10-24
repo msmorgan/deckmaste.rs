@@ -157,13 +157,13 @@ theorem deeprootWarriorPumpsItsOwnBlockedSource :
     let result := abilityTrace (DRS.ofList []) Cards.deeprootWarrior
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
-/-- The pumped group is 4, renumbered from 5 because the two "you"s are one referent
-(`mentionYou`). -/
+/-- The pumped group is 3, renumbered from 5 because the two "you"s are one referent
+(`mentionYou`) and a handoff's performer takes no id (`DRS.performers`). -/
 theorem jeskaiAscendancyUntapsItsPumpedGroup :
     let result := abilityTrace (DRS.ofList []) Cards.jeskaiAscendancyPump
-    result.2 = [] ∧ creatureIdentity result.1 4 = true ∧
-      (result.1.findById? 4).map (·.plur) = some .many ∧
-      (identityBinding "untap.subject" result.1).map (·.id) = some 4 := by decide
+    result.2 = [] ∧ creatureIdentity result.1 3 = true ∧
+      (result.1.findById? 3).map (·.plur) = some .many ∧
+      (identityBinding "untap.subject" result.1).map (·.id) = some 3 := by decide
 
 theorem diminishKeepsOneTargetForBothSetDeltas :
     let result := firstLineTrace Cards.diminish
@@ -177,11 +177,11 @@ theorem diminishKeepsOneTargetForBothSetDeltas :
   · decide
 
 /-- The lookback "you cast this turn" steps its own referents, the caster "you" among them, before
-the target it restricts, so the target is referent 3. -/
+the target it restricts, so the target is referent 2. -/
 theorem cycleOfLifeKeepsItsCastCreatureTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
-    result.2 = [] ∧ creatureIdentity result.1 3 = true ∧
-      (result.1.findById? 3).map (·.det) = some .target ∧
+    result.2 = [] ∧ creatureIdentity result.1 2 = true ∧
+      (result.1.findById? 2).map (·.det) = some .target ∧
       Cards.cycleOfLife = get (target (.and [isCreature, did you (cast which) soFarThisTurn]))
         (.set 0) (.set 1)
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))) := by

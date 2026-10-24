@@ -94,8 +94,8 @@ theorem agreeingAlternativeHeadersSelectTheOtherCreature :
     let after := (stepTriggerHeaderWith (stepOps 64) (DRS.ofList [])
       (does thisCreature (block (a isCreature)))
       [does (by_ (a isCreature)) (block thisCreature)] none none).1
-    (firstReach (.word (.type .creature)) .one after).map (·.id) = some 2 ∧
-      (after.findById? 2).map (·.det) = some .a ∧
+    (firstReach (.word (.type .creature)) .one after).map (·.id) = some 1 ∧
+      (after.findById? 1).map (·.det) = some .a ∧
       -- The Source, a self-referent (`Determiner.self`; owner ruling 2026-10-24).
       (after.findById? 0).map (·.det) = some .self := by decide
 
@@ -630,16 +630,17 @@ private def lineTrace (ability : Ability) : DRS × List Refusal :=
   | _ => (DRS.ofList [], [.recursionLimit])
 
 /-- Thranduil's Company: "Whenever a land you control enters, put two +1/+1 counters on target
-creature you control. It gains vigilance until end of turn." The header reads the land (3); "it"
-reads the target creature (4), not the land; the two "you control"s re-mention one "you" (0),
-resolved too (`mentionYou`, renumbering the target from 5). -/
+creature you control. It gains vigilance until end of turn." The header reads the land (2); "it"
+reads the target creature (3), not the land; the two "you control"s re-mention one "you" (0),
+resolved too (`mentionYou`; with handoff performers taking no id, `DRS.performers`, the ids are
+renumbered from 3 and 5). -/
 theorem thranduilsCompanyItIsTheTargetCreature :
     let result := match (printedText Cards.thranduilsCompany)[1]? with
       | some line => lineTrace line
       | none => (DRS.ofList [], [.nonEmpty])
-    result.2 = [] ∧ result.1.resolvedIds = [4, 0, 3] ∧
-      (result.1.findById? 4).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) ∧
-      (result.1.findById? 3).map (fun r => (r.det, r.ty)) = some (.a, [.land]) := by
+    result.2 = [] ∧ result.1.resolvedIds = [3, 0, 2] ∧
+      (result.1.findById? 3).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) ∧
+      (result.1.findById? 2).map (fun r => (r.det, r.ty)) = some (.a, [.land]) := by
   decide
 
 /-- Stunning Shot: "Put two +1/+1 counters on up to one target creature you control. Tap up to

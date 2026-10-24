@@ -272,9 +272,9 @@ theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
     let patient := stepNounPhrase 16 owner.1 .obj true
       (.laterMention "weeping.recipient" it)
     owner.2.2 = [] ∧ patient.2.2 = [] ∧
-      owner.2.1 = [4] ∧ patient.2.1 = [2] ∧
-      (owner.1.pendingRoles.contains (2, .subj)) = false ∧
-      (owner.1.pendingRoles.contains (4, .subj)) = true := by decide +kernel
+      owner.2.1 = [3] ∧ patient.2.1 = [1] ∧
+      (owner.1.pendingRoles.contains (1, .subj)) = false ∧
+      (owner.1.pendingRoles.contains (3, .subj)) = true := by decide +kernel
 
 /-- The owner shuffles the damaged creature into their library, whether "it" is read through
 the recipient's Binding Identity or as written, a raw pronoun. -/
@@ -293,8 +293,8 @@ theorem weepingAngelRawPronounSelectsTheDamagedCreature :
     let owner := stepNounPhrase 16 (nextClause weepingAngelRecipientContext)
       .subj true (ownerOf (that (.type .creature)))
     let raw := stepNounPhrase 16 owner.1 .obj true it
-    owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [2] ∧
-      (identityBinding "weeping.recipient" raw.1).map (·.id) = some 2 := by decide +kernel
+    owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [1] ∧
+      (identityBinding "weeping.recipient" raw.1).map (·.id) = some 1 := by decide +kernel
 
 theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
     let shuffleAction := shuffleInto (.laterMention "weeping.recipient" it)
@@ -310,6 +310,6 @@ theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
       (moved.1.visibleReferents.filter
         (fun ref => ref.ty.contains .creature && ref.zone == some .library)).length = 1 ∧
       (out.1.findById? 0).map (·.zone) = some (some .battlefield) ∧
-      (out.1.findById? 2).isNone = true := by decide +kernel
+      (out.1.findById? 1).isNone = true := by decide +kernel
 
 end Semantics.Proofs.DrtCards

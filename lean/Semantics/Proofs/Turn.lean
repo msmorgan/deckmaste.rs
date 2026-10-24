@@ -39,8 +39,8 @@ theorem okDelayedOtherAnchorsOnTheSettledTarget :
       [ (Action.instruct .this (.dealDamage 2 (target isAnyTarget))),
         delay atTheEndStep (Action.instruct .this (.dealDamage 1 (target isAnyOtherTarget))) ]
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
-    Action.check (DRS.ofList []) action = [] ∧ after.contrastAnchors = [.mention 2] ∧
-      (after.findById? 2).map (·.kind) = some (.join .object .player) := by
+    Action.check (DRS.ofList []) action = [] ∧ after.contrastAnchors = [.mention 1] ∧
+      (after.findById? 1).map (·.kind) = some (.join .object .player) := by
   decide
 
 theorem badStaleCarrier :

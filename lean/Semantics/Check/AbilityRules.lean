@@ -159,12 +159,11 @@ private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
           [.anaphor .bare .one 0] := by decide
 
 private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=
-  DRS.ofList [
-    { id := 30, det := .the, plur := .one, payload := .actor {
-      kind, isYou := false, ascribable := false, refIds := ids } },
+  (DRS.ofList [
     { id := 24, det := .the, plur := .one, payload := .player false },
     { id := 23, det := .each, plur := .one, payload := .player false },
-    { id := 22, det := .the, plur := .many, payload := .player false } ]
+    { id := 22, det := .the, plur := .many, payload := .player false } ]).pushPerformer
+    { kind, isYou := false, ascribable := false, refIds := ids }
 
 private theorem theirChoiceUsesTheActivePlayerIdentity :
     choiceModeChecks (chooserFrameContext .player [23]) .theirChoice = [] ∧

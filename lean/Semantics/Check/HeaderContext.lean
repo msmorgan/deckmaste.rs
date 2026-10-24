@@ -51,6 +51,6 @@ def commonHeaderContext (before : DRS) (branches : List DRS) : DRS :=
       nextId := branches.foldl (fun n branch => max n branch.nextId) before.nextId
       pendingRoles := primary.pendingRoles.filter (fun mention => ids.contains mention.1)
       resolvedIds := primary.resolvedIds.filter ids.contains
-      performer := before.performer }
+      performers := before.performers }
 
 end Semantics

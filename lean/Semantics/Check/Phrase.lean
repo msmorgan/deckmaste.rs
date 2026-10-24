@@ -559,10 +559,7 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
               payload := payload
               librarySearchResult := false
               movedFrom := oldId :: r.movedFrom }
-          else match r.payload with
-            | .actor shape =>
-              { r with payload := .actor { shape with refIds := shape.refIds.map remap } }
-            | _ => r
+          else r
         let frames := state.scopeStack.map fun frame =>
           let callerOwned := frame.preEntryIds.elem oldId || frame.callerReferentIds.elem oldId
           { frame with
@@ -581,7 +578,8 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
           groupSizeScope := state.groupSizeScope.map (fun ids => ids.map remap)
           pendingRoles := state.pendingRoles.map remapRole,
           resolvedIds := state.resolvedIds.map remap,
-          performer := state.performer.map remap,
+          performers := state.performers.map fun shape =>
+            { shape with refIds := shape.refIds.map remap },
           relativeBinder := state.relativeBinder.map remap }) drs
 
 /-- What a search found (`refIds`): in the zone searched, if the search names one, and stamped
@@ -836,7 +834,7 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
       ascribable := false,
       refIds := refIds
     }
-    let drs2 := drs1.push { det := .the, plur := np.plur, payload := .actor shape } .other false
+    let drs2 := drs1.pushPerformer { shape with plur := np.plur }
     (drs2, e1)
   | .any | .by _ => (drs, [])
 
@@ -892,7 +890,7 @@ an earlier referent and introduces none, so the described thing's anaphors ("ent
 it") are never among them. -/
 def forwardParticipants (before after : DRS) : List Referent :=
   (after.referents.filter fun r =>
-    r.id ≥ before.nextId && !r.isActorFrame &&
+    r.id ≥ before.nextId &&
       (r.det == .target || r.det == .the || r.attachmentHost)).reverse
 
 /-- Step a clause's agent with the participants the clause's rest (`rest`) introduces in view,
@@ -1428,11 +1426,10 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
     -- performs the deed looked back at: its handoffs are hidden while the clause steps.
     let hidden := match subj with
       | .actor _ => []
-      | .any | .by _ => drs1.referents.filter (·.isActorFrame)
+      | .any | .by _ => drs1.performers
     let historical : DRS := {
       drs1 with
-      referents := if hidden.isEmpty then drs1.referents else
-        drs1.referents.filter (!·.isActorFrame)
+      performers := if hidden.isEmpty then drs1.performers else []
       actionPattern := true
       historicalReferentIds := drs.referents.map (·.id)
       historicalMoveFrom := if recorded.isSome then recorded else drs1.historicalMoveFrom
@@ -1444,7 +1441,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | some span => stepLookbackSpanWith ops drs3 span
       | none => (drs3, [])
     ({ drs4 with
-        referents := hidden ++ drs4.referents
+        performers := hidden ++ drs4.performers
         actionPattern := drs.actionPattern
         historicalReferentIds := drs.historicalReferentIds
         participialAnchorRead := drs.participialAnchorRead },
@@ -1827,7 +1824,7 @@ clause writes, which a later "this way" reads back (§3.8), and its updates to t
 already in scope. -/
 def closeModalBox (before after : DRS) : DRS :=
   let published := fun (ref : Referent) => ref.id < before.nextId ||
-    (!ref.isActorFrame && !ref.isDifference &&
+    (!ref.isDifference &&
       Kind.lte ref.kind (.join .object .player) &&
       (ref.attachmentHost || !(ref.det == .a || ref.det == .count || ref.det == .part)))
   let ids := (after.referents.filter published).map (·.id)
@@ -2090,7 +2087,7 @@ def stepModeListWith (ops : StepOps) (drs : DRS)
     ({ drs with nextId := max out.nextId afterBody.nextId }, errors ++ costErrors ++ bodyErrors)) (drs, [])
 
 def actorPlurality (drs : DRS) : Plurality :=
-  ((drs.referents.find? Referent.isActorFrame).map (·.plur)).getD .one
+  ((actorShape? drs).map (·.plur)).getD .one
 
 def stepProducedManaWith (ops : StepOps) (drs : DRS) (pm : ProducedMana) : DRS × List Refusal :=
   let (out, errors) :=
@@ -2471,15 +2468,14 @@ def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
   sorts.foldl (fun context sort => context.push sort.binding .other false) drs
 
 private def costResult (ref : Referent) : Bool :=
-  !ref.isActorFrame &&
-    (match ref.payload with
+  (match ref.payload with
      | .object .. | .pile .. => ref.zone.isSome
      | _ => true)
 
 /-- An object a printed ability acted on that a linked ability can read back: one the ability's
 deed stamped, in whatever zone it is now [CR#607.2a]. -/
 private def linkedResult (ref : Referent) : Bool :=
-  !ref.isActorFrame && ref.payload.prov.isSome &&
+  ref.payload.prov.isSome &&
     (match ref.payload with
      | .object _ (some _) _ _ _ => true
      | _ => false)
@@ -2665,7 +2661,7 @@ private def publishSpellTargets (ops : StepOps) (drs : DRS) (timing : Option Tim
     | none => drs
   let (done, _) := ops.inst .postEvent .obj start action
   let targets := done.visibleReferents.filterMap fun ref =>
-    if ref.id ≥ drs.nextId && ref.det == .target && !ref.isActorFrame then
+    if ref.id ≥ drs.nextId && ref.det == .target then
       some { ref with spellTarget := true }
     else none
   if targets.isEmpty then drs else
@@ -2754,7 +2750,7 @@ def continuationStamped (before after : DRS) : List Referent :=
     let stamped := match ref.payload with
       | .object _ _ (some _) _ _ => true
       | _ => false
-    if ref.isActorFrame || ref.linked || !stamped then none
+    if ref.linked || !stamped then none
     else if ref.id < before.nextId then
       if (before.findById? ref.id).any (·.payload.prov != ref.payload.prov) then some ref else none
     else
@@ -3605,8 +3601,7 @@ def stepOps : Nat → StepOps
             let shape : ActorShape := {
               kind := .object, isYou := false, ascribable := true, refIds := ids }
             let (out, selves) := performerInView out ids
-            (out.push { det := .the, plur := .one, payload := .actor shape } .other false, selves,
-              errors)
+            (out.pushPerformer shape, selves, errors)
             else (drs, [], [])
           let priorMentions := inner.pendingRoles.length
           let (drs1, e1) := ops.inst phase patientRole inner body
@@ -3648,7 +3643,7 @@ def stepOps : Nat → StepOps
             else drs1
           let framePlur := if subj.det == some .each then Plurality.many else subj.plur
           let (memberDrs, selves) := performerInView memberDrs refIds
-          let drs2 := memberDrs.push { det := .the, plur := framePlur, payload := .actor shape } .other false
+          let drs2 := memberDrs.pushPerformer { shape with plur := framePlur }
           let (drs3, e2) := withDistributiveSubject subj refIds drs2 (ops.inst phase .obj · body)
           let outerIds := drs3.outerReferentIds.headD []
           let currentSubjectIds := (actorShape? drs3).map (·.refIds) |>.getD refIds

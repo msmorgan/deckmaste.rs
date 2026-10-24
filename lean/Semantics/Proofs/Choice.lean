@@ -330,9 +330,9 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
-      (after.findById? 7).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
+      (after.findById? 5).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
         some (.object, .many, some .graveyard, [.creature]) ∧
-      (after.findById? 6).isNone = true ∧
+      (after.findById? 4).isNone = true ∧
       (after.findById? 0).map (·.payload) =
         ((actionResult (DRS.ofList []) tapping).findById? 0).map (·.payload) := by decide
 
@@ -342,9 +342,9 @@ theorem distributedSacrificeConsumesTheOuterRemainder :
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
-      (after.findById? 4).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
+      (after.findById? 3).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
         some (.object, .many, some .graveyard, [.creature]) ∧
-      (after.findById? 3).isNone = true ∧
+      (after.findById? 2).isNone = true ∧
       countParts .object after = 0 := by decide
 
 /-- "an opponent who controls more lands than you control" -/

@@ -320,7 +320,7 @@ theorem inquisitorsFlailAnchorsOnTheEquippedCreature :
     let rule :=
       replace event (instead (instruct it (dealDamage (times 2 thatMuch) (equipped creature))))
     let after := stepStaticSpec 64 (framed [.artifact]) rule
-    let recipient := (stepWouldClause 64 (framed [.artifact]) event).1.findById? 2
+    let recipient := (stepWouldClause 64 (framed [.artifact]) event).1.findById? 1
     after.2 = [] ∧ recipient.map (·.attachmentHost) = some true ∧
       after.1.contrastAnchors = recipient.toList.map (fun ref => ContrastAnchor.participant ref.payload)
     := by

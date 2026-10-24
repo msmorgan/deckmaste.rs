@@ -201,7 +201,7 @@ def DRS.definiteAntecedents (drs : DRS) (predicate : Predicate) : List Referent 
   let conjuncts := predicate.flattenOne
   if conjuncts.isEmpty then [] else
   drs.visibleReferents.filter fun ref =>
-    !ref.linked && !ref.isActorFrame && !ref.defaultAnchor && !ref.fromCondition &&
+    !ref.linked && !ref.defaultAnchor && !ref.fromCondition &&
       ref.movedFrom.isEmpty && ref.plur.isOne &&
       (ref.det == .target || ref.det == .a || ref.det == .the) &&
       conjuncts.all ref.admitsConjunct
@@ -231,7 +231,7 @@ def DRS.chosenAntecedents (drs : DRS) (plur : Plurality) (predicate : Predicate)
     List Referent :=
   let conjuncts := predicate.flattenOne
   drs.visibleReferents.filter fun ref =>
-    ref.chosenObject && !ref.linked && !ref.isActorFrame && ref.movedFrom.isEmpty &&
+    ref.chosenObject && !ref.linked && ref.movedFrom.isEmpty &&
       ref.plur.isOne == plur.isOne && conjuncts.all ref.admitsChosenConjunct
 
 def Predicate.isOther (predicate : Predicate) : Bool :=

@@ -225,12 +225,16 @@ def GramRole.rank : GramRole → Nat
   | .obj   => 1
   | .other => 2
 
-/-- Checker-internal performer metadata for `Action.instruct` handoffs. -/
+/-- The performer of a handoff (`Action.instruct`, a subject's clause, or a permanent-performed
+deed's implicit performer), as `DRS.performers` holds it: its kind, whether it is "you", whether
+a quality can be ascribed to it, the referents it names (none for a performer of a kind only, as
+"a player"; several for a group), and its number. -/
 structure ActorShape where
   kind         : Kind
   isYou        : Bool
   ascribable   : Bool
   refIds       : List ReferentId := []
+  plur         : Plurality := .one
   deriving DecidableEq, Repr
 
 /-- Domain-sort and characteristic facts of a discourse referent (`semantics-v3.md` §1.2).
@@ -248,9 +252,6 @@ inductive Payload where
   | ability (orig : Option Origin) (zone : Option Zone := some .stack)
   | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
   | join (l r : Payload)
-  /-- Checker-private handoff frame: the facts of the player or permanent performing the
-  enclosing `Action.instruct` body. It is never a discourse referent. -/
-  | actor (shape : ActorShape)
   deriving DecidableEq, Repr
 
 namespace Payload
@@ -260,7 +261,7 @@ def kind : Payload → Kind
   | .object .. => .object
   | .player _ => .player
   | .quality q => .quality q
-  | .outcome _ | .difference | .actor _ => .outcome
+  | .outcome _ | .difference => .outcome
   | .letter l => .letter l
   | .turnRef => .turnRef
   | .ability _ _ => .object
@@ -402,11 +403,6 @@ def Referent.ty (b : Referent) : List CardType := b.payload.ty
 def Referent.size (b : Referent) : Option Nat := b.payload.size
 def Referent.face (b : Referent) : Option PileFace := b.payload.face
 
-def Referent.isActorFrame (b : Referent) : Bool :=
-  match b.payload with
-  | .actor _ => true
-  | _ => false
-
 def Referent.isDifference (b : Referent) : Bool :=
   match b.payload with
   | .difference => true
@@ -476,7 +472,10 @@ structure DRS where
   referents     : List Referent := []
   nextId        : ReferentId := 0
   currentClause : Nat := 0
-  performer     : Option ReferentId := none
+  /-- The performers of the enclosing handoffs, innermost first (`ActorShape`): outside every
+  handoff, none, and the performer is the controller. They are not `referents`, so no pronoun,
+  word, group or count reads them; a clause reads the innermost by `NounPhrase.actor`. -/
+  performers    : List ActorShape := []
   scopeStack    : List OwnScopeFrame := []
   outerReferentIds  : List (List ReferentId) := []
   pendingRoles  : List (ReferentId × GramRole) := []
@@ -645,7 +644,7 @@ def DRS.prepend (drs : DRS) (additions : List Referent) (role : GramRole := .oth
     { r with id := rid, clause := drs.currentClause, role := rRole }
   let pending := match stamped with
     | head :: _ =>
-      if inArgSlot && !head.isActorFrame then (head.id, role) :: drs.pendingRoles
+      if inArgSlot then (head.id, role) :: drs.pendingRoles
       else drs.pendingRoles
     | [] => drs.pendingRoles
   ({ drs with
@@ -723,7 +722,7 @@ def choiceSortAt : Kind → Option ChoiceSort
 
 def countOnes (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
-    !b.isActorFrame && !b.isDifference && b.plur.isOne && Kind.lte k b.kind).length
+    !b.isDifference && b.plur.isOne && Kind.lte k b.kind).length
 
 def countDifferences (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b => b.isDifference && b.plur.isOne).length
@@ -802,11 +801,11 @@ def wholeGroups (refs : List Referent) : List Referent :=
   refs.filter fun ref => !ref.partOf.any (fun key => refs.any (·.groupKey == some key))
 
 def countManysAny (drs : DRS) : Nat :=
-  (wholeGroups (drs.visibleReferents.filter fun b => !b.isActorFrame && !b.plur.isOne)).length
+  (wholeGroups (drs.visibleReferents.filter fun b => !b.plur.isOne)).length
 
 def countManys (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
-    !b.isActorFrame && !b.plur.isOne && Kind.lte k b.kind).length
+    !b.plur.isOne && Kind.lte k b.kind).length
 
 def objGroup (k : Kind) (b : Referent) : Bool := Kind.lte k b.kind && !b.plur.isOne
 
@@ -993,7 +992,7 @@ A referent a linked ability published is read only by a Participial Description
 (`Referent.linked`). -/
 def Referent.anchorsContrast (k : Kind) (headTypes : List CardType) (headZone : Option Zone)
     (headControl : Option Bool) (b : Referent) : Bool :=
-  !b.linked && !b.defaultAnchor && !b.fromCondition && !b.isActorFrame &&
+  !b.linked && !b.defaultAnchor && !b.fromCondition &&
     Kind.overlaps k b.kind && anchorTyFits headTypes b.ty && zonesFit headZone b.zone &&
     controlFits headControl b.controlledByYou
 
@@ -1357,7 +1356,7 @@ def participialCandidates (anchor : ParticipialAnchor) (plur : Option Plurality)
   -- One object is one candidate: an earlier object an optional body stamped again is read once,
   -- as it stood after the body if that stamp reads it, else as it stood before.
   let found := drs.participialReferents.filter fun b =>
-    !b.isActorFrame && Kind.lte .object b.kind && b.anchoredBy anchor &&
+    Kind.lte .object b.kind && b.anchoredBy anchor &&
       (!thisWay || !b.linked) &&
       (match plur with
        | none => true
@@ -1416,7 +1415,7 @@ def faceOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option PileFace :=
 requires an accessible clause-mate subject referent agreeing with `plur`. -/
 def resolveReflexive (pl : Plurality) (drs : DRS) : List Referent :=
   drs.visibleReferents.filter fun b =>
-    !b.isActorFrame && b.plur.isOne == pl.isOne &&
+    b.plur.isOne == pl.isOne &&
     ((drs.pendingRoles.any fun (id, role) => id == b.id && role == .subj) ||
      (b.clause == drs.currentClause && b.role == .subj))
 
@@ -1428,17 +1427,15 @@ def firstReflexive (pl : Plurality) (drs : DRS) : Option Referent :=
 /-- The innermost handoff's performer; `none` outside every handoff, where the performer is
 the controller. -/
 def actorShape? (drs : DRS) : Option ActorShape :=
-  drs.referents.findSome? fun b =>
-    match b.payload with
-    | .actor shape => some shape
-    | _ => none
+  drs.performers.head?
 
-/-- Leave the innermost handoff: remove its actor frame and nothing else. -/
+/-- Enter a handoff: `shape` performs what follows. -/
+def DRS.pushPerformer (drs : DRS) (shape : ActorShape) : DRS :=
+  { drs with performers := shape :: drs.performers }
+
+/-- Leave the innermost handoff: pop its performer and nothing else. -/
 def dropActorFrame (drs : DRS) : DRS :=
-  let rec dropFirst : List Referent → List Referent
-    | [] => []
-    | b :: bs => if b.isActorFrame then bs else b :: dropFirst bs
-  { drs with referents := dropFirst drs.referents }
+  { drs with performers := drs.performers.drop 1 }
 
 /-- Close a relative clause while retaining its definite attachment hosts in the outer DRS, and
 the Contrast Anchors resolved inside it: "for each other attacking creature" still contrasts
@@ -1469,7 +1466,7 @@ def enterOwnScope (drs : DRS) : DRS :=
   let preIds := drs.referents.map (·.id)
   let actorIds := (actorShape? drs).elim [] (·.refIds)
   let masked := drs.referents.filterMap fun r =>
-    if r.isActorFrame || drs.performer == some r.id || actorIds.elem r.id then none
+    if actorIds.elem r.id then none
     else some r.id
   let frame : OwnScopeFrame := {
     preEntryIds   := preIds
@@ -1577,10 +1574,10 @@ def recordIdentityById (id : BindingId) (drs : DRS) (refId : ReferentId) : DRS :
 
 def filterContext (keep : Referent → Bool) (drs : DRS) : DRS :=
   { drs with referents := drs.referents.filter fun b =>
-      b.isActorFrame || !drs.isVisible b.id || keep b }
+      !drs.isVisible b.id || keep b }
 
 def afterShuffle (drs : DRS) : DRS :=
-  let refs := drs.referents.filter fun r => r.isActorFrame || survivesShuffle r
+  let refs := drs.referents.filter survivesShuffle
   let keptIds := refs.map (·.id)
   { drs with
     referents := refs

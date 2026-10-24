@@ -25,17 +25,17 @@ private def handoff (drs : DRS) (subject : NounPhrase) : DRS :=
     isYou := subject.isYou
     ascribable := false
     refIds := ids }
-  after.push { det := .the, plur := .one, payload := .actor actorShape } .other false
+  after.pushPerformer actorShape
 
 private def performerIsYou (drs : DRS) : Bool :=
   ((actorShape? drs).map (·.isYou)).getD true
 
 private def products (drs : DRS) : List Payload :=
-  (drs.referents.filter (fun r => !r.isActorFrame && r.kind != .player)).map (·.payload)
+  (drs.referents.filter (fun r => r.kind != .player)).map (·.payload)
 
 /-- Kind, number and determiner of each binding, newest first. -/
 private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
-  (bs.referents.filter (! ·.isActorFrame)).map fun b => (b.kind, b.plur, b.det)
+  bs.referents.map fun b => (b.kind, b.plur, b.det)
 
 /-- One player already named, for "they". -/
 private def onePlayer : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .player false }])
