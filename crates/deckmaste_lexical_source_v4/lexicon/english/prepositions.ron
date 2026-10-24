@@ -22,9 +22,13 @@
 [
     // *a creature card directly above it*
     (lemma: "above", frames: [(complement: NP, hosts: Nominal)]),
-    // *an additional combat phase after this phase*; *After this main phase, ...*
+    // *an additional combat phase after this phase*; *After this main phase, ...*;
+    // *enter from exile or after being cast from exile*: *after* takes a
+    // gerund-participial clause Complement as it takes a Noun Phrase
+    // (CGEL, Ch. 7 §1, pp. 599–600; Ch. 8 §6.3(c), p. 697).
     (lemma: "after", frames: [
         (complement: NP, hosts: NominalAndPredicate),
+        (complement: Gerund, hosts: Predicate),
         (complement: FiniteClause, hosts: Predicate),
     ]),
     // *the greatest power among creatures you control*

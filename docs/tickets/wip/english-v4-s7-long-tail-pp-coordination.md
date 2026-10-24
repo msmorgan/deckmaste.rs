@@ -46,3 +46,15 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 ## Review notes (hypotheses, verify first)
 
 - Well scoped, with no engine changes expected.
+
+## Landing
+
+1. **Census delta** (`zqylmknn`, full corpus): faces read 32,770 → 32,777; total
+   Readings (product) 337,354 → 337,514 and Surplus 141,594 → 141,705. Gained:
+   Dream Cache 0 → 1, Library of Leng 0 → 6, Don't Blink 0 → 14, Serum Powder
+   0 → 11, Dance with Calamity 0 → 42, Lim-Dûl's Vault 0 → 60, and (not a
+   witness, now read through *but*-coordination of Clauses) Wolverine, Fierce
+   Fighter 0 → 24. Trade Secrets 6 → 8, the equative frequency phrase beside
+   its prior analysis. Lost faces: none.
+2. **Judgment set** (`zqylmknn`): 3,566 enforced, 3 pending, including the new
+   `long_tail_pp_coordination.txt`; all hold.
