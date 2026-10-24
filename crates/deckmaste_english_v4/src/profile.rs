@@ -1082,7 +1082,8 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 |(any, all), fill| {
                     // An Absolute Clause (*with your hand revealed*) is
                     // profiled as its own family, not a clausal preposition.
-                    let c = matches!(fill, SlotFill::Clause(k) if *k != ClauseKind::Absolute);
+                    let c = matches!(fill, SlotFill::Clause(k) if *k != ClauseKind::Absolute)
+                        || matches!(fill, SlotFill::ExpandableClause | SlotFill::SetOffClause);
                     (any || c, all && c)
                 },
             )

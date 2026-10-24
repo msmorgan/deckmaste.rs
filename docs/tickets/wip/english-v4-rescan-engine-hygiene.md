@@ -15,7 +15,10 @@ external-audit hypothesis; verify it by witness before acting on it.
   *Players attack with their hands revealed.* reads
   (`play_with_absolute.txt:13`).
 - **HIGH-4.** Prove `unwritten_period` (Summary and State) is never true over
-  the full census, then delete it.
+  the full census, then delete it. Refuted by measurement: the gate fires,
+  and without it six faces with a quoted keyword verbal cost (*have
+  "Ward—Pay 2 life."*) also read *…life..* and fail round-trip. It stays,
+  documented and indexed in §4.5.
 - **MEDIUM-2.** Merge `Summary::fronted` and `Summary::preposed_predicate`
   into one fronting enum.
 - **Simplification 5.** Move `Expandable` and `SetOff` out of `ClauseKind`
@@ -31,5 +34,5 @@ external-audit hypothesis; verify it by witness before acting on it.
 
 Standard constraints apply.
 
-1. **Census delta**:
-2. **Judgment set**:
+1. **Census delta** (`qqvuslxr` → `zmvnkwpo`, full corpus): faces read 32,769 → 32,769; total Readings 344,348 → 344,439 (6 units more, none fewer: Protective Sphere, Cemetery Prowler, Cemetery Illuminator, Holistic Wisdom, Cryptic Gateway, Mana Maze, each gaining the Absolute Clause *with*-Adjunct of *share*). Lost faces: none.
+2. **Judgment set** (`zmvnkwpo`): 3,215 enforced, 317 pending; all hold.

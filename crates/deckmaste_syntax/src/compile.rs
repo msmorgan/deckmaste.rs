@@ -267,6 +267,7 @@ struct Draft {
     frame: Option<usize>,
     host_check: Option<(usize, usize, HostKind)>,
     adjunct_slot: Option<SlotKind>,
+    adjunct_unfit: Vec<(SlotKind, usize, u16)>,
     predicative: Option<usize>,
     coordinator: Option<usize>,
     distinct_coordinator: Vec<usize>,
@@ -364,6 +365,7 @@ impl Draft {
             frame: None,
             host_check: None,
             adjunct_slot: None,
+            adjunct_unfit: Vec::new(),
             predicative: None,
             coordinator: None,
             distinct_coordinator: Vec::new(),
@@ -1702,6 +1704,7 @@ impl<'a> Binder<'a> {
         production.carried = draft.carried;
         production.weights = draft.weights;
         production.adjunct_slot = draft.adjunct_slot;
+        production.adjunct_unfit = draft.adjunct_unfit;
         production.predicative = draft.predicative;
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
@@ -1956,6 +1959,7 @@ impl<'a> Binder<'a> {
                     (draft.child("head", host_symbol, GapRule::Transparent), a)
                 };
                 draft.host_check = Some((h, a, *host_kind));
+                draft.adjunct_unfit = self.unfit(adjunct_id)?;
                 if equations
                     .iter()
                     .any(|e| matches!(e, Equation::Require(p, _) if p.ends_with(".Gap")))
@@ -2771,7 +2775,7 @@ impl<'a> Binder<'a> {
         adjunct: usize,
         function: &str,
         host: HostKind,
-    ) -> [Draft; 2] {
+    ) -> Result<[Draft; 2], LoadError> {
         let symbol = |category, host| Symbol::Cat {
             category,
             host,
@@ -2782,6 +2786,7 @@ impl<'a> Binder<'a> {
         prefix.id = Ident::new(id);
         let a = prefix.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
         prefix.host_check = Some((0, a, host));
+        prefix.adjunct_unfit = self.unfit(adjunct)?;
         prefix.cost += 2;
         // The interleaved dependent agrees with the phrase in each feature
         // they both carry, as a postposed Modifier does.
@@ -2799,11 +2804,12 @@ impl<'a> Binder<'a> {
         more.child("head", symbol(category, None), GapRule::Transparent);
         more.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
         more.host_check = Some((0, 1, host));
+        more.adjunct_unfit.clone_from(&prefix.adjunct_unfit);
         for &feature in &shared {
             more.equations
                 .push((Path::Mother(feature), Target::Path(Path::Child(1, feature))));
         }
-        [prefix, more]
+        Ok([prefix, more])
     }
 
     fn valence_order(
@@ -2912,7 +2918,7 @@ impl<'a> Binder<'a> {
                 {
                     let id = format!("{}/prefix{split}{suffix}", draft.id);
                     out.extend(
-                        self.interleaved_dependent(&base, &id, category, adjunct, function, host),
+                        self.interleaved_dependent(&base, &id, category, adjunct, function, host)?,
                     );
                 }
                 let mut suffix = draft.clone();
@@ -2945,6 +2951,41 @@ impl<'a> Binder<'a> {
             out.push(draft);
         }
         Ok(out)
+    }
+
+    /// The (Frame Slot kind, feature, value) conditions under which a
+    /// dependent of `category` could fill no Frame Slot of a kind whose
+    /// Category it is: the `Exclude`s of the grammar's `slot_equations` for
+    /// that kind (`Production::adjunct_unfit`).
+    fn unfit(&self, category: usize) -> Result<Vec<(SlotKind, usize, u16)>, LoadError> {
+        let mut unfit = Vec::new();
+        for (kind, name) in &self.grammar.slot_categories {
+            if self.category(name)? != category {
+                continue;
+            }
+            let mut probe = Draft::new("slot", category, 0);
+            let slot = probe.child(
+                "slot",
+                Symbol::Cat {
+                    binding: None,
+                    category,
+                    prepositions: None,
+                    host: None,
+                },
+                GapRule::Closed,
+            );
+            self.slot_equations(&mut probe, slot, *kind)?;
+            if !(probe.equations.is_empty()
+                && probe.carried.is_empty()
+                && probe.joint_exclusions.is_empty())
+            {
+                return Err(invalid(format!(
+                    "slot_equations for {kind:?}: only an Exclude can apply to an unselected dependent"
+                )));
+            }
+            unfit.extend(probe.exclusions.iter().map(|&(_, f, v)| (*kind, f, v)));
+        }
+        Ok(unfit)
     }
 
     /// Adds the grammar's `slot_equations` for a Frame Slot of this kind to
