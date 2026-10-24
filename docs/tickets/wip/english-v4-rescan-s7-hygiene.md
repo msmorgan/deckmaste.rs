@@ -74,6 +74,32 @@ exclusion aimed at one witness is not made: report it and keep the reading.
 - **De-hax 5: confirmed.** `SumAdjective` is CGEL's postpositive sum
   adjective (Ch. 5 §14.2(b), pp. 445–446). *net* and *gross* are absent
   from the corpus.
+- **6, `chart.rs` names `Category::Preposition`: not changed.** It is not
+  the first time. The same filter already names `Category::Noun` and
+  `SourceKind::Core`, and `compile.rs` branches on the lexical
+  Verb/Noun/Preposition throughout. These are the lexical model's parts of
+  speech, not grammar Categories, features or values.
+- **7, *outside the game* as a bare predicative: not fixed; ticketed as
+  `english-v4-outside-the-game-bare-predicative`.** The witness *If it's
+  outside the game, ...* reads twice: the PP, and the noun as a bare mass
+  predicative. The structural candidate made the noun count-only and gave
+  *from* CGEL's fixed-frame bare count nominal (Ch. 5 §8.5(b), p. 409).
+  It doubled 26 units: *from combat* (19 and 5), where the count/mass
+  noun read both bare-mass and fixed-frame, and *from Chandra* / *from
+  Jace*. It also lost 3 faces (Legion Angel, Living Wish, Granted). CGEL
+  says the fixed-frame nouns "are severely restricted", so an open *from*
+  frame is wrong. The only other route is a bar on this one noun as a
+  predicative, which is not made. Reverted.
+- **8, *your* over *outside the game*: left as is.** A flatter analysis
+  is impossible: *graveyard* is a bare count singular, so it is no Noun
+  Phrase conjunct. CGEL puts a shared determiner outside a coordination of
+  nominals (Ch. 15 §2.1(c), p. 1291, *her son and younger daughter*), and
+  checks it against the coordination as a whole (§3.6, pp. 1334–1335). It
+  has nothing on a determiner over only some conjuncts of a serial
+  coordination. The premise is also wrong: the coordination does not need
+  mass marking. With the noun count-only, Invasion of Arcavios (3) and
+  Turtles Forever (5) read unchanged. Only the bare *from outside the game*
+  uses the mass reading.
 
 ## Done when
 
