@@ -1,0 +1,24 @@
+# Long-tail PP and clause coordination: a floating quantifier after a plural Object, after + gerund-participial clause, but-coordination of mixed-mood Clauses, an equative frequency phrase, and a coordination of adverbial relatives
+# from: Dream Cache
++ <card=Dream Cache> Draw three cards, then put two cards from your hand both on top of your library or both on the bottom of your library. => NounPhrase "two cards from your hand both" as Object of put; PrepositionPhrase "on top of your library"; PrepositionPhrase "on the bottom of your library"; readings 1
++ Put them both on top of your library.
++ Put two cards from your hand both on top of your library. => NounPhrase "two cards from your hand both" as Object of put
+* Put a card both on top of your library.
+# from: Don't Blink
++ <card=Don't Blink> Until end of turn, if one or more creatures would enter from exile or after being cast from exile, their owners shuffle them into their libraries instead. => PrepositionPhrase "from exile or after being cast from exile"; PrepositionPhrase "after being cast from exile"; VerbPhrase "being cast from exile"
++ A creature enters after being cast. => PrepositionPhrase "after being cast" as Adjunct of enter
++ Draw a card after casting a spell. => PrepositionPhrase "after casting a spell" as Adjunct of draw
+# from: Library of Leng
++ <card=Library of Leng> If an effect causes you to discard a card, discard it, but you may put it on top of your library instead of into your graveyard. => Clause "discard it, but you may put it on top of your library"; PrepositionPhrase "instead of into your graveyard"
++ You draw a card, but you discard a card.
++ Draw a card, but you may discard a card.
++ You may draw a card, but draw a card.
+# from: Dance with Calamity and Lim-Dûl's Vault
++ <card=Dance with Calamity> Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those cards without paying their mana costs. => NounPhrase "As many times as you choose"; PrepositionPhrase "as you choose"
++TemporalNounPhrase as many times as you choose => NounPhrase "as many times as you choose"
++ You may draw a card as many times as you choose. => NounPhrase "as many times as you choose"
+*TemporalNounPhrase as much times as you choose
+# from: Serum Powder
++ <card=Serum Powder> Any time you could mulligan and this card is in your hand, you may exile all the cards from your hand, then draw that many cards. => RelativeClause "you could mulligan and this card is in your hand"; Clause "you could mulligan"; Clause "this card is in your hand"
++NounPhrase any time you could mulligan and this card is in your hand => RelativeClause "you could mulligan and this card is in your hand"; readings 1
++NounPhrase any time you could mulligan, you control a land, and this card is in your hand => readings 1

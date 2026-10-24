@@ -7,7 +7,6 @@
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
 Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.
-Dance with Calamity | Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those cards without paying their mana costs.
 Worms of the Earth | At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
 All Hallow's Eve | At the beginning of your upkeep, if this card is exiled with a scream counter on it, remove a scream counter from it. If there are no more scream counters on it, put it into your graveyard and each player returns all creature cards from their graveyard to the battlefield.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
@@ -57,16 +56,10 @@ Deification | As long as you control a creature, if damage dealt to a planeswalk
 Naked Singularity | If tapped for mana, Plains produce {R}, Islands produce {G}, Swamps produce {W}, Mountains produce {U}, and Forests produce {B} instead of any other type.
 
 # english-v4-s7-long-tail-pp-coordination
-Lim-Dûl's Vault | Look at the top five cards of your library. As many times as you choose, you may pay 1 life, put those cards on the bottom of your library in any order, then look at the top five cards of your library. Then shuffle and put the last cards you looked at this way on top in any order.
-Serum Powder | Any time you could mulligan and this card is in your hand, you may exile all the cards from your hand, then draw that many cards.
-Don't Blink | Until end of turn, if one or more creatures would enter from exile or after being cast from exile, their owners shuffle them into their libraries instead.
-Dream Cache | Draw three cards, then put two cards from your hand both on top of your library or both on the bottom of your library.
-Library of Leng | If an effect causes you to discard a card, discard it, but you may put it on top of your library instead of into your graveyard.
 
 # english-v4-s7-long-tail-quantifiers
 Goblin Game | Each player hides at least one item, then all players reveal them simultaneously. Each player loses life equal to the number of items they revealed. The player who revealed the fewest items then loses half their life, rounded up. If two or more players are tied for fewest, each loses half their life, rounded up.
 Hawkeye, Master Marksman | Trick Arrows — Whenever Hawkeye becomes tapped, you may pay {1} up to three times. When you do, choose up to that many —
-Wolverine, Fierce Fighter | If damage would be dealt to Wolverine, instead that damage is dealt, but all other damage already dealt to him is healed.
 Avatar Aang | Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform Avatar Aang.
 Academy Manufactor | If you would create a Clue, Food, or Treasure token, instead create one of each.
 

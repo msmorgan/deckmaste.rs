@@ -206,6 +206,8 @@
         // Category restates the Clause Productions that open with the Subject
         // and omits those that front an adjunct.
         "SubjectInitialClause": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
+        // A coordination of bare adverbial relatives' Clauses.
+        "SubjectInitialCoordination": (category: Some("Clause"), features: ["VerbForm", "Inflection"], gap: true),
         // A participle premodifying a nominal (*attacking creature*).
         "Participle": (category: Some("VerbPhrase"), features: ["Inflection", "Polarity"]),
         "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive", "CentralPosition"], gap: true),
@@ -1150,6 +1152,13 @@
         (name: "BoundingNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Require("modifier.AdjunctPosition", "Bounding"), Exclude("determiner.DeterminativeDistribution", "Numerical"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AdverbModifiedNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "NounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
+        // *Both* floats after a plural Object, ahead of the Complement that
+        // follows it (*put two cards from your hand both on top of your
+        // library*; CGEL, Ch. 5 §9.2(c), p. 413 and §10.1.1, pp. 427–428,
+        // which describe it after a Subject or auxiliary and, after a
+        // pronoun Object, as part of the pronoun: *invited us both*). A
+        // Subject keeps FloatedEach.
+        (name: "FloatedObjectBoth", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase"), Word("adjunct", "Both")], equations: [Require("head.Number", "Plural"), Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], uncoordinated: ["head"]),
         (name: "AdverbModifiedPrepositionPhrase", lhs: "PrepositionPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "PrepositionPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         (name: "AdverbModifiedDeterminerPhrase", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "DeterminerPhrase")], equations: [Require("modifier.AdjunctPosition", "Bounding"), Require("head.DeterminativeDistribution", "Numerical")]),
         // A focused predicative adjective (*attack only alone*).
@@ -1180,6 +1189,12 @@
             equations: [Require("head.NounDistribution", "Serial"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ModifiedComparativeFrequency", lhs: "TemporalNounPhrase", rhs: [Lex("modifier", Determinative), Class("determiner", "ComparativeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Require("head.NounDistribution", "Serial"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        // An equative quantity of serial *times* with its *as* Complement
+        // after the head, as the comparative's *than* one is (*as many times
+        // as you choose*; CGEL, Ch. 13 §1.3, pp. 1103–1104 and §2, p. 1106),
+        // a frequency Adjunct (Ch. 8 §9, p. 715).
+        (name: "EquativeFrequency", lhs: "TemporalNounPhrase", rhs: [Word("modifier", "DegreeAs"), Class("determiner", "DegreeQuantifier"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["As"])],
+            equations: [Require("complement.ComplementKind", "FiniteClause"), Require("head.NounDistribution", "Serial"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A maximum quantity of serial *times* (*pay {G} up to three times*),
         // the Preposition Phrase in Determiner function, as in
         // MaximumDetermination (CGEL, Ch. 5 §7.1, p. 357; Ch. 8 §9, p. 715).
@@ -1902,6 +1917,8 @@
         // relative.
         (name: "AdverbialRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialClause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "Adjunct"), Require("$.NounKind", "Temporal")]),
+        (name: "CoordinatedAdverbialRelative", lhs: "RelativeClause", rhs: [Cat("clause", "SubjectInitialCoordination")],
+            equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "Adjunct"), Require("$.NounKind", "Temporal")]),
         // Restates AdjunctGap over SubjectInitialClause; a change to one must
         // be made to the other.
         (name: "RelativeAdjunctGap", lhs: "SubjectInitialClause", rhs: [Cat("head", "SubjectInitialClause")],
@@ -2169,6 +2186,12 @@
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        // *But* coordinates clauses of like or mixed moods as the Coordinator
+        // does, a binary coordination (*Discard it, but you may put it on top
+        // of your library*; CGEL, Ch. 15 §3.5, pp. 1332–1333).
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
         // Linked Coordinations of Clauses, imperative or declarative, of
         // like or mixed moods as the Coordinator's are (*Draw a card, then
         // discard a card*; *Tap it, then you may sacrifice an artifact*;
@@ -2219,6 +2242,13 @@
         // 15 §2.1, p. 1292).
         Coordination(category: "RelativeClause", coordinators: "Coordinator", equations: [Require("last.ClauseMarking", "Relative")]),
         Coordination(category: "RelativeClause", coordinators: "But", equations: []),
+        // Bare adverbial relatives coordinate under one temporal head (*any
+        // time [you could mulligan and this card is in your hand]*; CGEL, Ch.
+        // 15 §2.1, p. 1292), each conjunct bearing the head's Adjunct Gap. The
+        // coordination is its own Category, so that RelativeAdjunctGap states
+        // the Gap once per conjunct and never again over their coordination
+        // (`docs/decisions/english-lexical-analysis.md` §2).
+        Coordination(category: "SubjectInitialCoordination", conjunct: Some("SubjectInitialClause"), coordinators: "Coordinator", unshared: ["Inflection"]),
         // Interrogative clauses coordinate (*which creatures block and how
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
