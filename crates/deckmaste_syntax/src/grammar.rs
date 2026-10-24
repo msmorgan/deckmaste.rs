@@ -431,6 +431,17 @@ pub enum SchemaDecl {
         /// if you control a Rogue*; CGEL, Ch. 15 §4.3, pp. 1341–1343).
         #[serde(default)]
         clusters: Option<ClustersDecl>,
+        /// Verb Phrase remnants by Slot Kind: a verb's phrase of a frame
+        /// whose first Slot is of that kind also stands without its head, in
+        /// the paired Category, as a middle conjunct of a Verb Phrase
+        /// coordination, the head elided and recovered from the initial
+        /// conjunct's (*is enchanted, [equipped], and has a counter on it*:
+        /// coordination at the level of the final conjunct, with ellipsis at
+        /// the beginning of the medial ones; CGEL, Ch. 15 §3.6,
+        /// pp. 1335–1336, [31ii]). A Coordination schema admits the remnants
+        /// (`SchemaDecl::Coordination::remnant`).
+        #[serde(default)]
+        remnants: Vec<(SlotKind, Ident)>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {
@@ -506,6 +517,21 @@ pub enum SchemaDecl {
         /// all of one value.
         #[serde(default)]
         unlike: Option<Ident>,
+        /// The Category of a phrase whose head is elided that may stand as a
+        /// middle conjunct of a serial coordination, its head recovered from
+        /// the initial conjunct's (`SchemaDecl::Valence::remnants`). The
+        /// initial and last conjuncts are no remnants (CGEL, Ch. 15 §3.6,
+        /// pp. 1335–1336): a coordination whose later conjuncts all were is
+        /// the coordination of their Complements under the one head (*is a
+        /// creature, an artifact, and an enchantment*; §3.2, pp. 1326–1327).
+        #[serde(default)]
+        remnant: Option<Ident>,
+        /// Features a remnant shares with the initial conjunct, which the
+        /// other conjuncts need not share: those of the element it elides
+        /// (an elided Subject's Number and Person, *you gain 4 life, [draw
+        /// four cards], and he deals 4 damage*, never *[draws four cards]*).
+        #[serde(default)]
+        recovered: Vec<Ident>,
     },
 }
 

@@ -351,7 +351,14 @@ Cluster's Object and keep its parameters (*gain protection from white if you
 control a Plains, from blue if you control an Island, ...*). A declarative
 and an imperative that opens with a fronted dependent coordinate without a
 comma (*that creature can't be regenerated this turn and if it would die this
-turn, exile it instead*). A main Clause may take a qualifying added element after *but*
+turn, exile it instead*). A medial conjunct may elide an element at its
+beginning, recovered from the initial conjunct: a copula before a Predicative
+(*is enchanted, equipped, and has a counter on it*) or a Subject before a
+finite Verb Phrase, agreeing with it (*you gain 4 life, draw four cards, and
+he deals 4 damage to each opponent*); the initial and last conjuncts never
+do. A keyword after *with* is a predicate's Adjunct only coordinated with a
+*with*-phrase that is one on its own (*enters with flying and with X +1/+1
+counters on it*). A main Clause may take a qualifying added element after *but*
 or *and*, a fragment of Adjuncts focused by *only* or *not* (*Any player may
 activate this ability but only as a sorcery*). *But* joins a Noun Phrase or a
 Preposition Phrase to a *not*-modified one (*life equal to the damage dealt,

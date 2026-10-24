@@ -1,0 +1,22 @@
+# Medial remnants: a coordination at the level of its final conjunct, with
+# an element at the beginning of each medial conjunct elided and recovered
+# from the initial one (CGEL, Ch. 15 §3.6, pp. 1335–1336, [31]).
+# A copular Verb Phrase's Predicative Complement, the copula elided ([31ii]).
++ <card=Kosei, Penitent Warlord> As long as Kosei is enchanted, equipped, and has a counter on it, Kosei has "Whenever Kosei deals combat damage to an opponent, you draw that many cards and Kosei deals that much damage to each other opponent." => PredicativeRemnant "equipped"; AdjectivePhrase "enchanted" as PredicativeComplement of be
++ <card=Hearth Elemental> This spell costs {X} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure. => PredicativeRemnant "sorcery cards"; NounPhrase "instant cards" as PredicativeComplement of be
++ <card=Frantic Firebolt> Frantic Firebolt deals X damage to target creature, where X is 2 plus the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure. => PredicativeRemnant "sorcery cards"
+# A coordination of Predicatives under one copula is one tree: no later
+# conjunct of it is a remnant (`english-lexical-analysis.md` §2, medial
+# remnants; CGEL, Ch. 15 §3.2, pp. 1326–1327).
++Clause it is a creature, an artifact, and an enchantment => readings 1
+# The remnant's elided copula is the initial conjunct's, which agrees with the
+# Subject, as the other conjuncts do.
+*Clause Kosei are enchanted, equipped, and has a counter on it
+*Clause Kosei is enchanted, equipped, and have a counter on it
+*Clause cards are instant cards, sorcery cards, and/or has an Adventure
+*Clause Kosei enchanted, is equipped, and has a counter on it
+# A finite Verb Phrase, the Subject elided ([31iii]), agreeing with the
+# initial Clause's Subject.
++ <card=Aang, Master of Elements> If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent. => SubjectRemnant "draw four cards"; SubjectRemnant "put four +1/+1 counters on him"; Clause "he deals 4 damage to each opponent"
+*Clause you gain 4 life, draws four cards, and he deals 4 damage to each opponent
+*Clause he gains 4 life, are tapped, and you lose 4 life

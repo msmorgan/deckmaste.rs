@@ -264,7 +264,12 @@
     // Phrase, never a selected Complement (CGEL, Ch. 14 §10(a), p. 1267).
     (lemma: "with", frames: [
         (complement: AbsoluteClause, hosts: NominalAndPredicate),
-        (complement: KeywordPhrase, hosts: Nominal),
+        // A keyword after *with* is a Modifier of a Nominal, and an Adjunct
+        // of a predicate only coordinated with a *with*-phrase that is one
+        // on its own (*enters with flying and with X +1/+1 counters on it*;
+        // `docs/decisions/english-lexical-analysis.md` §2, cross-head
+        // attachment).
+        (complement: KeywordPhrase, hosts: NominalAndConjoinedPredicate),
         (complement: NP, hosts: NominalAndPredicate),
         (complement: QuotedAbility, hosts: Nominal),
         // A cited word, selected by *replace* (*replacing all instances of

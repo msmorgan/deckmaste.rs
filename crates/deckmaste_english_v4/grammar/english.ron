@@ -200,8 +200,10 @@
         "Sentence": (),
         "Sentences": (),
         // A Clause's Inflection is its finite verb's: an independent clause
-        // excludes the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88).
-        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection", "FrontPosition"], gap: true),
+        // excludes the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88). Its
+        // Number and Person are its Subject's, which a Subject remnant after
+        // it recovers (SubjectRemnant).
+        "Clause": (features: ["Number", "Person", "VerbForm", "ClauseMarking", "Inflection", "FrontPosition"], gap: true),
         // A subject relative agrees with its antecedent in number; an
         // adverbial relative modifies a temporal nominal.
         "RelativeClause": (features: ["Number", "NounKind", "ClauseMarking"]),
@@ -367,6 +369,19 @@
         // Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and
         // Bonn for three days*, *in* elided).
         "ParameterRemnant": (),
+        // A copular Verb Phrase's Predicative Complement without the verb: a
+        // medial conjunct of a Verb Phrase coordination, the verb elided and
+        // recovered from the initial conjunct (*is enchanted, [equipped], and
+        // has a counter on it*; CGEL, Ch. 15 §3.6, pp. 1335–1336, [31ii]: *He
+        // was middle-aged, of sallow complexion and had penetrating blue
+        // eyes*).
+        "PredicativeRemnant": (),
+        // A finite Verb Phrase whose Subject is elided: a medial conjunct of
+        // a Clause coordination, its Subject the initial Clause's (*you gain
+        // 4 life, [draw four cards], and he deals 4 damage*; CGEL, Ch. 15
+        // §3.6, pp. 1335–1336, [31iii]: *He reads widely, has a questioning
+        // mind and he's very mature for his years*).
+        "SubjectRemnant": (features: ["Number", "Person", "VerbForm"]),
         "ClauseFragment": (),
         "QualifyingFragment": (),
         // Coordinates joined by *but* that contrast as positive and negative,
@@ -865,6 +880,9 @@
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
             equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked"), Exclude("head.CentralPosition", "Occupied")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
+        // A Subject remnant (SubjectRemnant) is a finite Verb Phrase, which
+        // a medial conjunct of a Clause coordination may be.
+        (name: "SubjectRemnant", lhs: "SubjectRemnant", rhs: [Cat("head", "VerbPhrase")], equations: [Require("head.VerbForm", "Finite")]),
         // Restated as RelativeSubjectPredicate (a SubjectInitialClause, for
         // bare relatives); a change to one must be made to the other.
         (name: "SubjectPredicate", lhs: "Clause",
@@ -2226,7 +2244,8 @@
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
             interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, shifted_object: [Carry("object.Determination", "Overt")], postposed: Some("PostposedModifier"),
-            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")]))),
+            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")])),
+            remnants: [(Pred, "PredicativeRemnant")]),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
         Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
@@ -2312,8 +2331,11 @@
         // that selects them sees a value (*it has attacked or blocked* is no
         // passive perfect).
         // A coordination begins where its first conjunct does
-        // (CentralPosition).
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")]),
+        // (CentralPosition). A medial conjunct may be a Predicative
+        // remnant, its copula elided: never the initial or last one, so a
+        // coordination of Predicatives under one copula keeps its one tree
+        // (*is a creature, an artifact, and an enchantment*).
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "CentralPosition"], equations: [Agree("$.CentralPosition", "first.CentralPosition")], remnant: Some("PredicativeRemnant")),
         // An active and a passive Verb Phrase coordinate too (*enters
         // or is put into a graveyard*), leaving Voice and VerbKind unvalued;
         // past participles do not, since a participle's Voice is what selects
@@ -2338,7 +2360,13 @@
         Coordination(category: "QuotedAbility", coordinators: "Coordinator"),
         // *left or right*; *artifact, creature, or land*.
         Coordination(category: "Mention", coordinators: "Coordinator"),
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
+        // A medial conjunct may be a Subject remnant, its Subject the
+        // initial Clause's, with whose Number and Person it agrees (*you gain
+        // 4 life, draw four cards, and he deals 4 damage*, never *you gain 4
+        // life, draws four cards, ...*): never the initial or last conjunct,
+        // as a coordination at the level of the final conjunct (CGEL,
+        // Ch. 15 §3.6, pp. 1335–1336, [31iii]).
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), remnant: Some("SubjectRemnant"), recovered: ["Number", "Person"]),
         // Clauses of mixed moods (CGEL, Ch. 15 §3.5, pp. 1332–1333): an
         // imperative and then a declarative (*tap that creature and it
         // doesn't untap ...*), with either mood between in a serial one (*gain
@@ -2347,23 +2375,23 @@
         // conjunct is a Verb Phrase with its Subject ellipted, no imperative
         // (*you gain 4 life, draw four cards, ..., and he deals ...*;
         // coordination at unlike levels, §3.6, pp. 1335–1336, [31iii]).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // The comma between coordinated main clauses may be omitted (CGEL,
         // Ch. 20 §3.2.1, p. 1739), as older Oracle text omits it before an
         // imperative that opens with a fronted dependent, which no Verb
         // Phrase coordinate could hold (*that creature can't be regenerated
         // this turn and if it would die this turn, exile it instead*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Carry("last.FrontPosition", "Occupied"), Require("$.VerbForm", "Plain")], serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Carry("last.FrontPosition", "Occupied"), Require("$.VerbForm", "Plain")], serial: Some(false)),
         // *But* coordinates clauses of like or mixed moods as the Coordinator
         // does, a binary coordination (*Discard it, but you may put it on top
         // of your library*; CGEL, Ch. 15 §3.5, pp. 1332–1333).
-        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), serial: Some(false)),
-        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
-        Coordination(category: "Clause", coordinators: "But", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Number", "Person", "Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "But", unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), delimiter: Some(','), serial: Some(false)),
         // Linked Coordinations of Clauses, imperative or declarative, of
         // like or mixed moods as the Coordinator's are (*Draw a card, then
         // discard a card*; *Tap it, then you may sacrifice an artifact*;
@@ -2373,12 +2401,12 @@
         // text omits in a binary one. A stranded auxiliary never precedes a
         // comma-less link whose verb could be its Complement (*You may then
         // have ...*; StrandedModal).
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Number", "Person", "Inflection", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition")], delimiter: Some(',')),
         // Mixed moods end in a declarative link as they do with a
         // Coordinator (*reveal cards ... until ..., Kaboom! deals damage ...,
         // then you put the revealed cards ...*).
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Number", "Person", "Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.
         // Every conjunct but the last shares its Determination, and the

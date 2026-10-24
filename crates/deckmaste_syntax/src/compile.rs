@@ -1853,6 +1853,7 @@ impl<'a> Binder<'a> {
         })
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per schema kind")]
     fn schema(&mut self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         match schema {
             SchemaDecl::Premodification {
@@ -1889,6 +1890,7 @@ impl<'a> Binder<'a> {
                 obligatory,
                 agree,
                 clusters,
+                remnants,
                 ..
             } => {
                 let derivations = self.valence_derivations(schema)?;
@@ -1904,6 +1906,16 @@ impl<'a> Binder<'a> {
                     self.internalised_equations(draft, internalised)?;
                 }
                 self.slot_agreement(phrase, &mut drafts, agree)?;
+                let remnants = remnants
+                    .iter()
+                    .map(|(kind, remnant)| {
+                        Ok((self.slot_category(*kind)?, self.category(remnant)?))
+                    })
+                    .collect::<Result<Vec<_>, LoadError>>()?;
+                let mut elided = Vec::new();
+                for draft in &mut drafts {
+                    elided.extend(phrase_remnants(draft, &remnants));
+                }
                 let mut clustered = Vec::new();
                 if let Some(decl) = clusters {
                     let categories = self.cluster_categories(decl)?;
@@ -1933,6 +1945,7 @@ impl<'a> Binder<'a> {
                 // phrase (*deals [half X damage, rounded down, to any target],
                 // and [half X damage, rounded up, to you]*).
                 ordered.extend(self.valence_order(clustered, interleaved, None, host)?);
+                ordered.extend(elided);
                 Ok(ordered)
             }
             SchemaDecl::Adjunct {
@@ -2325,7 +2338,8 @@ impl<'a> Binder<'a> {
                     for child in &draft.children[1..] {
                         elided.child(child.name.as_ref(), child.symbol.clone(), GapRule::Closed);
                     }
-                    elided.remnant = crate::step::RemnantRole::Elides(*id);
+                    elided.remnant =
+                        crate::step::RemnantRole::Elides(crate::step::Elided::Lexeme(*id));
                     draft.remnant = crate::step::RemnantRole::SharesHead;
                     drafts.push(elided);
                 }
@@ -3171,6 +3185,10 @@ impl<'a> Binder<'a> {
     /// The drafts of a Coordination schema: the whole coordination (binary,
     /// delimited binary, serial, each after a correlative marker too), its
     /// serial tail, and Right Node Raising, once per Category.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one coordination schema, shapes in order"
+    )]
     fn coordination(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         let SchemaDecl::Coordination {
             category,
@@ -3180,12 +3198,41 @@ impl<'a> Binder<'a> {
             delimiter,
             delimited,
             serial: serial_shapes,
+            remnant,
             ..
         } = schema
         else {
             unreachable!("a coordination schema")
         };
         let conjoin = Conjoin::new(self, schema)?;
+        // A middle conjunct may be a remnant, its head elided: never the
+        // initial or last one (`SchemaDecl::Coordination::remnant`).
+        let middles = std::iter::once(None)
+            .chain(
+                remnant
+                    .as_deref()
+                    .map(|r| self.category(r).map(Some))
+                    .transpose()?,
+            )
+            .collect::<Vec<_>>();
+        if remnant.is_none() && !conjoin.recovered.is_empty() {
+            return Err(invalid(format!(
+                "coordination of `{category}`: `recovered` features without a `remnant`"
+            )));
+        }
+        // A remnant's recovered features are the initial conjunct's, through
+        // the serial tail: (draft, the child that takes them from the mother
+        // or `None`, the child the mother takes them from or `None`).
+        let recover = |draft: &mut Draft, from: Option<usize>, into: Option<usize>| {
+            for &feature in &conjoin.recovered {
+                for child in [from, into].into_iter().flatten() {
+                    draft.equations.push((
+                        Path::Mother(feature),
+                        Target::Path(Path::Child(child, feature)),
+                    ));
+                }
+            }
+        };
         let serials = serial_shapes.unwrap_or(conjoin.unlike.is_none());
         let Some(coordinators) = coordinators else {
             let link = link.as_deref().expect("a coordination names its link");
@@ -3257,44 +3304,63 @@ impl<'a> Binder<'a> {
             serial.distinct_coordinator = vec![a];
             serial.unlike = conjoin.unlike.map(|f| (a, t, f));
             conjoin.close(self, &mut serial, &[a, t], Edge::Whole { last: false })?;
+            for &feature in &conjoin.recovered {
+                serial.equations.push((
+                    Path::Child(a, feature),
+                    Target::Path(Path::Child(t, feature)),
+                ));
+            }
             drafts.push(serial);
         }
         if !serials {
             return Ok(drafts);
         }
         drafts.extend(conjoin.polysyndetic(self, &coordinator, *delimiter, *cost)?);
-        let mut more = Draft::new(
-            format!("Coordination:{}/serial-more", conjoin.tail_name),
-            conjoin.tail_id,
-            0,
-        );
-        let a = more.child("first", conjoin.conjunct(), GapRule::Shared);
-        more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-        let t = more.child("rest", conjoin.tail(), GapRule::Shared);
-        more.coordinator = Some(t);
-        more.distinct_coordinator = vec![a];
-        conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
-        conjoin.carry_unlike(&mut more, a, t);
-        drafts.push(more);
-        let mut end = Draft::new(
-            format!("Coordination:{}/serial-end", conjoin.tail_name),
-            conjoin.tail_id,
-            0,
-        );
-        let a = end.child("first", conjoin.conjunct(), GapRule::Shared);
-        end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-        let mut words = Vec::new();
-        for (_, paired) in &self.grammar.correlatives {
-            words.push(self.word(paired)?);
+        for middle in middles.iter().copied() {
+            let shape = |name: &str| match middle {
+                Some(_) => format!("Coordination:{}/{name}/remnant", conjoin.tail_name),
+                None => format!("Coordination:{}/{name}", conjoin.tail_name),
+            };
+            let first = |draft: &mut Draft| match middle {
+                Some(category) => draft.child(
+                    "first",
+                    Symbol::Cat {
+                        binding: None,
+                        category,
+                        prepositions: None,
+                        host: None,
+                    },
+                    GapRule::Closed,
+                ),
+                None => draft.child("first", conjoin.conjunct(), GapRule::Shared),
+            };
+            let mut more = Draft::new(shape("serial-more"), conjoin.tail_id, 0);
+            let a = first(&mut more);
+            more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+            let t = more.child("rest", conjoin.tail(), GapRule::Shared);
+            more.coordinator = Some(t);
+            more.distinct_coordinator = vec![a];
+            conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
+            conjoin.carry_unlike(&mut more, a, t);
+            recover(&mut more, middle.map(|_| a), Some(t));
+            drafts.push(more);
+            let mut end = Draft::new(shape("serial-end"), conjoin.tail_id, 0);
+            let a = first(&mut end);
+            end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+            let mut words = Vec::new();
+            for (_, paired) in &self.grammar.correlatives {
+                words.push(self.word(paired)?);
+            }
+            let end_test = self.with_words(coordinator.clone(), &words);
+            let c = end.child("coordinator", Symbol::Leaf(end_test), GapRule::Closed);
+            let b = end.child("last", conjoin.conjunct(), GapRule::Shared);
+            end.coordinator = Some(c);
+            end.distinct_coordinator = vec![a, b];
+            conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
+            conjoin.carry_unlike(&mut end, a, b);
+            recover(&mut end, middle.map(|_| a), None);
+            drafts.push(end);
         }
-        let end_test = self.with_words(coordinator, &words);
-        let c = end.child("coordinator", Symbol::Leaf(end_test), GapRule::Closed);
-        let b = end.child("last", conjoin.conjunct(), GapRule::Shared);
-        end.coordinator = Some(c);
-        end.distinct_coordinator = vec![a, b];
-        conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
-        conjoin.carry_unlike(&mut end, a, b);
-        drafts.push(end);
         if conjoin.unlike.is_some() {
             return Ok(drafts);
         }
@@ -3424,6 +3490,9 @@ struct Conjoin {
     tail_name: String,
     features: Vec<usize>,
     unshared: BTreeSet<usize>,
+    /// Features a remnant shares with the initial conjunct
+    /// (`SchemaDecl::Coordination::recovered`).
+    recovered: Vec<usize>,
     proximate: BTreeSet<usize>,
     resolved: BTreeSet<usize>,
     /// Features resolved over the conjuncts: (feature, value when they
@@ -3451,6 +3520,7 @@ impl Conjoin {
             resolve,
             conjunct,
             unlike,
+            recovered,
             ..
         } = schema
         else {
@@ -3501,7 +3571,9 @@ impl Conjoin {
                 resolved.insert(binder.feature(feature)?);
             }
         }
-        let unshared = features(unshared)?;
+        let recovered = features(recovered)?;
+        let mut unshared = features(unshared)?;
+        unshared.extend(recovered.iter().copied());
         let proximate = features(proximate)?;
         let mut resolutions = Vec::new();
         for (name, value) in resolve {
@@ -3531,6 +3603,7 @@ impl Conjoin {
             tail_name,
             features: binder.out.category_features[lhs].clone(),
             unshared,
+            recovered: recovered.into_iter().collect(),
             proximate,
             resolved,
             resolutions,
@@ -4007,6 +4080,89 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     whole.frame = Some(frame);
     whole.clusters = Some((at, frame));
     out.push(whole);
+    out
+}
+
+/// A phrase's remnant (`SchemaDecl::Valence::remnants`): an active phrase
+/// whose first Frame Slot is of a remnant's Slot Category, without its head,
+/// a middle conjunct of a coordination whose initial conjunct's head it
+/// elides (*is enchanted, [equipped], and has a counter on it*; CGEL, Ch. 15
+/// §3.6, pp. 1335–1336, [31ii]). Equations on the Slots move into the
+/// remnant; those on the head and the mother stay with the head, which the
+/// phrase shares with the remnants after it (`RemnantRole::SharesHead`).
+fn phrase_remnants(draft: &mut Draft, remnants: &[(usize, usize)]) -> Vec<Draft> {
+    let derived = ["/gap", "/passive", "/adjectival"];
+    let Some(frame) = draft.frame else {
+        return Vec::new();
+    };
+    if draft.children.len() < 2
+        || derived.iter().any(|d| draft.id.contains(d))
+        || draft.children[0].name != "head"
+    {
+        return Vec::new();
+    }
+    let first_slot = match &draft.children[1].symbol {
+        Symbol::Cat { category, .. } => *category,
+        _ => return Vec::new(),
+    };
+    let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
+    let into_remnant = |p: Path| match p {
+        Path::Child(i, f) => Path::Child(i - 1, f),
+        mother @ Path::Mother(_) => mother,
+    };
+    let mut out = Vec::new();
+    for (n, &(_, category)) in remnants
+        .iter()
+        .enumerate()
+        .filter(|(_, (slot, _))| *slot == first_slot)
+    {
+        let id = if n == 0 {
+            format!("{}/remnant", draft.id)
+        } else {
+            format!("{}/remnant{n}", draft.id)
+        };
+        let mut remnant = Draft::new(id, category, draft.cost);
+        for child in &draft.children[1..] {
+            remnant.child(child.name.as_ref(), child.symbol.clone(), GapRule::Closed);
+        }
+        for (path, target) in &draft.equations {
+            let target_on_slot = match target {
+                Target::Path(t) => on_slot(t),
+                Target::Value(_) => true,
+            };
+            if on_slot(path) && target_on_slot {
+                let target = match target {
+                    Target::Path(t) => Target::Path(into_remnant(*t)),
+                    value @ Target::Value(_) => value.clone(),
+                };
+                remnant.equations.push((into_remnant(*path), target));
+            }
+        }
+        for (list, original) in [
+            (&mut remnant.exclusions, &draft.exclusions),
+            (&mut remnant.carried, &draft.carried),
+        ] {
+            list.extend(
+                original
+                    .iter()
+                    .filter(|(i, ..)| *i > 0)
+                    .map(|&(i, f, v)| (i - 1, f, v)),
+            );
+        }
+        remnant.weights.extend(
+            draft
+                .weights
+                .iter()
+                .filter(|(i, _)| *i > 0)
+                .map(|&(i, w)| (i - 1, w)),
+        );
+        let frame = u16::try_from(frame).expect("frame index fits");
+        remnant.remnant = crate::step::RemnantRole::Elides(crate::step::Elided::Frame(frame));
+        out.push(remnant);
+    }
+    if !out.is_empty() {
+        draft.remnant = crate::step::RemnantRole::SharesHead;
+    }
     out
 }
 
