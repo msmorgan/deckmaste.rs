@@ -2923,7 +2923,7 @@ def stepOps : Nat → StepOps
                   drs.causedEvents.any (fun event =>
                     event.permitted && event.readBy (some anchor) []) then
                 let ref := { bindFor detP.det detP.plur (pred.kindOr .object) pred with
-                  controlledByYou := pred.controlFact }
+                  controlledByYou := pred.controlFact, opponentControls := pred.opponentControls }
                 (drs2.push ref role inArgSlot, [drs2.nextId], e1 ++ e2 ++ agentErrors)
               else (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription anchor n])
           | _, _ =>
@@ -2934,14 +2934,31 @@ def stepOps : Nat → StepOps
             let drs2 := { drs2 with
               relativeTypes := drs.relativeTypes, relativeZone := drs.relativeZone
               relativeControl := drs.relativeControl, contrastExcluded := drs.contrastExcluded }
-            let ref := { bindFor detP.det detP.plur (pred.kindOr .object) pred with
-              controlledByYou := pred.controlFact }
-            let rid := drs2.nextId
-            let drs3 := drs2.push ref role inArgSlot
-            let targetErrors := if detP.det == .target then
-              refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
-            (drs3, [rid], e1 ++ e2 ++ targetErrors ++
-              refuse (detP.det != .the || pred.uniquifies) .uniquifying)
+            -- A `the` description its predicate does not make unique reads back the one earlier
+            -- mention in scope its predicate admits ("the creature you control" after "target
+            -- creature you control and target creature you don't control"), as a Participial
+            -- Description does; it chooses nothing (owner ruling 2026-10-24). A predicate that
+            -- makes it unique ("the creature with the greatest power") always describes afresh.
+            let antecedents := match detP with
+              | .the .one =>
+                if pred.uniquifies then [] else
+                (match pred with
+                 | .inCaller _ => enterCaller drs
+                 | _ => drs).definiteAntecedents pred
+              | _ => []
+            match antecedents with
+            | [antecedent] =>
+              (drs2.recordMention antecedent.id role inArgSlot, [antecedent.id], e1 ++ e2)
+            | _ =>
+              -- With no such mention, or with more than one, "the" names nothing unique.
+              let ref := { bindFor detP.det detP.plur (pred.kindOr .object) pred with
+                controlledByYou := pred.controlFact, opponentControls := pred.opponentControls }
+              let rid := drs2.nextId
+              let drs3 := drs2.push ref role inArgSlot
+              let targetErrors := if detP.det == .target then
+                refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
+              (drs3, [rid], e1 ++ e2 ++ targetErrors ++
+                refuse (detP.det != .the || pred.uniquifies) .uniquifying)
         | .and ns | .coord .andOr ns =>
           let (out, ids, errs) := ns.foldl (fun (d, ids, es) n =>
             let (d', ids', e') := ops.np { d with coordinatedSelf := coordinatedSelfIn d ids } role
