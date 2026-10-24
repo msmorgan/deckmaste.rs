@@ -318,7 +318,8 @@ Marker's determiner takes a whole coordination of nominals, each with its own
 postmodifiers or none (*up to one target artifact or creature*, *target
 planeswalker that player controls or battle that player protects*).
 
-Stratum 7 adds joint coordination: a singular determiner over an
+Stratum 7 (complete; its unread long-tail units are deferred to their slice
+tickets) adds joint coordination: a singular determiner over an
 *and*-coordination of singular nominals is a singular Noun Phrase (*a Cleric,
 Rogue, Warrior, and Wizard*; *that base power and toughness*). An attributive
 adjective may modify a whole *and*-coordination of singular nominals, its

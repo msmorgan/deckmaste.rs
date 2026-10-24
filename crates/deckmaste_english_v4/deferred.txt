@@ -25,3 +25,57 @@ Frantic Firebolt | Frantic Firebolt deals X damage to target creature, where X i
 Ulasht, the Hate Seed | Ulasht enters with a +1/+1 counter on it for each other red creature you control and a +1/+1 counter on it for each other green creature you control.
 Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/+1 counters on it, where X is the discarded card's mana value.
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
+Kosei, Penitent Warlord | As long as Kosei is enchanted, equipped, and has a counter on it, Kosei has "Whenever Kosei deals combat damage to an opponent, you draw that many cards and Kosei deals that much damage to each other opponent."
+Aang, Master of Elements | At the beginning of each upkeep, you may transform Aang, Master of Elements. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.
+Scorching Lava | Scorching Lava deals 2 damage to any target. If this spell was kicked, that creature can't be regenerated this turn and if it would die this turn, exile it instead.
+
+# english-v4-s7-long-tail-edge-cases
+Collective Voyage | Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.
+Wheel of Misfortune | Each player secretly chooses a number 0 or greater, then all players reveal those numbers simultaneously and determine the highest and lowest numbers revealed this way. Wheel of Misfortune deals damage equal to the highest number to each player who chose that number. Each player who didn't choose the lowest number discards their hand, then draws seven cards.
+Strixhaven Stadium | Whenever a creature you control deals combat damage to an opponent, put a point counter on this artifact. Then if it has ten or more point counters on it, remove them all and that player loses the game.
+Marvo, Deep Operative | Whenever you win a clash, draw a card. Then you may cast a spell from your hand with mana value 8 or less without paying its mana cost.
+Widespread Brutality | Amass Zombies 2, then the Army you amassed deals damage equal to its power to each non-Army creature.
+Azlask, the Swelling Scourge | {W}{U}{B}{R}{G}: Creatures you control get +X/+X until end of turn, where X is the number of experience counters you have. Scions and Spawns you control gain indestructible and annihilator 1 until end of turn.
+Blood for the Blood God! | Discard your hand, then draw eight cards. Blood for the Blood God! deals 8 damage to each opponent. Exile Blood for the Blood God!
+Sway of the Stars | Each player shuffles their hand, graveyard, and all permanents they own into their library, then draws seven cards. Each player's life total becomes 7.
+Barroom Brawl | Target creature you control fights target creature the opponent to your left controls. Then that player may copy this spell and may choose new targets for the copy.
+Long-Term Plans | Search your library for a card, then shuffle and put that card third from the top.
+Finale of Promise | You may cast up to one target instant card and/or up to one target sorcery card from your graveyard each with mana value X or less without paying their mana costs. If a spell cast this way would be put into your graveyard, exile it instead. If X is 10 or more, copy each of those spells twice. You may choose new targets for the copies.
+
+# english-v4-s7-long-tail-quotes-and-mentions
+Volrath's Shapeshifter | As long as the top card of your graveyard is a creature card, this creature has the full text of that card and has the text "{2}: Discard a card."
+Urza's Saga | III — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle.
+Grim Captain's Call | Return a Pirate card from your graveyard to your hand, then do the same for Vampire, Dinosaur, and Merfolk.
+Brutal Suppression | Activated abilities of nontoken Rebels cost an additional "Sacrifice a land" to activate.
+Artificial Evolution | Change the text of target spell or permanent by replacing all instances of one creature type with another. The new creature type can't be Wall.
+Drought | Spells cost an additional "Sacrifice a Swamp" to cast for each black mana symbol in their mana costs.
+Drought | Activated abilities cost an additional "Sacrifice a Swamp" to activate for each black mana symbol in their activation costs.
+
+# english-v4-s7-long-tail-nonfinite-clauses
+Reality Twist | If tapped for mana, Plains produce {R}, Swamps produce {G}, Mountains produce {W}, and Forests produce {B} instead of any other type.
+Deification | As long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed.
+Naked Singularity | If tapped for mana, Plains produce {R}, Islands produce {G}, Swamps produce {W}, Mountains produce {U}, and Forests produce {B} instead of any other type.
+
+# english-v4-s7-long-tail-pp-coordination
+Lim-Dûl's Vault | Look at the top five cards of your library. As many times as you choose, you may pay 1 life, put those cards on the bottom of your library in any order, then look at the top five cards of your library. Then shuffle and put the last cards you looked at this way on top in any order.
+Serum Powder | Any time you could mulligan and this card is in your hand, you may exile all the cards from your hand, then draw that many cards.
+Don't Blink | Until end of turn, if one or more creatures would enter from exile or after being cast from exile, their owners shuffle them into their libraries instead.
+Dream Cache | Draw three cards, then put two cards from your hand both on top of your library or both on the bottom of your library.
+Library of Leng | If an effect causes you to discard a card, discard it, but you may put it on top of your library instead of into your graveyard.
+
+# english-v4-s7-long-tail-quantifiers
+Goblin Game | Each player hides at least one item, then all players reveal them simultaneously. Each player loses life equal to the number of items they revealed. The player who revealed the fewest items then loses half their life, rounded up. If two or more players are tied for fewest, each loses half their life, rounded up.
+Hawkeye, Master Marksman | Trick Arrows — Whenever Hawkeye becomes tapped, you may pay {1} up to three times. When you do, choose up to that many —
+Wolverine, Fierce Fighter | If damage would be dealt to Wolverine, instead that damage is dealt, but all other damage already dealt to him is healed.
+Avatar Aang | Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform Avatar Aang.
+Academy Manufactor | If you would create a Clue, Food, or Treasure token, instead create one of each.
+
+# english-v4-s7-heavy-object-shift
+Global Ruin | Each player chooses from the lands they control a land of each basic land type, then sacrifices the rest.
+Pyxis of Pandemonium | {7}, {T}, Sacrifice this artifact: Each player turns face up all cards they own exiled with this artifact, then puts all permanent cards among them onto the battlefield.
+Tragic Arrogance | For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker. Then each player sacrifices all other nonland permanents they control.
+Cataclysm | Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest.
+Guided Passage | Reveal the cards in your library. An opponent chooses from among them a creature card, a land card, and a noncreature, nonland card. You put the chosen cards into your hand. Then shuffle.
+
+# english-v4-s7-cleave-transparent-brackets
+Dig Up | Search your library for a [basic land] card, [reveal it,] put it into your hand, then shuffle.
