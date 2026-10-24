@@ -15,3 +15,6 @@ The Stratum gate holds when the last slice lands:
 Progress: `COMPLETED_STRATUM` is 7 (`english-v4-s7-raise-stratum`). Every Stratum-7 judgment is enforced, and the units still unread are deferred under the open slices in `deferred.txt`; each slice removes its deferrals as it lands.
 
 Standard constraints apply.
+
+**Census delta** (`tmtukqty`): umbrella carries no work of its own; at close faces read 32825 of 32828 (3 declined, `deferred.txt` empty), Readings 340496, law failures 0, `strata --check` passes. Lost faces: none.
+**Judgment set** (`tmtukqty`): all entries hold (`cargo test -p deckmaste_english_v4`).
