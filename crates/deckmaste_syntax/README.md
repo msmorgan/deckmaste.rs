@@ -196,7 +196,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   not one a declared Adjective spells). A
   `Premodification` passes up its head's Gap, so a premodified conjunct shares
   its Complement (*the noted number and kind of counters*).
-- `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
+- `Adjunct { host, adjunct, side, host_kind, equations, nonfinal }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
   or line that a comma-set Supplement is anchored to (as `supplement`, *, where
@@ -218,6 +218,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   *number and kind [of counters]* shares it as a Complement.
   A delimited (comma-set) post-adjunct's host passes up no Gap, so it never
   closes a relative clause's Clause (CGEL, Ch. 12 §4, p. 1058).
+  An Adjunct declared `nonfinal` builds a phrase that is only a conjunct of a
+  coordination other than the last (`Summary::nonfinal`): every other
+  position rejects it, so a Supplement to a Verb Phrase conjunct before the
+  next (*searches …, where X is …, puts them …*) leaves the last conjunct's
+  Supplement to its Clause.
   Likewise a frame's predicative
   Complement is not a Preposition Phrase that a rival frame of the same head
   selects in its place (locative *on the battlefield* after *be*). Optional

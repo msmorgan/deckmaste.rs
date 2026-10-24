@@ -24,6 +24,3 @@ Invasion of Arcavios | When this Siege enters, search your library, graveyard, a
 
 # english-v4-s7-postpositive-sum-total
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
-
-# english-v4-s7-supplement-between-vp-conjuncts
-Collective Voyage | Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.

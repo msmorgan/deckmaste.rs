@@ -301,6 +301,11 @@ struct Draft {
     /// It opens with a dash only its sentence's end closes
     /// (`ProductionDecl::unclosed`).
     unclosed: bool,
+    /// Its phrase is only a non-final conjunct (`Production::nonfinal`).
+    nonfinal: bool,
+    /// Its coordination's conjuncts other than the last
+    /// (`Production::nonfinal_conjuncts`).
+    nonfinal_conjuncts: Vec<usize>,
     /// A Linked Coordination's identity (`Production::link`).
     link: Option<LexemeId>,
     /// It builds a Complement Cluster of this frame (`Production::cluster`).
@@ -388,6 +393,8 @@ impl Draft {
             omits_complement: false,
             elliptical: None,
             unclosed: false,
+            nonfinal: false,
+            nonfinal_conjuncts: Vec::new(),
             link: None,
             cluster: None,
             clusters: None,
@@ -1772,6 +1779,8 @@ impl<'a> Binder<'a> {
         };
         production.link = draft.link;
         production.unclosed = draft.unclosed;
+        production.nonfinal = draft.nonfinal;
+        production.nonfinal_conjuncts = draft.nonfinal_conjuncts;
         production.cluster = draft
             .cluster
             .map(|frame| u16::try_from(frame).expect("frame index fits"));
@@ -1968,17 +1977,12 @@ impl<'a> Binder<'a> {
                 delimiter,
                 cost,
                 equations,
+                nonfinal,
             } => {
                 let host_id = self.category(host)?;
                 let adjunct_id = self.category(adjunct)?;
-                let mut draft = Draft::new(
-                    format!(
-                        "Adjunct:{host}+{adjunct}/{side:?}/{host_kind:?}{}",
-                        delimiter.map_or(String::new(), |c| format!("/{c}"))
-                    ),
-                    host_id,
-                    *cost,
-                );
+                let mut draft = Draft::new(adjunct_production_id(schema), host_id, *cost);
+                draft.nonfinal = *nonfinal;
                 let host_symbol = Symbol::Cat {
                     binding: None,
                     category: host_id,
@@ -3816,6 +3820,9 @@ impl Conjoin {
     ) -> Result<(), LoadError> {
         let whole = matches!(edge, Edge::Whole { .. });
         draft.tail = !whole;
+        // The last child is the last conjunct or the serial tail that ends
+        // with it; every other is a conjunct before the last.
+        draft.nonfinal_conjuncts = conjuncts[..conjuncts.len() - 1].to_vec();
         self.resolve(draft, conjuncts, edge);
         for &feature in &self.features {
             if self.unshared.contains(&feature)
@@ -4223,6 +4230,27 @@ fn serial_tail(schemas: &[SchemaDecl], schema: &SchemaDecl, category: &str) -> S
     } else {
         format!("{category}#{coordinators}{}", earlier + 1)
     }
+}
+
+/// The Production id of an Adjunct schema's draft.
+fn adjunct_production_id(schema: &SchemaDecl) -> String {
+    let SchemaDecl::Adjunct {
+        host,
+        adjunct,
+        side,
+        host_kind,
+        delimiter,
+        nonfinal,
+        ..
+    } = schema
+    else {
+        unreachable!("an Adjunct schema")
+    };
+    format!(
+        "Adjunct:{host}+{adjunct}/{side:?}/{host_kind:?}{}{}",
+        delimiter.map_or(String::new(), |c| format!("/{c}")),
+        if *nonfinal { "/nonfinal" } else { "" }
+    )
 }
 
 pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {

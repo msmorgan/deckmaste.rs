@@ -456,6 +456,14 @@ pub enum SchemaDecl {
         /// Equations over the `head` (host) and the adjunct's function child.
         #[serde(default)]
         equations: Vec<Equation>,
+        /// The phrase it builds is only a conjunct of a coordination other
+        /// than the last, never a child in any other position: a comma-set
+        /// Supplement anchored to a Verb Phrase conjunct before the next
+        /// (*searches … for up to X cards, where X is …, puts them …*), where
+        /// the last conjunct's Supplement is the Clause's (CGEL, Ch. 15 §5.1,
+        /// p. 1351).
+        #[serde(default)]
+        nonfinal: bool,
     },
     /// Binary and serial coordination of a Category, with Right Node Raising
     /// when the Category may contain a Gap.

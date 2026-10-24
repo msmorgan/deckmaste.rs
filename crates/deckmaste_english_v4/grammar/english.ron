@@ -2311,6 +2311,13 @@
         // comma; §12, Copies).
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 1, equations: [Require("head.ClauseMarking", "Unmarked")]),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2, equations: [Require("head.ClauseMarking", "Unmarked")]),
+        // A comma-set Supplement to a Verb Phrase conjunct before the next
+        // (*Each player searches their library for up to X basic land cards,
+        // where X is …, puts them onto the battlefield tapped, then
+        // shuffles*): under a shared Subject no Clause ends after that
+        // conjunct to anchor it, and after the last conjunct the Supplement
+        // is the Clause's (CGEL, Ch. 15 §5.1, p. 1351).
+        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2, nonfinal: true),
         // A comma-set Supplement to a keyword line's item or an indexed
         // instruction. A Supplement anchors to a Clause or line (Oracle
         // English glossary, "Host Category"), never to a Keyword Phrase in a
