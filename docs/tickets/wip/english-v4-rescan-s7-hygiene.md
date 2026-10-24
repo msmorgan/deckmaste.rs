@@ -107,3 +107,6 @@ exclusion aimed at one witness is not made: report it and keep the reading.
 - Units that lose Readings lose only wrong or duplicate ones. No face is lost.
 
 Standard constraints apply.
+
+1. **Census delta** (refreshed base → `ypmqqzrq`/`ltmkuvqk`, full corpus): faces read 32,824 → 32,824; total Readings 338,336 → 338,336 (unchanged; the profiler change moves no unit, and the rest is findings). Lost faces: none.
+2. **Judgment set** (`ltmkuvqk`): 3,385 enforced, 0 pending; all hold.
