@@ -817,7 +817,8 @@ theorem okThatCreatureAfterDamage :
 creature deals damage equal to its power to this creature." In the second sentence "its" reads
 the re-mentioned subject, that creature (2), not the first sentence's subject, this creature (0),
 though this creature is still visible: `D′` ranks a referent re-mentioned in a direct argument
-slot of the current clause there. -/
+slot of the current clause there. This creature is a self-referent (`Determiner.self`; owner
+ruling 2026-10-24). -/
 theorem karplusanYetiItsReadsThatCreature :
     Cards.karplusanYeti =
         sequentially
@@ -827,7 +828,7 @@ theorem karplusanYetiItsReadsThatCreature :
       (firstReach .bare .one (possessiveContext yetiFirst (that creature)).1).map (·.id) =
         some 2 ∧
       (possessiveContext yetiFirst (that creature)).1.visibleReferents.any (·.id == 0) = true ∧
-      (yetiFirst.findById? 0).map (·.det) = some .the :=
+      (yetiFirst.findById? 0).map (·.det) = some .self :=
   ⟨rfl, by decide⟩
 
 /-- After "Garruk Relentless deals 3 damage to target creature.": Garruk is 0, the creature 2. -/
@@ -870,13 +871,20 @@ theorem okThatCreatureAfterTargetedDamage :
             instruct (controllerOf (that (.type .creature))) (loseLife 1) ])) = [] := by
   decide
 
-theorem damagedSelfIsReadableAsThatCreature :
+/-- "Whenever this creature is dealt damage, it deals that much damage to any target." The
+damaged Source is read by "it"; "that creature" never reads the Source, a self-referent
+(`Determiner.self`; owner ruling 2026-10-24). -/
+theorem damagedSelfIsReadableByItNotThatCreature :
     let event := GameEvent.does .any (.dealDamage .anyAmount thisCreature)
     let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
       (whenever event
-        (Action.instruct (that (.type .creature)) (.dealDamage .thatMuch (target isAnyTarget)))) = [] ∧
-      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+        (Action.instruct it (.dealDamage .thatMuch (target isAnyTarget)))) = [] ∧
+      Ability.check (DRS.ofList [])
+        (whenever event
+          (Action.instruct (that (.type .creature)) (.dealDamage .thatMuch (target isAnyTarget)))) =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      (firstReach (.word (.type .creature)) .one (nextClause after)).isNone ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "Prevent all damage sources of the last chosen color would deal to you." -/

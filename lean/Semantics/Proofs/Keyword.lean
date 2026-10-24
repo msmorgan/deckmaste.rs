@@ -70,15 +70,18 @@ theorem okThatCreatureAfterAntecedent :
       = [] := by
   decide
 
-/-- "This creature gets +1/+1 and that creature has flying." -/
-theorem staticSelfRemainsReadableAsThatCreature :
-    let spec := StaticSpec.conjunction none
+/-- "This creature gets +1/+1 and it has flying.": "it" reads the Source; "that creature" never
+does, the Source being a self-referent (`Determiner.self`; owner ruling 2026-10-24). -/
+theorem staticSelfRemainsReadableByIt :
+    let spec := fun (third : NounPhrase) => StaticSpec.conjunction none
       [Templates.modification thisCreature .power (.up 1),
         Templates.modification it .toughness (.up 1),
-        Templates.abilityGrant (that (.type .creature)) (keyword (.named "flying"))]
-    let after := (stepStaticSpec 64 (DRS.ofList []) spec).1
-    Ability.check (DRS.ofList []) (.static spec) = [] ∧
-      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+        Templates.abilityGrant third (keyword (.named "flying"))]
+    let after := (stepStaticSpec 64 (DRS.ofList []) (spec it)).1
+    Ability.check (DRS.ofList []) (.static (spec it)) = [] ∧
+      Ability.check (DRS.ofList []) (.static (spec (that (.type .creature)))) =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 0 ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "Creatures you control get +1/+1 and they have flying." -/

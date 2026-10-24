@@ -432,7 +432,10 @@ theorem okNekrataalDestroy :
     Action.check ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy = [] := by decide
 def nekrataalRider : DRS :=
   (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy).1
-theorem nekrataalOneCreatureWord : countReach (.word creature) .one nekrataalRider = 1 := by
+/-- After the destroy, no creature word reaches a creature on the battlefield: the destroyed
+creature is in a graveyard, and the Source, "this creature", is a self-referent no noun word
+reads (`Determiner.self`; owner ruling 2026-10-24), which this pin used to count. -/
+theorem nekrataalNoCreatureWord : countReach (.word creature) .one nekrataalRider = 0 := by
   decide
 theorem nekrataalOneDestroyed :
     (participialCandidates (.deed (.action "destroy")) (some .one) none false nekrataalRider).length = 1 := by
@@ -587,11 +590,16 @@ theorem okTargetCreaturesController :
     NounPhrase.checkAt (some .player) (DRS.ofList []) targetCreaturesController = [] := by decide
 theorem possessiveDeicticIsReadableByIt :
     countReach (.atSlot .permanent) .one ((stepNounPhrase 512 (DRS.ofList []) .obj true thisAurasController).1) = 1 := by decide
-theorem possessiveDeicticDemonstrativeSelectsTheSource :
+/-- "this Aura's controller": the possessor is the Source, a self-referent no demonstrative
+reads ("that enchantment" finds nothing; `Determiner.self`, owner ruling 2026-10-24), while a
+later "this Aura" re-mentions it, on the battlefield as an enchantment (`mentionThis`). -/
+theorem possessiveDeicticSourceIsNoDemonstrativeAntecedent :
     let result := stepNounPhrase 512 (DRS.ofList []) .obj true thisAurasController
-    let selected := resolveCandidates (.word enchantment) .one result.1
-    result.2.1 = [1] ∧ selected.map (·.id) = [0] ∧
-      selected.all (fun ref => ref.zone == some .battlefield && ref.ty == [.enchantment]) := by decide
+    let again := stepNounPhrase 512 result.1 .obj true thisAura
+    result.2.1 = [1] ∧ resolveCandidates (.word enchantment) .one result.1 = [] ∧
+      again.2.1 = [0] ∧
+      (again.2.1.filterMap again.1.findById?).all
+        (fun ref => ref.zone == some .battlefield && ref.ty == [.enchantment]) := by decide
 
 theorem possessiveDescribedBaseUnchanged :
     countReach (.atSlot .permanent) .one ((stepNounPhrase 512 (DRS.ofList []) .obj true targetCreaturesController).1) = 1 := by decide

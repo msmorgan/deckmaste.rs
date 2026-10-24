@@ -840,6 +840,50 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
     (drs2, e1)
   | .any | .by _ => (drs, [])
 
+/-- A mention of "you" (`NounPhrase.you`, or a performer in no handoff): one player, whatever
+the number of mentions, so a later mention re-mentions the referent the first introduced, a
+self-referent (`Determiner.self`) no noun word reads ("that player" never names "you"), the
+Contrast Anchor a bare "another"/"other" Player falls back to ([CR#109.5]). -/
+def mentionYou (drs : DRS) (plur : Plurality) (role : GramRole) (inArgSlot : Bool) :
+    DRS × List ReferentId × List Refusal :=
+  match drs.visibleReferents.find? (fun ref =>
+      ref.det == .self && ref.plur == plur && ref.payload == .player false && !ref.linked) with
+  | some ref => (drs.recordMention ref.id role inArgSlot, [ref.id], [])
+  | none =>
+    let ref : Referent := {
+      det := .self, plur, payload := .player false, defaultAnchor := true }
+    (drs.push ref role inArgSlot, [drs.nextId], [])
+
+/-- A mention of the Source ("this", "this creature"): one object, whatever the number of
+mentions, so a later mention re-mentions the referent the first introduced, as the object it is
+now (but never one a linked ability published, `Referent.linked`), a self-referent (`Determiner.self`) no noun word reads ("that creature" never names "this
+creature"), the Contrast Anchor a bare "another"/"other" Object falls back to ([CR#109.5]). -/
+def mentionThis (drs : DRS) (role : GramRole) (inArgSlot : Bool) :
+    DRS × List ReferentId × List Refusal :=
+  let errors := refuse (!drs.sourceless) .noSource
+  match drs.visibleReferents.find? (fun ref =>
+      ref.det == .self && ref.defaultAnchor && ref.kind == .object && !ref.linked) with
+  | some ref => (drs.recordMention ref.id role inArgSlot, [ref.id], errors)
+  | none =>
+    let ref : Referent := {
+      det := .self, plur := .one, defaultAnchor := true,
+      payload := .object drs.sourceTypes none none none none }
+    (drs.push ref role inArgSlot, [drs.nextId], errors)
+
+/-- Put a handoff's performer in view (owner ruling 2026-10-24): inside the handoff, the Source
+performing it is an ordinary referent (`det := .the`), so a Definition worded as the CR words it
+reads the performing permanent by a noun word, "that permanent" [CR#701.63a]; returns the ids it
+changed. "You" stays a self-referent: no third-person "they" or "that player" names the player
+the text addresses. -/
+def performerInView (drs : DRS) (ids : List ReferentId) : DRS × List ReferentId :=
+  let selves := ids.filter fun id =>
+    (drs.findById? id).any (fun ref => ref.det == .self && ref.kind != .player)
+  (selves.foldl (fun d id => d.updateById id fun r => { r with det := .the }) drs, selves)
+
+/-- Leave a handoff: its performer, if still the object it was, is a self-referent again. -/
+def performerOutOfView (drs : DRS) (selves : List ReferentId) : DRS :=
+  selves.foldl (fun d id => d.updateById id fun r => { r with det := .self }) drs
+
 /-- The particulars a clause's rest introduces, in textual order: stepped ahead of the clause's
 agent for its bare "another"/"other" (Contrast Anchor step 3, `semantics-v3.md` §0.1). A
 particular is a target, a definite description, or an attachment host ("equipped creature");
@@ -3252,12 +3296,7 @@ def stepOps : Nat → StepOps
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1)
-        | .you =>
-          let ref : Referent := {
-            det := .the, plur := np.plur, payload := .player false, defaultAnchor := true }
-          let rid := drs.nextId
-          let drs' := drs.push ref role inArgSlot
-          (drs', [rid], [])
+        | .you => mentionYou drs np.plur role inArgSlot
         | .actor =>
           match actorShape? drs with
           | some shape =>
@@ -3269,19 +3308,8 @@ def stepOps : Nat → StepOps
             else
               let drs' := if inArgSlot then shape.refIds.foldl (fun d rid => d.recordMention rid role true) drs else drs
               (drs', shape.refIds, [])
-          | none =>
-            let ref : Referent := {
-              det := .the, plur := .one, payload := .player false, defaultAnchor := true }
-            let rid := drs.nextId
-            let drs' := drs.push ref role inArgSlot
-            (drs', [rid], [])
-        | .this =>
-          let ref : Referent := {
-            det := .the, plur := .one, defaultAnchor := true,
-            payload := .object drs.sourceTypes none none none none }
-          let rid := drs.nextId
-          let drs' := drs.push ref role inArgSlot
-          (drs', [rid], refuse (!drs.sourceless) .noSource)
+          | none => mentionYou drs .one role inArgSlot
+        | .this => mentionThis drs role inArgSlot
         | .any => (drs, [], []),
 
       amt := fun drs a =>
@@ -3454,7 +3482,8 @@ def stepOps : Nat → StepOps
             | _ => false
           let subjectOk := subj.playerGroupMention || ids.all fun id =>
             id < drs.nextId ||
-              (drs1.findById? id).any (fun ref => ref.det == .the || (coordinated && ref.det == .a)) ||
+              (drs1.findById? id).any (fun ref => ref.det == .the || ref.det == .self ||
+                (coordinated && ref.det == .a)) ||
               drs1.scopeStack.head?.any (fun frame => frame.callerReferentIds.contains id)
           (refined, e1 ++ e2 ++ kindErrors ++ refuse subjectOk .testSubject ++
             refuse pred.says .predSays)
@@ -3571,12 +3600,14 @@ def stepOps : Nat → StepOps
         | .enact verb body becomes locus =>
           let actor := actorShape? drs
           let defaultsToSource := verb.permanentActor && actor.all (·.isYou)
-          let (inner, sourceErrors) := if defaultsToSource then
+          let (inner, selves, sourceErrors) := if defaultsToSource then
             let (out, ids, errors) := ops.np drs .subj true (.headed .permanent .this)
             let shape : ActorShape := {
               kind := .object, isYou := false, ascribable := true, refIds := ids }
-            (out.push { det := .the, plur := .one, payload := .actor shape } .other false, errors)
-            else (drs, [])
+            let (out, selves) := performerInView out ids
+            (out.push { det := .the, plur := .one, payload := .actor shape } .other false, selves,
+              errors)
+            else (drs, [], [])
           let priorMentions := inner.pendingRoles.length
           let (drs1, e1) := ops.inst phase patientRole inner body
           let bodyMentions := if drs1.currentClause == inner.currentClause then
@@ -3590,7 +3621,8 @@ def stepOps : Nat → StepOps
             applyInPlaceStamp drs1 actedIds (some verb)
           let (drs2, e2) := match becomes with | some p => ops.pred drs1 p | none => (drs1, [])
           let (drs3, e3) := match locus with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
-          let out := if defaultsToSource then dropActorFrame drs3 else drs3
+          let out := if defaultsToSource then performerOutOfView (dropActorFrame drs3) selves
+            else drs3
           (out, sourceErrors ++ e1 ++ e2 ++ e3)
         | .instruct subj body =>
           let tracked := { drs with
@@ -3615,11 +3647,12 @@ def stepOps : Nat → StepOps
                 if refIds.contains r.id then { r with plur := .one } else r }
             else drs1
           let framePlur := if subj.det == some .each then Plurality.many else subj.plur
+          let (memberDrs, selves) := performerInView memberDrs refIds
           let drs2 := memberDrs.push { det := .the, plur := framePlur, payload := .actor shape } .other false
           let (drs3, e2) := withDistributiveSubject subj refIds drs2 (ops.inst phase .obj · body)
           let outerIds := drs3.outerReferentIds.headD []
           let currentSubjectIds := (actorShape? drs3).map (·.refIds) |>.getD refIds
-          let out := dropActorFrame drs3
+          let out := performerOutOfView (dropActorFrame drs3) selves
           let out := { out with outerReferentIds := out.outerReferentIds.drop 1 }
           let out := if memberWise then
             { out with referents := out.referents.map fun r =>
@@ -3988,7 +4021,16 @@ def stepOps : Nat → StepOps
           let (drs2, _, e2) := ops.np drs1 .other false whose
           (drs2, e1 ++ e2)
         | .establish spec dur =>
-          let (drs1, e1) := ops.spec drs spec
+          -- A prohibition that modifies the preceding action ("Destroy target creature. That
+          -- creature can't be regenerated.") reads that action's objects as the action found
+          -- them, a destroyed permanent by its last known information [CR#608.2h,701.19c].
+          let modifies := match dur with
+            | some .modifiesPrecedingAction => true
+            | _ => false
+          let (drs1, e1) := ops.spec
+            (if modifies then { drs with characteristicRead := true } else drs) spec
+          let drs1 := if modifies then { drs1 with characteristicRead := drs.characteristicRead }
+            else drs1
           let (drs2, e2) := match dur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           (drs2, e1 ++ e2 ++ refuse (!spec.writesDefining) .cdaGranted)
         | .createObject cnt spec optUnder =>

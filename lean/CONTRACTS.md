@@ -360,7 +360,16 @@ characteristics outside every argument slot (a possessor, "its power", a copy so
 foregrounded in the current clause as `.other`, as a newly introduced possessor is
 (`DRS.recordMention`), so *Weeping Angel*'s "that creature's owner shuffles it into their
 library" reads "it" as the damaged creature, not the Source
-(`weepingAngelRawPronounSelectsTheDamagedCreature`). `nextClause` commits the
+(`weepingAngelRawPronounSelectsTheDamagedCreature`). The Source ("this", "this creature") and
+"you" are self-referents (`Determiner.self`, owner ruling 2026-10-24): each is one referent,
+introduced at its first mention and re-mentioned at every later one (`mentionThis`,
+`mentionYou`), read by a bare pronoun but never by a noun word, so "Tap this creature. Untap
+that creature." and "You choose a creature they control." are refused
+(`thisThenThatCreatureIsRefused`, `handedToYouThirdPersonDoesNotReadYou`). Inside a handoff to the
+Source (`instruct this…`, or a permanent-performed Definition's implicit performer), the
+performer is an ordinary referent (`performerInView`), so a Definition worded as the CR words it
+reads it as "that permanent" [CR#701.44a,701.63a]; "you" stays a self-referent in its own
+handoff. `nextClause` commits the
 pending roles, advances `currentClause` and clears `pronounResolved`.
 
 A measured domain is no antecedent: `Amount.countOf` ("the number of …") and
@@ -555,8 +564,8 @@ id phrase` reads the visible referents recorded under `id`: it selects nothing a
 resolves no anaphor, so a target argument is one targeting however often the body
 mentions it, and a referent introduced between the mentions does not move the read. The
 identity is a name, never a position. Its `phrase` answers only the structural readers
-(`isYou`, `selfDefinedOk`, `kind?`, `plur`, …). A phrase that introduces nothing ("you",
-"this") is read again at a later mention; a later mention with no visible referent under
+(`isYou`, `selfDefinedOk`, `kind?`, `plur`, …). A phrase that re-mentions its referent ("you",
+"this") reads it again at a later mention; a later mention with no visible referent under
 `id` is refused `bindingIdentity`, never read as a second selection, unless the first mention
 itself bound nothing: that phrase's own refusal is the one reported, and the identity is
 recorded unbound (`unboundIdentities`) so its later mentions add none. A zone change

@@ -95,6 +95,40 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   each mention may name the Source in another zone. Also needed whatever is chosen:
   `publishProhibitionSources` and `Condition.matches`'s `subjectOk` must treat `.self` as definite.
   No change landed.
+  **Owner ruling 2026-10-24: option (b).** Outside a handoff, `.this` and `.you` get
+  `det := .self` and reuse their referent; inside a handoff (`instruct`, or a permanent-performed
+  Definition's implicit performer) the performer is an ordinary referent (`det := .the`), so
+  CR-worded Definitions read it as "that permanent"/"that creature"; `publishProhibitionSources`
+  and `subjectOk` treat `.self` as definite; group 2 pins are audited one by one and group 3 pins
+  updated to `.self`.
+  **Done 2026-10-24: ypqprsvk** (`mentionThis`, `mentionYou`, `performerInView`/
+  `performerOutOfView`; "you" stays `.self` in its own handoff, since the ruling's group 2 has no
+  third-person reference to "you"; a linked referent is never re-mentioned. Exposed and fixed: a
+  prohibition that modifies the preceding action ("Destroy target creature. That creature can't
+  be regenerated.", *Nekrataal*) read the Source, not the destroyed creature; it now reads that
+  action's objects by last known information [CR#608.2h]. Definition re-spelled: haste's "that
+  creature" is "this creature". Pins added: `Actor.thisThenThatCreatureIsRefused`,
+  `Actor.twoYousAreOneReferent`. Group 2, rewritten: `Static.durationPossessorReadsTheExplicitPlayer`
+  (now "your next turn"; "that player" reading "you" is refused), `Actor.handedToYouPossessorReadsExplicitPlayer`
+  → `handedToYouThirdPersonDoesNotReadYou` (it asserted "they" reading "you", against its own
+  docstring). Third-person noun words reading the Source, rewritten to read it by "it" or "this
+  creature" and to assert the refusal: `Attachments.sourceCounterpartRemainsAvailable`,
+  `sourceCounterpartDemonstrativeSelectsTheSourceIdentity` →
+  `sourceCounterpartReMentionSelectsTheSourceIdentity`, `Trigger.selfAttackPublishesItsCreature`,
+  `Counters.alternateHeadersPublishTheirSelf`, `Counters.threeHeadersPublishTheirSelf`,
+  `Damage.damagedSelfIsReadableAsThatCreature` → `damagedSelfIsReadableByItNotThatCreature`,
+  `GetsBothDeltas.modernStaticSelfRemainsReadableAsThatCreature` →
+  `modernStaticSelfRemainsReadableAsThisCreature`, `Keyword.staticSelfRemainsReadableAsThatCreature`
+  → `staticSelfRemainsReadableByIt`, `Cards/Anaphora` `possessiveDeicticDemonstrativeSelectsTheSource`
+  → `possessiveDeicticSourceIsNoDemonstrativeAntecedent`, `nekrataalOneCreatureWord` →
+  `nekrataalNoCreatureWord` (it counted the Source). Group 3, updated to `.self`:
+  `ActionFamilies.movingThisAbilityAllocatesFreshIdentity`, `Actor.handedToThisPublishesSourceAndController`,
+  `Damage.karplusanYetiItsReadsThatCreature`, `Counters.agreeingAlternativeHeadersSelectTheOtherCreature`.
+  Ids renumbered because the "you"s are one referent: `Choice.chosenCreatureReadsBackTheTarget`,
+  `Counters.thranduilsCompanyItIsTheTargetCreature`, `GetsBothDeltas.jeskaiAscendancyUntapsItsPumpedGroup`,
+  `GetsBothDeltas.archpriestOfIonaGivesFlyingToItsPumpedTarget`; `Cards/Choice`
+  `joustConditionReadsTheClauseSubject` counts only the objects resolved, "you" being resolved
+  too. `ControllerSacrifice`'s `controllerInstructState` mirrors the handoff; statements unchanged).
 - **Wire `DRS.performer : Option ReferentId` and retire fake `Payload.actor`
   referents (§2.5):** Track the performer in `DRS.performer` per
   `docs/decisions/semantics-v3.md` §1.2/§1.4 instead of pushing `Payload.actor`

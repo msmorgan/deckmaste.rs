@@ -125,12 +125,14 @@ theorem clearDamageDoesNotPublishDamageDealt :
     outcomeReferents (actionResult (DRS.ofList []) (.clearDamage (target isCreature))) = [] := by decide
 
 
+/-- The moved ability is a new object under a fresh id [CR#400.7], still the Source, so still a
+self-referent (`Determiner.self`, owner ruling 2026-10-24). -/
 theorem movingThisAbilityAllocatesFreshIdentity :
     let after := actionResult (DRS.ofList [])
       (.move thisAbility .anyLocation (some exileZone) .arrival [])
     after.findById? 0 = none ∧
       after.visibleReferents.map (fun r => (r.id, r.det, r.plur, r.payload, r.idents)) =
-        [(1, .the, .one, .ability none (some .exile), [])] := by decide
+        [(1, .self, .one, .ability none (some .exile), [])] := by decide
 
 
 private def operandKey (i : Nat) : BindingId := "operand." ++ toString i

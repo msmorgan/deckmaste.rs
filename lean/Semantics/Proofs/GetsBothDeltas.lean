@@ -157,11 +157,13 @@ theorem deeprootWarriorPumpsItsOwnBlockedSource :
     let result := abilityTrace (DRS.ofList []) Cards.deeprootWarrior
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
+/-- The pumped group is 4, renumbered from 5 because the two "you"s are one referent
+(`mentionYou`). -/
 theorem jeskaiAscendancyUntapsItsPumpedGroup :
     let result := abilityTrace (DRS.ofList []) Cards.jeskaiAscendancyPump
-    result.2 = [] ∧ creatureIdentity result.1 5 = true ∧
-      (result.1.findById? 5).map (·.plur) = some .many ∧
-      (identityBinding "untap.subject" result.1).map (·.id) = some 5 := by decide
+    result.2 = [] ∧ creatureIdentity result.1 4 = true ∧
+      (result.1.findById? 4).map (·.plur) = some .many ∧
+      (identityBinding "untap.subject" result.1).map (·.id) = some 4 := by decide
 
 theorem diminishKeepsOneTargetForBothSetDeltas :
     let result := firstLineTrace Cards.diminish
@@ -215,11 +217,13 @@ theorem nyxathidBothDeltasReadItsUniqueAnnouncedPlayer :
           (.down (countOf (.and [.isCard, .in_ (handOf (the isChosenPlayer))]))))) := by
   refine ⟨by decide, by decide, by decide, by decide, rfl⟩
 
+/-- The pumped target is 4, renumbered from 5 because the two "you"s are one referent
+(`mentionYou`). -/
 theorem archpriestOfIonaGivesFlyingToItsPumpedTarget :
     let result := abilityTrace (DRS.ofList []) Cards.archpriestOfIonaFullParty
-    result.2 = [] ∧ result.1.resolvedIds = [5] ∧
-      (result.1.findById? 5).map (·.det) = some .target ∧
-      (result.1.findById? 5).map (·.ty) = some [.creature] := by decide
+    result.2 = [] ∧ result.1.resolvedIds = [4] ∧
+      (result.1.findById? 4).map (·.det) = some .target ∧
+      (result.1.findById? 4).map (·.ty) = some [.creature] := by decide
 
 theorem nightmarishEndKeepsItsTargetAndDefinesBothDeltaLetters :
     let result := firstLineTrace Cards.nightmarishEnd
@@ -326,11 +330,18 @@ theorem modernEnchantedSubjectCannotBeReadAsPlural :
       [getsPt (.attachHost .enchanted (.type .creature)) (.up 1) (.up 1),
         Templates.abilityGrant them (keyword (.named "flying"))]) = [.anaphor .bare .many 0] := by decide
 
-theorem modernStaticSelfRemainsReadableAsThatCreature :
+/-- "This creature gets +1/+1 and has flying.": the shared subject is the Source, re-mentioned
+by a second "this creature" (`mentionThis`) and never read by "that creature", a self-referent
+(`Determiner.self`; owner ruling 2026-10-24). -/
+theorem modernStaticSelfRemainsReadableAsThisCreature :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
       [getsPt thisCreature (.up 1) (.up 1),
-        Templates.abilityGrant (that (.type .creature)) (keyword (.named "flying"))])
-    result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
+        Templates.abilityGrant thisCreature (keyword (.named "flying"))])
+    result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true ∧
+      (stepStaticSpec 32 (DRS.ofList []) (.conjunction none
+        [getsPt thisCreature (.up 1) (.up 1),
+          Templates.abilityGrant (that (.type .creature)) (keyword (.named "flying"))])).2 =
+        [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 theorem modernLandHostProhibitionKeepsItsPumpedHost :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none

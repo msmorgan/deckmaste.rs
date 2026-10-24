@@ -341,12 +341,17 @@ theorem okSkipDuringTheirNextTurn :
       = [] := by
   decide
 
-/-- The duration's possessor can read the explicit "you" in the preceding subject slot. -/
+/-- "You skip all combat phases of your next turn.": the duration's "your" re-mentions the "you"
+of the subject, one referent (`mentionYou`). "that player" never reads "you", a self-referent
+(`Determiner.self`; owner ruling 2026-10-24). -/
 theorem durationPossessorReadsTheExplicitPlayer :
-    let action := establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))
+    let action := establishThroughout (.partSkip .you .combat) (duringNextTurnOf .you)
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList []) action
     errors = [] ∧ (identityBinding "duringNextTurnOf.player" after).map (·.id) = some 0 ∧
-      after.referents.map (·.id) = [0] := by decide
+      after.referents.map (·.id) = [0] ∧
+      Action.check (DRS.ofList [])
+        (establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))) =
+        [.anaphor (.word .player) .one 0] := by decide
 
 /-- "until that player's next turn" with no player to read: refused once, by the pronoun; the
 template's later mention of what it bound nothing to adds no refusal of its own. -/

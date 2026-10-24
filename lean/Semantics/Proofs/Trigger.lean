@@ -47,13 +47,18 @@ theorem okThatCreatureAfterAttack :
       = [] := by
   decide
 
+/-- "Whenever this creature attacks, it gets +2/+0 until end of turn.": the attacking Source is
+read by "it"; "that creature" never reads the Source, a self-referent (`Determiner.self`; owner
+ruling 2026-10-24). -/
 theorem selfAttackPublishesItsCreature :
     let event := does thisCreature attack
     let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
-      (whenever event
-        (get (that (.type .creature)) (.up 2) (.up 0) (some untilEndOfTurn))) = [] ∧
-      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+      (whenever event (get it (.up 2) (.up 0) (some untilEndOfTurn))) = [] ∧
+      Ability.check (DRS.ofList [])
+        (whenever event (get (that (.type .creature)) (.up 2) (.up 0) (some untilEndOfTurn))) =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 0 ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "the last Intervention counter is removed from this enchantment by you" -/

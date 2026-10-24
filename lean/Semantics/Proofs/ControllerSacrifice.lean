@@ -953,10 +953,11 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
     isYou := subject.isYou
     ascribable := false
     refIds := ids }
-  let framed := selected.push
+  let (inView, selves) := performerInView selected ids
+  let framed := inView.push
     { det := .the, plur := .one, payload := .actor shape } .other false
   let (after, _) := withDistributiveSubject subject ids framed (stepAction fuel .postEvent .obj · body)
-  let out := dropActorFrame after
+  let out := performerOutOfView (dropActorFrame after) selves
   { out with outerReferentIds := out.outerReferentIds.drop 1 }
 
 private theorem controllerInstructStep (fuel : Nat) (drs : DRS)
@@ -996,6 +997,18 @@ private theorem nonDistributiveReferents (subject : NounPhrase) (ids : List Refe
   rw [plain]
   rfl
 
+/-- The controller is no self-referent, so the handoff puts nothing in view. -/
+private theorem controllerAlreadyInView (drs : DRS) :
+    performerInView (selectedContext { drs with
+      outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }) [drs.nextId + 3] =
+      (selectedContext { drs with
+        outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }, []) := by
+  have h := selectedController { drs with
+    outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
+  simp only [performerInView, List.filter_cons, List.filter_nil, h, controllerRecord,
+    Option.any_some]
+  rfl
+
 private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
     let tracked := { drs with
       outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
@@ -1019,7 +1032,7 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
   rw [show fuel + 11 = (fuel + 10) + 1 by omega, controllerInstructStep]
   unfold controllerInstructState
   simp only [nonDistributiveReferents _ _ _ _ (controllerNotDistributive _), sourceCanonical,
-    sourceIds, List.filterMap_cons, List.filterMap_nil,
+    sourceIds, controllerAlreadyInView, performerOutOfView, List.filterMap_cons, List.filterMap_nil,
     selectedController, List.foldl_cons, List.foldl_nil, controllerRecord]
   rfl
 

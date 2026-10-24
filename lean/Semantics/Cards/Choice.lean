@@ -107,13 +107,16 @@ def joust : Spelled := spelled <| singleFacedCard
 theorem okJoust : joust.card.check = [] := joust.ok
 
 /-- Joust's postposed "if it's a Knight" reads the one creature its clause re-mentions, the
-target you control, and not the target you don't control, which its clause does not mention. -/
+target you control, and not the target you don't control, which its clause does not mention.
+The objects resolved are counted: "you", re-mentioned by each "you control", is resolved too
+(`mentionYou`). -/
 theorem joustConditionReadsTheClauseSubject :
     let out := (stepAction 16 .postEvent .obj (DRS.ofList []) (sequentially
       [ chooseFightPair,
         doOnlyIf (get (the (and [isCreature, youControl])) (up 2) (up 1) untilEndOfTurn)
           (is it (hasSubtype knight)) ])).1
-    (out.resolvedIds.filterMap out.findById?).map (·.controlledByYou) = [some true] := by
+    ((out.resolvedIds.filterMap out.findById?).filter (·.kind == .object)).map
+      (·.controlledByYou) = [some true] := by
   decide
 
 /-- "If it's a Knight, the creature you control gets +2/+1 until end of turn.": a preposed "if"

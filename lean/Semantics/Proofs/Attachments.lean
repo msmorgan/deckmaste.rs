@@ -64,22 +64,32 @@ theorem okNestedCounterpartTargetRemainsAvailable :
       exile (target (.and [isArtifact, .attachment .attachment none (some (target isCreature))])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
-/-- The explicit source mention remains available after the attached artifact is exiled. -/
+/-- The explicit source mention remains available after the attached artifact is exiled, to a
+later "this creature"; "that creature" never reads the Source, a self-referent
+(`Determiner.self`; owner ruling 2026-10-24). -/
 theorem sourceCounterpartRemainsAvailable :
     Action.check (DRS.ofList []) (.sequentially [
       exile (target (.and [isArtifact, .attachment .attachment none (some thisCreature)])),
-      .setStatus .tapped (that (.type .creature))]) = [] := by decide
+      .setStatus .tapped thisCreature]) = [] ∧
+    Action.check (DRS.ofList []) (.sequentially [
+      exile (target (.and [isArtifact, .attachment .attachment none (some thisCreature)])),
+      .setStatus .tapped (that (.type .creature))]) =
+      [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 private def sourceCounterpartAfterExile : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
     (exile (target (.and [isArtifact, .attachment .attachment none (some thisCreature)])))).1
 
-theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
+/-- A later "this creature" re-mentions the Source's referent, on the battlefield as a creature
+(`mentionThis`); no demonstrative selects it. -/
+theorem sourceCounterpartReMentionSelectsTheSourceIdentity :
     let context := nextClause sourceCounterpartAfterExile
-    let selected := resolveCandidates (.word (.type .creature)) .one context
-    selected.length = 1 ∧
-      selected.map (·.id) = (stepNounPhrase 64 (DRS.ofList []) .other false thisCreature).2.1 ∧
-      selected.all (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) := by decide
+    let (after, ids, errors) := stepNounPhrase 64 context .obj true thisCreature
+    errors = [] ∧
+      ids = (stepNounPhrase 64 (DRS.ofList []) .other false thisCreature).2.1 ∧
+      (ids.filterMap after.findById?).all
+        (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) ∧
+      resolveCandidates (.word (.type .creature)) .one context = [] := by decide
 
 theorem isTransformedTemplateReadsWholeBackFace :
     isTransformed = Predicate.currentFace .back := by rfl

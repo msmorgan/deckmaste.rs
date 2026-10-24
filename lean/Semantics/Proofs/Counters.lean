@@ -96,15 +96,18 @@ theorem agreeingAlternativeHeadersSelectTheOtherCreature :
       [does (by_ (a isCreature)) (block thisCreature)] none none).1
     (firstReach (.word (.type .creature)) .one after).map (·.id) = some 2 ∧
       (after.findById? 2).map (·.det) = some .a ∧
-      (after.findById? 0).map (·.det) = some .the := by decide
+      -- The Source, a self-referent (`Determiner.self`; owner ruling 2026-10-24).
+      (after.findById? 0).map (·.det) = some .self := by decide
 
+/-- Alternative headers that each name the Source publish it, read by "it"; "that creature"
+never reads the Source, a self-referent (`Determiner.self`; owner ruling 2026-10-24). -/
 theorem alternateHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (whenever (does thisCreature block)
         (or_ := [does (by_ (a isCreature)) (block thisCreature)])
-        (get (that (.type .creature)) (.down 1) (.down 1) (some untilEndOfTurn)))
+        (get it (.down 1) (.down 1) (some untilEndOfTurn)))
       = [] ∧
-      (firstReach (.word (.type .creature)) .one
+      (firstReach .bare .one
         (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature block)))).map (·.id) = some 0 := by
   decide
 
@@ -114,7 +117,9 @@ theorem threeHeadersPublishTheirSelf :
         (or_ := [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)])
         (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)))))
       = [] ∧
-      (firstReach (.word (.type .creature)) .one
+      -- Outside the handoff the Source is a self-referent, read by "it", not "that creature"
+      -- (`Determiner.self`; owner ruling 2026-10-24); inside it, the performer is in view.
+      (firstReach .bare .one
         (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature attack)))).map (·.id) = some 0 := by
   decide
 
@@ -626,13 +631,14 @@ private def lineTrace (ability : Ability) : DRS × List Refusal :=
 
 /-- Thranduil's Company: "Whenever a land you control enters, put two +1/+1 counters on target
 creature you control. It gains vigilance until end of turn." The header reads the land (3); "it"
-reads the target creature (5), not the land. -/
+reads the target creature (4), not the land; the two "you control"s re-mention one "you" (0),
+resolved too (`mentionYou`, renumbering the target from 5). -/
 theorem thranduilsCompanyItIsTheTargetCreature :
     let result := match (printedText Cards.thranduilsCompany)[1]? with
       | some line => lineTrace line
       | none => (DRS.ofList [], [.nonEmpty])
-    result.2 = [] ∧ result.1.resolvedIds = [5, 3] ∧
-      (result.1.findById? 5).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) ∧
+    result.2 = [] ∧ result.1.resolvedIds = [4, 0, 3] ∧
+      (result.1.findById? 4).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) ∧
       (result.1.findById? 3).map (fun r => (r.det, r.ty)) = some (.a, [.land]) := by
   decide
 

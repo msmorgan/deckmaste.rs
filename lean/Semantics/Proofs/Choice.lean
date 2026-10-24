@@ -690,7 +690,8 @@ theorem badModalWorthZero :
   decide
 
 /-- "Choose target creature you control and target creature you don't control": the two targets
-(referents 1 and 3) and the group collecting them (referent 4), all chosen [CR#601.2c]. -/
+(referents 1 and 2) and the group collecting them (referent 3), all chosen [CR#601.2c]; the two
+"you"s are one referent, 0 (`mentionYou`). -/
 private def afterTargetPair : DRS :=
   nextClause (stepAction 512 .preEvent .obj (DRS.ofList [])
     (choose (both (target (and [isCreature, youControl]))
@@ -702,9 +703,9 @@ theorem chosenCreatureReadsBackTheTarget :
     (stepNounPhrase 512 afterTargetPair .obj true
         (the (and [isCreature, isChosen, youControl]))).2 = ([1], []) ∧
       (stepNounPhrase 512 afterTargetPair .obj true
-        (the (and [isCreature, isChosen, youDontControl]))).2 = ([3], []) ∧
+        (the (and [isCreature, isChosen, youDontControl]))).2 = ([2], []) ∧
       (stepNounPhrase 512 afterTargetPair .obj true
-        (thePlural (and [isCreature, isChosen]))).2 = ([4], []) := by
+        (thePlural (and [isCreature, isChosen]))).2 = ([3], []) := by
   decide
 
 /-- "Choose a creature card and/or a land card from among them": "the chosen cards" reads back

@@ -448,12 +448,15 @@ theorem okHandedScopedChoice :
 theorem okActorControlsChoice : Action.check (DRS.ofList []) (choose (a (.and [isCreature, actorControls]))) = [] := by
   decide
 
-/-- "You choose a creature they control.": `instruct you` publishes nothing, so "they" has no
-antecedent (`Choice.badUnchooseredTheyControl`). -/
-theorem handedToYouPossessorReadsExplicitPlayer :
+/-- "You choose a creature they control.": "they" never reads "you", a self-referent even as
+the handoff's performer (`Determiner.self`, `performerInView`; owner ruling 2026-10-24), so it has
+no antecedent (`Choice.badUnchooseredTheyControl`); "you control" is how the text says it. -/
+theorem handedToYouThirdPersonDoesNotReadYou :
     Action.check (DRS.ofList [])
-      (instruct .you (choose (a (.and [isCreature, .hasPossessor .controller they]))))
-      = [] := by
+        (instruct .you (choose (a (.and [isCreature, .hasPossessor .controller they]))))
+        = [.anaphor (.word .player) .one 0] ∧
+      Action.check (DRS.ofList [])
+        (instruct .you (choose (a (.and [isCreature, .hasPossessor .controller .you])))) = [] := by
   decide
 
 /-- "Target opponent may pay an opponent's 1 life. If they do, they draw a card.": inside the
@@ -814,10 +817,12 @@ theorem exploreEventTakesAPermanent :
         = [] := by
   decide
 
-/-- The source and its controller remain accessible after the handoff, along with the drawn card. -/
+/-- The source and its controller remain accessible after the handoff, along with the drawn card.
+Out of the handoff the Source is a self-referent again (`Determiner.self`, `performerOutOfView`;
+owner ruling 2026-10-24). -/
 theorem handedToThisPublishesSourceAndController :
     shape (actionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf theActor) (draw 1))))
-      = [(.object, .one, .the), (.player, .one, .the), (.object, .one, .the)] := by
+      = [(.object, .one, .the), (.player, .one, .the), (.object, .one, .self)] := by
   decide
 
 theorem amassBareItSelectsChosenArmy :
@@ -829,5 +834,27 @@ theorem amassBareItSelectsChosenArmy :
     let selected := resolveCandidates .bare .one (nextClause after)
     selected.map (·.id) = [after.nextId - 1] ∧
       selected.map (·.ty) = [[.creature]] := by decide
+
+/-! ## The Source and "you" are self-referents (owner ruling 2026-10-24) -/
+
+/-- "Tap this creature. Untap that creature.": "that creature" never reads the Source, a
+self-referent (`Determiner.self`); "Untap this creature" re-mentions it, one referent
+(`mentionThis`). -/
+theorem thisThenThatCreatureIsRefused :
+    let untapping := fun (noun : NounPhrase) => Action.sequentially
+      [.setStatus .tapped thisCreature, .setStatus .untapped noun]
+    Action.check (DRS.ofList []) (untapping (that (.type .creature))) =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      Action.check (DRS.ofList []) (untapping thisCreature) = [] ∧
+      ((stepAction 64 .postEvent .obj (DRS.ofList []) (untapping thisCreature)).1.referents.filter
+        (·.kind == .object)).map (·.id) = [0] := by
+  decide
+
+/-- "You gain 1 life. You lose 1 life.": the two "you"s are one referent (`mentionYou`). -/
+theorem twoYousAreOneReferent :
+    ((stepAction 64 .postEvent .obj (DRS.ofList [])
+        (.sequentially [instruct .you (gainLife 1), instruct .you (loseLife 1)])).1.referents.filter
+      (·.kind == .player)).map (fun ref => (ref.id, ref.det)) = [(0, .self)] := by
+  decide
 
 end Semantics.Proofs.Actor
