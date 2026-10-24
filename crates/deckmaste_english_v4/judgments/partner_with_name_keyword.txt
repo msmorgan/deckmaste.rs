@@ -4,8 +4,10 @@
 + <card=Blaring Recruiter> Partner with Blaring Captain
 + <card=Khorvath Brightflame> Partner with Sylvia Brightspear
 + <card=Rowan Kenrith> Partner with Will Kenrith
-+KeywordPhrase Partner with Black Lotus
+# from: Rory Williams
++KeywordPhrase Partner with Amy Pond
 +KeywordPhrase Partner with Aang and Katara
-+KeywordPhrase Partner with Chandra, Pyromaster
+# from: Silvar, Devourer of the Free
++KeywordPhrase Partner with Trynn, Champion of Freedom
 + Partner
 + Partner—Survivors

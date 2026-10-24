@@ -4,7 +4,8 @@
 + {T}: Scry 1.
 # from: Clockwork Droid
 + You scry 3.
-+ This creature scries 3.
+# from: Bumi, King of Three Trials
++ Target player scries 3.
 + Connive 2.
 + Connive.
 + This creature connives.

@@ -8,6 +8,7 @@
 + <card=Bruvac the Grandiloquent> If an opponent would mill one or more cards, they mill twice that many cards instead. => NounPhrase "twice that many cards"; NounPhrase "that many cards"
 +NounPhrase twice its power => readings 1
 + Copy that spell twice.
-+ Activate only twice each turn.
+# from: Nadu, Winged Wisdom
++ This ability triggers only twice each turn.
 + Double target player's life total.
 + Target creature gains double strike until end of turn.

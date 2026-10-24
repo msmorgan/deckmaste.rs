@@ -7,7 +7,9 @@
 + Only your opponents may activate this ability. => NounPhrase "Only your opponents" as Subject of may; NounPhrase "your opponents"
 + Activate only during your turn.
 + Activate only as a sorcery.
-+ This creature can block only during your turn.
-+ This creature can attack only alone.
+# from: Stratozeppelid
++ This creature can block only creatures with flying.
+# from: Master of Cruelties
++ This creature can only attack alone.
 + Activate only once each turn.
 +NounPhrase only creatures => NounPhrase "creatures"; readings 1

@@ -8,14 +8,19 @@
 + <card=Mesa Lynx> During turns other than yours, this creature gets +0/+2. => NounPhrase "yours" as Complement of than
 + <card=Mesa Lynx> During your turn, this creature gets +0/+2.
 + <card=Geyser Drake> During turns other than yours, spells you cast cost {1} less to cast. => NounPhrase "yours" as Complement of than
-+ <card=Geyser Drake> During your turn, spells you cast cost {1} less to cast.
+# from: Geyser Drake
++ <card=Geyser Drake> During turns other than yours, spells you cast cost {1} less to cast.
 + <card=Midnight Mangler> During turns other than yours, this Vehicle is an artifact creature. => NounPhrase "yours" as Complement of than
-+ <card=Midnight Mangler> During your turn, this Vehicle is an artifact creature.
+# from: Midnight Mangler
++ <card=Midnight Mangler> During turns other than yours, this Vehicle is an artifact creature.
 + <card=Glory of Warfare> During turns other than yours, creatures you control get +0/+2. => NounPhrase "yours" as Complement of than
-+ <card=Glory of Warfare> During turns other than your turn, creatures you control get +0/+2.
+# from: Glory of Warfare
++ <card=Glory of Warfare> During turns other than yours, creatures you control get +0/+2.
 +NounPhrase your devotion
-+NounPhrase his controller
+# from: Liliana's Defeat
++NounPhrase her controller
 +NounPhrase its power
 +NounPhrase their turn
-+NounPhrase turns other than your turn
+# from: Midnight Mangler
++NounPhrase turns other than yours
 +NounPhrase creatures other than this creature

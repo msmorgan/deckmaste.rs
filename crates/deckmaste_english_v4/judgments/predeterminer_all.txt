@@ -9,7 +9,8 @@
 + <card=Robber Fly> Whenever this creature becomes blocked, defending player discards all the cards in their hand, then draws that many cards. => NounPhrase "all the cards in their hand" as Object of discard; NounPhrase "the cards in their hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in their hand" as Adjunct of discard
 + <card=Endurance> When this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order. => NounPhrase "all the cards from their graveyard" as Object of put; NounPhrase "the cards from their graveyard" || NounPhrase "all the cards" as Object of put; PrepositionPhrase "from their graveyard" as Adjunct of put
 + <card=Forgotten Creation> At the beginning of your upkeep, you may discard all the cards in your hand. => NounPhrase "all the cards in your hand" as Object of discard; NounPhrase "the cards in your hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in your hand" as Adjunct of discard
-+NounPhrase all cards in your hand
+# from: Chandra, Flamecaller
++NounPhrase all the cards in your hand
 +NounPhrase the cards in your hand
 +NounPhrase all other creatures
 +NounPhrase all three cards
@@ -18,7 +19,8 @@
 +NounPhrase both of the cards
 +NounPhrase twice that many cards
 +NounPhrase half the cards
-+ Each player discards the cards in their hand, then draws that many cards.
+# from: Incendiary Command
++ Each player discards all the cards in their hand, then draws that many cards.
 *NounPhrase all the card
 *NounPhrase both the card
 *NounPhrase both the damage

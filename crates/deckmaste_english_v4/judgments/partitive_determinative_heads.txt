@@ -7,7 +7,8 @@
 +NounPhrase all of them => PrepositionPhrase "of them" as Complement of all; readings 1
 +NounPhrase both of them => PrepositionPhrase "of them" as Complement of both; readings 1
 +NounPhrase each of them => PrepositionPhrase "of them" as Complement of each; readings 1
-+NounPhrase another of them => PrepositionPhrase "of them" as Complement of another; readings 1
+# from: Clockspinning
++NounPhrase another of those counters => PrepositionPhrase "of those counters" as Complement of another; readings 1
 +NounPhrase any of them => PrepositionPhrase "of them" as Complement of any; readings 1
 +NounPhrase either of them => PrepositionPhrase "of them" as Complement of either; readings 1
 +NounPhrase neither of them => PrepositionPhrase "of them" as Complement of neither; readings 1
@@ -24,12 +25,14 @@
 +NounPhrase much of that mana => PrepositionPhrase "of that mana" as Complement of much
 +NounPhrase less of that mana => PrepositionPhrase "of that mana" as Complement of less
 +NounPhrase more of that mana => PrepositionPhrase "of that mana" as Complement of more
-+NounPhrase none of that mana => PrepositionPhrase "of that mana" as Complement of none
+# from: Arena of Glory
++NounPhrase any of that mana => PrepositionPhrase "of that mana" as Complement of any
 # from: Mnemonic Betrayal
 + If any of those cards remain exiled, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
 + If any of those cards shares a card type, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
 +NounPhrase any of those cards => PrepositionPhrase "of those cards" as Complement of any
-+Clause All of them get +1/+1
+# from: Hope and Glory
++Clause Each of them gets +1/+1
 +Clause Both of them get +1/+1
 +Clause Many of them get +1/+1
 +Clause Each of them gets +1/+1
@@ -46,5 +49,6 @@
 *Clause Any of that mana are spent on a creature spell
 *Clause Much of that mana are spent on a creature spell
 + Remove all of them. => NounPhrase "all of them" as Object of remove; PrepositionPhrase "of them" as Complement of all
-+ Destroy each of those creatures that are Walls. => NounPhrase "each of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of each; RelativeClause "that are Walls" as Modifier of creature
+# from: Maddening Imp
++ Destroy each of those creatures that didn't attack this turn. => NounPhrase "each of those creatures that didn't attack this turn" as Object of destroy; PrepositionPhrase "of those creatures that didn't attack this turn" as Complement of each; RelativeClause "that didn't attack this turn" as Modifier of creature
 + Destroy any of those creatures that are Walls. => NounPhrase "any of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of any; RelativeClause "that are Walls" as Modifier of creature

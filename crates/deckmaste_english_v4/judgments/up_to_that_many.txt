@@ -9,9 +9,12 @@
 *NounPhrase up to that many target creature
 *NounPhrase up to that many life
 * Up to that many target creatures gains double strike until end of turn.
-+ Return that many target permanents that player controls to their owner's hand. => DeterminerPhrase "that many target" as Determiner of permanent; DeterminerPhrase "that many"
-+ Return up to two target permanents that player controls to their owner's hand. => DeterminerPhrase "up to two target" as Determiner of permanent
-+ Search your library for that many land cards. => DeterminerPhrase "that many" as Determiner of card
+# from: Cephalid Constable
++ Return up to that many target permanents that player controls to their owner's hand. => DeterminerPhrase "up to that many target" as Determiner of permanent; DeterminerPhrase "that many"
+# from: Twisted Riddlekeeper
++ Tap up to two target permanents. => DeterminerPhrase "up to two target" as Determiner of permanent
+# from: Settle the Wreckage
++ That player may search their library for that many basic land cards. => DeterminerPhrase "that many" as Determiner of card
 # from: Nissa's Triumph
 + Search your library for up to two land cards. => PrepositionPhrase "up to two" as Determiner of card
 + That many target creatures gain double strike until end of turn. => DeterminerPhrase "That many target" as Determiner of creature; DeterminerPhrase "That many"

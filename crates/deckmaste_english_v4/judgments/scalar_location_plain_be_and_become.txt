@@ -45,11 +45,14 @@
 + X is 0.
 # from: Savage Swipe
 + Its power is 0.
-+ Your life total is 1.
-+ X can't be greater than 3.
+# from: The End
++ Your life total is 5.
+# from: Open the Way
++ X can't be greater than the number of players in the game.
 # from: The Endstone
 + Your life total becomes half your starting life total.
-+ Its power becomes equal to 3.
+# from: PuPu UFO
++ Its power becomes equal to the number of Towns you control.
 + You have no maximum hand size.
 + It can't be a creature.
 + It can't be blocked.

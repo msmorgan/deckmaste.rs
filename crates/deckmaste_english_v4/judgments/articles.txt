@@ -8,7 +8,8 @@
 +Clause Sacrifice an artifact
 +NounPhrase an Aura
 +NounPhrase an amount of {G}
-+NounPhrase an 8/8 creature
+# from: Kiora Bests the Sea God
++NounPhrase an 8/8 blue Kraken creature token
 +NounPhrase a 1/1 creature
 # from: Illusionary Mask
 +NounPhrase a +8/+8 creature

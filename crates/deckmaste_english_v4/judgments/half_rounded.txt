@@ -12,7 +12,8 @@
 + Copy that spell twice.
 # from: Galloping Lizrog
 + Put twice that many +1/+1 counters on it.
-+ Prevent double that damage.
+# from: Insult
++ If a source you control would deal damage this turn, it deals double that damage instead.
 +NounPhrase half your life
 +Clause You lose half your life, rounded up => VerbPhrase "rounded up"
 +Clause Pay half your life, rounded up => NounPhrase "half your life" as Object of pay; VerbPhrase "rounded up"

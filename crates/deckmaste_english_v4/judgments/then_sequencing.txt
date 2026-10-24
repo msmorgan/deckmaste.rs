@@ -1,7 +1,9 @@
 # Sequencing with ", then" in chains of bare imperatives (one analysis: coordinated imperative clauses), under a shared subject and modal, and "Then" as a connective adverb
-+Clause Draw a card and discard a card => Clause "Draw a card"; Clause "discard a card"; readings 1
+# from: Impede Momentum
++Clause Tap target creature and put three stun counters on it => Clause "Tap target creature"; Clause "put three stun counters on it"; readings 1
 +Clause Draw a card, then discard a card => Clause "Draw a card"; Clause "discard a card"; readings 1
-+ Draw a card and discard a card.
+# from: Impede Momentum
++ Tap target creature and put three stun counters on it.
 # from: Urza's Tome
 + Draw a card. Then discard a card. => AdverbPhrase "Then" as Adjunct of discard; readings 1
 + Exile target creature you control, then return that card to the battlefield under its owner's control. => Clause "Exile target creature you control"; Clause "return that card to the battlefield under its owner's control"
@@ -9,7 +11,8 @@
 + Surveil 2, then draw two cards. => Clause "Surveil 2"; Clause "draw two cards"
 + Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. => Clause "Search your library for a basic land card"; Clause "put it onto the battlefield tapped"; Clause "shuffle"
 + Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. => VerbPhrase "may search their library for a basic land card, put it onto the battlefield tapped, then shuffle"; VerbPhrase "search their library for a basic land card, put it onto the battlefield tapped, then shuffle"
-+ Its controller may search their library for a basic land card, put it onto the battlefield tapped, and shuffle. => VerbPhrase "may search their library for a basic land card, put it onto the battlefield tapped, and shuffle"; VerbPhrase "search their library for a basic land card, put it onto the battlefield tapped, and shuffle"
+# from: Sandworm
++ Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. => VerbPhrase "may search their library for a basic land card, put it onto the battlefield tapped, then shuffle"; VerbPhrase "search their library for a basic land card, put it onto the battlefield tapped, then shuffle"
 + Tap it, then you may sacrifice an artifact or creature. => Clause "Tap it"; Clause "you may sacrifice an artifact or creature"
 + When this creature enters, scry 1, then scry 2, then scry 3. => Clause "scry 1"; Clause "scry 2"; Clause "scry 3"
 + Draw a card and then discard a card. => AdverbPhrase "then" as Adjunct of discard; readings 1
@@ -27,7 +30,8 @@
 + <card=Pox> Each player loses a third of their life, then discards a third of the cards in their hand, then sacrifices a third of the creatures they control of their choice, then sacrifices a third of the lands they control of their choice. => VerbPhrase "loses a third of their life"; AdverbPhrase "then"#1 as Adjunct of discard; AdverbPhrase "then"#2 as Adjunct of sacrifice; AdverbPhrase "then"#3 as Adjunct of sacrifice; VerbPhrase "then sacrifices a third of the lands they control of their choice"
 + <card=Living Death> Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield. => VerbPhrase "exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield"; VerbPhrase "then sacrifices all creatures they control"; VerbPhrase "then puts all cards they exiled this way onto the battlefield"
 + <card=Windfall> Each player discards their hand, then draws cards equal to the greatest number of cards a player discarded this way. => NounPhrase "Each player"; VerbPhrase "discards their hand, then draws cards equal to the greatest number of cards a player discarded this way"; AdverbPhrase "then" as Adjunct of draw
-+ Draw a card, then discard a card, then draw a card. => Clause "Draw a card"; Clause "then discard a card"; Clause "then draw a card"; readings 1
+# from: Cryptic Annelid
++ Scry 1, then scry 2, then scry 3. => Clause "Scry 1"; Clause "then scry 2"; Clause "then scry 3"; readings 1
 + <card=Elder Brain> Whenever this creature attacks a player, exile all cards from that player's hand, then they draw that many cards. => Clause "exile all cards from that player's hand"; Clause "then they draw that many cards"; NounPhrase "they" as Subject of draw
 + <card=Visions> Look at the top five cards of target player's library. You may then have that player shuffle that library. => AdverbPhrase "then" as Adjunct of have; readings 1
 # from: Land Equilibrium

@@ -14,4 +14,5 @@
 + While you're searching your library, you may cast this card from your library. => PrepositionPhrase "While you're searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
 + While you are searching your library, you may cast this card from your library. => PrepositionPhrase "While you are searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
 +Clause it's been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
-+Clause it has been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
+# from: Dragon Whelp
++Clause this ability has been activated four or more times this turn => VerbPhrase "been activated four or more times this turn" as Complement of have; VerbPhrase "activated four or more times this turn" as Complement of be

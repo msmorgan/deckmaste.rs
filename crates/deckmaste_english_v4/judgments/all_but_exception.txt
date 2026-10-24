@@ -16,7 +16,8 @@
 *NounPhrase all but that many permanent
 # from: Nine Lives
 + If a source would deal damage to you, prevent that damage.
-+ If a source would deal damage to you, prevent 1 damage.
+# from: Urza's Armor
++ If a source would deal damage to you, prevent 1 of that damage.
 # from: Capricious Efreet
 + Destroy one of them.
 + Whenever this creature attacks, tap all creatures defending player controls.

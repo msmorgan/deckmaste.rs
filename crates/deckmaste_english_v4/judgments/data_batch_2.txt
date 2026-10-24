@@ -9,11 +9,13 @@
 +VerbPhrase put them back => PrepositionPhrase "back" as Complement of put; NounPhrase "them" as Object of put
 +VerbPhrase put them back in any order => PrepositionPhrase "back" as Complement of put; PrepositionPhrase "in any order"
 +VerbPhrase put the rest back on top of your library in any order => NounPhrase "the rest" as Object of put; PrepositionPhrase "back on top of your library" as Complement of put; PrepositionPhrase "on top of your library" as Complement of back; PrepositionPhrase "in any order"
-+ It was put there. => PrepositionPhrase "there" as Complement of put
+# from: Abyssal Harvester
++ Exile target creature card from a graveyard that was put there this turn. => PrepositionPhrase "there" as Complement of put
 +VerbPhrase cast your commander from the command zone this game => NounPhrase "this game" as Adjunct of cast
 +NounPhrase any time
 +VerbPhrase transforms => VerbPhrase "transforms" head transform
 +VerbPhrase transforms into a non-Human creature => PrepositionPhrase "into a non-Human creature" as Complement of transform
 +VerbPhrase surveil => VerbPhrase "surveil" head surveil
 + Remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; NounPhrase "combat" as Complement of from
-+VerbPhrase removed from combat => PrepositionPhrase "from combat" as Complement of remove; NounPhrase "combat" as Complement of from
+# from: Gustcloak Runner
++VerbPhrase remove it from combat => PrepositionPhrase "from combat" as Complement of remove; NounPhrase "combat" as Complement of from

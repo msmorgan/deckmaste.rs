@@ -4,6 +4,7 @@
 + Whenever one or more Vehicles you control attack, create a 1/1 colorless Pilot creature token with "This token crews Vehicles as though its power were 2 greater." => Clause "its power were 2 greater"; VerbPhrase "were 2 greater"; AdjectivePhrase "2 greater" as PredicativeComplement of be; NounPhrase "2" as Modifier of great
 +AdjectivePhrase 2 greater
 +Clause its power were 2
-+ Its power is greater than 2. => AdjectivePhrase "greater than 2" as PredicativeComplement of be; PrepositionPhrase "than 2" as Complement of great
+# from: Master of Predicaments
++ That player guesses whether the card's mana value is greater than 4. => AdjectivePhrase "greater than 4" as PredicativeComplement of be; PrepositionPhrase "than 4" as Complement of great
 + Destroy target creature with power 4 or greater. => PrepositionPhrase "with power 4 or greater" as Modifier of creature
 + Its power is 2 greater. => AdjectivePhrase "2 greater" as PredicativeComplement of be

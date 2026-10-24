@@ -3,12 +3,17 @@
 + <card=Porcelain Gallery> Creatures you control have base power and toughness each equal to the number of creatures you control. => NounPhrase "base power and toughness each equal to the number of creatures you control" as Object of have; AdjectivePhrase "each equal to the number of creatures you control"; AdjectivePhrase "equal to the number of creatures you control"
 + <card=Trench Gorger> If you do, this creature has base power and base toughness each equal to the number of cards exiled this way. => NounPhrase "base power and base toughness each equal to the number of cards exiled this way" as Object of have; AdjectivePhrase "each equal to the number of cards exiled this way"; Nominal "base power and base toughness"; AdjectivePhrase "equal to the number of cards exiled this way"
 + <card=Sydri, Galvanic Genius> {U}: Target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value until end of turn. => Nominal "power and toughness"; AdjectivePhrase "each equal to its mana value"; AdjectivePhrase "equal to its mana value"
-+ It becomes an artifact creature with power and toughness equal to its mana value. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
-+ It has power and toughness equal to its mana value. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
+# from: Karn's Touch
++ Target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value until end of turn. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
+# from: March of the Machines
++ Each noncreature artifact is an artifact creature with power and toughness each equal to its mana value. => Nominal "power and toughness"; AdjectivePhrase "equal to its mana value"
 # from: Duggan, Private Detective
 + This creature's power and toughness are each equal to the number of cards in your hand. => VerbPhrase "are each equal to the number of cards in your hand"
-+ It becomes an artifact creature with power and toughness 4/4.
+# from: Tezzeret, Agent of Bolas
++ Target artifact becomes an artifact creature with base power and toughness 5/5.
 + It has base power and toughness 3/3.
-+ Creatures you control have power equal to the number of creatures you control. => NounPhrase "power equal to the number of creatures you control"; AdjectivePhrase "equal to the number of creatures you control"
+# from: Porcelain Gallery
++ Creatures you control have base power and toughness each equal to the number of creatures you control. => NounPhrase "base power and toughness each equal to the number of creatures you control"; AdjectivePhrase "equal to the number of creatures you control"
 +NounPhrase power and toughness each equal to its mana value
-+NounPhrase power and toughness equal to its mana value
+# from: Karn's Touch
++NounPhrase power and toughness each equal to its mana value

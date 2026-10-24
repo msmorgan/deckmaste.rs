@@ -7,7 +7,8 @@
 + Draw two cards and create two Treasure tokens. => Clause "Draw two cards"; Clause "create two Treasure tokens"; readings 1
 + Tap that creature and it doesn't untap during its controller's next untap step. => Clause "Tap that creature"; Clause "it doesn't untap during its controller's next untap step"
 + Enchanted creature can't attack or block, and its activated abilities can't be activated. => Clause "Enchanted creature can't attack or block"; Clause "its activated abilities can't be activated"
-+ When this creature enters, draw a card and you lose 1 life. => Clause "draw a card and you lose 1 life"; !Clause "When this creature enters, draw a card"
+# from: Dusk Legion Zealot
++ When this creature enters, you draw a card and you lose 1 life. => Clause "you draw a card and you lose 1 life"; !Clause "When this creature enters, you draw a card"
 +NounPhrase three or more creatures => DeterminerPhrase "three or more" as Determiner of creature
 +NounPhrase power 3 or greater => Amount "3 or greater" as Complement of power; readings 1
 # from: Loxodon Warhammer
@@ -18,7 +19,8 @@
 + It deals 1 damage to each of up to one target creature, up to one target player, and/or up to one target planeswalker. => NounPhrase "up to one target creature, up to one target player, and/or up to one target planeswalker"
 + Cast this spell only during the declare attackers step and only if you've been attacked this step. => PrepositionPhrase "only during the declare attackers step"; PrepositionPhrase "only if you've been attacked this step"
 +AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power" as Complement of than; NounPhrase "this creature's power" as Complement of to
-+NounPhrase target permanent you own and control => RelativeClause "you own and control" gap "permanent"
+# from: Yorion, Sky Nomad
++NounPhrase other nonland permanents you own and control => RelativeClause "you own and control" gap "other nonland permanents"
 +NounPhrase creatures blocking or blocked by this creature => NounPhrase "this creature" as Object of block; NounPhrase "this creature" as Complement of by
 + <card=Shapeshifter> As this creature enters, choose a number between 0 and 7. => Amount "0 and 7" as Complement of between
 + Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card. => VerbPhrase "control but don't own"
@@ -26,7 +28,8 @@
 +NounPhrase its power and toughness => Nominal "power and toughness"; readings 1
 +NounPhrase base power and base toughness 4/4 => Nominal "base power and base toughness"; readings 1
 +NounPhrase target creature with power or toughness 4 or greater => Nominal "power or toughness 4 or greater"; Amount "4 or greater"
-+ Each creature and planeswalker you control gets +1/+1 until end of turn. => NounPhrase "Each creature and planeswalker you control" as Subject of get
+# from: Great Divide Guide
++ Each land and Ally you control has "{T}: Add one mana of any color." => NounPhrase "Each land and Ally you control" as Subject of have
 * Each creature and planeswalker you control get +1/+1 until end of turn.
 + Activate only during your turn and only once each turn. => PrepositionPhrase "only during your turn"; AdverbPhrase "only once each turn"
 + Return it to the battlefield tapped and attacking. => AdjectivePhrase "tapped"; VerbPhrase "attacking"
@@ -64,10 +67,12 @@
 + As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have
 +Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
 + Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1
-+Clause you and at least one permanent become tapped => NounPhrase "you and at least one permanent" as Subject of become; readings 1
+# from: Glimmer Lens
++Clause equipped creature and at least one other creature attack => NounPhrase "equipped creature and at least one other creature" as Subject of attack; readings 1
 + Exile them and all other creatures. => NounPhrase "them and all other creatures" as Object of exile; readings 1
 +Clause you, they, and creatures attack => NounPhrase "you, they, and creatures" as Subject of attack; readings 1
-+Clause it has attacked or blocked => VerbPhrase "attacked or blocked" as Complement of have
+# from: Wiitigo
++Clause it has blocked or been blocked since your last upkeep => VerbPhrase "blocked or been blocked since your last upkeep" as Complement of have
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1
 + <card=Cut Down> Destroy target creature with total power and toughness 5 or less. => Nominal "total power and toughness 5 or less"; AdjectivePhrase "total"; Nominal "power and toughness 5 or less"; Nominal "power and toughness"; Amount "5 or less"
 + <card=Meek Attack> {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature. => Nominal "total power and toughness 5 or less"; AdjectivePhrase "total"; Nominal "power and toughness 5 or less"; Nominal "power and toughness"; Amount "5 or less"

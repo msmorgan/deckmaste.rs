@@ -15,6 +15,7 @@
 + Enchanted creature has flying, first strike, and vigilance.
 # from: Hidden Spider
 +NounPhrase a spell with flying => PrepositionPhrase "with flying" as Modifier of spell
-+NounPhrase your choice of a creature or a land
+# from: Tizerus Charger
++NounPhrase your choice of a +1/+1 counter or a flying counter
 # from: Inspirit, Flagship Vessel
 + Put your choice of a +1/+1 counter or a flying counter on target creature.

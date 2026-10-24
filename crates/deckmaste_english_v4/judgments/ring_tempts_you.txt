@@ -9,4 +9,5 @@
 +VerbPhrase tempts you => NounPhrase "you" as Object of tempt
 + Venture into the dungeon.
 + You become the monarch.
-+ Put a +1/+1 counter on your commander.
+# from: Netherborn Altar
++ Put your commander into your hand from the command zone.

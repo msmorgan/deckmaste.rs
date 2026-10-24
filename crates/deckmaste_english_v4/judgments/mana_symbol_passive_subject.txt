@@ -9,7 +9,8 @@
 + If no mana was spent to cast it, draw a card.
 # from: Hired Hexblade
 + Mana from a Treasure was spent to cast it.
-+ You spend mana.
+# from: Chromatic Orrery
++ You may spend mana as though it were mana of any color.
 +VerbPhrase spend {U}
 + You spend {U}.
 * {U}{B} were spent.

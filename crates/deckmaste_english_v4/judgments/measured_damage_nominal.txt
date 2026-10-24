@@ -7,7 +7,8 @@
 +NounPhrase 3 damage => readings 1
 # from: Coalition Relic
 +NounPhrase 3 mana => readings 1
-+ Add 3 mana. => NounPhrase "3 mana" as Object of add; readings 1
+# from: Seasonal Ritual
++ Add one mana of any color. => NounPhrase "one mana of any color" as Object of add; readings 1
 # from: Plated Pegasus
 + Prevent 3 damage. => NounPhrase "3 damage" as Object of prevent; readings 1
 +VerbPhrase deals 3 damage => NounPhrase "3 damage" as Object of deal; readings 1

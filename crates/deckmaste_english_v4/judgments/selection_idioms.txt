@@ -23,4 +23,5 @@
 # Manner is clause-level, within Complement Clusters too (CGEL, Ch. 15 §4.3, pp. 1341–1343).
 *NounPhrase a card at random
 + Exile a card at random and a creature card at random. => ComplementCluster "a card at random"; ComplementCluster "a creature card at random"; PredicateAdjunct "at random" as Adjunct of exile; !NounPhrase "a card at random"; readings 1
-+ Exile a card and a land. => NounPhrase "a card and a land" as Object of exile; readings 1
+# from: Grip of Desolation
++ Exile target creature and target land. => NounPhrase "target creature and target land" as Object of exile; readings 1

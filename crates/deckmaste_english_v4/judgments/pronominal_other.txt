@@ -6,6 +6,8 @@
 + <card=Tower Geist> When this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. => NounPhrase "the other" as Object of put
 + <card=Write into Being> Manifest one of those cards, then put the other on the top or bottom of your library. => NounPhrase "the other" as Object of put
 +NounPhrase the other card => AdjectivePhrase "other" as Modifier of card
-+NounPhrase one other card => AdjectivePhrase "other" as Modifier of card
-+NounPhrase any other card => AdjectivePhrase "other" as Modifier of card
+# from: Sokka, Lateral Strategist
++NounPhrase one other creature => AdjectivePhrase "other" as Modifier of creature
+# from: Zur's Weirding
++NounPhrase any other player => AdjectivePhrase "other" as Modifier of player
 *NounPhrase other card

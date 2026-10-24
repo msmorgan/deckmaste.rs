@@ -12,8 +12,10 @@
 + <card=Prehistoric Pet> This creature can't be blocked by creatures with greater power.
 + <card=Rushed Rebirth> Choose target creature. When that creature dies this turn, search your library for a creature card with lesser mana value, put it onto the battlefield tapped, then shuffle.
 +Clause <card=Conformer Shuriken> that creature has greater power than this creature
-+NounPhrase power greater than 3 => AdjectivePhrase "greater than 3" as Modifier of power
-+NounPhrase mana value less than or equal to X
+# from: Baird, Argivian Recruiter
++NounPhrase power greater than its base power => AdjectivePhrase "greater than its base power" as Modifier of power
+# from: Lay Down Arms
++NounPhrase mana value less than or equal to the number of Plains you control
 +AdjectivePhrase 5 or greater
 # from: Stand Up for Yourself
 +AdjectivePhrase five or greater

@@ -1,4 +1,6 @@
 # Coordination of finite clauses as the complement of "if"
-+PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
-+PrepositionPhrase if you draw cards and they discard cards => Clause "you draw cards"; Clause "they discard cards"
+# from: Transcendent Archaic
++PrepositionPhrase if you draw one or more cards this way => Clause "you draw one or more cards this way" as Complement of if
+# from: Mogg Salvage
++PrepositionPhrase if an opponent controls an Island and you control a Mountain => Clause "an opponent controls an Island"; Clause "you control a Mountain"
 +PrepositionPhrase if you draw cards, they discard cards, and creatures attack => Clause "you draw cards"; Clause "they discard cards"; Clause "creatures attack"

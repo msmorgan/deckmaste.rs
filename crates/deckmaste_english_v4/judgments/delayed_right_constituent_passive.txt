@@ -8,17 +8,20 @@
 + Prevent all combat damage that would be dealt to this creature and dealt by this creature.
 + Whenever this creature attacks or blocks a creature, destroy that creature.
 + Whenever this creature blocks or becomes blocked by a creature, destroy that creature.
-+ Damage is dealt to this creature.
+# from: Protector of the Crown
++ All damage that would be dealt to you is dealt to this creature instead.
 + Prevent all combat damage that would be dealt to this creature.
 # from: Mtenda Lion
 + Prevent all combat damage that would be dealt by this creature.
 # from: General's Kabuto
 + Prevent all combat damage that would be dealt to enchanted creature.
 + Prevent all combat damage that would be dealt by enchanted creature.
-+ Prevent all combat damage that would be dealt to that creature this turn.
+# from: Leap of Faith
++ Prevent all damage that would be dealt to that creature this turn.
 + Prevent all combat damage that would be dealt by that creature this turn.
 + Until your next turn, prevent all damage that would be dealt to target permanent an opponent controls.
 + Until your next turn, prevent all damage that would be dealt by target permanent an opponent controls.
 # from: Loyal Unicorn
 + Prevent all combat damage that would be dealt to creatures you control.
-+ Prevent all combat damage that would be dealt by creatures you control.
+# from: Questing Beast
++ Combat damage that would be dealt by creatures you control can't be prevented.

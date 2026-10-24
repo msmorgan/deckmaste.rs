@@ -4,7 +4,8 @@
 + <card=Taniwha> At the beginning of your upkeep, all lands you control phase out. => PrepositionPhrase "out" as Complement of phase
 + <card=March of Swirling Mist> Up to X target creatures phase out. => PrepositionPhrase "out" as Complement of phase
 + <card=Spatial Binding> Pay 1 life: Until your next upkeep, target permanent can't phase out. => PrepositionPhrase "out" as Complement of phase
-+ <card=Spatial Binding> It can't phase in. => PrepositionPhrase "in" as Complement of phase
+# from: The Pandorica
++ <card=The Pandorica> It can't phase in. => PrepositionPhrase "in" as Complement of phase
 + <card=Change of Plans> You may have any number of them phase out. => PrepositionPhrase "out" as Complement of phase
 + <card=Blink Dog> Teleport — {3}{W}: This creature phases out. => PrepositionPhrase "out" as Complement of phase
 + <card=Clever Concealment> Any number of target nonland permanents you control phase out. => PrepositionPhrase "out" as Complement of phase
@@ -21,13 +22,16 @@
 +VerbPhrase phase out => PrepositionPhrase "out" as Complement of phase
 +VerbPhrase phases in => PrepositionPhrase "in" as Complement of phase
 +VerbPhrase phases out => PrepositionPhrase "out" as Complement of phase
-+VerbPhrase phased in => PrepositionPhrase "in" as Complement of phase
+# from: Out of Time
++VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
 +VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
 +NounPhrase your main phase
 +Nominal combat phase
 +NounPhrase your main phases
 + This creature rounds up.
 + This creature rounds down.
-+ Put that card back.
+# from: Ponder
++ Put them back in any order.
 + This creature can't block.
-+ Put that card in your hand.
+# from: Increasing Ambition
++ Put that card into your hand.

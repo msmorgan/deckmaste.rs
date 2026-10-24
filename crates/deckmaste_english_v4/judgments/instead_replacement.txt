@@ -4,20 +4,27 @@
 *PrepositionPhrase instead any other type
 +PrepositionPhrase instead of any other type => NounPhrase "any other type"
 + <card=Forbidden Crypt> If you would draw a card, return a card from your graveyard to your hand instead. => PrepositionPhrase "instead"
-+ If you would draw a card, return a card from your graveyard to your hand.
+# from: Forbidden Crypt
++ If you would draw a card, return a card from your graveyard to your hand instead.
 + <card=Burn the Accursed> If that creature would die this turn, exile it instead. => PrepositionPhrase "instead"
-+ If that creature would die this turn, exile it.
+# from: Magma Spray
++ If that creature would die this turn, exile it instead.
 + <card=Soldevi Excavations> If this land would enter, sacrifice an untapped Island instead. => PrepositionPhrase "instead"
-+ If this land would enter, sacrifice an untapped Island.
+# from: Soldevi Excavations
++ If this land would enter, sacrifice an untapped Island instead.
 + <card=Increasing Savagery> If this spell was cast from a graveyard, put ten +1/+1 counters on that creature instead. => PrepositionPhrase "instead"
-+ If this spell was cast from a graveyard, put ten +1/+1 counters on that creature.
+# from: Increasing Savagery
++ If this spell was cast from a graveyard, put ten +1/+1 counters on that creature instead.
 + <card=Divine Resilience> If this spell was kicked, instead any number of target creatures you control gain indestructible until end of turn. => PrepositionPhrase "instead"
-+ If this spell was kicked, any number of target creatures you control gain indestructible until end of turn.
-+Clause instead, that card is revealed and put on the bottom of that player's library => PrepositionPhrase "instead"; VerbPhrase "is revealed and put on the bottom of that player's library"
+# from: Divine Resilience
++ If this spell was kicked, instead any number of target creatures you control gain indestructible until end of turn.
+# from: Wheel of Sun and Moon
++Clause instead that card is revealed and put on the bottom of that player's library => PrepositionPhrase "instead"; VerbPhrase "is revealed and put on the bottom of that player's library"
 # the final connective may scope over the whole coordination or only its last conjunct
 +Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; Clause "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
 + <card=Pariah> All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal; PrepositionPhrase "instead"
-+ All damage that would be dealt to you is dealt to enchanted creature. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
+# from: With Great Power . . .
++ All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
 # "instead" preposed without a comma to the Clause it modifies, after a fronted conditional
 + <card=Xorn> If you would create one or more Treasure tokens, instead create those tokens plus an additional Treasure token. => PrepositionPhrase "instead" as Adjunct of create; Clause "instead create those tokens plus an additional Treasure token"; readings 1
 # a comma-set Supplement attaches inside the preposed "instead": instead [Clause, where ...]
@@ -26,7 +33,8 @@
 + If you do, draw a card.
 + Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card.
 # "instead" in central position, before a bare infinitival or a finite Verb Phrase
-+ You may instead draw a card. => PrepositionPhrase "instead" as Adjunct of draw
+# from: Abundance
++ You may instead choose land or nonland. => PrepositionPhrase "instead" as Adjunct of choose
 # from: Land Equilibrium
 +Clause That player instead puts that card onto the battlefield => PrepositionPhrase "instead" as Adjunct of put
 # the Complement of the *of* that *instead* selects: a gerund-participial, or a goal Preposition Phrase
@@ -34,7 +42,8 @@
 +PrepositionPhrase instead of onto the battlefield => PrepositionPhrase "onto the battlefield" as Complement of of
 + <card=Jace, Ingenious Mind-Mage> −9: Gain control of up to three target creatures. => NounPhrase "up to three target creatures" as Complement of of; !PrepositionPhrase "up to three target creatures"
 # the endpoint of a scalar change: a number, or a comparative bound on one
-+VerbPhrase reduce it to 1 => PrepositionPhrase "to 1" as Complement of reduce
+# from: Fortune Thief
++VerbPhrase reduces it to 1 instead => PrepositionPhrase "to 1" as Complement of reduce
 +VerbPhrase reduce your life total to less than 1 => PrepositionPhrase "to less than 1" as Complement of reduce; Amount "less than 1" as Complement of to
 + <card=Worship> If you control a creature, damage that would reduce your life total to less than 1 reduces it to 1 instead. => PrepositionPhrase "to less than 1" as Complement of reduce; PrepositionPhrase "to 1" as Complement of reduce
 + <card=Remand> Counter target spell. If that spell is countered this way, put it into its owner's hand instead of into that player's graveyard. => PrepositionPhrase "instead of into that player's graveyard" as Adjunct of put; PrepositionPhrase "into that player's graveyard" as Complement of of

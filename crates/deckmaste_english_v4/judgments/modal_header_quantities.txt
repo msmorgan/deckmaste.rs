@@ -11,7 +11,8 @@
 +Clause Choose two => NounPhrase "two" as Object of choose
 +Clause Choose three => NounPhrase "three" as Object of choose
 +Clause Choose one or two => NounPhrase "one or two" as Object of choose
-+ Choose any number. => NounPhrase "any number" as Object of choose
+# from: Rankle, Master of Pranks
++ Choose any number — => NounPhrase "any number" as Object of choose
 + Choose one or more creatures. => NounPhrase "one or more creatures" as Object of choose; !DeterminerPhrase "one or more" as Complement of choose
 + Choose up to one creature. => NounPhrase "up to one creature" as Object of choose; !PrepositionPhrase "up to one" as Complement of choose
 + Choose one of them. => NounPhrase "one of them" as Object of choose
