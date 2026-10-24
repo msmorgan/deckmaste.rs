@@ -408,10 +408,12 @@ semantic_template isOpponent : Predicate := isOpponentOf you
 semantic_template isTeammateOf (who : NounPhrase) : Predicate := .isTeammateOf who
 /-- "teammate": a teammate of yours. -/
 semantic_template isTeammate : Predicate := isTeammateOf you
+/-- "chosen": one the choice in scope chose ("the chosen creature", "the chosen cards"). -/
+semantic_template isChosen : Predicate := .chosen .theChoice
 /-- "the chosen player" -/
-semantic_template isChosenPlayer : Predicate := .chosenPlayer .theChoice
+semantic_template isChosenPlayer : Predicate := and [isPlayer, isChosen]
 /-- "the last chosen player" -/
-semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestChoice
+semantic_template theLastChosenPlayer : Predicate := and [isPlayer, .chosen .theLatestChoice]
 /-- "another player", "other player": a bare "other", whose Contrast Anchor is "you" unless the
 text mentions a player first ("Choose a player. Each other player…"). -/
 semantic_template isOtherPlayer : Predicate := and [isPlayer, .other]

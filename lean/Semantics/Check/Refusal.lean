@@ -81,6 +81,9 @@ inductive Refusal where
   | bindingIdentity (id : BindingId)
   | choiceRef (ref : ChoiceRef) (sort : ChoiceSort) (found : Nat)
   | choiceInScope (k : Kind)
+  /-- "the chosen <object>" reads back the one object `ref` names among those a "choose" in scope
+  chose that its description admits; it found `found`. -/
+  | chosenObjectRef (ref : ChoiceRef) (found : Nat)
   | outcomeInScope (s : OutcomeSort) (found : Nat)
   | quantOutcomeInScope (found : Nat)
   | coinFlipInScope

@@ -228,7 +228,12 @@ mutual
     | isOpponentOf (who : NounPhrase)
     /-- The member is a teammate of `who` [CR#102.3]. -/
     | isTeammateOf (who : NounPhrase)
-    | chosenPlayer (ref : ChoiceRef)
+    /-- "chosen": the member is one a choice in scope chose, of whatever sort the description
+    names: "the chosen player" (`and [isPlayer, chosen]`), "the chosen creature", "the chosen
+    cards". An object is chosen when a "choose" announces it, as a target chosen as the spell is
+    cast [CR#601.2c] or as a choice made while the effect applies [CR#608.2d]. Its complement is
+    `notChosen`. -/
+    | chosen (ref : ChoiceRef)
     | qualityNoun (sort : QualitySort) (domain : Option ChoiceDomain)
     | counterKindOn (subject : NounPhrase)
     | ofChosen (ref : ChoiceRef) (sort : QualitySort)

@@ -75,7 +75,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .not body => body.kind? n
-  | _ + 1, .anyPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .chosenPlayer _ | _ + 1, .choseExtreme _ => some .player
+  | _ + 1, .anyPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .choseExtreme _ => some .player
   | _ + 1, .qualityNoun q _ => some (.quality q)
   | _ + 1, .counterKindOn _ => some (.quality .counterKind)
   | _ + 1, .hasDesignation d _ => d.holder
@@ -89,7 +89,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
       | some k, some k' => some (joinKinds k k')
       | some k, none => some k
       | none, k' => k') none
-  | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen
+  | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen | _ + 1, .chosen _
   | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _
   | _ + 1, .attachment .host _ _ | _ + 1, .inCombat .attackedBy _
   | _ + 1, .legalAttachment .host _ => none
@@ -2708,9 +2708,17 @@ def stepOps : Nat → StepOps
         | .not body =>
           let (out, errors) := ops.pred drs body
           ({ drs with nextId := out.nextId }, errors ++ refuse body.negatable .negatable)
-        | .chosenPlayer ref =>
-          let n := countChoice .player drs
-          (drs, if ref.ok n then [] else [.choiceRef ref .player n])
+        | .chosen ref =>
+          -- Sort-polymorphic, as `notChosen` is: a player or quality the choice in scope chose, or
+          -- an object a "choose" chose, as a target [CR#601.2c] or on resolution [CR#608.2d].
+          -- Which chosen object a definite description reads is the description's to settle
+          -- (`DRS.chosenAntecedents`).
+          let kind := drs.relativeKind.getD .object
+          match choiceSortAt kind with
+          | some sort =>
+            let n := countChoice sort drs
+            (drs, if ref.ok n then [] else [.choiceRef ref sort n])
+          | none => (drs, refuse (countChosenObjects kind drs != 0) (.choiceInScope kind))
         | .qualityNoun q dom => sortedDomainCheckWith ops drs (.quality q) dom
         | .ofYourChoice q dom =>
           let (out, errs) := sortedDomainCheckWith ops drs (.quality q) dom
@@ -2983,13 +2991,30 @@ def stepOps : Nat → StepOps
             -- creature you control and target creature you don't control"), as a Participial
             -- Description does; it chooses nothing (owner ruling 2026-10-24). A predicate that
             -- makes it unique ("the creature with the greatest power") always describes afresh.
-            let antecedents := match detP with
-              | .the .one =>
-                if pred.uniquifies then [] else
-                (match pred with
-                 | .inCaller _ => enterCaller drs
-                 | _ => drs).definiteAntecedents pred
+            let readFrom := match pred with
+              | .inCaller _ => enterCaller drs
+              | _ => drs
+            -- "The chosen <object>" reads back what a "choose" chose (`Predicate.chosen`): the
+            -- one object, or the one group, its description admits.
+            let chosenObject := match detP, pred.chosenRef? with
+              | .the plur, some ref =>
+                if (choiceSortAt (pred.kindOr .object)).isNone then some (plur, ref) else none
+              | _, _ => none
+            let chosenFound := match chosenObject with
+              | some (plur, _) => readFrom.chosenAntecedents plur pred
+              | none => []
+            let chosenErrors : List Refusal := match chosenObject with
+              | some (.one, ref) =>
+                if ref.ok chosenFound.length ||
+                    countChosenObjects (pred.kindOr .object) readFrom == 0 then []
+                else [.chosenObjectRef ref chosenFound.length]
               | _ => []
+            let antecedents : List Referent := match chosenObject, detP with
+              | some (_, ref), _ =>
+                if ref.ok chosenFound.length then chosenFound.getLast?.toList else []
+              | none, .the .one =>
+                if pred.uniquifies then [] else readFrom.definiteAntecedents pred
+              | _, _ => []
             match antecedents with
             | [antecedent] =>
               (drs2.recordMention antecedent.id role inArgSlot, [antecedent.id], e1 ++ e2)
@@ -3001,7 +3026,7 @@ def stepOps : Nat → StepOps
               let drs3 := drs2.push ref role inArgSlot
               let targetErrors := if detP.det == .target then
                 refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
-              (drs3, [rid], e1 ++ e2 ++ targetErrors ++
+              (drs3, [rid], e1 ++ e2 ++ targetErrors ++ chosenErrors ++
                 refuse (detP.det != .the || pred.uniquifies) .uniquifying)
         | .and ns | .coord .andOr ns =>
           let (out, ids, errs) := ns.foldl (fun (d, ids, es) n =>
@@ -3764,6 +3789,12 @@ def stepOps : Nat → StepOps
                 | .object .. => { ref with det := .part }
                 | _ => ref
             else context) drs2
+          -- Each object chosen, announced or targeted, and the group collecting them, is what
+          -- "the chosen …" reads back.
+          let drs2' := ids.foldl (fun context id => context.updateById id fun ref =>
+              match ref.payload with
+              | .object .. => { ref with chosenObject := true }
+              | _ => ref) drs2'
           let drs2 := if phase == .postEvent then
             ids.foldl (fun context id => if targeted id then
                 context.updateById id (fun ref => { ref with announcedTargetResult := true })

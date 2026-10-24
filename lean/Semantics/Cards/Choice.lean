@@ -123,39 +123,61 @@ def beastieBeatdown : Spelled := spelled <| singleFacedCard
           (the (and [isCreature, anOpponentControls]))) ] }
 theorem okBeastieBeatdown : beastieBeatdown.card.check = [] := beastieBeatdown.ok
 
-/-- Duel for Dominance, through its first sentence: "Coven — Choose target creature you control
-and target creature you don't control." Its "put a +1/+1 counter on the chosen creature you
-control" and "Then the chosen creatures fight each other" wait on
-`lean-v3-chosen-participial-anchor`; the fight is `fightEachOther` once "the chosen creatures"
-reads back the two targets. -/
-def duelForDominanceOpening : Action := chooseFightPair
-theorem okDuelForDominanceOpening :
-    Action.check (DRS.ofList []) duelForDominanceOpening = [] := by decide
+/-- Duel for Dominance: "Coven — Choose target creature you control and target creature you
+don't control. If you control three or more creatures with different powers, put a +1/+1 counter
+on the chosen creature you control. Then the chosen creatures fight each other." The targets are
+chosen as the spell is cast [CR#601.2c]; "the chosen creature you control" reads back the first
+of them, which its restriction picks out of the two, and "the chosen creatures" the pair, which
+fight as in [CR#701.14a]. -/
+def duelForDominance : Spelled := spelled <| singleFacedCard
+  { name := "Duel for Dominance", cost := [generic 1, pip .green], types := [.instant],
+    text :=
+      [ coven (spell (sequentially
+          [ chooseFightPair,
+            doIf (compareAmt (distinctCount (.value .power) (allOf (and [isCreature, youControl])))
+                .atLeast 3)
+              (putCounters 1 p1p1Counter (the (and [isCreature, isChosen, youControl]))),
+            fightEachOther (thePlural (and [isCreature, isChosen])) ])) ] }
+theorem okDuelForDominance : duelForDominance.card.check = [] := duelForDominance.ok
 
-/-- Stolen Uniform, through its second sentence: "Choose target creature you control and target
-Equipment. Gain control of that Equipment until end of turn." "Attach it to the chosen creature"
-waits on `lean-v3-chosen-participial-anchor`. -/
+/-- Stolen Uniform, through its third sentence: "Choose target creature you control and target
+Equipment. Gain control of that Equipment until end of turn. Attach it to the chosen creature."
+"The chosen creature" reads back the creature target, chosen as the spell is cast [CR#601.2c].
+Its last sentence, "When you lose control of that Equipment this turn, if it's attached to a
+creature you control, unattach it", waits on `lean-v3-lose-control-event`. -/
 def stolenUniformOpening : Action :=
   sequentially
     [ choose (both (target (and [isCreature, youControl])) (target (hasSubtype equipment))),
-      gainControl (that (.subtype equipment)) untilEndOfTurn ]
+      gainControl (that (.subtype equipment)) untilEndOfTurn,
+      attachTo it (the (and [isCreature, isChosen])) ]
 theorem okStolenUniformOpening : Action.check (DRS.ofList []) stolenUniformOpening = [] := by
   decide
 
-/-- Green Sun's Twilight, through its third sentence: "Reveal the top X plus one cards of your
-library. Choose a creature card and/or a land card from among them. Put those cards into your
-hand and the rest on the bottom of your library in a random order." The X-is-5 replacement's
-"the chosen cards" waits on `lean-v3-chosen-participial-anchor`. -/
-def greenSunsTwilightOpening : Action :=
-  sequentially
-    [ reveal (topSlice (plus (letter .x) 1)),
-      choose (NounPhrase.andOr
-        [ fromAmong (exactly 1) (and [isCreature, isCard]) them,
-          fromAmong (exactly 1) (and [isLand, isCard]) them ]),
-      putInto (those .card) hand,
-      putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ]
-theorem okGreenSunsTwilightOpening :
-    Action.check (DRS.ofList [letterB .x]) greenSunsTwilightOpening = [] := by decide
+/-- Green Sun's Twilight: "Reveal the top X plus one cards of your library. Choose a creature card
+and/or a land card from among them. Put those cards into your hand and the rest on the bottom of
+your library in a random order. If X is 5 or more, instead put the chosen cards onto the
+battlefield or into your hand and the rest on the bottom of your library in a random order."
+The cards are chosen as the effect applies [CR#608.2d]. A self-replacement [CR#614.15]: "the
+chosen cards" reads back the cards the replaced action read, the ones chosen. -/
+def greenSunsTwilight : Spelled := spelled <| singleFacedCard
+  { name := "Green Sun's Twilight", cost := [.variable, pip .green], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ reveal (topSlice (plus (letter .x) 1)),
+            choose (NounPhrase.andOr
+              [ fromAmong (exactly 1) (and [isCreature, isCard]) them,
+                fromAmong (exactly 1) (and [isLand, isCard]) them ]),
+            replace
+              (sequentially
+                [ putInto (those .card) hand,
+                  putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ])
+              (doIf (compareAmt (letter .x) .atLeast 5)
+                (instead (sequentially
+                  [ putInto (thePlural (and [isCard, isChosen]))
+                      (Templates.Location.or [battlefield, hand]),
+                    putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ]))) ])
+      ] }
+theorem okGreenSunsTwilight : greenSunsTwilight.card.check = [] := greenSunsTwilight.ok
 
 def continueSpell : Action :=
   sequentially

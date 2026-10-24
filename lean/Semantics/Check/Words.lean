@@ -335,6 +335,10 @@ structure Referent where
   pronounResolved : Bool := false
   attachmentHost  : Bool := false
   announcedTargetResult : Bool := false
+  /-- An object a "choose" announced or named as a target: what "the chosen creature" and "the
+  chosen cards" read back (`Predicate.chosen`). A target is chosen as the spell is cast
+  [CR#601.2c]; any other choice, while the effect applies [CR#608.2d]. -/
+  chosenObject : Bool := false
   createdResult : Bool := false
   librarySearchResult : Bool := false
   /-- Published to later abilities of the same text by the ability that acted on it
@@ -812,6 +816,12 @@ in scope (`preferOrdinary`). -/
 def countGroups (k : Kind) (drs : DRS) : Nat :=
   (preferOrdinary (wholeGroups (drs.visibleReferents.filter fun b =>
     !b.linked && b.det != .part && objGroup k b))).length
+
+/-- The objects of kind `k` a "choose" in scope chose (`Referent.chosenObject`), but none a
+linked ability published. -/
+def countChosenObjects (k : Kind) (drs : DRS) : Nat :=
+  (drs.visibleReferents.filter fun b =>
+    b.chosenObject && !b.linked && Kind.lte k b.kind).length
 
 def countParts (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>

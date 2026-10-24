@@ -689,4 +689,58 @@ theorem badModalWorthZero :
       = [.nonZeroQ] := by
   decide
 
+/-- "Choose target creature you control and target creature you don't control": the two targets
+(referents 1 and 3) and the group collecting them (referent 4), all chosen [CR#601.2c]. -/
+private def afterTargetPair : DRS :=
+  nextClause (stepAction 512 .preEvent .obj (DRS.ofList [])
+    (choose (both (target (and [isCreature, youControl]))
+                  (target (and [isCreature, youDontControl]))))).1
+
+/-- "the chosen creature you control" reads back the target its restriction picks out, "the
+chosen creature you don't control" the other, and "the chosen creatures" the pair. -/
+theorem chosenCreatureReadsBackTheTarget :
+    (stepNounPhrase 512 afterTargetPair .obj true
+        (the (and [isCreature, isChosen, youControl]))).2 = ([1], []) ∧
+      (stepNounPhrase 512 afterTargetPair .obj true
+        (the (and [isCreature, isChosen, youDontControl]))).2 = ([3], []) ∧
+      (stepNounPhrase 512 afterTargetPair .obj true
+        (thePlural (and [isCreature, isChosen]))).2 = ([4], []) := by
+  decide
+
+/-- "Choose a creature card and/or a land card from among them": "the chosen cards" reads back
+the cards chosen as the effect applies [CR#608.2d], the group "those cards" reads. -/
+theorem chosenCardsReadBackTheChoice :
+    let after := nextClause (stepAction 512 .postEvent .obj (DRS.ofList [letterB .x])
+      (sequentially
+        [ reveal (topSlice (plus (letter .x) 1)),
+          choose (NounPhrase.andOr
+            [ fromAmong (exactly 1) (and [isCreature, isCard]) them,
+              fromAmong (exactly 1) (and [isLand, isCard]) them ]) ])).1
+    (stepNounPhrase 512 after .obj true (thePlural (and [isCard, isChosen]))).2 = ([5], []) ∧
+      (stepNounPhrase 512 after .obj true (those .card)).2.1 = [5] := by
+  decide
+
+/-- "Choose a creature. Tap the chosen creature." -/
+theorem okChosenCreatureAfterChoose :
+    Action.check (DRS.ofList [])
+      (sequentially [choose (a isCreature), tap (the (and [isCreature, isChosen]))]) = [] := by
+  decide
+
+/-- "the chosen card" and "the chosen creature" with no choice in scope name nothing chosen. -/
+theorem badChosenObjectWithoutChoose :
+    Action.check (DRS.ofList []) (putInto (the (and [isCard, isChosen])) hand) =
+        [.choiceInScope .object] ∧
+      Action.check (DRS.ofList []) (tap (the (and [isCreature, isChosen]))) =
+        [.choiceInScope .object] := by
+  decide
+
+/-- With two creatures chosen, "the chosen creature" names neither; with none of the chosen an
+artifact, "the chosen artifact" names nothing. -/
+theorem badChosenObjectNotUnique :
+    Action.check afterTargetPair (tap (the (and [isCreature, isChosen]))) =
+        [.chosenObjectRef .theChoice 2] ∧
+      Action.check afterTargetPair (tap (the (and [isArtifact, isChosen]))) =
+        [.chosenObjectRef .theChoice 0] := by
+  decide
+
 end Semantics.Proofs.Choice

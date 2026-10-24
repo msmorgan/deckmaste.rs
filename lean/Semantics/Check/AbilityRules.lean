@@ -147,7 +147,7 @@ private theorem selectedPlayerCanBeReadWithinTheSameAction :
     Action.check (DRS.ofList [])
       (.sequentially
         [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,
-         .draw (.exactlyOf (.devotion (.described .the (.chosenPlayer .theChoice)) (.lit .red) none))]) = [] := by decide
+         .draw (.exactlyOf (.devotion (.described .the (.and [.anyPlayer, .chosen .theChoice])) (.lit .red) none))]) = [] := by decide
 
 private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
     Ability.check (DRS.ofList [qualityB .color])

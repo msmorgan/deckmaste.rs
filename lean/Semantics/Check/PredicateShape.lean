@@ -41,7 +41,7 @@ def Predicate.flatten (ps : List Predicate) : List Predicate := ps.flatMap (fun 
 def Predicate.negatable (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.negatable n
-  | _ + 1, .anyPlayer | _ + 1, .chosenPlayer _ | _ + 1, .qualityNoun _ none
+  | _ + 1, .anyPlayer | _ + 1, .chosen _ | _ + 1, .qualityNoun _ none
   | _ + 1, .counterKindOn _ | _ + 1, .isSource | _ + 1, .eachKind _ _ => false
   | _, _ => true
 termination_by structural fuel
@@ -120,7 +120,7 @@ termination_by structural fuel
 def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.uniquifies n
-  | _ + 1, .chosenPlayer _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
+  | _ + 1, .chosen _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
   | _ + 1, .in_ (.exiledWith _) | _ + 1, .related _ (some _) => true
   | _ + 1, .did clause => clause.ordinal.isSome
   | _ + 1, .hasDesignation label none => label.sole
@@ -205,6 +205,34 @@ def DRS.definiteAntecedents (drs : DRS) (predicate : Predicate) : List Referent 
       ref.movedFrom.isEmpty && ref.plur.isOne &&
       (ref.det == .target || ref.det == .a || ref.det == .the) &&
       conjuncts.all ref.admitsConjunct
+
+/-- The Choice reference a description's "chosen" names, if it says "chosen". -/
+def Predicate.chosenRef? (predicate : Predicate) (fuel : Nat := 32) : Option ChoiceRef :=
+  match fuel, predicate with
+  | n + 1, .inCaller body => body.chosenRef? n
+  | _ + 1, .chosen ref => some ref
+  | n + 1, .and predicates => predicates.findSome? (·.chosenRef? n)
+  | _, _ => none
+termination_by structural fuel
+
+/-- Whether what an earlier mention recorded of a chosen object says what `conjunct` says: as
+`Referent.admitsConjunct`, and further "chosen" itself, and "card" of any object. -/
+def Referent.admitsChosenConjunct (ref : Referent) : Predicate → Bool
+  | .chosen _ => ref.chosenObject
+  | .isCard => Kind.lte .object ref.kind
+  | conjunct => ref.admitsConjunct conjunct
+
+/-- The objects a "chosen" description (`Predicate.chosen`) reads back: those a "choose" in scope
+chose, one or a group by `plur`, whose recorded facts say every conjunct of `predicate` ("the
+chosen creature you control" after "Choose target creature you control and target creature you
+don't control"). A moved object is a new object [CR#400.7], and an object a linked ability
+published (`Referent.linked`) is not read. -/
+def DRS.chosenAntecedents (drs : DRS) (plur : Plurality) (predicate : Predicate) :
+    List Referent :=
+  let conjuncts := predicate.flattenOne
+  drs.visibleReferents.filter fun ref =>
+    ref.chosenObject && !ref.linked && !ref.isActorFrame && ref.movedFrom.isEmpty &&
+      ref.plur.isOne == plur.isOne && conjuncts.all ref.admitsChosenConjunct
 
 def Predicate.isOther (predicate : Predicate) : Bool :=
   match predicate.scopeBody with | .other | .otherThan _ => true | _ => false
