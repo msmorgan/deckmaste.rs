@@ -18,11 +18,10 @@ Execute Cutover 1 of [`docs/decisions/english-v4.md`](../../decisions/english-v4
      record is `docs/english-v3-test-audit.md`; its `lexical-v3` gaps must be
      closed or ruled out before deletion.
    - Delete `crates/deckmaste_english_v3`, `crates/deckmaste_construction_v3`,
-     `crates/deckmaste_construction_v3_core`, `crates/deckmaste_lexical_source`,
-     and `crates/deckmaste_macro_def` (once no crate depends on it).
-   - `plugins_v2/builtin/` is not deleted here: it stays until
-     `semantics-v3-dsl-and-plugins`, because `deckmaste_macro_def` and xtask
-     still read it.
+     `crates/deckmaste_construction_v3_core` and `crates/deckmaste_lexical_source`.
+   - `plugins_v2/builtin/` and its reader `crates/deckmaste_macro_def` are not
+     deleted here: they stay until `semantics-v3-dsl-and-plugins`, because
+     xtask still reads them.
 3. **Glossary Audit:** Verify that [`docs/contexts/oracle-english/CONTEXT.md`](../../contexts/oracle-english/CONTEXT.md)
    reflects every public grammatical term in `deckmaste_english_v4` with zero
    leftover `v3` terms.
