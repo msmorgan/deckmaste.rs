@@ -201,6 +201,15 @@ pub(crate) struct Production {
     /// The `unextended` child, and the prepositions of a Preposition Phrase
     /// it may not end in (`ProductionDecl::unextended`).
     pub unextended: Option<(usize, std::collections::BTreeSet<LexemeId>)>,
+    /// The `unadjoined` child, and the Categories of a trailing Adjunct it
+    /// may not end in (`ProductionDecl::unadjoined`).
+    pub unadjoined: Option<(usize, Vec<u16>)>,
+    /// Children through which the phrase ends in what they end in
+    /// (`Summary::final_adjunct`): the head, and a last Complement of the
+    /// Production's own Category after it (a modal's bare infinitival). A
+    /// coordination's last conjunct is not one: a dependent after the
+    /// coordination may scope over every conjunct.
+    pub edge_line: Vec<bool>,
     pub id: Ident,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -415,6 +424,7 @@ pub(crate) fn resolve(
         .iter()
         .map(|(name, ..)| matches!(name.as_str(), "head" | "first" | "last" | "rest"))
         .collect();
+    let edge_line = (0..children.len()).map(|i| head == Some(i)).collect();
     let names = children.iter().map(|(name, ..)| *name).collect();
     let (rhs, gaps) = children.into_iter().map(|(_, s, g)| (s, g)).unzip();
     if introduces != Gap::None && grammar.category_gap[lhs] & introduces.bit() == 0 {
@@ -429,8 +439,10 @@ pub(crate) fn resolve(
         resolution_last: None,
         carried: Vec::new(),
         weights: Vec::new(),
+        edge_line,
         head_line,
         unextended: None,
+        unadjoined: None,
         adjunct_slot: None,
         adjunct_unfit: Vec::new(),
         predicative: None,
@@ -482,6 +494,7 @@ pub(crate) fn resolve(
             leaves: 0,
             head_final: false,
             final_preposition: None,
+            final_adjunct: None,
             omitted_complement: 0,
             ellipsis: 0,
             head_forms: 0,
@@ -556,6 +569,10 @@ pub(crate) struct Summary {
     /// The preposition of the Preposition Phrase dependent it ends in, through
     /// its head line, when that preposition closes some `unextended` child.
     pub final_preposition: Option<LexemeId>,
+    /// The Category of the trailing Adjunct it ends in, through its edge line
+    /// (`Production::edge_line`), when that Category closes some
+    /// `unadjoined` child.
+    pub final_adjunct: Option<u16>,
     /// The Complements omitted by the bare noun phrase it ends in, through
     /// any of its last children, as an index into
     /// [`CompiledGrammar::extension_sets`] (0: none). A Preposition Phrase
@@ -691,6 +708,9 @@ pub(crate) struct State {
     /// The preposition of the Preposition Phrase dependent the last child
     /// so far ends in (`Summary::final_preposition`).
     final_preposition: Option<LexemeId>,
+    /// The trailing Adjunct the last child so far ends in
+    /// (`Summary::final_adjunct`).
+    final_adjunct: Option<u16>,
     /// The Complements omitted by the bare noun phrase the last child so far
     /// ends in (`Summary::omitted_complement`).
     omitted_complement: u16,
@@ -895,6 +915,47 @@ impl Production {
                 };
             }
             ChildView::Leaf(_) => next.final_preposition = None,
+            ChildView::Punct => {}
+        }
+        Some(())
+    }
+
+    /// The Category of the trailing Adjunct the phrase so far ends in, or
+    /// `None` if child `position` is an `unadjoined` child that ends in one
+    /// its Production closes. A trailing Adjunct is the last child, named
+    /// `adjunct`, of a Production whose head precedes it with no comma
+    /// between: an unselected post-head dependent, not one set off.
+    fn track_final_adjunct(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        match child {
+            ChildView::Node(summary) => {
+                if let Some((at, closed)) = &self.unadjoined
+                    && *at == position
+                    && summary.final_adjunct.is_some_and(|c| closed.contains(&c))
+                {
+                    return None;
+                }
+                next.final_adjunct = if self.edge_line[position] {
+                    summary.final_adjunct
+                } else if self.names[position] == "adjunct"
+                    && self.coordinator.is_none()
+                    && self.head.is_some_and(|head| head < position)
+                    && !matches!(self.rhs[position - 1], Symbol::Punct(..))
+                    && let Symbol::Cat { category, .. } = self.rhs[position]
+                {
+                    u16::try_from(category)
+                        .ok()
+                        .filter(|c| grammar.unadjoined_categories.contains(c))
+                } else {
+                    None
+                };
+            }
+            ChildView::Leaf(_) => next.final_adjunct = None,
             ChildView::Punct => {}
         }
         Some(())
@@ -1383,6 +1444,7 @@ impl Production {
         next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
         self.track_head_final(&mut next, position, child);
         self.track_final_preposition(grammar, &mut next, position, child)?;
+        self.track_final_adjunct(grammar, &mut next, position, child)?;
         self.track_omitted_complement(grammar, &mut next, position, child)?;
         self.track_ellipsis(&mut next, position, child)?;
         self.track_cluster(grammar, &mut next, position, child)?;
@@ -1556,6 +1618,7 @@ impl Production {
             leaves: state.leaves,
             head_final: state.head_final,
             final_preposition: state.final_preposition,
+            final_adjunct: state.final_adjunct,
             ellipsis: match self.omission {
                 Omission::Ellipsis(forms) => forms,
                 _ => state.ellipsis,

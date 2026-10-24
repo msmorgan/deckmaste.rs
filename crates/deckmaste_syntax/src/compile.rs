@@ -128,6 +128,9 @@ pub struct CompiledGrammar {
     /// Prepositions some Production's `unextended` child may not end in, the
     /// only ones a Summary's `final_preposition` records.
     pub(crate) unextended_prepositions: BTreeSet<LexemeId>,
+    /// Categories some Production's `unadjoined` child may not end in, the
+    /// only ones a Summary's `final_adjunct` records.
+    pub(crate) unadjoined_categories: BTreeSet<u16>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
@@ -794,6 +797,7 @@ impl<'a> Binder<'a> {
                 extension_sets,
                 classes,
                 unextended_prepositions: BTreeSet::new(),
+                unadjoined_categories: BTreeSet::new(),
                 projected,
                 high_attachment: grammar.high_attachment.clone(),
                 bracketed: BTreeMap::new(),
@@ -904,8 +908,12 @@ impl<'a> Binder<'a> {
             for name in &declaration.unextended {
                 self.unextended(declaration.name, name)?;
             }
+            for (name, categories) in &declaration.unadjoined {
+                self.unadjoined(declaration.name, name, categories)?;
+            }
         }
         self.auxiliaries()?;
+        self.edge_lines()?;
         self.report_holders();
         for (name, declaration) in &self.grammar.categories {
             if let Some(category) = &declaration.category {
@@ -986,6 +994,57 @@ impl<'a> Binder<'a> {
             .unextended_prepositions
             .extend(closed.iter().copied());
         self.out.productions[index].unextended = Some((at, closed));
+        Ok(())
+    }
+
+    /// Closes child `name` of Production `id` to a trailing Adjunct of each of
+    /// `categories`, through its edge line.
+    fn unadjoined(&mut self, id: Ident, name: &Ident, categories: &[Ident]) -> Result<(), LoadError> {
+        let context = |e: &str| invalid(format!("production `{id}`: unadjoined `{name}` {e}"));
+        let index = *self
+            .out
+            .by_id
+            .get(&id)
+            .ok_or_else(|| context("names no production"))?;
+        let at = self.out.productions[index]
+            .names
+            .iter()
+            .position(|n| n == name)
+            .ok_or_else(|| context("names no child"))?;
+        if categories.is_empty() {
+            return Err(context("names no Category"));
+        }
+        let mut closed = Vec::new();
+        for category in categories {
+            let category = u16::try_from(self.category(category)?)
+                .map_err(|_| context("names a Category past the index range"))?;
+            closed.push(category);
+        }
+        self.out.unadjoined_categories.extend(closed.iter().copied());
+        self.out.productions[index].unadjoined = Some((at, closed));
+        Ok(())
+    }
+
+    /// Extends each Production's edge line to a last child of its own
+    /// Category or an alias of it, after its head: a Complement that the
+    /// phrase ends in as it ends in its head (a modal's bare infinitival).
+    /// A coordination has no head, so its conjuncts are never on it.
+    fn edge_lines(&mut self) -> Result<(), LoadError> {
+        let mut base = (0..self.out.categories.len()).collect::<Vec<_>>();
+        for (name, declaration) in &self.grammar.categories {
+            if let Some(category) = &declaration.category {
+                base[self.category(name)?] = self.category(category)?;
+            }
+        }
+        for production in &mut self.out.productions {
+            let last = production.rhs.len() - 1;
+            if let Some(Symbol::Cat { category, .. }) = production.rhs.last()
+                && production.head.is_some_and(|head| head < last)
+                && base[*category] == base[production.lhs]
+            {
+                production.edge_line[last] = true;
+            }
+        }
         Ok(())
     }
 

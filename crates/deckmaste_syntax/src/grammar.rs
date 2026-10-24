@@ -159,6 +159,12 @@ pub struct ProductionDecl {
     /// follows is a load error.
     #[serde(default)]
     pub unextended: Vec<Ident>,
+    /// Children that do not end, through their edge line, in a trailing
+    /// Adjunct of one of these Categories: a dependent after the child that
+    /// is coordinate with such an Adjunct is a basic coordination of the two,
+    /// never also attached beside it (`english-lexical-analysis.md` §2).
+    #[serde(default)]
+    pub unadjoined: Vec<(Ident, Vec<Ident>)>,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,

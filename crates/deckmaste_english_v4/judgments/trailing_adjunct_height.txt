@@ -32,3 +32,4 @@
 + <card=Great Train Heist> + {R} — Choose target opponent. Whenever a creature you control deals combat damage to that player this turn, create a tapped Treasure token.
 + <card=Prohibit> Counter target spell if its mana value is 2 or less. If this spell was kicked, counter that spell if its mana value is 4 or less instead.
 +Clause there is an additional combat phase after this phase => PrepositionPhrase "after this phase" as Complement of be; !PrepositionPhrase "after this phase" as Adjunct of be; !PrepositionPhrase "after this phase" as Modifier of "combat phase"
++ Draw a card and discard a card at the beginning of the next end step. => PrepositionPhrase "at the beginning of the next end step" as Adjunct of discard; readings 2

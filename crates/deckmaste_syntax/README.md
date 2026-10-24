@@ -373,7 +373,13 @@ never links). A child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that its Production, or a
 sibling with the same children up to and including it, selects as a `PP`
 Complement right after it (an existential's Extension is a Complement of
-*be*, never also the Displaced Subject's postmodifier). A verb without
+*be*, never also the Displaced Subject's postmodifier). A child can be
+`unadjoined` for listed Categories: it does not end in a trailing Adjunct of
+one of them, the last child, named `adjunct`, of a Production whose head
+precedes it with no comma between, reached through `head` children and a last
+child of its Production's own Category or an alias of it (a modal's bare
+infinitival), never through a coordination's conjuncts (a dependent coordinate
+with that Adjunct is its coordinate, never attached beside it). A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 
