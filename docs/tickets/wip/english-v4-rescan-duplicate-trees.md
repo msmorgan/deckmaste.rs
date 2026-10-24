@@ -33,5 +33,24 @@ mixed-mood witnesses in `trailing_adjunct_height.txt`.
 Each witness has exactly its distinct analyses; census `--check` passes with
 no face lost; judgments hold.
 
-Census delta:
-Judgment set:
+## Decisions
+
+- HIGH-1 takes the second option. Under the first, the Clause would need a
+  copy of every post-verbal Adjunct the Verb Phrase coordination already
+  hosts (*Draw a card and discard a card this turn* would lose its wide
+  scope). A privative Clause feature `ClauseType: Imperative`, unshared by the
+  mixed-mood coordinations, keeps CoordinatedClauseAdjunct off chains of bare
+  imperatives.
+- The *and only* duplicate occurs in finite clauses too (*the player can
+  activate mana abilities only if … and only if …*), so a Finite requirement
+  would not fix it. A new engine declaration, `unadjoined`, keeps
+  AddedElement off a Clause ending in a coordinable Predicate Adjunct (CGEL,
+  Ch. 15 §4.5, p. 1346: a new element, not a coordinate).
+- *only once each turn* is one analysis. The judgments already endorse the
+  separate Adjunct at the end of a Verb Phrase (`once_frequency.txt`,
+  `preposed_frequency.txt`), so EndAdverbial no longer takes a
+  FrequencyInterval phrase; the fronted *Once each turn, …* keeps it.
+
+Census delta (klmtvnok): faces read 32,769 of 32,828 before and after;
+Readings 344,348 → 338,440, on 741 units; lost faces: none.
+Judgment set (klmtvnok): all hold, 3,219 enforced and 317 pending.

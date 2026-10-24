@@ -127,6 +127,12 @@
         // Coordination, initial in its Linked Conjunct (CGEL, Ch. 15 §2.10,
         // pp. 1319–1320).
         "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Bounding", "Linking"],
+        // An Imperative Clause, or a coordination of them only; privative: a
+        // declarative Clause, or a coordination of mixed moods (CGEL, Ch. 15
+        // §3.5, pp. 1332–1333), leaves it unvalued. A shared trailing Adjunct
+        // of a chain of bare imperatives is its Verb Phrase coordination's,
+        // so CoordinatedClauseAdjunct excludes it.
+        "ClauseType": ["Imperative"],
         // A Clause whose front position holds a dependent set off by a comma
         // (*If you do, ...*, *Once each turn, ...*). Front dependents that
         // share one comma are siblings in one Production (*Then if ...*,
@@ -191,7 +197,7 @@
         "Sentences": (),
         // A Clause's Inflection is its finite verb's: an independent clause
         // excludes the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88).
-        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection", "FrontPosition"], gap: true),
+        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection", "FrontPosition", "ClauseType"], gap: true),
         // A subject relative agrees with its antecedent in number; an
         // adverbial relative modifies a temporal nominal.
         "RelativeClause": (features: ["Number", "NounKind", "ClauseMarking"]),
@@ -821,7 +827,7 @@
         // An adverb before a bare imperative is its Clause's front Adjunct,
         // never a central one of its Verb Phrase (CentralPosition).
         (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
-            equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked"), Exclude("head.CentralPosition", "Occupied")]),
+            equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked"), Require("$.ClauseType", "Imperative"), Exclude("head.CentralPosition", "Occupied")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
         // Restated as RelativeSubjectPredicate (a SubjectInitialClause, for
         // bare relatives); a change to one must be made to the other.
@@ -945,9 +951,15 @@
         // for the petrol*; *but not if you criticise my driving*). The
         // fragment is of Adjuncts the Clause's predicate could take
         // (p. 1347). As a main Clause's, it ends its Sentence; Oracle sets it
-        // off with no comma.
+        // off with no comma. It is a new element: a Clause ending in a
+        // Predicate Adjunct of a kind the fragment could coordinate with has
+        // the fragment as that Adjunct's coordinate, a basic coordination
+        // (§4.5, p. 1346, [29]; *Activate [only as a sorcery and only once
+        // each turn]*; `docs/oracle-style-guide.md` §8, Activation
+        // instructions).
         (name: "AddedElement", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Class("coordinator", "AddingCoordinator"), Cat("fragment", "QualifyingFragment"), Punct('.')],
-            equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")], cost: 2),
+            equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")],
+            unadjoined: [("clause", ["PrepositionPhrase", "AdjectivePhrase", "TemporalNounPhrase", "AdverbPhrase", "AdjunctCoordination"])], cost: 2),
         // A non-initial coordinate may open, after its coordinator, with a
         // fronted Adjunct delimited on both sides (*except it's legendary
         // ... and, if it's a creature, it enters with ...*): heavy
@@ -960,8 +972,15 @@
         (name: "QualifyingFragment", lhs: "QualifyingFragment", rhs: [Class("modifier", "FocusingAdverb"), Cat("head", "ClauseFragment")], cost: 0),
         (name: "AdjunctFragment", lhs: "ClauseFragment", rhs: [Cat("head", "PredicateAdjunct")], cost: 0),
         (name: "ExtendedFragment", lhs: "ClauseFragment", rhs: [Cat("head", "ClauseFragment"), Cat("adjunct", "PredicateAdjunct")], cost: 1),
+        // A temporal Noun Phrase after a final Adverb Phrase is a second
+        // Adjunct of the Verb Phrase (TemporalAdjunct: *[[activate only
+        // once] each turn]*), never also the adverb's interval
+        // (FrequencyInterval), which it is where no Verb Phrase follows
+        // (*Once each turn, ...*): the two sites differ in no meaning (CGEL,
+        // Ch. 8 §9, p. 715: *each year is probably a separate adjunct rather
+        // than a postmodifier*).
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
-            equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
+            equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"], unadjoined: [("adjunct", ["TemporalNounPhrase"])]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "Central"), Require("$.CentralPosition", "Occupied")], transparent: ["head"]),
 
@@ -1103,8 +1122,12 @@
         // clauses, which scopes over every conjunct, beside the site in its
         // last one (*[put a counter on target creature, and that creature
         // gains flying] until end of turn*; CGEL, Ch. 15 §1.3.4,
-        // pp. 1285–1286).
-        (name: "CoordinatedClauseAdjunct", lhs: "Clause", rhs: [Cat("head", "Clause"), Hosted("adjunct", "PrepositionPhrase", Predicate)], coordinated: ["head"], cost: 1),
+        // pp. 1285–1286). A chain of bare imperatives shares one as its
+        // Verb Phrase coordination's (*[draw a card and discard a card] at
+        // the beginning of the next end step*), which every post-verbal
+        // Adjunct has: the two sites differ in no meaning
+        // (`english-lexical-analysis.md` §2).
+        (name: "CoordinatedClauseAdjunct", lhs: "Clause", rhs: [Cat("head", "Clause"), Hosted("adjunct", "PrepositionPhrase", Predicate)], coordinated: ["head"], equations: [Exclude("head.ClauseType", "Imperative")], cost: 1),
         (name: "TemporalNounAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "TemporalNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
@@ -2151,11 +2174,11 @@
         // conjunct is a Verb Phrase with its Subject ellipted, no imperative
         // (*you gain 4 life, draw four cards, ..., and he deals ...*;
         // coordination at unlike levels, §3.6, pp. 1335–1336, [31iii]).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition", "ClauseType"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition", "ClauseType"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Linked Coordinations of Clauses, imperative or declarative, of
         // like or mixed moods as the Coordinator's are (*Draw a card, then
         // discard a card*; *Tap it, then you may sacrifice an artifact*;
@@ -2169,8 +2192,8 @@
         // Mixed moods end in a declarative link as they do with a
         // Coordinator (*reveal cards ... until ..., Kaboom! deals damage ...,
         // then you put the revealed cards ...*).
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
-        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition", "ClauseType"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("initial.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], unlike: Some("VerbForm"), serial: Some(true), delimiter: Some(',')),
+        Coordination(category: "Clause", link: Some("LinkedClause"), unshared: ["Inflection", "VerbForm", "FrontPosition", "ClauseType"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // Conjuncts may differ in Case (*them and all other creatures*); the
         // coordination takes its last conjunct's.
         // Every conjunct but the last shares its Determination, and the
