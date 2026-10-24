@@ -92,7 +92,10 @@ grade, and *same* declares `Equative`, which licenses its *as* Complement.
 An adjective's optional `fused_head` declares the determination of its fused
 modifier-head NP: `Some(Ordinary)` for *each other* and *the other*, or
 `Some(DefiniteArticle)` for anaphoric *the same* (CGEL, Ch. 5 §9.3, p. 416;
-Ch. 17, p. 1545).
+Ch. 17, p. 1545). An adjective with `follows_sum: true` is in the
+`SumAdjective` class, which follows a numerically quantified Noun Phrase
+(*ten creature cards total*, *fifty dollars net*; CGEL, Ch. 5 §14.2(b),
+pp. 445-446).
 Adverbs record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb` for a focusing one, `MultiplyingAdverb` for a multiplier,
 `BoundingAdverb`

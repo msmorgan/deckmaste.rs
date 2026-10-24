@@ -383,18 +383,28 @@ mod tests {
 
     #[test]
     fn a_deferral_matches_a_unit_of_any_face_read_kept_or_not() {
-        // Avatar of Woe's line is deferred in `deferred.txt`.
-        let line = "Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.";
-        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Avatar of Woe","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Demon","oracle_text":"Fear\nIf there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast."}"#;
+        // Any deferred unit serves as the witness: the first listed one, so
+        // that the test does not name a unit that a landing will remove.
+        let (name, text) = crate::census::deferrals()
+            .into_iter()
+            .next()
+            .expect("deferred.txt lists a unit");
+        let line = format!("{name} | {text}");
+        let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+        let input = format!(
+            r#"{{"object":"card","id":"p","oracle_id":"o","name":"{}","layout":"normal","legalities":{{"vintage":"legal"}},"type_line":"Creature — Demon","oracle_text":"Fear\n{}"}}"#,
+            escape(name),
+            escape(text)
+        );
         let corpus = Corpus::read(std::io::Cursor::new(input), |_| false).unwrap();
-        assert!(!corpus.unmatched_deferrals.iter().any(|l| l == line));
+        assert!(!corpus.unmatched_deferrals.contains(&line));
         // Every other deferred or declined line names no unit of this stream.
         assert_eq!(
             corpus.unmatched_deferrals.len(),
             crate::census::deferrals().len() + crate::census::declined().len() - 1
         );
         let corpus = Corpus::read(std::io::Cursor::new(""), |_| true).unwrap();
-        assert!(corpus.unmatched_deferrals.iter().any(|l| l == line));
+        assert!(corpus.unmatched_deferrals.contains(&line));
     }
 
     #[test]

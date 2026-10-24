@@ -97,8 +97,9 @@
     (lemma: "starting", position: Some(Attributive)),
     // Attributive only: *the top card*; *on top of* is the noun.
     (lemma: "top", position: Some(Attributive)),
-    // Attributive only: *total mana value*; *the total of* is the noun.
-    (lemma: "total", position: Some(Attributive)),
+    // Attributive: *total mana value*; *the total of* is the noun. It also
+    // follows a cardinal sum (*ten creature cards total*).
+    (lemma: "total", position: Some(Attributive), follows_sum: true),
     (lemma: "true", frames: [Complement(PP(["for"]))]),
     // [CR#509.1h]; there is no verb `unblock`.
     "unblocked",

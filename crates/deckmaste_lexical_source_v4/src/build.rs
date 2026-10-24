@@ -122,6 +122,12 @@ impl Builder {
             "DeterminativeDistribution".into(),
             Ident::new(&format!("{:?}", entry.distribution)),
         );
+        // Every determinative values `Cardinality`: a lexical one is not a
+        // cardinal numeral, whose Production values it `Cardinal`.
+        lexeme
+            .properties
+            .features
+            .insert("Cardinality".into(), Ident::new("NonCardinal"));
         lexeme.forms[0].surfaces.clone_from(&entry.spellings);
         lexeme.forms[0].features.number = entry.number;
         if let Some(countability) = entry.countability {
@@ -347,6 +353,9 @@ impl Builder {
                     "Determination".into(),
                     Ident::new(&format!("{determination:?}")),
                 );
+            }
+            if entry.follows_sum {
+                lexeme.properties.classes.insert("SumAdjective".into());
             }
             if let Some(determination) = entry.fused_head {
                 let class = match determination {
