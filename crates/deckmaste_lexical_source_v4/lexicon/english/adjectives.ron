@@ -19,7 +19,9 @@
     (lemma: "bottom", position: Some(Attributive)),
     "colored",
     "common",
-    "different",
+    // A non-scalar comparative governor of inequality, with a *than*
+    // Complement (CGEL, Ch. 13 §5.4, p. 1144).
+    (lemma: "different", grade: Some(NonScalarInequality)),
     "double-faced",
     // An equality adjective, graded like *same* (*equal toughness*).
     (lemma: "equal", grade: Some(Equative), frames: [Complement(PP(["to"]))]),
@@ -71,7 +73,7 @@
     // Attributive-only "the only creature card" (CGEL, Ch. 6, §4.1, p. 553).
     (lemma: "only", position: Some(Attributive), determination: Some(Overt)),
     "original",
-    (lemma: "other", position: Some(Attributive), fused_head: Some(Ordinary), frames: [Complement(PP(["than"]))]),
+    (lemma: "other", position: Some(Attributive), fused_head: Some(Ordinary), grade: Some(NonScalarInequality), frames: [Complement(PP(["than"]))]),
     // Attributive-only (CGEL, Ch. 6, §4.1, p. 553); the verb `own` is separate.
     (lemma: "own", position: Some(Attributive)),
     "planar",

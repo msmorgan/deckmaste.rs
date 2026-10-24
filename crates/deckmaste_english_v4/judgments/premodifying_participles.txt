@@ -7,3 +7,6 @@
 # Unlike premodifiers coordinate serially (an adjective and nouns)
 +Nominal basic, Sphere, and Locus lands => Attributes "basic, Sphere, and Locus" as Modifier of land; readings 1
 + <card=Monument to Perfection> {3}: This artifact becomes a 9/9 Phyrexian Construct artifact creature, loses all abilities, and gains indestructible and toxic 9. Activate only if there are nine or more lands with different names among the basic, Sphere, and Locus lands you control. => Attributes "basic, Sphere, and Locus" as Modifier of land
+# An attributive participle premodified by a manner adverb (CGEL, Ch. 14 §1.1, p. 1175, [9])
++ <card=Ellywick Tumblestrum> −7: You get an emblem with "Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed." => VerbPhrase "differently named" as Modifier of dungeon; AdverbPhrase "differently"; !AdverbPhrase "differently" as Modifier of dungeon
++NounPhrase differently named lands => VerbPhrase "differently named" as Modifier of land; readings 1

@@ -40,3 +40,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+Census delta (measured on `nwonryvw` → `oslntzlv`): faces read 32,764 → 32,769 (Light-Paws, Emperor's Voice; Tibalt's Trickery; Flow State; Raiding Party; Ellywick Tumblestrum: 0 → 750, 340, 169, 4 and 2 Readings); the only other unit that changed is Triple Triad (22 → 28, *each other card … than it* through *other*'s Type I attributive Complement); total Readings 343,077 → 344,348 and Surplus 142,141 → 142,949. Lost faces: none.
+Judgment set (`oslntzlv`): 3,215 enforced and 317 pending, all enforced holding; the 11 new entries (Stratum 7 witnesses pending) all hold.

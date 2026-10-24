@@ -10,8 +10,9 @@
     (lemma: "at most", positions: [Bounding]),
     (lemma: "continuously", positions: [End]),
     (lemma: "correctly", positions: [End]),
-    // *differently named lands*
-    (lemma: "differently", positions: [Phrasal]),
+    // A manner adverb (CGEL, Ch. 17 §8, p. 1547), also before an attributive
+    // participle: *differently named lands*.
+    (lemma: "differently", positions: [End]),
     // *a creature card directly above it*
     (lemma: "directly", positions: [Phrasal]),
     (lemma: "evenly", positions: [End]),

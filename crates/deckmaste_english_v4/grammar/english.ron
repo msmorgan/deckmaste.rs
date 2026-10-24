@@ -16,13 +16,20 @@
         // The Number of a noun's *of* oblique, or of a determinative's
         // Complement (*all but one*, *more than one*).
         "ObliqueNumber": ["Singular", "Plural"],
-        // An adjective's inflectional grade.
-        "Grade": ["Plain", "Comparative", "Superlative", "Equative"],
+        // An adjective's inflectional grade, or the comparison a non-scalar
+        // comparative governor marks: equality with *as* (*same*), or
+        // inequality with *than* (*different*, *other*; CGEL, Ch. 13 §1.1,
+        // p. 1100).
+        "Grade": ["Plain", "Comparative", "Superlative", "Equative", "NonScalarInequality"],
         // Internal numeral–noun agreement survives external group respecification.
         "QuantityNumber": ["Singular", "Plural"],
         // The Number each conjunct of an *and*-coordination of nominals has,
         // which a determiner selects; the coordination itself is plural.
         "ConjunctNumber": ["Singular", "Plural"],
+        // The Number of the first conjunct of an *and*-coordination of Noun
+        // Phrases, which an existential *be* before it may agree with by
+        // proximity (CGEL, Ch. 4 §3.2.2, p. 242, n. 21).
+        "FirstConjunctNumber": ["Singular", "Plural"],
         // Oracle text has no first person.
         "Person": ["Second", "Third"],
         "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
@@ -237,7 +244,7 @@
         // A noun's Amount Complement is a Nominal dependent, so a slash
         // Measure is shared only by coordinated Nominals (*base power and
         // toughness 4/4*): a Noun Phrase never passes up a Measure Gap.
-        "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution"], gap: true, closed_gaps: ["Measure"]),
+        "NounPhrase": (features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "FirstConjunctNumber"], gap: true, closed_gaps: ["Measure"]),
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
@@ -382,6 +389,9 @@
         "Adverbial": (function: true),
         // The Adjunct function before a selected Complement or shifted Object.
         "Interleaved": (function: true),
+        // The Adjunct function before only the Internalised Complement of a
+        // passive, a non-core Complement (CGEL, Ch. 4 §3.2.1, p. 241).
+        "InternalisedInterleaved": (function: true),
         // A relative clause before the Complement its noun selects, which is
         // postposed past it: post-head order in a Nominal is labile (CGEL,
         // Ch. 5 §15, p. 454 [12]–[13]: *the rumour [which was published in
@@ -872,6 +882,14 @@
             equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")], unextended: ["displaced_subject"]),
         (name: "LocatedExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In", "On", "Among", "Under", "Outside", "After"])],
             equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")], unextended: ["displaced_subject"]),
+        // Before an *and*-coordination of Noun Phrases, existential *be* may
+        // agree by proximity with a singular first conjunct (*There was a
+        // bottle of wine and several glasses on the table*; CGEL, Ch. 4
+        // §3.2.2, p. 242, n. 21), as well as with the plural coordination.
+        (name: "ProximateExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase")],
+            equations: [Require("$.Number", "Singular"), Require("displaced_subject.Number", "Plural"), Carry("displaced_subject.FirstConjunctNumber", "Singular"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")], unextended: ["displaced_subject"]),
+        (name: "LocatedProximateExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In", "On", "Among", "Under", "Outside", "After"])],
+            equations: [Require("$.Number", "Singular"), Require("displaced_subject.Number", "Plural"), Carry("displaced_subject.FirstConjunctNumber", "Singular"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")], unextended: ["displaced_subject"]),
 
         (name: "EndAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "EndAdverb")],
             equations: [Require("$.AdjunctPosition", "End")]),
@@ -1051,6 +1069,13 @@
         (name: "InterleavedRelative", lhs: "InterleavedModifier", rhs: [Cat("head", "RelativeClause")], cost: 0),
         (name: "InterleavedPreposition", lhs: "Interleaved", rhs: [Cat("head", "PrepositionPhrase")], cost: 0),
         (name: "InterleavedTemporal", lhs: "Interleaved", rhs: [Cat("head", "TemporalNounPhrase")], cost: 0),
+        // A manner Noun Phrase, as MannerAdjunct, before the Internalised
+        // Complement (*weren't chosen this way by any player*), never before a
+        // core Complement: Oracle sets *this way* right after the verb it
+        // restricts (`docs/oracle-style-guide.md` §5, This way, that much, and
+        // linked events: *cards exiled this way*), never between an Object
+        // and a goal.
+        (name: "InterleavedManner", lhs: "InternalisedInterleaved", rhs: [Cat("head", "NounPhrase")], equations: [Carry("head.NounKind", "Manner")], cost: 0),
         // An end adverb before a later selected Complement (*divided evenly
         // among*, *dealt to you so far this turn by artifacts*), or a
         // comma-set passive participial Supplement there (*divided evenly,
@@ -1394,6 +1419,13 @@
         // creature*; CGEL, Ch. 13 §2.1, p. 1104; Ch. 5 §16.1, p. 445).
         (name: "ComparativeIndirectComplement", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Require("modifier.Grade", "Comparative"), Exclude("modifier.AdjectivePosition", "Predicative"), Agree("modifier.Determination", "$.Determination")]),
+        // A non-scalar comparative governor of inequality takes its *than*
+        // Complement after the head too, in the Type I attributive
+        // construction (*a different sort of experience than live music*,
+        // *some other means of restricting imports than tariffs*; CGEL, Ch.
+        // 13 §5.4, pp. 1143–1145).
+        (name: "NonScalarIndirectComplement", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["Than"])],
+            equations: [Carry("modifier.Grade", "NonScalarInequality"), Exclude("modifier.AdjectivePosition", "Predicative"), Agree("modifier.Determination", "$.Determination")]),
         (name: "EquativeIndirectComplement", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["As"])],
             equations: [Require("modifier.Grade", "Equative"), Require("complement.ComplementKind", "NP"), Agree("modifier.Determination", "$.Determination")]),
         // An analytic superlative (*your most recent turn*, *most recently
@@ -1523,6 +1555,11 @@
         (name: "PrefixedNoun", lhs: "BareNominal", rhs: [Lex("prefix", Affix), Cat("head", "BareNominal")], equations: [Carry("head.Countability", "Count")], light: ["head"]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")], equations: [Require("$.Polarity", "Negative")]),
+        // An attributive participle expands only by an adverb before it (*a
+        // poorly drafted report*, *each differently named dungeon*; CGEL, Ch.
+        // 14 §1.1, p. 1175, [9]): a manner adverb, which a clause has in end
+        // position.
+        (name: "AdverbModifiedParticiple", lhs: "Participle", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "Participle")], equations: [Require("modifier.AdjunctPosition", "End")], cost: 0),
         // A participle premodifier prefixed by *non-* (*nonattacking*).
         (name: "PrefixedParticiple", lhs: "Participle", rhs: [Lex("prefix", Affix), Cat("head", "Participle")], equations: [Require("$.Polarity", "Negative")], cost: 0),
         (name: "NounConjunct", lhs: "NounPremodifierConjunct", rhs: [Cat("head", "NounPremodifier")], cost: 0),
@@ -1992,7 +2029,7 @@
             internalised: [Require("internalised.ComplementKind", "NP")],
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
-            interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"),
+            interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, postposed: Some("PostposedModifier"),
             clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct")))),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
@@ -2146,20 +2183,20 @@
         // An *and*-coordination of Noun Phrases or nominals is plural; an
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).
-        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
-        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person"], resolve: [("Determination", "Bare")], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("$.Number", "Plural"), Require("$.Person", "Third"), Agree("$.FirstConjunctNumber", "first.Number"), Exclude("first.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
         // *And/or* means "and or or" (CGEL, Ch. 15 §3.3(a), p. 1329): plural
         // with a plural last conjunct, of either Number with a singular one
         // (*you and/or at least one permanent you control becomes*).
-        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Plural"), Require("$.Number", "Plural")], proximate: ["Person", "Case", "NounKind", "Countability"]),
-        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Singular")], proximate: ["Person", "Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Plural"), Require("$.Number", "Plural")], proximate: ["Person", "Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Singular")], proximate: ["Person", "Case", "NounKind", "Countability"]),
         // A Numeric Noun Phrase is no first conjunct: a conjunct must fill
         // the coordination's function alone (CGEL, Ch. 15 §3.1, p. 1323,
         // rule [1]), and a number fills no Noun Phrase Complement slot, so
         // never *is dealt [3] or [more damage]*. Numbers alone are an Amount
         // coordination (*2 or 3*). An admission gate
         // (`docs/decisions/english-v4.md` §4.5).
-        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "GenitiveNominals", conjunct: Some("GenitiveNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),

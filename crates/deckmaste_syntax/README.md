@@ -424,7 +424,10 @@ Admission checks the same rule on the Reading's own Constituents, without
 parsing. Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and
-postpose an Object. With `postposed`, a phrase whose Object is followed only by
+postpose an Object. Its `interleaved` Category interleaves before any selected
+PP Complement or shifted Object; its `interleaved_internalised` Category only
+before the Internalised Complement of a passive, a non-core Complement (CGEL,
+Ch. 4 §3.2.1, p. 241). With `postposed`, a phrase whose Object is followed only by
 selected PP complements also ends in a `modifier` of that function Category,
 postposed out of the Object past them and agreeing with it in each feature
 both carry (*put a number of counters on it equal to …*; CGEL, Ch. 12 §4,
