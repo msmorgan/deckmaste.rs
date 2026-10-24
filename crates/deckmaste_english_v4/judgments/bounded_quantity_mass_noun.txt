@@ -16,7 +16,7 @@
 +NounPhrase 4 or more counters => DeterminerPhrase "4 or more" as Determiner of counter
 # from: Peculiar Lighthouse
 + A player has 13 or less life.
-+ You have at least 7 life.
++ Activate only if you have at least 7 life more than your starting life total and only as a sorcery.
 # from: Scroll of Origins
 + You have 5 or more cards in hand.
 +NounPhrase mana value 3 or less

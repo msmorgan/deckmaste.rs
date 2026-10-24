@@ -4,12 +4,13 @@
 + When this creature enters, each opponent creates a 1/1 red Pirate creature token with "This token can't block" and "Creatures you control attack each combat if able."
 + <card=Iron Hills Blacksmith> When this creature enters, create a colorless Equipment artifact token named Axe with "Equipped creature gets +1/+0" and equip {2}.
 + Equipped creature has "Whenever you draw a card, this creature gets +1/+1 and gains flying until end of turn" and "{4}: Draw a card."
+# from: Nerd Rage
 + It has "{T}: Draw a card" and "{T}: Add {G}."
-+ It has "{T}: Add {G}" and flying.
 # from: Splintering Wind
 + It has flying and "{T}: Add {G}."
 # from: Glorious Sunrise
 + Target creature gains "{T}: Add {G}" until end of turn.
+# from: Red Mage's Rapier
 + It has "This creature can't block" and is a Wizard.
 + Equipped creature gets +1/+1, has "Whenever this creature attacks, you gain 1 life," and is a Cleric in addition to its other types. => VerbPhrase "has \"Whenever this creature attacks, you gain 1 life,\""; Ability "Whenever this creature attacks, you gain 1 life"
 # from: Icingdeath, Frost Tyrant

@@ -11,11 +11,12 @@
 + They're not legendary.
 # from: Court of Vantress
 + You're not the monarch.
+# from: Vision, Synthezoid Avenger
 + It isn't your turn.
 # from: Tawnos's Tinkering
 + It isn't a creature.
+# from: Echoing Equation
 + They aren't legendary.
-+ You aren't the monarch.
 + It's your turn.
 # from: Samite Alchemist
 + It doesn't untap.

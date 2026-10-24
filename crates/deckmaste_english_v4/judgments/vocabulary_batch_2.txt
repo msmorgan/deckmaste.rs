@@ -169,5 +169,5 @@
 +NounPhrase <card=Pia Nalaar, Chief Mechanic> Nalaar Aetherjet
 +Clause <card=Tomb of Urami> Create Urami => NounPhrase "Urami"
 +NounPhrase <card=Tomb of Urami> Urami
-+VerbPhrase <card=Tuktuk the Explorer> named Tuktuk the Returned => NounPhrase "Tuktuk the Returned"
++VerbPhrase <card=Kibo, Uktabi Prince> named Banana => NounPhrase "Banana"
 +NounPhrase <card=Tuktuk the Explorer> Tuktuk the Returned

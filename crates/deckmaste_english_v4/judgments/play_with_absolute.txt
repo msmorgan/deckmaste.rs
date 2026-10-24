@@ -8,8 +8,6 @@
 + You may play that card.
 + Play lands.
 + Players can't play lands.
-+ Players attack.
-+ You may look at that card with it revealed.
 # from: Zur's Weirding
 + Players play with their hands revealed. => PrepositionPhrase "with their hands revealed" as Adjunct of play
 + It enters with a +1/+1 counter on it.

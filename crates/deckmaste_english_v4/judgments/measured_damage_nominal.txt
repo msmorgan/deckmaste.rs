@@ -12,7 +12,6 @@
 # from: Plated Pegasus
 + Prevent 3 damage. => NounPhrase "3 damage" as Object of prevent; readings 1
 +VerbPhrase deals 3 damage => NounPhrase "3 damage" as Object of deal; readings 1
-+NounPhrase the next 3 mana
 # from: Conservator
 +NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn"
 *NounPhrase 3 damages

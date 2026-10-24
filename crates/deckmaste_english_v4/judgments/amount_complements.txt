@@ -6,7 +6,6 @@
 + You scry 3.
 # from: Bumi, King of Three Trials
 + Target player scries 3.
-+ Connive 2.
 + Connive.
 + This creature connives.
 * You scries 3.

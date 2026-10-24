@@ -12,7 +12,6 @@
 * As an additional cost to casts this spell, sacrifice a creature.
 +NounPhrase two mana
 + At the beginning of your upkeep, sacrifice a creature.
-+ During your turn, sacrifice a creature.
 + You may exert this creature as it attacks.
 + As an additional cost to cast this spell, discard a land card. => NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; Clause "to cast this spell"; VerbPhrase "discard a land card"
 + As an additional cost to cast this spell, discard a card or pay {5}. => NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; Clause "to cast this spell"; VerbPhrase "pay {5}"

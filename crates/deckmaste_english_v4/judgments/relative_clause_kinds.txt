@@ -1,8 +1,7 @@
 # Relative clause kinds: subject and object relatives with that, which and who; whose; a fronted preposition with its relative pronoun; fused relatives; relatives of quantified nominals and fused heads; participial postmodifiers; hollow infinitivals; and a Gap inside a purpose adjunct
-+ Destroy each creature that attacked this turn. => RelativeClause "that attacked this turn" as Modifier of creature gap "creature"
++ This spell costs {1} less to cast for each creature that attacked this turn. => RelativeClause "that attacked this turn" as Modifier of creature gap "creature"
 # from: Depopulate
 + Each player who controls a multicolored creature draws a card. => RelativeClause "who controls a multicolored creature" gap "player"; NounPhrase "Each player who controls a multicolored creature" as Subject of draw
-+ Exile target creature which an opponent controls. => RelativeClause "which an opponent controls" gap "creature"
 # from: Seasinger
 +NounPhrase target creature whose controller controls an Island => RelativeClause "whose controller controls an Island" gap "creature"; NounPhrase "whose controller"
 + <card=Obeka, Brute Chronologist> {T}: The player whose turn it is may end the turn. => RelativeClause "whose turn it is" gap "player"; NounPhrase "whose turn"
@@ -13,7 +12,6 @@
 +NounPhrase two +1/+1 counters => !RelativeClause "+1/+1 counters"
 # from: Conservator
 +NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn" gap "next 3 damage"
-+NounPhrase a spell targeting this creature => VerbPhrase "targeting this creature" as Modifier of spell
 + <card=Verazol, the Split Current> Verazol enters with a +1/+1 counter on it for each mana spent to cast it. => NounPhrase "each mana spent to cast it"; VerbPhrase "spent to cast it" as Modifier of mana
 # from: Mental Modulation
 + This spell costs {1} less to cast during your turn. => Clause "to cast" as Complement of cost

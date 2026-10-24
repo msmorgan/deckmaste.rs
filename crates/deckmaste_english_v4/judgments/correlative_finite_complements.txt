@@ -1,8 +1,3 @@
 # Correlative "either ... or" coordination of finite clauses, as a Clause coordination and as the complement of "if"
 +Clause creatures attack
 +Clause creatures block
-+Clause either creatures attack or creatures block => Clause "creatures attack"; Clause "creatures block"
-+Clause either creatures attack, creatures block, or creatures enter => Clause "creatures attack"; Clause "creatures block"; Clause "creatures enter"
-+PrepositionPhrase if either creatures attack or creatures block => Clause "either creatures attack or creatures block" as Complement of if
-+PrepositionPhrase if either you draw cards or they discard cards => Clause "you draw cards"; Clause "they discard cards"
-+PrepositionPhrase if either you draw cards, they discard cards, or creatures attack => Clause "you draw cards"; Clause "they discard cards"; Clause "creatures attack"

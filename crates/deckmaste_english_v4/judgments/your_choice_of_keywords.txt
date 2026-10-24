@@ -8,8 +8,6 @@
 + <card=Walking Sponge> {T}: Target creature loses your choice of flying, first strike, or trample until end of turn. => NounPhrase "your choice of flying, first strike, or trample" as Object of lose; PrepositionPhrase "of flying, first strike, or trample" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of lose
 +NounPhrase your choice of double strike, protection from red, vigilance, or shadow => PrepositionPhrase "of double strike, protection from red, vigilance, or shadow" as Complement of choice; KeywordPhrase "double strike"; KeywordPhrase "protection from red"
 +NounPhrase your choice of banding, flying, first strike, or trample => PrepositionPhrase "of banding, flying, first strike, or trample" as Complement of choice; KeywordPhrase "first strike"
-+ Target creature gets +1/+1 and gains deathtouch or lifelink until end of turn.
-+ Target creature gains deathtouch or lifelink until end of turn.
 + This creature enters with your choice of a reach counter or a vigilance counter on it.
 + When The Third Doctor enters, create your choice of a Clue token, a Food token, or a Treasure token.
 + Enchanted creature has flying, first strike, and vigilance.

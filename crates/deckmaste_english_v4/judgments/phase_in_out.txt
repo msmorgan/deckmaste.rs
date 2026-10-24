@@ -22,14 +22,10 @@
 +VerbPhrase phase out => PrepositionPhrase "out" as Complement of phase
 +VerbPhrase phases in => PrepositionPhrase "in" as Complement of phase
 +VerbPhrase phases out => PrepositionPhrase "out" as Complement of phase
-# from: Out of Time
-+VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
 +VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
 +NounPhrase your main phase
 +Nominal combat phase
 +NounPhrase your main phases
-+ This creature rounds up.
-+ This creature rounds down.
 # from: Ponder
 + Put them back in any order.
 + This creature can't block.

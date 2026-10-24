@@ -4,28 +4,21 @@
 + <card=Scorch Spitter> Whenever this creature attacks, it deals 1 damage to the player or planeswalker it's attacking. => RelativeClause "it's attacking" gap "player or planeswalker" || RelativeClause "it's attacking" gap "planeswalker"
 + <card=Astral Confrontation> This spell costs {1} less to cast for each opponent you're attacking. => RelativeClause "you're attacking" gap "opponent"
 + <card=Wall of Shadows> Prevent all damage that would be dealt to this creature by creatures it's blocking. => RelativeClause "it's blocking" gap "creatures"
-# from: Scorch Spitter
 +RelativeClause it's attacking
-+RelativeClause it's attacking
-# from: Undercellar Sweep
 +RelativeClause you're attacking
-+RelativeClause you're attacking
+# from: Capricopian
 +NounPhrase the player it's attacking => RelativeClause "it's attacking" gap "player"; readings 1
 # from: Capricopian
 +NounPhrase the player this creature is attacking => RelativeClause "this creature is attacking" gap "player"; readings 1
+# from: Capricopian
 +NounPhrase the player that creature is attacking => RelativeClause "that creature is attacking" gap "player"; readings 1
 # from: Wall of Corpses
 +RelativeClause this creature is blocking
 # from: Plasma Caster
 + Choose target creature that's blocking equipped creature. => RelativeClause "that's blocking equipped creature" gap "creature"; readings 1
 + Destroy target creature blocking this creature. => VerbPhrase "blocking this creature" as Modifier of creature
-+ This creature is blocking a creature.
-+RelativeClause that is blocked => AdjectivePhrase "blocked" as PredicativeComplement of be || VerbPhrase "blocked" as Complement of be
-+ Destroy target creature this creature blocked. => RelativeClause "this creature blocked" gap "creature"
++ Whenever this creature blocks a creature, if at least one other Wall creature is blocking that creature and no non-Wall creatures are blocking that creature, this creature gains banding until end of turn.
 # from: Wall of Corpses
 + Destroy target creature this creature is blocking. => RelativeClause "this creature is blocking" gap "creature"
-+ It deals 1 damage to the player it attacked. => RelativeClause "it attacked" gap "player"
-+ Destroy target creature you've attacked. => RelativeClause "you've attacked" gap "creature"
 *NounPhrase the player it is attack
 *NounPhrase the player it is attacked
-+NounPhrase the player it is attacking you => !RelativeClause "it is attacking you" gap "player"

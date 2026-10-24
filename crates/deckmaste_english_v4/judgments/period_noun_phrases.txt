@@ -7,6 +7,7 @@
 + If you would begin your draw step, you may skip that step instead. If you do, you gain 2 life. => NounPhrase "that step" as Object of skip
 + You skip your next turn. => NounPhrase "your next turn" as Object of skip
 + Take an extra turn after this one. => NounPhrase "an extra turn" as Object of take
+# from: Laboratory Drudge
 + At the beginning of each end step, draw a card. => NounPhrase "each end step" as Complement of of
 + After this main phase, there is an additional combat phase followed by an additional main phase. => NounPhrase "this main phase" as Complement of after
 + Only the chosen creatures can attack during that combat phase. => NounPhrase "that combat phase" as Complement of during; !NounPhrase "that combat phase" as Object of attack

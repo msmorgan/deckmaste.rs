@@ -19,6 +19,7 @@
 # passives; and a numeral as a noun.
 + <card=Spider Climb> If you cast it any time a sorcery couldn't have been cast, the controller of the permanent it becomes sacrifices it at the beginning of the next cleanup step. => NounPhrase "the permanent it becomes" as Complement of of; RelativeClause "it becomes" gap "permanent"
 + <card=Dead Ringers> Destroy two target nonblack creatures unless either one is a color the other isn't. => NounPhrase "a color the other isn't" as PredicativeComplement of be; RelativeClause "the other isn't" gap "color"
+# from: Capricopian
 +NounPhrase the player it's attacking => RelativeClause "it's attacking" gap "player"; readings 1
 # from: Capricopian
 +NounPhrase the player it is attacking => RelativeClause "it is attacking" gap "player"; readings 1
@@ -30,7 +31,6 @@
 + <card=Volatile Chimera> {1}{R}: Choose a card at random you exiled with cards named Volatile Chimera. This creature becomes a copy of that card, except it has this ability. => RelativeClause "you exiled with cards named Volatile Chimera" gap "card"
 + <card=Celeborn the Wise> Whenever you scry, Celeborn gets +1/+1 until end of turn for each card looked at while scrying this way. => VerbPhrase "looked at" head look; NounPhrase "each card looked at while scrying this way" as Complement of for
 + <card=Critical Hit> When you roll a natural 20, return this card from your graveyard to your hand. => NounPhrase "a natural 20" as Object of roll; AdjectivePhrase "natural"
-+NounPhrase a 20 => readings 1
 + <card=North Star> {4}, {T}: For one spell this turn, you may spend mana as though it were mana of any type to pay that spell's mana cost. => PrepositionPhrase "For one spell" as Adjunct of may; NounPhrase "this turn" as Adjunct of may
 + <card=Overpowering Attack> Untap all creatures you control that attacked this turn. If it's your main phase, there is an additional combat phase after this phase, followed by an additional main phase. => VerbPhrase "followed by an additional main phase"
 # from: The Toymaker's Trap

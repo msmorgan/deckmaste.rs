@@ -6,7 +6,6 @@
 + <card=Rowan Kenrith> Partner with Will Kenrith
 # from: Rory Williams
 +KeywordPhrase Partner with Amy Pond
-+KeywordPhrase Partner with Aang and Katara
 # from: Silvar, Devourer of the Free
 +KeywordPhrase Partner with Trynn, Champion of Freedom
 + Partner

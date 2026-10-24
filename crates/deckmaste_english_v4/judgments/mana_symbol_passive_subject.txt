@@ -4,6 +4,7 @@
 + When this creature enters, if {B} was spent to cast it, target player discards a card. => NounPhrase "{B}"; Clause "to cast it"
 + When you cast this spell, if {C} wasn't spent to cast it, target opponent may put a creature card from their hand onto the battlefield. => NounPhrase "{C}"; Clause "to cast it"
 + If {U}{B} was spent to cast this spell, search your library for a card, put that card into your graveyard, then shuffle. => NounPhrase "{U}{B}"; Clause "to cast this spell"
+# from: Torrent of Souls
 + Draw a card if {G} was spent to cast this spell. => NounPhrase "{G}"; Clause "to cast this spell"
 # from: Vexing Bauble
 + If no mana was spent to cast it, draw a card.
@@ -11,7 +12,5 @@
 + Mana from a Treasure was spent to cast it.
 # from: Chromatic Orrery
 + You may spend mana as though it were mana of any color.
-+VerbPhrase spend {U}
-+ You spend {U}.
 * {U}{B} were spent.
 +Clause {U} was spent

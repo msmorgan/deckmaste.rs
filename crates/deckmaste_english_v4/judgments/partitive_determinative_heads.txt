@@ -11,35 +11,17 @@
 +NounPhrase another of those counters => PrepositionPhrase "of those counters" as Complement of another; readings 1
 +NounPhrase any of them => PrepositionPhrase "of them" as Complement of any; readings 1
 +NounPhrase either of them => PrepositionPhrase "of them" as Complement of either; readings 1
-+NounPhrase neither of them => PrepositionPhrase "of them" as Complement of neither; readings 1
-+NounPhrase some of them => PrepositionPhrase "of them" as Complement of some; readings 1
-+NounPhrase most of them => PrepositionPhrase "of them" as Complement of most; readings 1
-+NounPhrase many of them => PrepositionPhrase "of them" as Complement of many; readings 1
 +NounPhrase more of them => PrepositionPhrase "of them" as Complement of more; readings 1
-+NounPhrase fewer of them => PrepositionPhrase "of them" as Complement of fewer; readings 1
 +NounPhrase none of them => PrepositionPhrase "of them" as Complement of none; readings 1
 +NounPhrase any of that mana => PrepositionPhrase "of that mana" as Complement of any
-+NounPhrase some of that mana => PrepositionPhrase "of that mana" as Complement of some
-+NounPhrase all of that mana => PrepositionPhrase "of that mana" as Complement of all
-+NounPhrase most of that mana => PrepositionPhrase "of that mana" as Complement of most
 +NounPhrase much of that mana => PrepositionPhrase "of that mana" as Complement of much
-+NounPhrase less of that mana => PrepositionPhrase "of that mana" as Complement of less
-+NounPhrase more of that mana => PrepositionPhrase "of that mana" as Complement of more
-# from: Arena of Glory
-+NounPhrase any of that mana => PrepositionPhrase "of that mana" as Complement of any
 # from: Mnemonic Betrayal
 + If any of those cards remain exiled, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
+# from: Gandalf, Westward Voyager
 + If any of those cards shares a card type, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
 +NounPhrase any of those cards => PrepositionPhrase "of those cards" as Complement of any
-# from: Hope and Glory
 +Clause Each of them gets +1/+1
-+Clause Both of them get +1/+1
-+Clause Many of them get +1/+1
-+Clause Each of them gets +1/+1
-+Clause Either of them gets +1/+1
-+Clause Another of them gets +1/+1
 +Clause Any of that mana is spent on a creature spell
-+Clause Much of that mana is spent on a creature spell
 *Clause All of them gets +1/+1
 *Clause Both of them gets +1/+1
 *Clause Many of them gets +1/+1
@@ -51,4 +33,4 @@
 + Remove all of them. => NounPhrase "all of them" as Object of remove; PrepositionPhrase "of them" as Complement of all
 # from: Maddening Imp
 + Destroy each of those creatures that didn't attack this turn. => NounPhrase "each of those creatures that didn't attack this turn" as Object of destroy; PrepositionPhrase "of those creatures that didn't attack this turn" as Complement of each; RelativeClause "that didn't attack this turn" as Modifier of creature
-+ Destroy any of those creatures that are Walls. => NounPhrase "any of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of any; RelativeClause "that are Walls" as Modifier of creature
++ Destroy any of them that are Walls. => NounPhrase "any of them that are Walls" as Object of destroy

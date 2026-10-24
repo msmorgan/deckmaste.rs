@@ -5,39 +5,9 @@
 + <card=Vraska, Relic Seeker> −10: Target player's life total becomes 1. => VerbPhrase "becomes 1"; Predicative "1" as PredicativeComplement of become
 + <card=Null Profusion> Your maximum hand size is two. => NounPhrase "Your maximum hand size" as Subject of be; VerbPhrase "is two"; Predicative "two" as PredicativeComplement of be
 + <card=Cursed Rack> The chosen player's maximum hand size is four. => NounPhrase "The chosen player's maximum hand size" as Subject of be; VerbPhrase "is four"; Predicative "four" as PredicativeComplement of be
-+VerbPhrase can be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase can be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase can be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase can be 1 or less => Predicative "1 or less" as PredicativeComplement of be
 +VerbPhrase can't be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase can't be X => Predicative "X" as PredicativeComplement of be
 # from: Lair of the Hydra
 +VerbPhrase can't be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase can't be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase could be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase could be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase could be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase could be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase couldn't be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase couldn't be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase couldn't be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase couldn't be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase must be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase must be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase must be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase must be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase may be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase may be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase may be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase may be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase might be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase might be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase might be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase might be 1 or less => Predicative "1 or less" as PredicativeComplement of be
-+VerbPhrase would be 0 => Predicative "0" as PredicativeComplement of be
-+VerbPhrase would be X => Predicative "X" as PredicativeComplement of be
-+VerbPhrase would be two => Predicative "two" as PredicativeComplement of be
-+VerbPhrase would be 1 or less => Predicative "1 or less" as PredicativeComplement of be
 +Clause X can't be 0
 # from: Inferno of the Star Mounts
 +Clause its power becomes 0
@@ -54,7 +24,6 @@
 # from: PuPu UFO
 + Its power becomes equal to the number of Towns you control.
 + You have no maximum hand size.
-+ It can't be a creature.
 + It can't be blocked.
 # from: Tawnos's Tinkering
 + It becomes a 1/1 creature.

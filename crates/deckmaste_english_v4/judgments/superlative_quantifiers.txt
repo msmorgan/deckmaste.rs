@@ -4,8 +4,6 @@
 +NounPhrase the most life => DeterminerPhrase "the most" as Determiner of life; readings 1
 # from: Tectonic Hellion
 +NounPhrase the most lands => DeterminerPhrase "the most" as Determiner of land; readings 1
-# from: Seraphic Greatsword
-+NounPhrase the most life => DeterminerPhrase "the most" as Determiner of life; readings 1
 +NounPhrase the least power => DeterminerPhrase "the least" as Determiner of power; readings 1
 +NounPhrase most creatures => DeterminerPhrase "most" as Determiner of creature; readings 1
 *NounPhrase the most creature

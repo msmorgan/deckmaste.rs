@@ -6,8 +6,7 @@
 + You may have this Equipment enter as a copy of any Equipment on the battlefield. => PrepositionPhrase "as a copy of any Equipment on the battlefield" as Adjunct of enter
 # from: Kinjalli's Sunwing
 + Creatures you control enter tapped.
+# from: Callidus Assassin
 + You may have this creature enter tapped.
-# from: Volrath's Gardens
-+ Activate only as a sorcery. => PrepositionPhrase "only as a sorcery" as Adjunct of activate
 + Corrupted — For each opponent who has three or more poison counters as you cast this spell, put up to one target creature card from that player's graveyard onto the battlefield under your control. => PrepositionPhrase "as you cast this spell"; Clause "you cast this spell" as Complement of as
 + Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types. => PrepositionPhrase "with a number of additional +1/+1 counters on it equal to this creature's power"

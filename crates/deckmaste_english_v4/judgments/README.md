@@ -82,13 +82,12 @@ The grammar parses Oracle text into Readings that keep the legitimate
 Ambiguity and no more; it does not validate templating. Text that Oracle
 would template differently (digits for a spelled number, a capital, a glyph,
 a missing comma, *if possible* for *if able*) may parse incidentally, and
-that is fine. The grammar does not police strings that no card contains. A `*` entry
-therefore claims only the rejection of a wrong inflectional form, which
-generation needs to choose the right one: agreement in Person, Number or
+that is fine. The grammar does not police strings that no card contains. A `*`
+entry is a minimal ungrammatical variant of a real or cited construction. It
+pins a formation rule that generation needs: agreement in Person, Number or
 Countability (*a creatures*, *You draws cards.*), Case (*Draw cards from
-they.*) and verb form (*choose not untap this creature*). A synthetic word
-combination that no card contains (*Destroy creature target.*, *up two target
-creatures*) gets no entry. A constraint that keeps a spurious Reading off real
+they.*), verb form (*choose not untap this creature*), order or selection. Cite
+its source card where one exists. A constraint that keeps a spurious Reading off real
 Oracle text is witnessed by a `+` entry on that text, with a `!` assertion or
 a Reading count. A rule, feature or production that would exist only to reject
 some text is never added, and no entry asks for one.
@@ -98,7 +97,8 @@ under a Category mark), or a simplification of a named card's text that keeps
 the construction under test. A simplification names its source with
 `<card=NAME>` or a `# from: NAME` comment on the line above, and that card's
 text must contain the construction. An entry whose construction no card prints
-gets no entry. The `*` inflection entries above are the one exception.
+gets no entry, except a `*` entry (above) and a `+` entry marked `# kept` as the
+only judgment that exercises a Production.
 
 Punctuation that the construction determines is never stored in a Reading.
 The separator between the keywords of a keyword line is always a comma: Oracle's
