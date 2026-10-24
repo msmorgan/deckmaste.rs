@@ -115,6 +115,9 @@ const ADVERBS: &str = "lexicon/english/adverbs.ron";
 const TYPES: &str = "catalogs/types.ron";
 const SUBTYPES: &str = "catalogs/subtypes.ron";
 const KEYWORD_ACTIONS: &str = "catalogs/keyword_actions.ron";
+/// The class of a Keyword Lexeme whose face has its bracketed text removable:
+/// [`schema::KeywordAbility::bracketed_text_removable`].
+pub const BRACKETED_TEXT_REMOVABLE: &str = "BracketedTextRemovable";
 const KEYWORD_ABILITIES: &str = "catalogs/keyword_abilities.ron";
 const ABILITY_WORDS: &str = "catalogs/ability_words.ron";
 const COUNTERS: &str = "catalogs/counters.ron";
@@ -713,6 +716,12 @@ impl Sources {
                         .properties
                         .classes
                         .insert("ParameterizedKeyword".into());
+                }
+                if ability.bracketed_text_removable {
+                    lexeme
+                        .properties
+                        .classes
+                        .insert(BRACKETED_TEXT_REMOVABLE.into());
                 }
                 builder.push(lexeme);
             }

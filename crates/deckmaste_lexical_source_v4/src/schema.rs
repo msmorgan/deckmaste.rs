@@ -648,6 +648,11 @@ pub struct KeywordAbility {
     pub parameters: Vec<Vec<KeywordParameter>>,
     #[serde(default)]
     pub bound: Option<BoundSurface>,
+    /// Whether a face with this keyword has its text changed by removing all
+    /// text found within square brackets, as a cleave spell cast for its
+    /// cleave cost does [CR#702.148a]; the brackets mark that text.
+    #[serde(default)]
+    pub bracketed_text_removable: bool,
     /// Keywords the rule defines as variants, each its own Keyword Lexeme:
     /// *megamorph* [CR#702.37b], *partner—Friends forever* [CR#702.124i].
     #[serde(default)]

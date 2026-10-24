@@ -10,6 +10,12 @@ use deckmaste_english_v4::census::Unread;
 use deckmaste_english_v4::census::Verdict;
 use deckmaste_english_v4::corpus::Corpus;
 use deckmaste_english_v4::corpus::Face;
+use deckmaste_lexical::Category;
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Source;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical_source_v4::BRACKETED_TEXT_REMOVABLE;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 
 fn face(identity: &str, text: &str) -> Face {
@@ -125,8 +131,24 @@ fn an_unbound_grammar_leaves_every_unit_unread() {
 /// face a square bracket is only punctuation.
 #[test]
 fn a_cleave_line_is_read_without_its_brackets_and_without_their_text() {
+    // The catalog marks cleave as a keyword whose bracketed text is removable.
+    let mut cleave = Lexeme::invariant(
+        "keyword:cleave",
+        "cleave",
+        Category::Keyword,
+        Source {
+            kind: SourceKind::Keyword,
+            path: "test".to_owned(),
+            owner: "test".to_owned(),
+        },
+    );
+    cleave
+        .properties
+        .classes
+        .insert(BRACKETED_TEXT_REMOVABLE.into());
+    let seeded = seed::lexicon();
     let env = LexicalEnvironment {
-        lexicon: seed::lexicon(),
+        lexicon: Lexicon::new(seeded.lexemes().values().cloned().chain([cleave])).unwrap(),
         frames: seed::frames(),
     };
     let mut corpus = Corpus::default();

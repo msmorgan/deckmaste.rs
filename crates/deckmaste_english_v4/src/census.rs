@@ -183,13 +183,14 @@ pub fn run(
             map.entry(e.text.as_str()).or_insert_with(Vec::new).push(e);
             map
         });
+    let bracket_keywords = crate::cleave::BracketKeywords::new(&env.lexicon);
     let cleave_faces: Vec<bool> = corpus
         .faces
         .iter()
         .map(|face| {
             face.oracle_text
                 .as_deref()
-                .is_some_and(|text| crate::cleave::has_cleave(&split_lines(text)))
+                .is_some_and(|text| bracket_keywords.mark(&split_lines(text)))
         })
         .collect();
     let threads = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
