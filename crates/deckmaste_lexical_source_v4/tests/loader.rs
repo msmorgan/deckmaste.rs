@@ -83,6 +83,7 @@ fn a_frame_belongs_to_its_head_category() {
             countability: vec![deckmaste_lexical::Countability::Count],
             plural: None,
             frames: vec![FrameSpec::Monotransitive],
+            variable: false,
         },
     ));
     rejects(&sources, "is not a frame of a Noun");

@@ -248,6 +248,12 @@ pub struct NounEntry {
     pub plural: Option<Spellings>,
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+    /// The noun names a variable whose values are cited names, so that a
+    /// specifying copular clause with it as the head of its Subject names
+    /// the value (*the new creature type can't be Wall*; CGEL, Ch. 4 §5.5,
+    /// pp. 266-269). `type` has it.
+    #[serde(default)]
+    pub variable: bool,
 }
 
 fn count() -> Vec<Countability> {
@@ -274,6 +280,7 @@ impl NounDecl {
                 countability: count(),
                 plural: None,
                 frames: Vec::new(),
+                variable: false,
             },
             Self::Entry(entry) => entry.clone(),
         }

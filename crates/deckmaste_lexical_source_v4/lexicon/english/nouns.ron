@@ -142,7 +142,9 @@
     (lemma: "target", distribution: HeadOnly),
     "team",
     "teammate",
-    (lemma: "text", countability: [Mass], frames: [Complement(PP(["of"]))]),
+    // A quoted ability follows *text* as its apposition (*has the text
+    // "{2}: Discard a card."*; CGEL, Ch. 5 §14.3, p. 447).
+    (lemma: "text", countability: [Mass], frames: [Complement(PP(["of"])), Complement(QuotedAbility)]),
     "tie",
     (lemma: "time", kind: Temporal, distribution: Serial, countability: [Count, Mass]),
     "token",
@@ -152,7 +154,9 @@
     (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"])), Intransitive]),
     (lemma: "toughness", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
     (lemma: "turn", kind: Temporal),
-    "type",
+    // The variable of a specifying clause whose values are cited names (*the
+    // new creature type can't be Wall*; CGEL, Ch. 4 §5.5, pp. 266-269).
+    (lemma: "type", variable: true),
     // "for the same value", "double the value of X".
     (lemma: "value", frames: [Complement(PP(["of"]))]),
     // *the total of those results*; the attributive word is the adjective.
@@ -177,7 +181,7 @@
     // A zone name [CR#408.1]; `command` occurs in no other sense.
     "command zone",
     "life total",
-    (lemma: "mana cost", frames: [Complement(PP(["for", "of"]))]),
+    (lemma: "mana cost", countability: [Count, Mass], frames: [Complement(PP(["for", "of"])), Complement(Cost)]),
     (lemma: "mana value", countability: [Count, Mass], frames: [Complement(Amount)]),
     // [CR#103.6]; `opening` occurs in no other sense.
     "opening hand",
