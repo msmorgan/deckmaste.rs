@@ -145,6 +145,9 @@ inductive Refusal where
   /-- A deontic rule carries a rider (`DeonticMods.rider`) but is no permission: only `can`
   permits an act a rider can modify. -/
   | deonticRider
+  /-- A Resolution Delayed Trigger (`StaticSpec.resolutionDelayedTrigger`) creates a delayed
+  triggered ability, bare or under a condition, and does nothing else [CR#608.3g]. -/
+  | createsDelayedTrigger
   | verbedVoiceOk
   /-- A handoff names neither a player nor an object. -/
   | handoffPerformer

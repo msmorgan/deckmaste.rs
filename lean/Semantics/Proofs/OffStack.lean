@@ -7,9 +7,9 @@ import Semantics.Check.Card
 Off-Stack Statics (`semantics-v2-off-stack-statics`, `docs/decisions/semantics-v2.md` §7, ruling
 2026-10-09): "as [event], do" (`StaticSpec.asEvent`) and "any time [condition] holds, do"
 (`StaticSpec.whileHolds`), which carry an action that never uses the stack [CR#113.9]; the delayed
-triggers dash, blitz and warp create as the permanent is put onto the battlefield
-[CR#608.3g,603.7d]; the entering an Aura's enchant ability and sunburst replace instead
-[CR#614.1c,303.4f,303.4g,702.44a]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
+triggers dash, blitz and warp create as the permanent is put onto the battlefield, each a
+Resolution Delayed Trigger (`StaticSpec.resolutionDelayedTrigger`, [CR#608.3g,603.7d]); the
+entering an Aura's enchant ability and sunburst replace instead [CR#614.1c,303.4f,303.4g,702.44a]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
 and a deontic rule's one exempt source (`DeonticExcept`, [CR#702.145b,702.13b]). The keyword bodies are
 read through their declarations (`Semantics.Definitions`). Each pin is closed by `decide` or `rfl`.
 -/
@@ -171,10 +171,12 @@ theorem okTributeWasntPaid :
 
 /-! ## Delayed triggers created as the permanent enters -/
 
-/-- "as that permanent is put onto the battlefield" from the stack, as the spell resolves
-[CR#608.3a,608.3g]. -/
-def putOntoTheBattlefieldAsItResolves : GameEvent :=
-  does .any (.move thisPermanent stack battlefield .arrival [])
+/-- The Resolution Delayed Triggers of a keyword's body: the delayed trigger each creates. -/
+def resolutionDelayedTriggers : Ability → List Action
+  | .keyword _ _ body => body.filterMap fun
+    | .static (.resolutionDelayedTrigger action) => some action
+    | _ => none
+  | _ => []
 
 /-- The Off-Stack Statics of a keyword's body: their events and actions. -/
 def offStackStatics : Ability → List (GameEvent × Action)
@@ -186,23 +188,40 @@ def offStackStatics : Ability → List (GameEvent × Action)
 /-- Dash, blitz and warp each create their delayed trigger as the permanent is put onto the
 battlefield as the spell resolves, not as the cost is paid [CR#608.3g]: a countered spell, which
 never becomes a permanent, creates none, and a copy, which becomes a token permanent as it is
-put onto the battlefield [CR#608.3f], creates its own. -/
+put onto the battlefield [CR#608.3f], creates its own. Each is a Resolution Delayed Trigger, an
+ability of its own [CR#702.109a,702.152a,702.185a,113.2c], and none is an "as [event]" Off-Stack
+Static. Rewritten from the pin that each watched an invented event, the permanent's move from
+the stack to the battlefield: the rules give the timing, and the text names no event. -/
 theorem delayedTriggersWaitForThePermanent :
-    ((offStackStatics (dash (mana [generic 1]))).map (·.1),
-      (offStackStatics (blitz (mana [generic 1]))).map (·.1),
-      (offStackStatics (warp (mana [generic 1]))).map (·.1))
-      = ([putOntoTheBattlefieldAsItResolves], [putOntoTheBattlefieldAsItResolves],
-        [putOntoTheBattlefieldAsItResolves]) := by
+    ((resolutionDelayedTriggers (dash (mana [generic 1]))).length,
+      (resolutionDelayedTriggers (blitz (mana [generic 1]))).length,
+      (resolutionDelayedTriggers (warp (mana [generic 1]))).length,
+      offStackStatics (dash (mana [generic 1])),
+      offStackStatics (blitz (mana [generic 1])),
+      offStackStatics (warp (mana [generic 1])))
+      = (1, 1, 1, [], [], []) := by
   rfl
 
-/-- Blitz's delayed trigger, guarded by its own cost and naming the permanent directly: its
-controller is the spell's controller as it resolved, who controls the permanent it sacrifices
-[CR#603.7d,701.21a]. -/
+/-- Blitz's delayed trigger, guarded by its own cost on this spell and naming the permanent this
+spell becomes as it resolves, under the spell's controller [CR#608.3a]: the trigger's controller
+is the spell's controller as it resolved, who controls the permanent it sacrifices
+[CR#603.7d,701.21a]. Rewritten from the `asEvent` tree, which read both
+off `thisPermanent`. -/
 theorem blitzSacrificesThePermanent :
-    (offStackStatics (blitz (mana [generic 1]))).map (·.2)
-      = [doIf (keywordCostPaid (.named "blitz") thisPermanent)
-          (atNext .endStep (sacrifice thisPermanent))] := by
+    resolutionDelayedTriggers (blitz (mana [generic 1]))
+      = [doIf (keywordCostPaid (.named "blitz") thisSpell)
+          (atNext .endStep (sacrifice (becomes thisSpell)))] := by
   rfl
+
+/-- A Resolution Delayed Trigger creates a delayed trigger, bare or under a condition, and does
+nothing else [CR#608.3g]: "if this spell's dash cost was paid, draw a card" is refused. -/
+theorem resolutionDelayedTriggerCreatesOne :
+    StaticSpec.check (DRS.ofList [])
+        (resolutionDelayedTrigger (atNext .endStep (returnToHand (becomes thisSpell)))) = [] ∧
+      StaticSpec.check (DRS.ofList [])
+        (resolutionDelayedTrigger (doIf (keywordCostPaid (.named "dash") thisSpell) (draw 1))) =
+        [.createsDelayedTrigger] := by
+  decide
 
 theorem okDashBlitzWarp :
     (Ability.check (DRS.ofList []) (dash (mana [generic 1])),

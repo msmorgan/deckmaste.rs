@@ -1015,12 +1015,22 @@ mutual
     | specialAction (player : Option NounPhrase) (when : Option Timing) (cost : Cost)
         (does : Action)
     /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
-    using the stack, as a static ability is [CR#113.9]. A static ability of a resolving permanent
-    spell that creates a delayed trigger creates it as the permanent is put onto the battlefield,
-    with the spell as its source and the spell's controller as it resolved as its controller
-    (dash, blitz, warp [CR#608.3g,603.7d]). "As this enters, …" text is a replacement of the
-    entering instead (`replace … (before …)` or `replace … (alongside …)`, [CR#614.1c]). -/
+    using the stack, as a static ability is [CR#113.9]. It is for printed "As <event>, …" text.
+    "As this enters, …" text is a replacement of the entering instead (`replace … (before …)` or
+    `replace … (alongside …)`, [CR#614.1c]). -/
     | asEvent (event : GameEvent) (does : Action)
+    /-- A Resolution Delayed Trigger: a static ability of a permanent spell that functions on the
+    stack and creates a delayed triggered ability, `does`, written as the delayed trigger itself,
+    bare or under a printed condition ("If this spell's dash cost was paid, return the permanent
+    this spell becomes to its owner's hand at the beginning of the next end step"). The delayed
+    trigger is created as the permanent is put onto the battlefield as the spell resolves
+    [CR#608.3g], with the spell as its source and the spell's controller as it resolved as its
+    controller [CR#603.7d]: a countered spell creates none, and a copy, which becomes a token
+    permanent as it is put onto the battlefield [CR#608.3f], creates its own. It is its own
+    ability, as dash's, blitz's and warp's are [CR#702.109a,702.152a,702.185a,113.2c], and so no
+    Permission Rider; the permanent is named as the one the spell becomes (`becomes thisSpell`).
+    The checker refuses a `does` that is not a delayed trigger (`createsDelayedTrigger`). -/
+    | resolutionDelayedTrigger (does : Action)
     /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
     is carried out without using the stack, as a static ability is [CR#113.9,702.131b]. -/
     | whileHolds (condition : Condition) (does : Action)
@@ -1082,6 +1092,11 @@ mutual
     /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
     disguise [CR#702.37a,702.168a,708.4]. -/
     | faceDown (spec : FaceDown) (cost : Cost)
+    /-- "Using its <keyword> ability": the cast takes the alternative cost the keyword ability
+    `label` names [CR#601.2b,601.2f], so that keyword's cost is paid, and its abilities that ask
+    whether it was apply ("You may cast this card from your graveyard using its blitz ability"
+    [CR#702.152a]). -/
+    | byKeyword (label : KeywordLabel)
 
   /-- A move's rider. An Entry Rider says how a permanent arrives on the battlefield, from a
   move, a token's creation, or a static entry rider; a Pile Placement says how a moved card is

@@ -320,17 +320,18 @@ semantic_definition bestow (cost : Cost) : Ability :=
   .keyword (.named "bestow") [.cost (.inCaller cost)]
     [static (altCost this_ (some (.inCaller cost)))]
 /-- "Blitz [cost]" [CR#702.152a]. "If this spell's blitz cost was paid, sacrifice the permanent
-this spell becomes at the beginning of the next end step" creates its delayed trigger as the
-permanent is put onto the battlefield as the spell resolves [CR#608.3g], controlled by the
-spell's controller as it resolved [CR#603.7d]: a countered spell creates none, and a copy's token
-permanent [CR#608.3f] creates its own. -/
+this spell becomes at the beginning of the next end step" is its own ability [CR#113.2c], a
+Resolution Delayed Trigger: it creates its delayed trigger as the permanent is put onto the
+battlefield as the spell resolves [CR#608.3g], controlled by the spell's controller as it resolved
+[CR#603.7d], so a countered spell creates none, and a copy's token permanent [CR#608.3f] creates
+its own. -/
 semantic_definition blitz (cost : Cost) : Ability :=
   .keyword (.named "blitz") [.cost (.inCaller cost)]
     [ static (altCost this_ (some (.inCaller cost))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
-          (doIf (keywordCostPaid (.named "blitz") thisPermanent)
-            (atNext .endStep (sacrifice thisPermanent)))),
+        (resolutionDelayedTrigger
+          (doIf (keywordCostPaid (.named "blitz") thisSpell)
+            (atNext .endStep (sacrifice (becomes thisSpell))))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "blitz") thisPermanent)),
@@ -444,15 +445,16 @@ semantic_definition crew (amount : Amount) : Ability :=
           (.characteristicChange thisPermanent
             [.typeLine .adds { types := some [.artifact, .creature] }])
           untilEndOfTurn) ]
-/-- "Dash [cost]" [CR#702.109a]. Its delayed trigger is created as the permanent is put onto the
-battlefield as the spell resolves [CR#608.3g,603.7d], as blitz's is. -/
+/-- "Dash [cost]" [CR#702.109a]. "If this spell's dash cost was paid, return the permanent this
+spell becomes to its owner's hand at the beginning of the next end step" is a Resolution Delayed
+Trigger, as blitz's is [CR#608.3g,603.7d]. -/
 semantic_definition dash (cost : Cost) : Ability :=
   .keyword (.named "dash") [.cost (.inCaller cost)]
     [ static (altCost this_ (some (.inCaller cost))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
-          (doIf (keywordCostPaid (.named "dash") thisPermanent)
-            (atNext .endStep (returnToHand thisPermanent)))),
+        (resolutionDelayedTrigger
+          (doIf (keywordCostPaid (.named "dash") thisSpell)
+            (atNext .endStep (returnToHand (becomes thisSpell))))),
       static
         (onlyWhile (abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "dash") thisPermanent)) ]
@@ -1716,18 +1718,19 @@ semantic_definition ward (cost : Cost) : Ability :=
 /-- "Warp [cost]" [CR#702.185a]. Its first static functions on the stack and grants no cast: the
 rules already allow a cast from the hand [CR#601.3], so "cast this card from your hand by paying
 [cost]" is an alternative cost [CR#118.9] that applies only while this spell was cast from your
-hand. Its delayed trigger is created as the permanent is put onto the battlefield as the spell
-resolves [CR#608.3g,603.7d], as blitz's is. -/
+hand. "If this spell's warp cost was paid, exile the permanent this spell becomes at the
+beginning of the next end step. Its owner may cast this card after the current turn has ended for
+as long as it remains exiled" is a Resolution Delayed Trigger, as blitz's is [CR#608.3g,603.7d]. -/
 semantic_definition warp (cost : Cost) : Ability :=
   .keyword (.named "warp") [.cost (.inCaller cost)]
     [ static (onlyWhile (altCost this_ (some (.inCaller cost)))
         (is this_ (did any (cast which (from_ := yourHand)) thisObject))),
       static
-        (.asEvent (does .any (.move thisPermanent stack battlefield .arrival []))
-          (doIf (keywordCostPaid (.named "warp") thisPermanent)
+        (resolutionDelayedTrigger
+          (doIf (keywordCostPaid (.named "warp") thisSpell)
             (atNext .endStep
               (sequentially
-                [ exile thisPermanent,
+                [ exile (becomes thisSpell),
                   establishThroughout
                     (can (ownerOf it)
                       (cast it (from_ := exileZone)))

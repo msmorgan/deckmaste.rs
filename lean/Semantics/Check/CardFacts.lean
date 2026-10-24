@@ -97,6 +97,7 @@ mutual
     | n + 1, .specialAction _ timing cost i => cost.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .paySubstitute _ substitute => substitute.action.namesThisDoor n
     | n + 1, .asEvent ev i | n + 1, .rollModifier ev i _ => ev.namesThisDoor n || i.namesThisDoor n
+    | n + 1, .resolutionDelayedTrigger i => i.namesThisDoor n
     | n + 1, .additionalTriggers ev _ => ev.namesThisDoor n
     | n + 1, .addedCost cost _ _ => cost.namesThisDoor n
     | n + 1, .altCost _ cost => cost.any (fun c => c.namesThisDoor n)

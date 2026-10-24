@@ -1952,6 +1952,11 @@ semantic_template alsoForKeywords (body : KeywordTerm → Ability)
 semantic_template altCost (subject : NounPhrase) (cost : Option Cost := none) : StaticSpec :=
   .altCost subject cost
 semantic_template asEvent (event : GameEvent) (does : Action) : StaticSpec := .asEvent event does
+/-- "If this spell's <keyword> cost was paid, <do X to> the permanent this spell becomes at the
+beginning of the next end step": a Resolution Delayed Trigger, created as the permanent is put
+onto the battlefield as the spell resolves [CR#608.3g]. -/
+semantic_template resolutionDelayedTrigger (does : Action) : StaticSpec :=
+  .resolutionDelayedTrigger does
 semantic_template asThose : TokenSpec := .asThose
 semantic_template characteristicChange (subject : NounPhrase)
     (edits : List CharacteristicEdit := []) : StaticSpec :=
@@ -2020,6 +2025,9 @@ semantic_template payingInstead (cost : Cost) : PlayPayment := .payingInstead co
 /-- "by <cost> as an additional cost to cast it": the mana cost or an alternative cost, plus
 `cost` [CR#118.8,601.2f]. -/
 semantic_template plusAdditional (cost : Cost) : PlayPayment := .plusAdditional cost
+/-- "using its <keyword> ability": the alternative cost that keyword ability offers
+[CR#601.2b,601.2f]. -/
+semantic_template usingKeyword (label : KeywordLabel) : PlayPayment := .byKeyword label
 semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticSpec :=
   .letterDefinition letter amount
 semantic_template loyaltySymbol (change : Delta Amount) : Cost := .loyaltySymbol change

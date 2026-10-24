@@ -2178,6 +2178,16 @@ def Action.isEntering (action : Action) (fuel : Nat := 8) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
+/-- Whether `action` is a delayed triggered ability, bare or under a condition with no other
+arm: what a Resolution Delayed Trigger creates [CR#608.3g]. -/
+def Action.createsDelayedTrigger (action : Action) (fuel : Nat := 8) : Bool :=
+  match fuel, action with
+  | 0, _ => false
+  | _ + 1, .delay .. => true
+  | n + 1, .inCaller body | n + 1, .doIf _ body none => body.createsDelayedTrigger n
+  | _ + 1, _ => false
+termination_by structural fuel
+
 /-- Whether every event `clause` names is an entering. -/
 def WouldClause.isEntering (clause : WouldClause) (fuel : Nat := 8) : Bool :=
   match fuel, clause with
@@ -2324,7 +2334,7 @@ clause), so they never stand as patients of the deed, as the land card retrace d
 [CR#702.81a]. -/
 def stepPlayPaymentWith (ops : StepOps) (drs : DRS) (pay : PlayPayment) : DRS × List Refusal :=
   match pay with
-  | .itsOwnCost | .withoutPaying => (drs, [])
+  | .itsOwnCost | .withoutPaying | .byKeyword _ => (drs, [])
   | .payingInstead c | .plusAdditional c | .faceDown _ c =>
     let (paid, errs) := ops.cost drs c
     let pending := if paid.currentClause == drs.currentClause then drs.pendingRoles else []
@@ -2564,7 +2574,7 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
     | _ => drs
   | _+1, .addsTarget _ description => addedTargetContextWith ops drs description
   | n+1, .conditional body _ _ => staticTextContextWith ops drs body n
-  | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
+  | _+1, .asEvent _ action | _+1, .whileHolds _ action | _+1, .resolutionDelayedTrigger action =>
     publishTextChoices drs (actionTextChoices action)
   | _+1, .replace event replacement _ _ _ =>
     let published := match replacement.doneAction? with
@@ -4501,6 +4511,9 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) does
           (drs2, e1 ++ e2)
+        | .resolutionDelayedTrigger does =>
+          let (drs1, e1) := ops.inst .postEvent .obj (nextClause drs) does
+          (drs1, e1 ++ refuse does.createsDelayedTrigger .createsDelayedTrigger)
         | .whileHolds cond does =>
           let (drs1, e1) := ops.cond drs cond
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) does

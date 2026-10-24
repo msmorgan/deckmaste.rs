@@ -346,11 +346,21 @@ that acts as a Permanent enters ("as this enters, you may sacrifice …") is a
 Replacement Effect instead ([CR#614.1c]), and the rule that has an Aura enter
 attached, or not enter at all ([CR#303.4f,303.4g]), modifies the entering in
 the same way. A Special Action is its sibling, done by choice
-with a cost. A delayed trigger that a resolving Permanent Spell's static
-ability creates (dash, blitz, warp) is created as the Permanent is put onto
-the battlefield, with the Spell as its source and the Spell's controller as it
-resolved as its controller ([CR#608.3g,603.7d]).
+with a cost.
 _Avoid_: state trigger, since nothing goes on the stack ([CR#113.9])
+
+**Resolution Delayed Trigger** (project term):
+A Static Ability of a Permanent Spell that functions on the stack and creates
+a delayed triggered ability, created as the Permanent the Spell Becomes is put
+onto the battlefield as the Spell resolves, with the Spell as its source and
+the Spell's controller as it resolved as its controller ([CR#608.3g,603.7d]).
+Dash, blitz and warp each have one, an Ability of its own beside the
+alternative cost ([CR#702.109a,702.152a,702.185a,113.2c]): "If this spell's
+dash cost was paid, return the permanent this spell becomes to its owner's
+hand at the beginning of the next end step". A countered Spell never Becomes a
+Permanent and creates none ([CR#608.3g]).
+_Avoid_: Off-Stack Static, which acts as a printed Event happens; Permission
+Rider, which is part of the permission's own Ability
 
 **Roll Modifier**:
 An effect that changes a die roll's natural result before it becomes the

@@ -871,6 +871,46 @@ theorem okThunderousWrath : Ability.check (DRS.ofList []) thunderousWrath = [] :
 /-- Bygone Colossus -/
 def bygoneColossus : Ability := warp [generic 3]
 theorem okBygoneColossus : Ability.check (DRS.ofList []) bygoneColossus = [] := by decide
+
+/-- Ragavan, Nimble Pilferer. Dash's "return the permanent this spell becomes" is a Resolution
+Delayed Trigger [CR#702.109a,608.3g]. -/
+def ragavanNimblePilferer : Spelled := spelled <| singleFacedCard
+  { name := "Ragavan, Nimble Pilferer", cost := [pip .red], supertypes := [.legendary],
+    types := [.creature], subtypes := [monkey, pirate],
+    text :=
+      [ whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
+          (sequentially
+            [ createToken treasureToken,
+              exile (slice .top 1 (libraryOf (that player))),
+              establishThroughout (can you (cast (that card))) untilEndOfTurn ]),
+        dash [generic 1, pip .red] ],
+    power := stat 2, toughness := stat 1 }
+theorem okRagavanNimblePilferer : ragavanNimblePilferer.card.check = [] := ragavanNimblePilferer.ok
+
+/-- Tenacious Underdog. Cast from the graveyard "using its blitz ability", the spell takes blitz's
+alternative cost, so blitz's cost was paid and its Resolution Delayed Trigger sacrifices the
+permanent [CR#702.152a,601.2b,608.3g]. -/
+def tenaciousUnderdog : Spelled := spelled <| singleFacedCard
+  { name := "Tenacious Underdog", cost := [generic 1, pip .black], types := [.creature],
+    subtypes := [human, warrior],
+    text :=
+      [ blitz (compound [[generic 2, pip .black, pip .black], payLife 2]),
+        static (can you
+          (cast this_ (from_ := yourGraveyard) (payment := usingKeyword blitz))) ],
+    power := stat 3, toughness := stat 2 }
+theorem okTenaciousUnderdog : tenaciousUnderdog.card.check = [] := tenaciousUnderdog.ok
+
+/-- Starbreach Whale. Warp's "exile the permanent this spell becomes" is a Resolution Delayed
+Trigger [CR#702.185a,608.3g]. -/
+def starbreachWhale : Spelled := spelled <| singleFacedCard
+  { name := "Starbreach Whale", cost := [generic 4, pip .blue], types := [.creature],
+    subtypes := [whale],
+    text :=
+      [ flying,
+        when (does thisCreature enter) (surveil 2),
+        warp [generic 1, pip .blue] ],
+    power := stat 3, toughness := stat 5 }
+theorem okStarbreachWhale : starbreachWhale.card.check = [] := starbreachWhale.ok
 /-- Knight of Grace — "Hexproof from black" [CR#702.11d] -/
 def knightOfGraceHexproofFromBlack : Ability := hexproofFrom (hasColor .black)
 theorem okKnightOfGraceHexproofFromBlack :
