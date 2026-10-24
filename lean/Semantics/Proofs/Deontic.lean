@@ -649,4 +649,16 @@ theorem modifyingProhibitionReadsOnlyThePrecedingActionsObjects :
         [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
+/-- A universal domain a prohibition publishes keeps its number: "each creature" is singular, as
+an action's is, so "Each creature can't block this turn. Tap it." reads "it" as it does in "Tap
+each creature. Untap it."; "all creatures" is plural, so "it" finds nothing. -/
+theorem publishedEachDomainIsSingular :
+    let barred := fun (creatures : NounPhrase) => Action.check (DRS.ofList [])
+      (.sequentially [.establish (.cant (.actor creatures) (.block .any) {}) (some thisTurn),
+        .setStatus .tapped it])
+    barred (each isCreature) = [] ∧ barred (allOf isCreature) = [.anaphor .bare .one 0] ∧
+      Action.check (DRS.ofList [])
+        (.sequentially [.setStatus .tapped (each isCreature), .setStatus .untapped it]) = [] := by
+  decide
+
 end Semantics.Proofs.Deontic
