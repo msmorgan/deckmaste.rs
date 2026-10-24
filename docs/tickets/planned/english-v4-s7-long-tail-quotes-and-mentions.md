@@ -19,6 +19,7 @@ Mentions:
 - **Sarpadian Empires, Vol. VII**: *choose [white Citizen, blue Camarid, …, or green Saproling]*. Hypothesis: each mention is a color adjective plus a subtype noun.
 - **Artificial Evolution**: *The new creature type can't be [Wall]*. Hypothesis: a general predicative mention multiplied forests, so this needs a narrow, head-selected route. Measure.
   Artificial Evolution must parse. Route: a copular *be* whose subject's head is a type noun (*creature type*, *card type*, ...) takes a subtype name as its predicative complement. The general version (any mention after *be* or *become*) quadrupled forests, for example Gavony Dawnguard 115 -> 460 on *becomes night* / *is red*. Acceptance: zero growth on those units.
+  Design note: the clause naming the creature type is a specifying copular clause (CGEL, Ch. 4 §5.5.2, pp. 266–268), with the type name as its specified element. License a bare `Class("Subtype")` predicative only when the subject's head is `noun:type`, never for any mention after *be*. Expected forest growth is zero.
 - **Grim Captain's Call**: *then do the same for [Vampire, Dinosaur, and Merfolk]*. Hypothesis: a mention coordination as the complement of *for*.
 
 ## Witness cards

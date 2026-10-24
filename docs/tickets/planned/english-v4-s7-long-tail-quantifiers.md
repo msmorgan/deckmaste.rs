@@ -15,6 +15,7 @@ Quantifier, determiner and partitive gaps.
 - **Goblin Game**: *tied for fewest*. Hypothesis: a bare superlative fused head without *the*. Second triage: also a central *then* (*… the fewest items then loses …*).
 - **Hawkeye, Master Marksman**: *choose up to that many —*. Hypothesis: *up to* with a *that many* fused head. Second triage: also `• Word — Ability` modes.
 - **Wolverine, Fierce Fighter**: *all other damage already dealt to him is healed*. Hypothesis: a pre-head adverb on a participial postmodifier, or *healed* is missing from the lexicon (unverified; check the lexicon first). Second triage: verb *heal* missing.
+- **Frequency adverb plus interval** (*twice this turn*): in this ticket's quantifier and frequency scope, though no witness card is assigned. It takes the same analysis as *once each turn* (`english-lexical-analysis.md` §2, frequency interval): the temporal Noun Phrase after the final Adverb Phrase of a Verb Phrase is a second Adjunct of it, never also the adverb's interval. Confirm it against a parse, and add a judgment asserting one Reading.
 
 ## Witness cards
 

@@ -71,7 +71,7 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Seven canonicalizations are approved:
+of the text.** Nine canonicalizations apply:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -118,7 +118,29 @@ of the text.** Seven canonicalizations are approved:
   *Pre[,] [Clause, Post]*, never *[Pre[,] Clause], Post*. Both are
   dependents of the same Clause, and the two trees differ in no meaning. The
   canonical site is built structurally: the host of a comma-set
-  post-dependent never begins with a fronted dependent.
+  post-dependent never begins with a fronted dependent;
+- **added element versus coordination:** an *and only …* or *but only …*
+  qualifying fragment after a Clause that ends in a Predicate Adjunct it could
+  coordinate with (*Activate only as a sorcery and only once each turn*) is that
+  Adjunct's coordinate, a basic coordination of Adjuncts, never also an added
+  element of the Clause (CGEL, Ch. 15 §4.5, p. 1346, [29]). The carrier is the
+  Clause's final Adjunct, not its mood: bare imperatives and finite clauses
+  alike (*the player can activate mana abilities only if … and only if …*)
+  take the coordinated Adjunct. The added element is what the fragment is
+  where the Clause ends in no such Adjunct, so the declarative *…, but only …*
+  and *Only your opponents may … and only …* keep it. The canonical site is
+  built structurally: the Clause of an added element never ends, through its
+  head and last complement, in a trailing Adjunct of a coordinable Category
+  (the engine's `unadjoined` declaration);
+- **frequency interval:** a temporal Noun Phrase after a Verb Phrase's final
+  Adverb Phrase is a second Adjunct of the Verb Phrase (*[[activate only once]
+  each turn]*), never also the adverb's interval (FrequencyInterval) in one
+  Adverb Phrase (*[only once each turn]*): the two trees differ in no meaning
+  (CGEL, Ch. 8 §9, p. 715: *each year is probably a separate adjunct rather than
+  a postmodifier*). The interval is the adverb's only where no Verb Phrase
+  follows it, as in the fronted *Once each turn, …*. The canonical site is built
+  structurally: the end Adverbial of a Verb Phrase takes no Adverb Phrase that
+  ends in a temporal Noun Phrase.
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after
