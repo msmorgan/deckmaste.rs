@@ -203,7 +203,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   X is its power*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
-  (*choose to attack* has no purpose reading). A noun's bare phrase omits the
+  (*choose to attack* has no purpose reading). A `PP(prepositions, Some(kind))`
+  Frame Slot selects only a Preposition Phrase whose Complement is of that kind,
+  and pre-empts only that one (*do the same for [Vampire]* is a Complement,
+  *do the same for [flying]* an Adjunct); a preposition frame declared
+  `named_only` is selected by no slot that names its preposition alone. A noun's bare phrase omits the
   Complements its frames select, and a Preposition Phrase right after it headed
   by one of their prepositions is that noun's Complement, never a dependent of
   another host (*on top of your library*, *equal to the number of cards in

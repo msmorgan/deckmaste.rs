@@ -14,9 +14,6 @@ Selective Adaptation | Reveal the top seven cards of your library. Choose from a
 Ulasht, the Hate Seed | Ulasht enters with a +1/+1 counter on it for each other red creature you control and a +1/+1 counter on it for each other green creature you control.
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
 
-# english-v4-s7-cited-for-complement
-Grim Captain's Call | Return a Pirate card from your graveyard to your hand, then do the same for Vampire, Dinosaur, and Merfolk.
-
 # english-v4-s7-long-tail-nonfinite-clauses
 
 # english-v4-s7-long-tail-pp-coordination

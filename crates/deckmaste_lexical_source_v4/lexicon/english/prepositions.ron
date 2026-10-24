@@ -107,6 +107,10 @@
         // lowest life total*, *tied for most common* (CGEL, Ch. 13 §6.3.4,
         // pp. 1168–1169).
         (complement: Nominal, hosts: ComplementOnly),
+        // A cited word, selected by a head that names it: *do the same for
+        // Vampire, Dinosaur, and Merfolk* (CGEL, Ch. 5 §8.2, p. 401), never
+        // by one that selects *for* alone (*votes for blue*).
+        (complement: Mention, hosts: ComplementOnly, named_only: true),
     ]),
     // *cast spells ... from the top of your library*; *a card you own from
     // outside the game*; *from among them*

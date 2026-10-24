@@ -432,6 +432,7 @@ impl Builder {
                     relation: spec.relation,
                     complement: resolver.fill(&spec.complement, owner)?,
                     hosts: spec.hosts,
+                    named_only: spec.named_only,
                 };
                 if frames
                     .iter()
@@ -480,18 +481,24 @@ impl Resolver<'_> {
     }
 
     fn pp(&self, lemmas: &[String], owner: &str) -> Result<SlotFill, SourceError> {
-        Ok(SlotFill::PP(
-            lemmas
-                .iter()
-                .map(|lemma| self.preposition(lemma, owner))
-                .collect::<Result<_, _>>()?,
-        ))
+        Ok(SlotFill::PP(self.prepositions(lemmas, owner)?, None))
+    }
+
+    fn prepositions(&self, lemmas: &[String], owner: &str) -> Result<Vec<LexemeId>, SourceError> {
+        lemmas
+            .iter()
+            .map(|lemma| self.preposition(lemma, owner))
+            .collect()
     }
 
     fn fill(&self, spec: &FillSpec, owner: &str) -> Result<SlotFill, SourceError> {
         Ok(match spec {
             FillSpec::NP => SlotFill::NP,
             FillSpec::PP(lemmas) => self.pp(lemmas, owner)?,
+            FillSpec::PPWith(lemmas, complement) => SlotFill::PP(
+                self.prepositions(lemmas, owner)?,
+                Some(self.fill(complement, owner)?.kind()),
+            ),
             FillSpec::Pred => SlotFill::Pred,
             FillSpec::AdjP => SlotFill::AdjP,
             FillSpec::AdvP => SlotFill::AdvP,
@@ -585,13 +592,21 @@ impl Resolver<'_> {
                 FrameFamily::Amount,
                 vec![slot(Complement, SlotFill::Amount)],
             ),
-            FrameSpec::TransitiveWithComplement(fill) => (
-                FrameFamily::TransitiveWithComplement,
-                vec![
-                    slot(Object, SlotFill::NP),
-                    slot(Complement, self.fill(fill, owner)?),
-                ],
-            ),
+            FrameSpec::TransitiveWithComplement(fill) => {
+                let fill = self.fill(fill, owner)?;
+                // A Preposition Phrase Complement after the Object is the
+                // TransitiveWithPP family's shape, whether or not the slot
+                // names its Complement's kind.
+                let family = if matches!(fill, SlotFill::PP(..)) {
+                    FrameFamily::TransitiveWithPP
+                } else {
+                    FrameFamily::TransitiveWithComplement
+                };
+                (
+                    family,
+                    vec![slot(Object, SlotFill::NP), slot(Complement, fill)],
+                )
+            }
             FrameSpec::TransitiveAmount => (
                 FrameFamily::TransitiveAmount,
                 vec![

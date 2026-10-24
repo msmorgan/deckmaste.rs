@@ -66,8 +66,10 @@ pub enum ClauseKind {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotFill {
     NP,
-    /// A Preposition Phrase headed by one of the listed prepositions.
-    PP(Vec<LexemeId>),
+    /// A Preposition Phrase headed by one of the listed prepositions; with a
+    /// [`SlotKind`], only one whose preposition takes a Complement of that
+    /// kind (*do the same for [Vampire]*, a cited word, never *for flying*).
+    PP(Vec<LexemeId>, #[serde(default)] Option<SlotKind>),
     Pred,
     AdjP,
     /// An adverbial: an Adverb Phrase or a Noun Phrase of frequency, as
@@ -160,7 +162,7 @@ impl SlotFill {
     pub fn kind(&self) -> SlotKind {
         match self {
             Self::NP => SlotKind::NP,
-            Self::PP(_) => SlotKind::PP,
+            Self::PP(..) => SlotKind::PP,
             Self::Pred => SlotKind::Pred,
             Self::AdjP => SlotKind::AdjP,
             Self::AdvP => SlotKind::AdvP,
@@ -251,10 +253,10 @@ impl Frame {
             FrameFamily::TransitiveWithPP => {
                 matches!(
                     shape[..],
-                    [(Object, SlotFill::NP), (Complement, SlotFill::PP(_))]
+                    [(Object, SlotFill::NP), (Complement, SlotFill::PP(..))]
                 )
             }
-            FrameFamily::Prepositional => matches!(shape[..], [(Complement, SlotFill::PP(_))]),
+            FrameFamily::Prepositional => matches!(shape[..], [(Complement, SlotFill::PP(..))]),
             FrameFamily::Copular => matches!(shape[..], [(PredicativeComplement, SlotFill::Pred)]),
             FrameFamily::Catenative => matches!(
                 shape[..],
@@ -296,11 +298,11 @@ impl Frame {
             FrameFamily::Idiom => {
                 shape
                     .iter()
-                    .any(|slot| matches!(slot, (Complement, SlotFill::PP(_))))
+                    .any(|slot| matches!(slot, (Complement, SlotFill::PP(..))))
                     && shape.iter().all(|slot| {
                         matches!(
                             slot,
-                            (Complement, SlotFill::PP(_)) | (PredicativeComplement, SlotFill::Pred)
+                            (Complement, SlotFill::PP(..)) | (PredicativeComplement, SlotFill::Pred)
                         )
                     })
             }
@@ -419,6 +421,14 @@ pub struct PrepositionFrame {
     pub relation: SlotRelation,
     pub complement: SlotFill,
     pub hosts: Hosts,
+    /// Only a Frame Slot that names this Complement's kind selects the
+    /// phrase (`PP(prepositions, Some(kind))`), never one that names its
+    /// preposition alone: a cited word after *for* is taken where a head
+    /// selects one (*do the same for Vampire*), not by a head that selects
+    /// *for* with a Noun Phrase (*vote for blue*), where it would be a second
+    /// tree of the bare noun.
+    #[serde(default)]
+    pub named_only: bool,
 }
 
 /// Subcategorization Frames by lexeme. Prepositions declare theirs in

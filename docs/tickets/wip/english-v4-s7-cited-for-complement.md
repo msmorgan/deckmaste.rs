@@ -15,3 +15,6 @@ Residue of `english-v4-s7-long-tail-quotes-and-mentions`.
 ## Engine change
 
 A Frame Slot `SlotFill::PP(lemmas)` selects a Preposition Phrase by its preposition only. Let it also name the complement's Slot Kind, for example `PP(lemmas, Some(Mention))` (lexical `FillSpec::PPWith(["for"], Mention)`). Then `do` selects only *for* + Mention (`TransitiveWithPP` with that fill), the Mention frame of *for* is `hosts: ComplementOnly`, the NP-complement *for* phrases keep their Adjunct analysis, and the Mention cannot duplicate a Noun Phrase. The witness is Grim Captain's Call; `deferred.txt` keeps its line until then.
+
+**Census delta** (`zkvkkyyw`): faces read 32,812 → 32,813 of 32,828; Readings 338,231 → 338,233 (Grim Captain's Call 0 → 2, its *from your graveyard* attachments; no other unit changed); lost faces: none.
+**Judgment set** (`zkvkkyyw`): all hold (`cargo test -p deckmaste_english_v4 --test judgments`, 6 passed).

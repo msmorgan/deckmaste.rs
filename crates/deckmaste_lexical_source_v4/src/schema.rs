@@ -72,6 +72,10 @@ impl TryFrom<String> for Rule {
 pub enum FillSpec {
     NP,
     PP(Vec<String>),
+    /// A Preposition Phrase headed by one of the prepositions with a
+    /// Complement of this kind only (*do the same for [Vampire]*, a cited
+    /// word: `PPWith(["for"], Mention)`).
+    PPWith(Vec<String>, Box<FillSpec>),
     Pred,
     AdjP,
     /// An Adverb Phrase or a Noun Phrase of frequency (*than twice*).
@@ -408,6 +412,14 @@ pub struct PrepositionFrameSpec {
     pub relation: deckmaste_syntax::frames::SlotRelation,
     pub complement: FillSpec,
     pub hosts: Hosts,
+    /// Only a Frame Slot that names this Complement's kind selects the
+    /// phrase (`PPWith(prepositions, kind)`), never one that names its
+    /// preposition alone: a cited word after *for* is taken where a head
+    /// selects one (*do the same for Vampire*), not by a head that selects
+    /// *for* with a Noun Phrase (*vote for blue*), where it would be a second
+    /// tree of the bare noun.
+    #[serde(default)]
+    pub named_only: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
