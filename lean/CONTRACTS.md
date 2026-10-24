@@ -355,7 +355,12 @@ in an argument slot and any referent a bare pronoun already resolved to in this 
 reaches a referent a linked ability published (`Referent.linked`); only a Participial
 Description (below) does. A reflexive (`NounPhrase.refl`) resolves to the current clause's subject (`resolveReflexive`).
 Possessors and other nested mentions record no direct-argument role, so "target
-creature's controller sacrifices it" reads the creature. `nextClause` commits the
+creature's controller sacrifices it" reads the creature. A referent re-mentioned for its
+characteristics outside every argument slot (a possessor, "its power", a copy source) is
+foregrounded in the current clause as `.other`, as a newly introduced possessor is
+(`DRS.recordMention`), so *Weeping Angel*'s "that creature's owner shuffles it into their
+library" reads "it" as the damaged creature, not the Source
+(`weepingAngelRawPronounSelectsTheDamagedCreature`). `nextClause` commits the
 pending roles, advances `currentClause` and clears `pronounResolved`.
 
 A measured domain is no antecedent: `Amount.countOf` ("the number of …") and

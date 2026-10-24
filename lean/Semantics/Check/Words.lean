@@ -676,13 +676,20 @@ def nextClause (drs : DRS) : DRS :=
     currentClause := drs.currentClause + 1
     pendingRoles  := [] }
 
-/-- Record that an existing referent `id` was mentioned in a verb argument slot with `role`
-(and if resolved by a bare pronoun, mark `pronounResolved := true`). -/
+/-- Record that an existing referent `id` was mentioned with `role` (and if resolved by a bare
+pronoun, mark `pronounResolved := true`). A mention in a verb argument slot is buffered in
+`pendingRoles` until `nextClause`. One read for its characteristics outside every argument slot,
+as a possessor ("that creature's owner", "its power"), is foregrounded at once, in the current
+clause as `.other`, as a newly introduced possessor is, so a later bare pronoun of the clause sees
+it (`D′`), though `J2` counts it no clause-mate (`semantics-v3.md` §1.2, §1.5): *Weeping Angel*'s
+"that creature's owner shuffles it into their library". -/
 def DRS.recordMention (drs : DRS) (id : ReferentId) (role : GramRole := .other)
     (inArgSlot : Bool := false) (isBarePronoun : Bool := false) : DRS :=
   let refs := if isBarePronoun then
     drs.referents.map fun r => if r.id == id then { r with pronounResolved := true } else r
   else drs.referents
+  let refs := if inArgSlot || !drs.characteristicRead then refs else
+    refs.map fun r => if r.id == id then { r with clause := drs.currentClause, role := .other } else r
   let pending := if inArgSlot then (id, role) :: drs.pendingRoles else drs.pendingRoles
   let resolved := if drs.resolvedIds.elem id then drs.resolvedIds else id :: drs.resolvedIds
   { drs with referents := refs, pendingRoles := pending, resolvedIds := resolved }

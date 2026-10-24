@@ -276,16 +276,24 @@ theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
       (owner.1.pendingRoles.contains (2, .subj)) = false ∧
       (owner.1.pendingRoles.contains (4, .subj)) = true := by decide +kernel
 
+/-- The owner shuffles the damaged creature into their library, whether "it" is read through
+the recipient's Binding Identity or as written, a raw pronoun. -/
 theorem weepingAngelOwnerCanShuffleItsCreatureIntoTheirLibrary :
     Action.check (nextClause weepingAngelRecipientContext)
-      (instruct (ownerOf (that (.type .creature)))
-        (shuffleInto (.laterMention "weeping.recipient" it))) = [] := by decide +kernel
+        (instruct (ownerOf (that (.type .creature)))
+          (shuffleInto (.laterMention "weeping.recipient" it))) = [] ∧
+      Action.check (nextClause weepingAngelRecipientContext)
+        (instruct (ownerOf (that (.type .creature))) (shuffleInto it)) = [] := by decide +kernel
 
-theorem weepingAngelRawPronounCurrentlySelectsTheDamageSource :
+/-- *Weeping Angel*'s raw "it" in "that creature's owner shuffles it into their library" reads
+the damaged creature: re-mentioned as a possessor, "that creature" is foregrounded in the current
+clause (`DRS.recordMention`, `semantics-v3.md` §1.5) without becoming a clause-mate, so `D′`
+prefers it to the Source, mentioned in the earlier clause. -/
+theorem weepingAngelRawPronounSelectsTheDamagedCreature :
     let owner := stepNounPhrase 16 (nextClause weepingAngelRecipientContext)
       .subj true (ownerOf (that (.type .creature)))
     let raw := stepNounPhrase 16 owner.1 .obj true it
-    owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [0] ∧
+    owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [2] ∧
       (identityBinding "weeping.recipient" raw.1).map (·.id) = some 2 := by decide +kernel
 
 theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
