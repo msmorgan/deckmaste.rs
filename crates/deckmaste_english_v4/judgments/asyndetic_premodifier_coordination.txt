@@ -6,7 +6,8 @@
 + <card=Filter Out> Return all noncreature, nonland permanents to their owners' hands. => Nominal "noncreature, nonland permanents"
 +Nominal nonartifact, nonblack creature => Nominal "nonartifact, nonblack creature"; readings 1
 +Nominal non-Vampire, non-Werewolf, non-Zombie creature => Nominal "non-Vampire, non-Werewolf, non-Zombie creature"; readings 1
-+Nominal nonartifact and nonblack creature
+# from: Terror
++Nominal nonartifact, nonblack creature
 +NounPhrase a Swamp, Mountain, black permanent, or red permanent => Nominal "black permanent"; Nominal "red permanent"
 # A comma before a bare word premodifier is a serial coordination's, never an asyndetic chain's (`docs/oracle-style-guide.md` §3, §6)
 + <card=Lupinflower Village> You may reveal a Bat, Bird, Mouse, or Rabbit card from among them and put it into your hand. => Nominal "Bat, Bird, Mouse, or Rabbit" as Modifier of card; !Attributes "Bat, Bird, Mouse, or Rabbit"

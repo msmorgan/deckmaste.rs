@@ -1,21 +1,30 @@
 # Core clause, noun phrase, coordination, number, and keyword-line grammar of Oracle text
 + Draw cards.
-+ You draw cards.
-+ Each creature attacks.
-+ Those creatures attack.
+# from: Vanish into Memory
++ You draw cards equal to that creature's power.
+# from: Goblin Diplomats
++ Each creature attacks this turn if able.
+# from: Suicidal Charge
++ Those creatures attack this turn if able.
 + Draw cards from them.
-+ If you draw cards, draw cards.
-+ Draw cards. If you do, draw cards.
-+ If you do, draw cards.
+# from: Transcendent Archaic
++ If you draw one or more cards this way, discard two cards.
+# from: The Legend of Yangchen
++ You may have target opponent draw three cards. If you do, draw three cards.
+# from: Saheeli's Lattice
++ If you do, draw two cards.
 + Creatures that attack draw cards. => RelativeClause "that attack" gap "Creatures"
-+ Creatures you control attack. => RelativeClause "you control" gap "Creatures"
+# from: Goblin Spymaster
++ Creatures you control attack each combat if able. => RelativeClause "you control" gap "Creatures"
 + Creatures that you control attack. => RelativeClause "that you control" gap "Creatures"
 + Creatures you draw and discard attack. => RelativeClause "you draw and discard" gap "Creatures"
 + You and they draw cards.
-+ You may draw cards.
+# from: Champion of Wits
++ You may draw cards equal to its power.
 + Cards are drawn.
 + Cards have been drawn.
-+ Target creature attacks.
+# from: Into the Fray
++ Target creature attacks this turn if able.
 + Target white creatures attack.
 * Each creatures attack.
 * Those creature attacks.
@@ -33,10 +42,12 @@
 +Nominal defending player
 *Nominal defend player
 *Nominal defends player
-+NounPhrase target defending player
+# from: Fear of Falling
++NounPhrase defending player
 + Defending players attack.
 +PrepositionPhrase in addition
-+PrepositionPhrase in addition to other types
+# from: Saheeli's Artistry
++PrepositionPhrase in addition to its other types
 +NounPhrase the game
 +NounPhrase games
 +Clause no mana was spent
@@ -49,27 +60,35 @@
 +NounPhrase the amount of {G}
 +NounPhrase amounts of {G}
 +NounPhrase the amount of {G}{G}
-+ Add the amount of {G}.
+# from: Cradle Clearcutter
++ Add an amount of {G} equal to this creature's power.
 *NounPhrase much amount of {G}
 +Clause you do
 + Draw two cards.
 # from: Witch's Mark
 + Draw thirteen cards.
-+ Draw 1,000 cards.
+# from: The Millennium Calendar
++ Each opponent loses 1,000 life.
 + Draw X cards.
 + Two creatures attack.
-+ Two target creatures attack.
+# from: Sick and Tired
++ Two target creatures each get -1/-1 until end of turn.
 + You gain 3 life.
-+ You gain life equal to 3.
+# from: Chastise
++ You gain life equal to its power.
 + Surveil 2.
-+ Surveil X.
-+ Surveil 2 plus 2.
-+ Creatures with power 3 attack.
+# from: Cerebral Download
++ Surveil X, where X is the number of artifacts you control.
+# from: Vitalizing Cascade
++ You gain X plus 3 life.
+# from: Reverence
++ Creatures with power 2 or less can't attack you.
 + Your maximum hand size is increased by two.
 + You gain X plus 3 life.
 * Draw two card.
 +AdjectivePhrase second
-+Amount 1,000 minus X
+# from: Liquid Fire
++Amount 5 minus X
 + Gain 1 life. => readings 1
 + +3/-2
 + 1/1
@@ -81,8 +100,10 @@
 + 0/1
 # from: Inferno Titan
 + 1,000/2
-+NounPhrase X 1/1 tokens => DeterminerPhrase "X" as Determiner of token
-+NounPhrase X X/X tokens => DeterminerPhrase "X" as Determiner of token
+# from: Supply
++NounPhrase X 1/1 green Saproling creature tokens => DeterminerPhrase "X" as Determiner of token
+# from: Gelatinous Genesis
++NounPhrase X X/X green Ooze creature tokens => DeterminerPhrase "X" as Determiner of token
 +NounPhrase two +1/-1 creatures => DeterminerPhrase "two" as Determiner of creature
 # from: Jace, the Perfected Mind
 + Target creature gets +3/+3.
@@ -95,21 +116,28 @@
 +AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of great
 + Flying
 + Flying, vigilance, haste
-+ Ward {2}{U}
+# from: Pummeler for Hire
++ Ward {2}
 # from: Frenzy Sliver
 + Frenzy 2
 + Flying (Draw cards.)
-+ {T}: Draw cards.
-+ {2}{U}, Discard cards: Draw cards. Draw cards.
-+ Landfall — If you draw cards, draw cards.
+# from: Humble Defector
++ {T}: Draw two cards.
+# from: Rummaging Goblin
++ {T}, Discard a card: Draw a card.
+# from: Mysteries of the Deep
++ Landfall — If you had a land enter the battlefield under your control this turn, draw three cards instead.
 + Draw cards. (Discard cards.) Draw cards.
 + Creatures have flying.
-+ Creatures gain ward {2}.
+# from: Star Whale
++ Other creatures you control have ward {2}.
 + Creatures have "Draw cards."
-+ Creatures have "{T}: Draw cards."
+# from: Hollowhead Sliver
++ Sliver creatures you control have "{T}, Discard a card: Draw a card."
 +KeywordPhrase Ward
 +KeywordPhrase Frenzy
-+ Flying, ward {2}{T}
+# from: Shadow Puppeteers
++ Flying, ward {2}
 +KeywordPhrase ward
 + Spells that target target creature attack. => RelativeClause "that target target creature" gap "Spells"; NounPhrase "target creature" as Object of target
 * Target creatures attack.
@@ -122,36 +150,53 @@
 + Kindred Instant — Elf
 + Battle — Siege
 * Creature — NoSuchSubtype
-+Nominal amount equal to 2 => AdjectivePhrase "equal to 2" as Modifier of amount
-+NounPhrase an amount equal to 2
+# from: Cradle Clearcutter
++Nominal amount of {G} equal to this creature's power => AdjectivePhrase "equal to this creature's power" as Modifier of amount
+# from: Cradle Clearcutter
++NounPhrase an amount of {G} equal to this creature's power
 +NounPhrase a white creature
-+NounPhrase the creature on the battlefield => PrepositionPhrase "on the battlefield" as Modifier of creature
+# from: Blasphemous Act
++NounPhrase each creature on the battlefield => PrepositionPhrase "on the battlefield" as Modifier of creature
 + Draw creatures on the battlefield.
-+ You are on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
-+ Cards are in the graveyard. => PrepositionPhrase "in the graveyard" as Complement of be
-+ You aren't on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
+# from: Last Laugh
++ When no creatures are on the battlefield, sacrifice this enchantment. => PrepositionPhrase "on the battlefield" as Complement of be
+# from: Nezumi Graverobber
++ If no cards are in that graveyard, flip this creature. => PrepositionPhrase "in that graveyard" as Complement of be
+# from: Teferi, Mage of Zhalfir
++ Creature cards you own that aren't on the battlefield have flash. => PrepositionPhrase "on the battlefield" as Complement of be
 + Be on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
-+PrepositionPhrase until you draw cards => Clause "you draw cards" as Complement of until
-+PrepositionPhrase before you draw cards => Clause "you draw cards" as Complement of before
-+PrepositionPhrase after you draw cards => Clause "you draw cards" as Complement of after
+# from: Treasure Hunt
++PrepositionPhrase until you reveal a nonland card => Clause "you reveal a nonland card" as Complement of until
+# from: Arcane Savant
++PrepositionPhrase before you shuffle your deck to start the game => Clause "you shuffle your deck to start the game" as Complement of before
+# from: Lore Seeker
++PrepositionPhrase after you draft this card => Clause "you draft this card" as Complement of after
 +PrepositionPhrase whenever you draw a card => Clause "you draw a card" as Complement of whenever
-+PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
-+PrepositionPhrase when you draw cards => Clause "you draw cards" as Complement of when
+# from: Transcendent Archaic
++PrepositionPhrase if you draw one or more cards this way => Clause "you draw one or more cards this way" as Complement of if
+# from: Nulldrifter
++PrepositionPhrase when you cast this spell => Clause "you cast this spell" as Complement of when
 +PrepositionPhrase until draw steps => NounPhrase "draw steps" as Complement of until; !Clause "draw steps" as Complement of until
 + Until you draw cards, draw cards.
 +Nominal creatures that attack => RelativeClause "that attack" gap "creatures"
-+ You attack and they attack.
-+ You attack, and they attack.
+# from: Seize the Spotlight
++ Untap those creatures and they gain haste until end of turn.
+# from: Varchild, Betrayer of Kjeldor
++ Survivors your opponents control can't block, and they can't attack you or planeswalkers you control.
 + Draw cards, discard cards, and gain life.
-+ You draw cards, discard cards, and gain life.
+# from: Live Fast
++ You draw two cards, lose 2 life, and get {E}{E}.
 + You and they attack.
 + You, they, and creatures attack.
-+ Cards, creatures, artifacts, and lands are legendary.
-+ Draw cards, creatures, and artifacts.
+# from: Frozen Aether
++ Artifacts, creatures, and lands your opponents control enter tapped.
+# from: Obliterate
++ Destroy all artifacts, creatures, and lands.
 * You, they, and creatures attacks.
 * Draw cards, creatures, and they.
 * You draws cards, discard cards, and gain life.
-+NounPhrase cards, creatures, artifacts, and lands => NounPhrase "creatures" || Nominal "cards, creatures, artifacts, and lands"
+# from: Frozen Aether
++NounPhrase artifacts, creatures, and lands => NounPhrase "creatures" || Nominal "artifacts, creatures, and lands"
 +Clause Draw cards
 +Clause Cards are drawn
 + Cards are being drawn.

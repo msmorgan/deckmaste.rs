@@ -5,10 +5,13 @@
 + {W}{U}
 +KeywordPhrase flying
 +KeywordPhrase flying and haste
-+KeywordPhrase flying, haste, and vigilance
-+KeywordPhrase flying and/or reach
+# from: Asha's Favor
++KeywordPhrase flying, first strike, and vigilance
+# from: Island Sanctuary
++KeywordPhrase flying and/or islandwalk
 + Flying, vigilance
-+NounPhrase one or two creatures
+# from: Amazing Acrobatics
++NounPhrase one or two target creatures
 *NounPhrase two or one creatures
 +NounPhrase one or one creature
 +NounPhrase one, two, or three creatures

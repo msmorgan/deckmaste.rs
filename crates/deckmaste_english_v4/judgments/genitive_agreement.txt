@@ -27,6 +27,7 @@
 *Clause another two creatures attacks
 
 *NounPhrase those one creature
-+NounPhrase those two creatures => Nominal "two creatures"
+# from: Invasion of Alara
++NounPhrase those two cards => Nominal "two cards"
 # A determiner agrees with its quantity's Number: *that card three times* is no Noun Phrase.
 + <card=Mnemonic Deluge> Copy that card three times. => NounPhrase "that card" as Object of copy; NounPhrase "three times"; readings 1

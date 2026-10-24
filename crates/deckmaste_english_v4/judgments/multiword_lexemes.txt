@@ -15,4 +15,5 @@
 +PrepositionPhrase Face up
 +PrepositionPhrase face up or face down => PrepositionPhrase "face up"; PrepositionPhrase "face down"
 +VerbPhrase is face down => PrepositionPhrase "face down" as PredicativeComplement of be
-+Clause it is face down => PrepositionPhrase "face down" as PredicativeComplement of be
+# from: Showstopping Surprise
++Clause it's face down => PrepositionPhrase "face down" as PredicativeComplement of be

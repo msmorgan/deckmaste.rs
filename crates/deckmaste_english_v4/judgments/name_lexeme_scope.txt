@@ -7,9 +7,11 @@
 + <card=Chandra, Pyromaster> Chandra deals 2 damage to any target. => NounPhrase "Chandra" as Subject of deal
 + <card=Jace, Cunning Castaway> Jace draws two cards. => NounPhrase "Jace" as Subject of draw
 + <card=Ajani Vengeant> Ajani deals 2 damage to any target. => NounPhrase "Ajani" as Subject of deal
-+ <card=Gandalf the Grey> Gandalf deals 2 damage to any target. => NounPhrase "Gandalf" as Subject of deal
+# from: Gandalf the Grey
++ <card=Gandalf the Grey> Gandalf deals 3 damage to each opponent. => NounPhrase "Gandalf" as Subject of deal
 + <card=Niv-Mizzet, Parun> Niv-Mizzet deals 1 damage to any target. => NounPhrase "Niv-Mizzet" as Subject of deal
-+ Search your library for a Chandra planeswalker card.
+# from: Chandra's Defeat
++ If that permanent is a Chandra planeswalker, you may discard a card.
 + Legendary Planeswalker — Chandra
 + Creature — Human Wizard
 + Artifact — Junk

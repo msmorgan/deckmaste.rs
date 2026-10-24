@@ -13,5 +13,7 @@
 +KeywordPhrase Cycling {2}
 +KeywordPhrase Cycling {1}
 +KeywordPhrase Cycling {1}{W}
-+ Artifactcycling {2}
-+ Equipmentcycling {2}
+# from: Homing Sliver
++ Slivercycling {3}
+# from: Hobbit Hole
++ Halflingcycling {4}

@@ -9,7 +9,8 @@
 + <card=Shredder's Armor> Equip—Sacrifice another nonland permanent. Activate only once each turn. => KeywordParameters "Equip—Sacrifice another nonland permanent."; NounPhrase "another nonland permanent" as Object of sacrifice
 # from: Elminster's Simulacrum
 + For each opponent, you create a token. => PrepositionPhrase "For each opponent" as Adjunct of create; NounPhrase "a token" as Object of create
-+ Destroy all creatures, except for Walls. => PrepositionPhrase "except for Walls" as Adjunct of destroy
+# from: Elspeth Tirel
++ Destroy all other permanents except for lands and tokens. => PrepositionPhrase "except for lands and tokens" as Adjunct of destroy
 
 + <card=Garland, Knight of Cornelia> {3}{B}{B}{R}{R}: Return this card from your graveyard to the battlefield transformed. Activate only as a sorcery. => AdjectivePhrase "transformed" as Adjunct of return
 + <card=Startled Awake> {3}{U}{U}: Put this card from your graveyard onto the battlefield transformed. Activate only as a sorcery. => AdjectivePhrase "transformed" as Adjunct of put

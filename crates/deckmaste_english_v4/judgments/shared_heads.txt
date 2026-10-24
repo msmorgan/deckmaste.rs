@@ -10,6 +10,7 @@
 +VerbPhrase attacks, blocks, and enters
 +VerbPhrase attack, block, and enter
 +Clause attack, block, and enter => readings 1
-+NounPhrase cards, cards, and cards
+# from: Loxodon Gatekeeper
++NounPhrase artifacts, creatures, and lands
 +VerbPhrase choose and choose one
 +VerbPhrase choose and choose to attack => Clause "to attack" as Complement of choose

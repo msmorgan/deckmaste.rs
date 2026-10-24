@@ -12,7 +12,8 @@
 +VerbPhrase roll two d20 => NounPhrase "two d20" as Object of roll
 + Roll a d20. => NounPhrase "a d20" as Object of roll
 + Roll a six-sided die. => NounPhrase "a six-sided die" as Object of roll
-+ Whenever you roll one or more dice, draw a card. => NounPhrase "one or more dice" as Object of roll
+# from: Brazen Dwarf
++ Whenever you roll one or more dice, this creature deals 1 damage to each opponent. => NounPhrase "one or more dice" as Object of roll
 +Nominal d4
 +Nominal d6
 +Nominal d8

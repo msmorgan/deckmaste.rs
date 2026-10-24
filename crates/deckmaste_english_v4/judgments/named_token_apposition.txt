@@ -7,8 +7,10 @@
 + <card=Rinoa Heartilly> Create Angelo. => NounPhrase "Angelo" as Object of create
 + <card=Rinoa Heartilly> Create a legendary 1/1 green and white Dog creature token named Angelo.
 + <card=Rinoa Heartilly> Create a legendary 2/2 white and black Dog creature token.
-+ <card=Stangg> Create a token named Stangg Twin.
+# from: Stangg
++ <card=Stangg> Create Stangg Twin, a legendary 3/4 red and green Human Warrior creature token.
 + <card=Stangg> Sacrifice Stangg when that token leaves the battlefield.
 # A comma inside the Introduced Name stays inside the Object; the second comma opens the Supplement.
 + <card=Tolsimir, Friend to Wolves> When Tolsimir enters, create Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token. => NounPhrase "Voja, Friend to Elves" as Object of create; NounPhrase "a legendary 3/3 green and white Wolf creature token"; !NounPhrase "Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token" as Object of create
-+ <card=Tolsimir, Friend to Wolves> Create Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token with vigilance. => NounPhrase "Voja, Friend to Elves" as Object of create; NounPhrase "a legendary 3/3 green and white Wolf creature token with vigilance"
+# from: Tolsimir, Friend to Wolves
++ <card=Tolsimir, Friend to Wolves> Create Voja, Friend to Elves, a legendary 3/3 green and white Wolf creature token. => NounPhrase "Voja, Friend to Elves" as Object of create; NounPhrase "a legendary 3/3 green and white Wolf creature token"

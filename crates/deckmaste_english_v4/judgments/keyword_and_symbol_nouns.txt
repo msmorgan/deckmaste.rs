@@ -1,7 +1,8 @@
 # Nouns a keyword rule defines (*kicker*, *gift*, *tribute*, *cumulative upkeep*) and a symbol sequence counted under a determiner
 + When this creature enters, if it was kicked with its {1}{G} kicker, destroy target creature with flying. => NounPhrase "its {1}{G} kicker" as Complement of with; Nominal "{1}{G} kicker"
 + When this creature enters, if tribute wasn't paid, you gain 4 life. => NounPhrase "tribute" as Subject of be; Clause "tribute wasn't paid" as Complement of if
-+ If the gift was promised, draw a card. => NounPhrase "the gift" as Subject of be
+# from: Consumed by Greed
++ If the gift was promised, return target creature card from your graveyard to your hand. => NounPhrase "the gift" as Subject of be
 + Whenever you give a gift, draw a card. => NounPhrase "a gift" as Object of give
 + When a player doesn't pay this enchantment's cumulative upkeep, that player exiles all cards from their library. => NounPhrase "this enchantment's cumulative upkeep" as Object of pay
 # from: Lightning Runner

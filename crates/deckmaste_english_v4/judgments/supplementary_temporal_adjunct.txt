@@ -2,7 +2,8 @@
 + <card=Talas Researcher> Activate only during your turn, before attackers are declared. => PrepositionPhrase "only during your turn"; PrepositionPhrase "before attackers are declared"; Clause "attackers are declared"
 + Activate only during your turn. => PrepositionPhrase "only during your turn" as Adjunct of activate
 + Activate only before attackers are declared. => PrepositionPhrase "only before attackers are declared" as Adjunct of activate; Clause "attackers are declared"
-+ Activate only during your turn before attackers are declared. => PrepositionPhrase "only during your turn"; PrepositionPhrase "before attackers are declared"
+# from: Xun Yu, Wei Advisor
++ Activate only during your turn, before attackers are declared. => PrepositionPhrase "only during your turn"; PrepositionPhrase "before attackers are declared"
 + Cast this spell only during combat before blockers are declared. => PrepositionPhrase "only during combat"; PrepositionPhrase "before blockers are declared"
 + Cast this spell only before attackers are declared. => PrepositionPhrase "only before attackers are declared" as Adjunct of cast
 + Attackers are declared.

@@ -11,7 +11,8 @@
 +VerbPhrase attacked this turn => NounPhrase "this turn" as Adjunct of attack
 +VerbPhrase triggers only once each turn => NounPhrase "each turn" as Adjunct of trigger
 +NounPhrase this way
-+NounPhrase the first time you cast a spell each turn => RelativeClause "you cast a spell each turn" as Modifier of time gap "first time"
+# from: Edgar, King of Figaro
++NounPhrase the first time you flip one or more coins each turn => RelativeClause "you flip one or more coins each turn" as Modifier of time gap "first time"
 # "instead" without a comma before the Clause after the preposed temporal Noun Phrase: before an imperative, or before a declarative's Subject
 + <card=Ring of Ma'rûf> {5}, {T}, Exile this artifact: The next time you would draw a card this turn, instead put a card you own from outside the game into your hand. => NounPhrase "The next time you would draw a card this turn" as Adjunct of put; RelativeClause "you would draw a card this turn" as Modifier of time gap "next time"; PrepositionPhrase "instead" as Adjunct of put; Clause "instead put a card you own from outside the game into your hand"
 + <card=Mangara's Tome> {2}: The next time you would draw a card this turn, instead put the top card of the exiled pile into its owner's hand. => NounPhrase "The next time you would draw a card this turn" as Adjunct of put; PrepositionPhrase "instead" as Adjunct of put; Clause "instead put the top card of the exiled pile into its owner's hand"

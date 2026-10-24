@@ -9,6 +9,7 @@
 +VerbPhrase put one of them into your hand and the rest on the bottom of your library in any order
 + Put one of them into your hand and the rest on the bottom of your library in any order.
 + Put one of them into your hand and the rest into your graveyard.
-+ Put one of them on top of your library in any order and the rest on the bottom of your library. => NounPhrase "one of them" as Object of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "on top of your library"; PrepositionPhrase "in any order"; PrepositionPhrase "on the bottom of your library"
+# from: Munda, Ambush Leader
++ Put those cards on top of your library in any order and the rest on the bottom in any order. => NounPhrase "those cards" as Object of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "on top of your library"; PrepositionPhrase "in any order"; PrepositionPhrase "on the bottom"
 + <card=Munda, Ambush Leader> Rally — Whenever Munda or another Ally you control enters, you may look at the top four cards of your library. If you do, reveal any number of Ally cards from among them, then put those cards on top of your library in any order and the rest on the bottom in any order. => NounPhrase "those cards" as Object of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "in any order"; PrepositionPhrase "in any order"#2
 + <card=Ransack> Look at the top five cards of target player's library. Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => NounPhrase "any number of them" as Object of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "in any order"; PrepositionPhrase "in any order"#2

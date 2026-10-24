@@ -1,6 +1,7 @@
 # Prepositional phrases: of-PP as a nominal complement, selected extent and locative complements, and no detached "of" adjunct in "any number of"
 +PrepositionPhrase of creatures => NounPhrase "creatures" as Complement of of
-+Nominal creatures of creatures => PrepositionPhrase "of creatures" as Modifier of creature
+# from: Peer Pressure
++Nominal creatures of that type => PrepositionPhrase "of that type" as Modifier of creature
 + Draw cards from them.
 + Until you draw cards, draw cards.
 + Your maximum hand size is increased by two. => PrepositionPhrase "by two" as Complement of increase

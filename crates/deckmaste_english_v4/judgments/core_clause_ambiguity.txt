@@ -24,11 +24,13 @@
 +PrepositionPhrase at end of combat => NounPhrase "end of combat" as Complement of at; Nominal "end of combat" head "turn_part:end of combat"; !Nominal "end of combat" as Complement of at; readings 1
 +PrepositionPhrase in hand => Nominal "hand" as Complement of in; readings 1
 +PrepositionPhrase in addition to its other types => PrepositionPhrase "to its other types" as Complement of "in addition"; !Nominal "addition to its other types"; readings 1
-+PrepositionPhrase as part of a spell => Nominal "part of a spell" as Complement of as; readings 1
+# from: Coalition Honor Guard
++PrepositionPhrase as part of casting a spell => Nominal "part of casting a spell" as Complement of as; readings 1
 
 # from: Nissa, Worldsoul Speaker
 +Measure -0/+0 => readings 1
-+PrepositionPhrase in addition to other types => PrepositionPhrase "to other types" as Complement of "in addition"
+# from: The War in Heaven
++PrepositionPhrase in addition to their other types => PrepositionPhrase "to their other types" as Complement of "in addition"
 
 +Clause X is 1 => NounPhrase "X" as Subject of be; NounPhrase "1"; Predicative "1" as PredicativeComplement of be; readings 1
 # from: The End

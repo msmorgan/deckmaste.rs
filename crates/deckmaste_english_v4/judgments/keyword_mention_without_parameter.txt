@@ -18,7 +18,8 @@
 +KeywordPhrase Cycling {2}
 +KeywordPhrase Suspend 4—{1}{U}
 +KeywordPhrase Toxic 1
-+ Target creature gains flashback {2} until end of turn. => KeywordPhrase "flashback {2}" as Object of gain; !KeywordPhrase "flashback"
+# from: The Fugitive Doctor
++ Target instant or sorcery card in your graveyard gains flashback {2}{R}{G} until end of turn. => KeywordPhrase "flashback {2}{R}{G}" as Object of gain; !KeywordPhrase "flashback"
 + <card=Gavi, Nest Warden> You may pay {0} rather than pay the cycling cost of the first card you cycle each turn. => KeywordPhrase "cycling" as Modifier of cost; !VerbPhrase "cycling"
 + <card=Fighter Class> Equip abilities you activate cost {2} less to activate. => KeywordPhrase "Equip" as Modifier of ability; !Sentence "cost {2} less to activate."; !KeywordPhrase "Equip abilities you activate cost {2} less to activate"
 + <card=Henzie "Toolbox" Torre> Blitz costs you pay cost {1} less for each time you've cast your commander from the command zone this game. => KeywordPhrase "Blitz" as Modifier of cost; !Sentence "you've cast your commander from the command zone this game."; !KeywordPhrase "Blitz costs you pay cost {1} less for each time you've cast your commander from the command zone this game"

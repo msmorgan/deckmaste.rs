@@ -4,7 +4,8 @@
 + <card=Sanctum Prelate> Noncreature spells with mana value equal to the chosen number can't be cast. => AdjectivePhrase "equal to the chosen number" as Modifier of "mana value"
 + <card=Ratchet Bomb> {T}, Sacrifice this artifact: Destroy each nonland permanent with mana value equal to the number of charge counters on this artifact. => AdjectivePhrase "equal to the number of charge counters on this artifact" as Modifier of "mana value"
 + <card=Aether Vial> {T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield. => AdjectivePhrase "equal to the number of charge counters on this artifact" as Modifier of "mana value"
-+ Its power is equal to its toughness. => AdjectivePhrase "equal to its toughness" as PredicativeComplement of be; readings 1
+# from: Ritual of the Returned
++ Its power is equal to that card's power and its toughness is equal to that card's toughness. => AdjectivePhrase "equal to that card's power" as PredicativeComplement of be; readings 1
 +NounPhrase damage equal to its power => AdjectivePhrase "equal to its power" as Modifier of damage; readings 1
 + <card=Ironclaw Curse> Enchanted creature can't block creatures with power equal to or greater than the enchanted creature's toughness. => AdjectivePhrase "equal to or greater than the enchanted creature's toughness" as Modifier of power
 + <card=Soul Separator> Create a black Zombie creature token with power equal to that card's power and toughness equal to that card's toughness. => NounPhrase "power equal to that card's power and toughness equal to that card's toughness"; NounPhrase "power equal to that card's power"; NounPhrase "toughness equal to that card's toughness"; AdjectivePhrase "equal to that card's power" as Modifier of power; AdjectivePhrase "equal to that card's toughness" as Modifier of toughness

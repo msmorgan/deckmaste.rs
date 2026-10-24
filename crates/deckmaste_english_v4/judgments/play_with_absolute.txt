@@ -10,7 +10,8 @@
 + Players can't play lands.
 + Players attack.
 + You may look at that card with it revealed.
-+ Players attack with their hands revealed. => PrepositionPhrase "with their hands revealed" as Adjunct of attack
+# from: Zur's Weirding
++ Players play with their hands revealed. => PrepositionPhrase "with their hands revealed" as Adjunct of play
 + It enters with a +1/+1 counter on it.
 + <card=Play with Fire> Play with Fire deals 2 damage to any target. => NounPhrase "Play with Fire" as Subject of deal
 *VerbPhrase play with their hands revealing

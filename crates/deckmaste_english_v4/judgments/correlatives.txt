@@ -8,7 +8,8 @@
 +VerbPhrase neither attack nor block
 +NounPhrase both cards and cards
 +NounPhrase either cards or cards
-+NounPhrase neither cards nor cards
+# from: Sunrise Cavalier
++NounPhrase neither day nor night
 +PrepositionPhrase both among cards and among cards
 +PrepositionPhrase either among cards or among cards
 +PrepositionPhrase neither among cards nor among cards
@@ -41,4 +42,5 @@
 +KeywordPhrase neither flying, haste, nor flying
 +NounPhrase either {W}, {U}, or {W}
 +NounPhrase neither {W}, {U}, nor {W}
-+VerbPhrase both own and control cards => NounPhrase "cards" as Object of own; NounPhrase "cards" as Object of control
+# from: Hanweir Battlements
++VerbPhrase both own and control this land => NounPhrase "this land" as Object of own; NounPhrase "this land" as Object of control

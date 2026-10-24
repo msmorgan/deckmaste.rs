@@ -9,4 +9,5 @@
 + When this creature enters, it explores X times. => NounPhrase "X times" as Adjunct of explore
 # from: Nicanzil, Current Conductor
 +VerbPhrase explores a card => NounPhrase "a card" as Object of explore
-+VerbPhrase draws cards two times => NounPhrase "cards" as Object of draw; NounPhrase "two times" as Adjunct of draw
+# from: Mnemonic Deluge
++VerbPhrase copy that card three times => NounPhrase "that card" as Object of copy; NounPhrase "three times" as Adjunct of copy

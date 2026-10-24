@@ -5,15 +5,18 @@
 + <card=The Magic Mirror> At the beginning of your upkeep, put a knowledge counter on The Magic Mirror, then draw a card for each knowledge counter on The Magic Mirror. => Nominal "knowledge counter"; Nominal "knowledge counter"#2
 + <card=Icatian Javelineers> This creature enters with a javelin counter on it. => Nominal "javelin counter"
 +Nominal petrification counter
-+Nominal petrification counters
+# from: Xathrid Gorgon
++Nominal petrification counter
 +Nominal intel counter
 +Nominal intel counters
 +Nominal eon counter
 +Nominal eon counters
 +Nominal knowledge counter
-+Nominal knowledge counters
+# from: The Magic Mirror
++Nominal knowledge counter
 +Nominal javelin counter
-+Nominal javelin counters
+# from: Icatian Javelineers
++Nominal javelin counter
 +Nominal treasure counter
 +Nominal treasure counters
 +Nominal mine counter
@@ -25,6 +28,7 @@
 +Nominal gold counter
 +Nominal gold counters
 +Nominal silver counter
-+Nominal silver counters
+# from: Karn, Scion of Urza
++Nominal silver counter
 +Nominal hope counter
 +Nominal hope counters

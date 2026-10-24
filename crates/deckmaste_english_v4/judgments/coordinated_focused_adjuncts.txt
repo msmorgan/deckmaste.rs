@@ -14,5 +14,6 @@
 + {R}: This creature gets +2/+0 until end of turn. Activate only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn. => PredicateAdjunct "only during the declare blockers step, only if at least one creature is blocking this creature, and only once each turn" as Adjunct of activate
 # A focused Adjunct after a Clause that ends in one it coordinates with is that Adjunct's coordinate, never an added element (CGEL, Ch. 15 §4.5, p. 1346, [29]); a temporal Noun Phrase after a Verb Phrase's final Adverb Phrase is a second Adjunct of it, never the adverb's interval (Ch. 8 §9, p. 715).
 + Activate only as a sorcery and only once each turn. => PredicateAdjunct "only as a sorcery and only once each turn" as Adjunct of activate; !QualifyingFragment "only once each turn"
-+ You may activate this ability only as a sorcery and only once each turn. => PredicateAdjunct "only as a sorcery and only once each turn"; !QualifyingFragment "only once each turn"
+# from: Nimbleclaw Adept
++ Activate only as a sorcery and only once each turn. => PredicateAdjunct "only as a sorcery and only once each turn"; !QualifyingFragment "only once each turn"
 + Activate only once each turn. => AdverbPhrase "only once" as Adjunct of activate; NounPhrase "each turn" as Adjunct of activate; readings 1

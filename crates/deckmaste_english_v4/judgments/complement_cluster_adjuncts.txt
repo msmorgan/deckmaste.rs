@@ -13,7 +13,8 @@
 + This creature and enchanted creature each get +1/+1 for each creature you control and +1/+1 for each Aura you control. => ComplementCluster "+1/+1 for each creature you control"; ComplementCluster "+1/+1 for each Aura you control"; PredicateAdjunct "for each Aura you control" as Adjunct of get || PrepositionPhrase "for each creature you control and +1/+1"
 # A Cluster may end in an Adjunct that its parallel Clusters lack, and each
 # Cluster may end in its own.
-+ Put one of them on top of your library in any order and the rest on the bottom of your library. => ComplementCluster "one of them on top of your library in any order"; ComplementCluster "the rest on the bottom of your library"; PredicateAdjunct "in any order" as Adjunct of put
+# from: Ransack
++ Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"; PredicateAdjunct "in any order" as Adjunct of put
 + Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"
 # A single Object forms a Cluster only with its Adjunct: alone it coordinates
 # as itself.

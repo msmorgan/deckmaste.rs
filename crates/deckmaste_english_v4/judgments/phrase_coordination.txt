@@ -1,10 +1,16 @@
 # Coordination of phrases (binary and serial with the serial comma) and shared modifiers across coordinated phrases
-+Nominal creatures and creatures
-+Nominal creatures, creatures, and creatures
-+AdjectivePhrase green and green
-+AdjectivePhrase green, green, and green
-+PrepositionPhrase among creatures and among creatures
-+PrepositionPhrase among creatures, among creatures, and among creatures
+# from: Magistrate's Veto
++Nominal White creatures and blue creatures
+# from: Magus of the Disk
++Nominal artifacts, creatures, and enchantments
+# from: Body of Research
++AdjectivePhrase green and blue
+# from: Hazezon, Shaper of Sand
++AdjectivePhrase red, green, and white
+# from: Squee, the Immortal
++PrepositionPhrase from your graveyard or from exile
+# from: Kaya the Inexorable
++PrepositionPhrase from your hand, from your graveyard, or from among cards you own in exile
 +AdverbPhrase again and again
 +AdverbPhrase again, again, and again
 +Clause to attack and to attack
@@ -13,7 +19,8 @@
 +NounPhrase three times, three times, and three times
 + Exile target artifact or enchantment.
 +NounPhrase target blue or black creature => AdjectivePhrase "blue or black" as Modifier of creature
-+PrepositionPhrase from them or from you
+# from: Squee, the Immortal
++PrepositionPhrase from your graveyard or from exile
 +VerbPhrase choose to attack or to block => Clause "to attack or to block" as Complement of choose
 +PrepositionPhrase of creatures and among creatures
 *Clause to attacks or to block

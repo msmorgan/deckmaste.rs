@@ -12,7 +12,8 @@
 # from: Johtull Wurm
 + Draw a card for each creature blocking it beyond the first. => NounPhrase "the first" as Complement of beyond
 + This spell was cast using teamwork. => VerbPhrase "using teamwork"; KeywordPhrase "teamwork" as Object of use
-+ Tap it to pay for its abilities. => PrepositionPhrase "for its abilities" as Complement of pay
+# from: Vodalian War Machine
++ Destroy all Merfolk tapped this turn to pay for its abilities. => PrepositionPhrase "for its abilities" as Complement of pay
 # A bare relative with a predicative Gap, under a lexical copula or a negative
 # auxiliary only; postposed past an adjectival Complement; prepositional
 # passives; and a numeral as a noun.

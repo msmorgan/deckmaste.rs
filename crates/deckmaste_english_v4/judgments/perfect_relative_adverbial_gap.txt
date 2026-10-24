@@ -7,6 +7,7 @@
 + <card=Saint Traft and Rem Karolus> If it's the second time, create a 1/1 blue Spirit creature token with flying. => NounPhrase "the second time"
 + <card=Aurelia, the Warleader> Whenever Aurelia attacks for the first time each turn, untap all creatures you control. => NounPhrase "the first time"
 + <card=Felisa, Fang of Silverquill> Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it. => NounPhrase "counters on it" as Object of have; RelativeClause "it had on it" gap "counters"
-+NounPhrase the first time you cast a spell each turn => RelativeClause "you cast a spell each turn" gap "first time" || RelativeClause "you cast a spell" gap "first time"
+# from: Edgar, King of Figaro
++NounPhrase the first time you flip one or more coins each turn => RelativeClause "you flip one or more coins each turn" gap "first time" || RelativeClause "you flip one or more coins" gap "first time"
 + <card=Captain America, Living Legend> If it's the first time that creature has become tapped this turn, untap it. => RelativeClause "that creature has become tapped this turn" gap "first time" || RelativeClause "that creature has become tapped" gap "first time"
 +Nominal time this ability has resolved => RelativeClause "this ability has resolved" gap "time"

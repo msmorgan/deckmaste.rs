@@ -4,13 +4,16 @@
 + <card=Greven, Predator Captain> Greven gets +X/+0, where X is the amount of life you've lost this turn. => RelativeClause "you've lost" gap "life" || RelativeClause "you've lost this turn" gap "life" || RelativeClause "you've lost" gap "amount of life" || RelativeClause "you've lost this turn" gap "amount of life"
 + <card=Knowledge Is Power> Creatures you control get +X/+X, where X is the number of cards you've drawn this turn. => RelativeClause "you've drawn" gap "cards" || RelativeClause "you've drawn this turn" gap "cards" || RelativeClause "you've drawn" gap "number of cards" || RelativeClause "you've drawn this turn" gap "number of cards"
 + <card=Rug of Smothering> Whenever a player casts a spell, they lose 1 life for each spell they've cast this turn. => RelativeClause "they've cast" gap "spell" || RelativeClause "they've cast this turn" gap "spell"
-+NounPhrase the life you have lost this turn => RelativeClause "you have lost this turn" gap "life"; VerbPhrase "lost this turn" as Complement of have
+# from: Neheb, the Eternal
++NounPhrase 1 life your opponents have lost this turn => RelativeClause "your opponents have lost this turn" gap "life"; VerbPhrase "lost this turn" as Complement of have
 +NounPhrase each card you've cycled or discarded this turn => VerbPhrase "cycled or discarded this turn" as Complement of have; RelativeClause "you've cycled or discarded this turn" gap "card"
 +RelativeClause you've drawn
-+RelativeClause you have drawn
+# from: Heliod, the Warped Eclipse
++RelativeClause your opponents have drawn this turn
 # from: Dream Thief
 + Draw a card if you've cast a spell this turn. => !RelativeClause "you've cast a spell this turn"
 # from: Fortune Teller's Talent
 + You've cast a spell this turn. => !RelativeClause "you've cast a spell this turn"
-+NounPhrase the first time you've cast your commander => RelativeClause "you've cast your commander" gap "first time"
+# from: Commander's Insignia
++NounPhrase each time you've cast your commander from the command zone this game => RelativeClause "you've cast your commander from the command zone this game" gap "time"
 +NounPhrase the second spell you cast this turn => RelativeClause "you cast this turn" gap "second spell"

@@ -5,7 +5,8 @@
 + <card=Minas Morgul, Dark Fortress> For as long as that creature has a shadow counter on it, it's a Wraith in addition to its other types. => PrepositionPhrase "For as long as that creature has a shadow counter on it"; Clause "that creature has a shadow counter on it"
 + <card=Flameshape> For as long as they remain exiled, you may play them if you control a Wizard. => PrepositionPhrase "For as long as they remain exiled"; Clause "they remain exiled"
 + <card=Immovable Rod> For as long as this artifact remains tapped, another target permanent loses all abilities and can't attack or block. => PrepositionPhrase "For as long as this artifact remains tapped"; Clause "this artifact remains tapped"
-+ Until end of turn, another target permanent loses all abilities and can't attack or block.
+# from: Immovable Rod
++ For as long as this artifact remains tapped, another target permanent loses all abilities and can't attack or block.
 + As long as that card remains exiled, you may play it. => PrepositionPhrase "As long as that card remains exiled"; Clause "that card remains exiled"
 + As long as that creature has a shadow counter on it, it's a Wraith in addition to its other types. => PrepositionPhrase "As long as that creature has a shadow counter on it"; Clause "that creature has a shadow counter on it"
 + Its owner may play it for as long as it remains exiled. => PrepositionPhrase "for as long as it remains exiled" as Adjunct of play; Clause "it remains exiled"

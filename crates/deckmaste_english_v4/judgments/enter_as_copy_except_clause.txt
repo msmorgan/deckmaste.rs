@@ -10,7 +10,8 @@
 + <card=Evil Twin> You may have this creature enter as a copy of any creature on the battlefield, except it's an artifact. => PrepositionPhrase "except it's an artifact" as Adjunct of may
 + <card=Evil Twin> You may have this creature enter tapped as a copy of any creature on the battlefield, except it has flying. => PrepositionPhrase "except it has flying" as Adjunct of may
 + You may have this creature enter as a copy of any creature on the battlefield.
-+ This creature enters as a copy of any creature on the battlefield.
+# from: Stunt Double
++ You may have this creature enter as a copy of any creature on the battlefield.
 + You may have this creature enter tapped as a copy of any creature on the battlefield.
 # from: Heat Shimmer
 + Create a token that's a copy of target creature, except it has flying.

@@ -9,13 +9,15 @@
 + If you may, draw a card. => VerbPhrase "may" head may
 + If they must, draw a card. => VerbPhrase "must" head must
 + If it would, draw a card. => VerbPhrase "would" head will
-+ Draw a card if you can't. => VerbPhrase "can't" head can
+# from: Inventive Iteration
++ If you can't, draw a card. => VerbPhrase "can't" head can
 + Each opponent who can't discards a card. => RelativeClause "who can't" as Modifier of opponent
 + For each opponent who can't, you draw a card. => RelativeClause "who can't" as Modifier of opponent
 # The site ends its phrase: a phrase right after it is the auxiliary's
 # Complement, never another host's dependent (p. 1519).
 + Note the number and kind of counters that were on that creature. => !VerbPhrase "were"
-+ You may play lands as though those cards were in your graveyard. => !VerbPhrase "were"
+# from: Shaman's Trance
++ You may play lands and cast spells from other players' graveyards this turn as though those cards were in your graveyard. => !VerbPhrase "were"
 + Destroy all creatures that were blocked by target Wall this turn. => !VerbPhrase "were"
 # from: Gemini Engine
 + Its power is equal to its toughness. => !VerbPhrase "is"

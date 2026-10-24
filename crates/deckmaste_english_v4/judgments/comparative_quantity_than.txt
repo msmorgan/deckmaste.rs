@@ -9,7 +9,8 @@
 *NounPhrase more land than you
 *NounPhrase fewer life than you
 *NounPhrase less lands than you
-+NounPhrase more than two lands => DeterminerPhrase "more than two" as Determiner of land; readings 1
+# from: Expand the Sphere
++NounPhrase fewer than two lands => DeterminerPhrase "fewer than two" as Determiner of land; readings 1
 +NounPhrase a card with the same name as that card
 # from: Sharp-Eyed Rookie
 + Its power is greater than its toughness.
@@ -19,4 +20,5 @@
 +Clause the amount you pay can't be more than the number of white nontoken permanents your opponents control => NounPhrase "more than the number of white nontoken permanents your opponents control" as PredicativeComplement of be; NounPhrase "the number of white nontoken permanents your opponents control" as Complement of than; !DeterminerPhrase "more than the number"
 # A comparative determinative with a bare standard heads a partitive (CGEL, Ch. 5 §11(d), p. 432): *one of ...* is not its standard.
 + <card=Jegantha, the Wellspring> No card in your starting deck has more than one of the same mana symbol in its mana cost. => NounPhrase "more than one of the same mana symbol"; DeterminerPhrase "more than one"; NounPhrase "the same mana symbol" as Complement of of; !DeterminerPhrase "more than one of the same mana"; !NounPhrase "one of the same mana symbol"
-+NounPhrase more than one of those cards => DeterminerPhrase "more than one"; NounPhrase "those cards" as Complement of of; readings 1
+# from: Jegantha, the Wellspring
++NounPhrase more than one of the same mana symbol => DeterminerPhrase "more than one"; NounPhrase "the same mana symbol" as Complement of of; readings 1

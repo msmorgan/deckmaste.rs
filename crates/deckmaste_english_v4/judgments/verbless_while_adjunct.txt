@@ -5,8 +5,10 @@
 + <card=Dracosaur Auxiliary> Whenever this creature attacks while saddled, it deals 2 damage to any target. => PrepositionPhrase "while saddled" as Adjunct of attack
 +PrepositionPhrase while saddled
 + It has flying while tapped. => PrepositionPhrase "while tapped" as Adjunct of have
-+ Whenever this creature attacks while it's saddled, it gets +2/+2 until end of turn. => PrepositionPhrase "while it's saddled" as Adjunct of attack
+# from: Aeon Chronicler
++ Whenever a time counter is removed from this card while it's exiled, draw a card. => PrepositionPhrase "while it's exiled" as Adjunct of remove
 + Whenever this creature attacks, draw a card.
 + This creature is saddled.
-+ You may look at it while it's tapped. => PrepositionPhrase "while it's tapped" as Adjunct of look
+# from: Watcher of Hours
++ Whenever you remove a time counter from this card while it's exiled, surveil 1. => PrepositionPhrase "while it's exiled" as Adjunct of remove
 + This creature attacks each combat if able. => PrepositionPhrase "if able" as Adjunct of attack; NounPhrase "each combat" as Adjunct of attack
