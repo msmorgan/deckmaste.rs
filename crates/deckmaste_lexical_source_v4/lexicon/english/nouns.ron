@@ -171,8 +171,9 @@
     "word",
     "zone",
 
-    // The five colors as nouns: "devotion to blue", "a color other than white".
-    // Prenominal *green* is the adjective.
+    // The five colors as nouns converted from the adjectives (CGEL, Ch. 19
+    // §3.3, p. 1642): "devotion to blue", "a color other than white".
+    // Prenominal and bare predicative *green* are the adjective.
     (lemma: "black", countability: [Mass], distribution: HeadOnly),
     (lemma: "blue", countability: [Mass], distribution: HeadOnly),
     (lemma: "green", countability: [Mass], distribution: HeadOnly),

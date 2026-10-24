@@ -274,7 +274,9 @@
         // A noun's Amount Complement is a Nominal dependent, so a slash
         // Measure is shared only by coordinated Nominals (*base power and
         // toughness 4/4*): a Noun Phrase never passes up a Measure Gap.
-        "NounPhrase": (features: ["Variable", "Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "FirstConjunctNumber"], gap: true, closed_gaps: ["Measure"]),
+        // Its NounDistribution is its head noun's, a coordination's its last
+        // conjunct's (NominalPredicative).
+        "NounPhrase": (features: ["Variable", "Number", "Person", "Case", "Determination", "NounKind", "Countability", "DeterminativeDistribution", "FirstConjunctNumber", "NounDistribution"], gap: true, closed_gaps: ["Measure"]),
         // A temporal Noun Phrase Adjunct: of location (*this turn*; CGEL, Ch. 8
         // §6.3, p. 698) or of frequency (*three times*; Ch. 8 §9, pp. 713–716).
         "TemporalNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
@@ -2247,8 +2249,12 @@
         // §9.3, p. 413) that quantifies the members of a set (Ch. 5 §5,
         // p. 358): it is never a predicative Complement, and *are each equal
         // to 2* has floated *each* (Ch. 5 §10.1.1, p. 428), never *are
-        // [each]*.
-        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive"), ExcludeTogether([("head.DeterminativeDistribution", "Distributive"), ("head.NounKind", "Quantity")])]),
+        // [each]*. A bare non-count Noun Phrase is a Predicative (*That's
+        // utter nonsense*, p. 536), but not one headed by a noun whose
+        // modifying uses are an adjective's: a bare colour word after a
+        // copula is the adjective (*His tie is brown*; Ch. 19 §3.3, p. 1642),
+        // which also specifies (Ch. 4 §5.5.1, p. 267, [48ii]).
+        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.Case", "Genitive"), ExcludeTogether([("head.DeterminativeDistribution", "Distributive"), ("head.NounKind", "Quantity")]), ExcludeTogether([("head.Determination", "Bare"), ("head.Countability", "Mass"), ("head.NounDistribution", "HeadOnly")])]),
         // A predicative Preposition Phrase could also modify a nominal.
         (name: "PrepositionalPredicative", lhs: "Predicative", rhs: [Hosted("head", "PrepositionPhrase", Nominal)]),
         (name: "AdjectivalPredicative", lhs: "Predicative", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.AdjectivePosition", "Attributive")]),
@@ -2480,20 +2486,20 @@
         // An *and*-coordination of Noun Phrases or nominals is plural; an
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).
-        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("$.Number", "Plural"), Require("$.Person", "Third"), Agree("$.FirstConjunctNumber", "first.Number"), Exclude("first.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
-        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("$.Number", "Plural"), Require("$.Person", "Third"), Agree("$.FirstConjunctNumber", "first.Number"), Exclude("first.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability", "NounDistribution"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind", "Countability", "NounDistribution"]),
         // *And/or* means "and or or" (CGEL, Ch. 15 §3.3(a), p. 1329): plural
         // with a plural last conjunct, of either Number with a singular one
         // (*you and/or at least one permanent you control becomes*).
-        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Plural"), Require("$.Number", "Plural")], proximate: ["Person", "Case", "NounKind", "Countability"]),
-        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Singular")], proximate: ["Person", "Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Plural"), Require("$.Number", "Plural")], proximate: ["Person", "Case", "NounKind", "Countability", "NounDistribution"]),
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Require("last.Number", "Singular")], proximate: ["Person", "Case", "NounKind", "Countability", "NounDistribution"]),
         // A Numeric Noun Phrase is no first conjunct: a conjunct must fill
         // the coordination's function alone (CGEL, Ch. 15 §3.1, p. 1323,
         // rule [1]), and a number fills no Noun Phrase Complement slot, so
         // never *is dealt [3] or [more damage]*. Numbers alone are an Amount
         // coordination (*2 or 3*). An admission gate
         // (`docs/decisions/english-v4.md` §4.5).
-        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability"]),
+        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["DeterminativeDistribution", "FirstConjunctNumber"], resolve: [("Determination", "Bare")], equations: [ExcludeTogether([("first.Determination", "Overt"), ("last.Determination", "Bare"), ("last.Countability", "Mass")]), Exclude("first.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind", "Countability", "NounDistribution"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["ObliqueNumber", "ObliqueNounKind", "ConjunctNumber", "CompoundPart"], equations: [Exclude("first.CompoundPart", "Base"), Agree("$.ConjunctNumber", "$.Number")], proximate: ["NounDistribution"]),
         Coordination(category: "GenitiveNominals", conjunct: Some("GenitiveNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),

@@ -847,7 +847,9 @@ pub enum NounDistribution {
     Quantity,
     /// A mass noun accepting a direct cardinal measure without a unit noun.
     DirectMeasure,
-    /// Used as a nominal head, with no attributive noun use.
+    /// Used as a nominal head, with no attributive noun use. A non-count one
+    /// is not a bare Predicative either: those uses are its adjective's
+    /// (*His tie is brown*; CGEL, Ch. 19 §3.3, p. 1642).
     HeadOnly,
     /// Serial *time*, counting occasions: a Noun Phrase Adjunct with any
     /// determinative (*any time*, *an additional time*, *three times*),
