@@ -258,6 +258,13 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (they share `stepEventSubjectWith` (`:892`) and
   `stepSubjectAfterWith`, but each still hand-rolls the head gate, the `.draw` actor-kind
   exemption (`:1463-1467`, `:3412-3416`) and the locus check).
+  **Done 2026-10-24: ltorsnkp** (`stepActionClauseWith`: `does`, `would`, `did`, `cant`,
+  `can`/`must`, `gatedBy` and `asThough` step one spine, each adding its own part through hooks;
+  the deontic rules now check their performer's kind and a passive agent's as event clauses do;
+  the `.draw` exemption is one named predicate, `Action.checksItsPerformer`, since a draw refuses a
+  non-player as it steps; the locus check went with `.enact` (mqmzkunq). Pins
+  `Deontic.prohibitionAndEventRefuseANonPlayerCasterAlike`,
+  `Deontic.drawRefusesANonPlayerOnceInEveryClause`; ADR §3.1 describes the spine).
 - **Reconcile `deonticHeadOk` and `eventHeadOk` (§2.7):** Align
   `Check/Events.lean:25-67` (`eventHeadOk` `:25-45`, `deonticHeadOk` `:48-67`) so
   non-battlefield zone moves (e.g. `move` to exile)
@@ -276,6 +283,10 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `destroy`, `sacrifice`, …); (b) admit every raw move in a deontic clause, as the event gate
   does, and amend ADR §3.7. The `ownScope` half needs no ruling and is done: both gates admit any
   Definition header through one traversal (`Action.headGate`).
+  **Partly done 2026-10-24: yoqskptw** (the `ownScope` half: `Action.headGate` over
+  `Action.eventHead`/`Action.deonticHead`; pin
+  `DefinitionsAndTemplates.headGatesAgreeOnADefinitionHeader`; ADR §3.7 reworded. The raw-move half
+  awaits the ruling above).
 - **Unify deed stamping and prune dead `CoreDeed` constructors (§§3.1, 3.3):**
   - Eliminate the three competing deed-stamping mechanisms (`ownScope (some (.action ...))`
     header, `.enact`, and `Action.inferredDeed` string-guessing at
@@ -305,6 +316,40 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   this ticket rebases onto that stamp. Still live: the three stamping mechanisms and the
   double-wrap, and the 8 dead `CoreDeed` constructors, all still declared and never
   constructed).
+  **Done 2026-10-24: xvknqmor, mqmzkunq.** xvknqmor deletes the nine dead `CoreDeed` constructors
+  (`copy` included) and points ADR §3.6's `tappedForMana` row at the `Action.tapForMana` head.
+  mqmzkunq: the `ownScope` header is the action's one deed (ADR §1.4, §2.1), read by the head
+  gates, the caused event, the deed lookup and the stepper alike (`Action.ownDeed?`). `Action.enact`
+  is deleted: the stepper's `ownScope (some deed)` case does what `.enact` did (the source
+  permanent as performer, the patients stamped), and a move in the body carries the deed too
+  (`OwnScopeFrame.deed`, `DRS.scopeDeed`), so cascade's run and stopping card are both exiled. Every
+  Action Definition loses its inner `enact`; devour, madness's discard and reconfigure's unattach
+  are `ownScope` over `inCaller` arguments; `transformsInto` moves to `Definitions/Actions.lean`
+  and writes its face on `turnOver`'s new `into` [CR#701.27e]; the redundant locus is gone, and
+  "shuffled your graveyard" is refused by the shuffle itself (`Refusal.shuffleZone`, replacing
+  `lookbackLocus`, [CR#701.24a]). `inferredDeed` is `namedDeed` and guesses nothing: the exile,
+  tap, untap, create and reveal shape cases are deleted. `checkDefinition` is gone with the
+  double wrap it stripped. The hand-copied `exploreDef`/`conniveDef` in `Check.lean` hand off
+  explicitly, so their headers no longer claim a permanent performer. Pins added:
+  `DefinitionsAndTemplates.headerDeedIsReadByTheGateAndTheStepper`, `bareShapesNameNoDeed`.
+  Rewritten: `Lookback.resolveRecordsNoStackMove` (the resolved spell now carries the resolve
+  deed, still no Zone Change: "stamped by no deed" was the ignored header),
+  `Lookback.locusIsReadFromTheEnactedBody` → `shuffledGraveyardNamesNoShuffle`,
+  `Anaphora.okShuffleLocusAtLibrary` → `okShuffledYourLibraryThisWay`,
+  `Anaphora.badShuffleLocusAtGraveyard` → `badShuffledYourGraveyardThisWay`,
+  `DefinitionsAndTemplates.atomicDefinitionLaw` (`check`, not `checkDefinition`),
+  `Actor.scopedBodyCannotReadTheCaller` (its unscoped half is the bare Definition), the
+  `ControllerSacrifice` scope-step lemmas (one `ownScope` step, the move carrying the sacrifice
+  deed; the public theorems' statements unchanged), and pins that wrote `.enact` as a transparent
+  deed node (`Faces.redundantSameClauseShuffleHandoffIsRefused`, now the bare handoff;
+  `MovementScopes.consumingActionChecksThePreMoveZone`, `SelectionEvidence`,
+  `CorpusRecency`'s cycling context, now reading their caller arguments `inCaller`). Renamed:
+  `counterIsSingleEnactedMove` → `counterIsOneScopedMove`, `okEnactedKeywordAction` →
+  `okScopedKeywordAction`, `templateBareThisRetainsEnactedZoneExemption` →
+  `templateBareThisRetainsScopedZoneExemption`. Retired: `Lookback.namedActionCanCarryItsLocus`
+  (the locus field is gone; `Anaphora.searchLookbackCarriesItsScope` pins the search's own
+  scope) and the `Authoring` witnesses `enactedDeedRecordsDefinitionAuthorship`, the "descry" and
+  the "destory" examples (the `enact` template was the only card surface that named a deed).
 
 ### 3. `theGrantor`, `permanentActor`, Refusal Hygiene, Positional Hacks, Fuel & Dead Code (Opus §§1.16, 2.9, 2.11–2.13, 5.4, 6.7; Astra §§2, 7)
 
