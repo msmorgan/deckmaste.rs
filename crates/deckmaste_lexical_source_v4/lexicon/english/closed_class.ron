@@ -173,9 +173,6 @@
         (lemma: "can", third_singular: "can", preterite: "could", finite_only: true, frames: [Catenative(BareInf)]),
         (lemma: "can't", form_of: Some("can"), third_singular: "can't", preterite: "couldn't", finite_only: true, negative: true,
             frames: [Catenative(BareInf)]),
-        // Pro-form *if you do*; *do this only once each turn*.
-        (lemma: "do", third_singular: "does", preterite: "did", past_participle: "done",
-            frames: [Intransitive, Monotransitive]),
         (lemma: "don't", form_of: Some("do"), third_singular: "doesn't", preterite: "didn't", finite_only: true,
             negative: true, frames: [Catenative(BareInf), Intransitive]),
         // *you may have target player reveal their hand*. Lexical *have* is

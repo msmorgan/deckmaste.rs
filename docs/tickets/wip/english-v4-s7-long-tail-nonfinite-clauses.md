@@ -45,3 +45,16 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 - Naked Singularity / Reality Twist, *If tapped for mana,*: let `VerblessConditional`'s participle take a complement PP.
 - Deification, Cosmos Charger and Worms of the Earth are plain grammar.
+
+## Landing
+
+1. **Census delta** (`srqzytql`, full corpus): faces read 32,777 → 32,782; total
+   Readings 337,514 → 337,572 (+58; 337,096 and 32,787 faces after refresh onto
+   the quantifiers landing, whose units are the only others that moved). Gained faces: Naked Singularity, Reality
+   Twist (4 each), Deification (36), Cosmos Charger (12), Worms of the Earth
+   (1). Cryptic Spires 1 → 2, the second *of* phrase attached to *mana of
+   either* beside its partitive, as in the existing *mana of both of*. Lost
+   faces: none.
+2. **Judgment set** (`srqzytql`): 3,593 enforced, 2 pending, including the new
+   `long_tail_nonfinite_clauses.txt` and the previously pending Worms of the
+   Earth entry; all hold.

@@ -45,6 +45,12 @@
         frames: [Monotransitive, Ditransitive, TransitiveWithPP(["to"])]),
     // *you decide whether to flip again*
     (lemma: "decide", frames: [ContentClause]),
+    // The main verb *do* is lexical and has a passive (*can be done on any
+    // player's turn*); the auxiliary *do* is spelled in the negative
+    // (*don't*, closed_class.ron). The pro-form *if you do*; *do this only
+    // once each turn*.
+    (lemma: "do", third_singular: "does", preterite: "did", past_participle: "done",
+        frames: [Intransitive, Monotransitive]),
     // The pro-form *do so* (CGEL, Ch. 17 §7.5, pp. 1529–1532), inflected on
     // *do*: *all creatures able to block it do so*, *if a player does so*.
     (lemma: "do so", third_singular: "does so", preterite: "did so", past_participle: "done so", gerund: "doing so", frames: [Intransitive]),
@@ -130,6 +136,8 @@
     (lemma: "reselect", frames: [Monotransitive, ContentClause]),
     (lemma: "resolve", frames: [Intransitive]),
     (lemma: "restart", frames: [Monotransitive]),
+    // *damage that would result in a counter being removed*
+    (lemma: "result", frames: [Prepositional(["in"])]),
     (lemma: "return", frames: [Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "reverse", frames: [Monotransitive]),
     // A die, not the Attraction keyword action [CR#701.52]: *roll a d20*.

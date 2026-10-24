@@ -4,3 +4,6 @@
 + Exile those. => NounPhrase "those" as Object of exile
 + Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments. => NounPhrase "all creatures except those that share a creature type with a creature that convoked this spell"; RelativeClause "that share a creature type with a creature that convoked this spell"; NounPhrase "all artifacts"; NounPhrase "all enchantments"
 + <card=Worms of the Earth> At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment. => NounPhrase "either" as Object of do
+# Fused *either* and *neither* are ordinary singular Noun Phrases, so they are Complements too.
++ Exile either. => NounPhrase "either" as Object of exile
++ Exile either of them. => NounPhrase "either of them" as Object of exile; readings 1

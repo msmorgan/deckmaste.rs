@@ -6,8 +6,6 @@
 # english-v4-stratum-7-discourse-and-long-tail
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
-Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.
-Worms of the Earth | At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 
 
@@ -50,9 +48,6 @@ Drought | Spells cost an additional "Sacrifice a Swamp" to cast for each black m
 Drought | Activated abilities cost an additional "Sacrifice a Swamp" to activate for each black mana symbol in their activation costs.
 
 # english-v4-s7-long-tail-nonfinite-clauses
-Reality Twist | If tapped for mana, Plains produce {R}, Swamps produce {G}, Mountains produce {W}, and Forests produce {B} instead of any other type.
-Deification | As long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed.
-Naked Singularity | If tapped for mana, Plains produce {R}, Islands produce {G}, Swamps produce {W}, Mountains produce {U}, and Forests produce {B} instead of any other type.
 
 # english-v4-s7-long-tail-pp-coordination
 

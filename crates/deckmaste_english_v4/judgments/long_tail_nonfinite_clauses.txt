@@ -1,0 +1,20 @@
+# Long-tail non-finite clauses: a passive participle with its Adjunct as a
+# verbless clause, the gerund-participial postmodifier after *result in*, and
+# the passive of lexical *do*.
+
+# *If tapped for mana*: the participle keeps the *for* phrase as its Adjunct
+# (CGEL, Ch. 14 §10(b), p. 1267). Bare *tapped* is the Adjectival Passive; neither
+# string has a second tree.
++ <card=Naked Singularity> If tapped for mana, Plains produce {R}, Islands produce {G}, Swamps produce {W}, Mountains produce {U}, and Forests produce {B} instead of any other type. => Clause "tapped for mana" as Complement of if; PrepositionPhrase "for mana" as Adjunct of tap
++ <card=Reality Twist> If tapped for mana, Plains produce {R}, Swamps produce {G}, Mountains produce {W}, and Forests produce {B} instead of any other type. => Clause "tapped for mana" as Complement of if; PrepositionPhrase "for mana" as Adjunct of tap
++ If sacrificed for mana, this land produces {R}. => Clause "sacrificed for mana" as Complement of if; readings 1
++ If tapped for mana, this land produces {R}. => readings 1
++ If tapped, this land produces {R}. => readings 1
++ This creature attacks each combat if able unless you control another Ally. => !Clause "able unless you control another Ally"
+
+# *result in*: the gerund-participial *being removed* postmodifies the nominal
+# it follows, as in *player being attacked* (participial_uses.txt).
++ <card=Deification> As long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed. => NounPhrase "all loyalty counters on it being removed" as Complement of in; VerbPhrase "being removed" as Modifier of "loyalty counter"
+
+# The main verb *do* has a passive.
++ <card=Cosmos Charger> Foretelling cards from your hand costs {1} less and can be done on any player's turn. => VerbPhrase "done on any player's turn" as Complement of be; PrepositionPhrase "on any player's turn" as Adjunct of do
