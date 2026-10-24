@@ -293,8 +293,11 @@ pub enum Equation {
 /// shared head's dependents that form constituents only by being coordinated
 /// (CGEL, Ch. 15 §4.3, pp. 1341–1343, [20]).
 ///
-/// A Cluster is the Frame Slots of one frame, then an optional Adjunct; one
-/// of a single Slot has its Adjunct, since a Slot alone coordinates as itself.
+/// A Cluster is the Frame Slots of one frame, then up to two Adjuncts. A single
+/// Slot with no Adjunct is a Cluster only where it alone breaks parallelism,
+/// never last and before or between at least two Clusters that end in as many
+/// Adjuncts: a coordination of single Slots is their own coordination
+/// (`english-lexical-analysis.md` §2).
 /// The coordinates are parallel: every Cluster of one coordination is of the
 /// head's frame (p. 1341, [17ii]). The head takes the coordination as the
 /// child `clusters`, which bears no function; each dependent in a Cluster
@@ -307,7 +310,7 @@ pub struct ClustersDecl {
     /// The Category of a coordination of Clusters, which a Coordination
     /// schema declares.
     pub coordination: Ident,
-    /// The Category of the Adjunct that may end a Cluster.
+    /// The Category of the Adjuncts that may end a Cluster.
     #[serde(default)]
     pub adjunct: Option<Ident>,
     /// Remnant Categories by Slot Kind: a Cluster after the first may fill

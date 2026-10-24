@@ -153,14 +153,16 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   phrase of its own: the bare phrase is it.
   With `clusters` (a `cluster` Category, the `coordination` Category of
   their coordination, and an optional `adjunct` Category), an active verb
-  phrase's Frame Slots also form a Complement Cluster, optionally ending in an
-  Adjunct, and the verb heads a coordination of Clusters, its head shared on
-  the left as the mirror of Right Node Raising (*put one of them into your
-  hand and the rest into your graveyard*, *has lifelink if you control a
-  Cleric and deathtouch if you control a Rogue*; right nonce-constituent
-  coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343). A single Slot is a Cluster
-  only with its Adjunct. A Coordination schema over the `coordination`
-  Category joins Clusters, any number of them; its Clusters are parallel:
+  phrase's Frame Slots also form a Complement Cluster, optionally ending in
+  one or two Adjuncts, and the verb heads a coordination of Clusters, its
+  head shared on the left as the mirror of Right Node Raising (*put one of
+  them into your hand and the rest into your graveyard*, *has lifelink if you
+  control a Cleric and deathtouch if you control a Rogue*; right
+  nonce-constituent coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343). A single
+  Slot with no Adjunct is a Cluster only where it alone breaks parallelism:
+  never last, beside at least two Clusters that end in as many Adjuncts
+  (`Summary::bare`). A Coordination schema
+  over the `coordination` Category joins Clusters, any number of them; its Clusters are parallel:
   their frames share a shape, the relation of each Slot and, but for an
   Object, what fills it (`Summary::cluster`), the first Cluster's frame is
   the head's, and the head declares any other (a keyword phrase and a quoted

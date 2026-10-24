@@ -383,12 +383,14 @@ mod tests {
 
     #[test]
     fn a_deferral_matches_a_unit_of_any_face_read_kept_or_not() {
-        // Any deferred unit serves as the witness: the first listed one, so
-        // that the test does not name a unit that a landing will remove.
+        // Any deferred or declined unit serves as the witness, both lists
+        // matched alike: the first listed one, so that the test names no unit
+        // a landing will remove, and holds while `deferred.txt` is empty.
         let (name, text) = crate::census::deferrals()
             .into_iter()
+            .chain(crate::census::declined())
             .next()
-            .expect("deferred.txt lists a unit");
+            .expect("deferred.txt or declined.txt lists a unit");
         let line = format!("{name} | {text}");
         let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
         let input = format!(

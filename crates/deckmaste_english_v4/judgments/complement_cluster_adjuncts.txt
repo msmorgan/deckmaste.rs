@@ -16,8 +16,8 @@
 # from: Ransack
 + Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"; PredicateAdjunct "in any order" as Adjunct of put
 + Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"
-# A single Object forms a Cluster only with its Adjunct: alone it coordinates
-# as itself.
+# Single Objects coordinate as themselves, never also as Clusters
+# (english-lexical-analysis.md §2).
 # from: Haunted Cloak
 + Equipped creature has lifelink, deathtouch, and flying. => !ComplementCluster "lifelink"; !ComplementCluster "deathtouch"
 # The Clusters of one coordination have the shape of the head's frame: an
@@ -34,3 +34,8 @@
 # for three days*), and every Cluster has the initial one's prepositions.
 + <card=Ulasht, the Hate Seed> Ulasht enters with a +1/+1 counter on it for each other red creature you control and a +1/+1 counter on it for each other green creature you control. => AdjunctCluster "with a +1/+1 counter on it for each other red creature you control"; AdjunctCluster "a +1/+1 counter on it for each other green creature you control"; PrepositionRemnant "a +1/+1 counter on it"; readings 1
 + <card=Semester's End> Each of them enters with an additional +1/+1 counter on it if it's a creature and an additional loyalty counter on it if it's a planeswalker. => AdjunctCluster "with an additional +1/+1 counter on it if it's a creature"; AdjunctCluster "an additional loyalty counter on it if it's a planeswalker"; PrepositionRemnant "an additional loyalty counter on it"
+# A single Object with no Adjunct is a Cluster where it alone breaks
+# parallelism, before Clusters that each end in two Adjuncts
+# (english-lexical-analysis.md §2; CGEL, Ch. 15 §4.3, p. 1342, note 64).
+# from: Crabomination
++ Target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. => ComplementCluster "the top card of their library"; ComplementCluster "a card at random from their graveyard"; ComplementCluster "a card at random from their hand"; NounPhrase "the top card of their library" as Object of exile; NounPhrase "a card" as Object of exile; PredicateAdjunct "at random" as Adjunct of exile; PredicateAdjunct "from their graveyard" as Adjunct of exile; PredicateAdjunct "from their hand" as Adjunct of exile; !NounPhrase "a card at random"

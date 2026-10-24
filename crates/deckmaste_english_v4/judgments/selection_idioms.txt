@@ -1,4 +1,4 @@
-# Selection placements, expandable except-clauses, and the ticket's witness lines (Distended Mindbender and Cataclysm are in postposed_heavy_object.txt; Crabomination awaits english-v4-s7-nonparallel-object-coordination).
+# Selection placements, expandable except-clauses, and the ticket's witness lines (Distended Mindbender and Cataclysm are in postposed_heavy_object.txt; Crabomination is in complement_cluster_adjuncts.txt).
 # OSG §5 This way; §10 Ordinary choices; §12 Look, reveal, and the top of a library, Copies, and Randomness.
 + <card=Gorex, the Tombshell> Whenever Gorex attacks or dies, choose a card at random exiled with Gorex and put that card into its owner's hand. => NounPhrase "a card" as Object of choose; PrepositionPhrase "at random" as Adjunct of choose; VerbPhrase "exiled with Gorex"
 + <card=Eye of Duskmantle> You may play lands and cast spells from among cards in your graveyard you've surveilled this turn. If you cast a spell this way, you pay life equal to its mana value rather than paying its mana cost. => RelativeClause "you've surveilled this turn" gap "cards in your graveyard"

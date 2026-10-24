@@ -4,6 +4,3 @@
 # fails `strata --check`.
 
 # english-v4-stratum-7-discourse-and-long-tail
-
-# english-v4-s7-nonparallel-object-coordination
-Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.

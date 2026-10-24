@@ -76,7 +76,7 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Ten canonicalizations apply:
+of the text.** Eleven canonicalizations apply:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -159,6 +159,19 @@ of the text.** Ten canonicalizations apply:
   §3.2, pp. 1326–1327), and the two trees would differ in no meaning. The
   canonical site is built structurally: a remnant is the first conjunct of a
   serial tail only, never the last conjunct after its coordinator.
+- **single Objects in Complement Clusters:** a Complement Cluster may be a
+  single Slot with no Adjunct (*exiles [the top card of their library], [a
+  card at random from their graveyard], and [a card at random from their
+  hand]*) only where it alone breaks the coordination's parallelism: it is
+  not the last Cluster, and at least two sibling Clusters end in Adjuncts,
+  all in as many (CGEL, Ch. 15 §4.3, pp. 1341–1343). CGEL stars a single
+  element coordinated with two (p. 1342, [17iia]) but grades breaches of
+  parallelism (note 64); Oracle English prints this one. A coordination of bare single Objects (*Exile target
+  creature and target land*; *has lifelink, deathtouch, and flying*) is the
+  coordination of those Objects, the verb's one Object, never also a
+  coordination of Clusters: the two trees differ in no meaning. The canonical
+  site is built structurally: the coordination of Clusters a verb heads
+  licenses each bare Cluster it holds (`Summary::bare`).
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

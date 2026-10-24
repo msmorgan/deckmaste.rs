@@ -1,5 +1,5 @@
 //! Complement Clusters: a verb heads a coordination of parallel sequences of
-//! its Frame Slots, each optionally ending in an Adjunct (right
+//! its Frame Slots, each optionally ending in Adjuncts (right
 //! nonce-constituent coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343).
 
 use deckmaste_lexical::Category;
@@ -99,9 +99,47 @@ fn clusters_of_two_slots_coordinate() {
 }
 
 #[test]
-fn a_single_slot_clusters_only_with_its_adjunct() {
-    assert_eq!(count("Give card in hand and card in hand."), 1);
+fn a_single_slot_clusters_only_beside_parallel_clusters_with_adjuncts() {
+    // Single Objects coordinate as themselves, never as Clusters
+    // (`english-lexical-analysis.md` §2); this grammar has no Noun Phrase
+    // coordination.
     assert_eq!(count("Give card and card."), 0);
+    // A single Object is a Cluster only where it alone breaks parallelism:
+    // before at least two Clusters that end in as many Adjuncts (CGEL,
+    // Ch. 15 §4.3, p. 1342, note 64).
+    assert_eq!(count("Give card, card in hand, and card in hand."), 1);
+    assert_eq!(count("Give card and card in hand."), 0);
+    assert_eq!(count("Give card in hand, card in hand, and card."), 0);
+    // The final *in hand* ends the last Cluster, never the Verb Phrase's
+    // Adjunct after a last Cluster that is a single Object.
+    assert_eq!(count("Give card in hand and card in hand."), 1);
+}
+
+#[test]
+fn a_cluster_ends_in_a_sequence_of_adjuncts() {
+    // *exiles the top card of their library, [a card] [at random] [from
+    // their graveyard], and [a card] [at random] [from their hand]*
+    let lexicon = lexicon();
+    let grammar = grammar(&lexicon);
+    let text = "Give card, card in hand in hand, and card in hand in hand.";
+    let found = grammar.parse(&lexicon, text).readings();
+    assert_eq!(found.len(), 1);
+    let (realized, constituents) = grammar.constituents(&found[0], &lexicon).unwrap();
+    let verb = constituents
+        .iter()
+        .position(|c| c.category.as_str() == "VerbPhrase")
+        .unwrap();
+    let adjuncts: Vec<_> = constituents
+        .iter()
+        .filter(|c| c.category.as_str() == "Adjunct" && &realized[c.span.clone()] == "in hand")
+        .collect();
+    assert_eq!(adjuncts.len(), 4);
+    for adjunct in adjuncts {
+        assert_eq!(adjunct.also, [(dpsi::Ident::new("adjunct"), verb)]);
+    }
+    // Clusters with Adjuncts beside a single Object end in as many: the
+    // last *in hand* is the Verb Phrase's.
+    assert_eq!(count("Give card, card in hand, and card in hand in hand."), 1);
 }
 
 #[test]

@@ -60,3 +60,27 @@ is in the landed Cluster engine (`complement_clusters` in
 If it does not, the owner names the analysis Crabomination should read through.
 It was first printed after 8th Edition, so it cannot be declined
 (`docs/decisions/english-v4.md` §4.4, Scope).
+
+## Decision
+
+The owner admits it (Principle 1; modern printed Oracle). A single-Slot
+Cluster with no Adjunct is licensed only where it alone breaks the
+coordination's parallelism: it is not last, and at least two sibling Clusters
+end in Adjuncts, all in as many (CGEL, Ch. 15 §4.3, p. 1342, note 64). A
+coordination of bare single Objects stays NP coordination
+(`english-lexical-analysis.md` §2). Clusters end in up to two flat Adjuncts
+(`CLUSTER_ADJUNCTS`): *exile* has only a Monotransitive frame, so *from their
+graveyard* is an Adjunct, not a Complement.
+
+## Landing notes
+
+- Sphere of Annihilation (+939 Readings) and Dominaria's Judgment (32 → 88)
+  grow through per-Cluster attachments that semantics must reject (*on it*,
+  *in graveyards*, *with mana value …* as Adjuncts of single Clusters).
+- Dominaria's Judgment's growth sits on the pre-existing junk constituent *if
+  you control an Island, from black*, a separate over-admission lead.
+
+## Landing note
+
+**Census delta** (`ouszosvs`): faces read 32820 → 32821, Readings 338319 → 340479 (52 units grew). Lost faces: none. Crabomination reads.
+**Judgment set** (`ouszosvs`): all entries hold (`cargo test -p deckmaste_english_v4 --test judgments`).

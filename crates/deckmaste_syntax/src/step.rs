@@ -611,6 +611,7 @@ pub(crate) fn resolve(
             unclosed: false,
             headed_link: None,
             cluster: None,
+            bare: Bare::NONE,
             head_lexeme: None,
             remnant: None,
             shared_head: None,
@@ -775,6 +776,10 @@ pub(crate) struct Summary {
     /// the head must declare it too (*has trample ..., and "{B}: Regenerate
     /// this creature" ...*).
     pub cluster_other: u16,
+    /// The bare Complement Clusters, of a single Slot and no Adjunct, it is
+    /// or its head line holds, and the Clusters with Adjuncts beside them
+    /// (`Bare`).
+    pub bare: Bare,
     /// The head elided from the Complement Cluster remnant it is or begins
     /// with, or that every Cluster of a serial tail's remnants elides
     /// (`grammar::ClustersDecl::remnants`): a Cluster after the first may
@@ -788,6 +793,68 @@ pub(crate) struct Summary {
     /// the one every Cluster of a parallel coordination shares
     /// (`grammar::AdjunctClustersDecl`).
     pub cluster_preposition: Option<LexemeId>,
+}
+
+/// The bare Complement Clusters a phrase is or holds, of a single Slot and no
+/// Adjunct, and the Clusters with Adjuncts beside them. A bare Cluster is
+/// licensed only where it alone breaks the parallelism of a coordination
+/// (CGEL, Ch. 15 §4.3, pp. 1341–1342, note 64): beside at least two Clusters
+/// with Adjuncts, all ending in as many, and never last (*exiles [the top
+/// card of their library], [a card at random from their graveyard], and [a
+/// card at random from their hand]*). A coordination of single Objects is the
+/// coordination of the Objects, never also of Clusters
+/// (`english-lexical-analysis.md` §2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) struct Bare {
+    /// It holds a bare Cluster.
+    held: bool,
+    /// Its last Cluster is bare.
+    last: bool,
+    /// The Clusters with Adjuncts it holds, up to two.
+    adjoined: u8,
+    /// How many Adjuncts each of those ends in (0: none held; `MIXED`: not
+    /// all as many).
+    adjuncts: u8,
+}
+
+impl Bare {
+    pub(crate) const NONE: Self = Self {
+        held: false,
+        last: false,
+        adjoined: 0,
+        adjuncts: 0,
+    };
+    const MIXED: u8 = u8::MAX;
+
+    /// A Cluster of `children` dependents, `adjuncts` of them Adjuncts.
+    fn cluster(children: usize, adjuncts: usize) -> Self {
+        let bare = children == 1;
+        Self {
+            held: bare,
+            last: bare,
+            adjoined: u8::from(adjuncts > 0),
+            adjuncts: u8::try_from(adjuncts).unwrap_or(Self::MIXED),
+        }
+    }
+
+    /// These Clusters, then `next`'s.
+    fn then(self, next: Self) -> Self {
+        Self {
+            held: self.held || next.held,
+            last: next.last,
+            adjoined: (self.adjoined + next.adjoined).min(2),
+            adjuncts: match (self.adjuncts, next.adjuncts) {
+                (0, n) | (n, 0) => n,
+                (a, b) if a == b => a,
+                _ => Self::MIXED,
+            },
+        }
+    }
+
+    /// Whether a coordination of these Clusters licenses its bare ones.
+    fn licensed(self) -> bool {
+        !self.held || (!self.last && self.adjoined >= 2 && self.adjuncts != Self::MIXED)
+    }
 }
 
 /// A lexical leaf as a child sees it.
@@ -895,6 +962,8 @@ pub(crate) struct State {
     /// The `Summary::cluster` and `Summary::cluster_other` of the head-line
     /// children so far.
     cluster: Option<(u16, u16)>,
+    /// `Summary::bare` of the head-line children so far.
+    bare: Bare,
     /// The lexeme of the lexical `head` child of a Production that requires
     /// a coordination of Complement Clusters (`Production::clusters`).
     head_lexeme: Option<LexemeId>,
@@ -1153,8 +1222,9 @@ impl Production {
     /// if child `position` is in the head line with Clusters of another shape
     /// (the Clusters of one coordination are parallel; CGEL, Ch. 15 §4.3,
     /// p. 1341), or is the coordination of Clusters its Production requires
-    /// and does not begin with one of the head's frame, or holds one of a
-    /// frame the head does not declare (`Summary::cluster`).
+    /// and does not begin with one of the head's frame, holds one of a
+    /// frame the head does not declare (`Summary::cluster`), or holds a bare
+    /// Cluster it does not license (`Bare::licensed`).
     fn track_cluster(
         &self,
         grammar: &CompiledGrammar,
@@ -1162,9 +1232,9 @@ impl Production {
         position: usize,
         child: &ChildView<'_>,
     ) -> Option<()> {
-        let (cluster, other) = match child {
-            ChildView::Node(summary) => (summary.cluster, summary.cluster_other),
-            ChildView::Leaf(_) => (0, 0),
+        let (cluster, other, bare) = match child {
+            ChildView::Node(summary) => (summary.cluster, summary.cluster_other, summary.bare),
+            ChildView::Leaf(_) => (0, 0, Bare::NONE),
             ChildView::Punct => return Some(()),
         };
         let shape = |c: u16| (c != 0).then(|| grammar.cluster_shapes[usize::from(c - 1)]);
@@ -1176,6 +1246,7 @@ impl Production {
                 .and_then(|head| grammar.lexemes.get(&head))
                 .map(|facts| &facts.frames)?;
             if cluster != frame + 1
+                || !bare.licensed()
                 || (other != 0
                     && (!declared.contains(&usize::from(other - 1))
                         || shape(other) != shape(cluster)))
@@ -1184,6 +1255,7 @@ impl Production {
             }
         }
         if self.head_line[position] {
+            next.bare = next.bare.then(bare);
             next.cluster = Some(match next.cluster {
                 None => (cluster, other),
                 Some((first, held)) => {
@@ -1947,6 +2019,14 @@ impl Production {
                 0
             } else {
                 state.cluster.map_or(0, |(_, other)| other)
+            },
+            bare: if self.cluster.is_some() {
+                Bare::cluster(
+                    self.rhs.len(),
+                    self.names.iter().filter(|n| n.as_str() == "adjunct").count(),
+                )
+            } else {
+                state.bare
             },
             remnant: match self.remnant {
                 RemnantRole::Elides(head) => Some(head),

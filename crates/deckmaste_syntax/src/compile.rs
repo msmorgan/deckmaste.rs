@@ -4123,15 +4123,22 @@ struct ClusterCategories {
     adjunct_clusters: Option<(usize, usize, usize, usize)>,
 }
 
+/// The most Adjuncts a Complement Cluster ends in, flat after its Slots
+/// (*[a card] [at random] [from their graveyard]*): each is a child of the
+/// Cluster and bears its function in the head's phrase, so one sequence has
+/// one tree.
+const CLUSTER_ADJUNCTS: usize = 2;
+
 /// An active phrase's Complement Clusters (right nonce-constituent
 /// coordination, CGEL, Ch. 15 §4.3, pp. 1341–1343): its Frame Slots as a
-/// Cluster of the frame, with an optional Adjunct after them, and the head
-/// with a coordination of such Clusters (*put [one of them into your hand]
-/// and [the rest into your graveyard]*; *has [lifelink if you control a
-/// Cleric], [deathtouch if you control a Rogue], and [flying if you control
-/// a Wizard]*). A single Slot forms a Cluster only with its Adjunct: alone it
-/// coordinates as itself. Equations on the Slots move into the Cluster; those
-/// on the head and the mother stay with the head.
+/// Cluster of the frame, ending in up to `CLUSTER_ADJUNCTS` Adjuncts, and the
+/// head with a coordination of such Clusters (*put [one of them into your
+/// hand] and [the rest into your graveyard]*; *has [lifelink if you control
+/// a Cleric], [deathtouch if you control a Rogue], and [flying if you control
+/// a Wizard]*; *exiles [the top card of their library], [a card at random
+/// from their graveyard], and …*). A single Slot with no Adjunct is a Cluster
+/// only where it alone breaks parallelism (`step::Bare`). Equations on the Slots move
+/// into the Cluster; those on the head and the mother stay with the head.
 fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Draft> {
     let derived = ["/gap", "/passive", "/adjectival"];
     let Some(frame) = draft.frame else {
@@ -4143,7 +4150,6 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     if draft.children.len() < 2 {
         return adjunct_clusters(draft, frame, categories);
     }
-    let slots = draft.children.len() - 1;
     let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
     let on_head_or_mother = |p: &Path| !on_slot(p);
     // A Slot's position in the Cluster, one less than in the phrase.
@@ -4177,16 +4183,15 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     let kept =
         |remnant: Option<usize>, p: &Path| remnant.is_none() || !matches!(p, Path::Child(1, _));
     let mut out = Vec::new();
-    let adjuncts = [Some(None), categories.adjunct.map(Some)];
-    for (adjunct, remnant) in adjuncts
-        .into_iter()
-        .flatten()
-        .flat_map(|a| remnants.iter().map(move |&r| (a, r)))
+    let most = if categories.adjunct.is_some() { CLUSTER_ADJUNCTS } else { 0 };
+    for (adjuncts, remnant) in
+        (0..=most).flat_map(|n| remnants.iter().map(move |&r| (n, r)))
     {
-        if adjunct.is_none() && slots < 2 {
-            continue;
-        }
-        let tag = if adjunct.is_some() { "cluster+adjunct" } else { "cluster" };
+        let tag = match adjuncts {
+            0 => "cluster".to_owned(),
+            1 => "cluster+adjunct".to_owned(),
+            n => format!("cluster+adjunct{n}"),
+        };
         let id = match remnant {
             Some((0, _)) => format!("{}/{tag}/remnant", draft.id),
             Some((n, _)) => format!("{}/{tag}/remnant{n}", draft.id),
@@ -4201,7 +4206,7 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
             };
             cluster.child(child.name.as_ref(), symbol, GapRule::Closed);
         }
-        if let Some(category) = adjunct {
+        for category in categories.adjunct.into_iter().cycle().take(adjuncts) {
             cluster.child("adjunct", symbol(category), GapRule::Closed);
         }
         for (path, target) in &draft.equations {
