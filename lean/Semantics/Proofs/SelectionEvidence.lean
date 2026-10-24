@@ -170,14 +170,17 @@ theorem prohibitionKeepsTheAnnouncedTargetIdentity :
         NounPhrase.check out (.laterMention "outside.target" .any) = [] ∧
         NounPhrase.check out (.pro (.word (.type .creature)) .one) = [] := by decide
 
-theorem hypotheticalProhibitionParticipantsStayClosed :
+/-- A prohibition closes the hypothetical indefinite it introduces ("A creature can't block") and
+publishes a universal domain ("All creatures can't block"), which a later "those creatures" reads
+(`closeModalBox`; owner ruling 2026-10-24). -/
+theorem prohibitionClosesItsIndefiniteAndPublishesItsUniversal :
     let indefinite := (stepStaticSpec 64 (DRS.ofList [])
       (.cant (.actor (.described (.a .unmarked) (.hasType .creature)))
         (.block .any) {})).1
     let universal := (stepStaticSpec 64 (DRS.ofList [])
       (.cant (.actor (.described .all (.hasType .creature)))
         (.block .any) {})).1
-    countOnes .object indefinite = 0 ∧ countManys .object universal = 0 := by decide
+    countOnes .object indefinite = 0 ∧ countManys .object universal = 1 := by decide
 
 theorem attachmentSourceRemainsAvailableAfterProhibition :
     let source := StaticSpec.cant (.actor (.attachHost .enchanted (.type .creature)))

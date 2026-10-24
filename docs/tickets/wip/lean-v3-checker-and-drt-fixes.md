@@ -56,6 +56,15 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `gatedBy` only, leaving `cant` as it is. The attempt (a closing helper that also keeps the
   events a permission writes and the referents' resolution bookkeeping, `resolvedIds` and
   `contrastAnchors`, which `publishProhibitionSources` drops) did not land.
+  **Owner ruling 2026-10-24: option (b),** in all four deontics, keeping a permission's events and
+  the resolution bookkeeping (`resolvedIds`, `contrastAnchors`); ADR §1.3 box 3 amended.
+  **Done 2026-10-24: tynwqmzx** (`closeModalBox` replaces `publishProhibitionSources`; pins
+  `Proofs/Deontic.lean` `permissionClosesItsBox`, `requirementClosesItsBoxButPublishesItsTarget`,
+  `gatedProhibitionClosesItsBoxButPublishesItsTarget`; `SelectionEvidence`'s
+  `hypotheticalProhibitionParticipantsStayClosed` rewritten as
+  `prohibitionClosesItsIndefiniteAndPublishesItsUniversal`, since a prohibition's universal domain
+  is now published; *Guardian Beast*'s "can't be enchanted" re-spelled over "an Aura" (`a aura`,
+  closed) instead of "all Auras", which, published, tied with the artifacts for "they").
 - **Produce `Determiner.self` for `"this"` and `"you"` (§2.4):** Fix `.this` and
   `.you` in `Check/Phrase.lean:3158-3164` (`.this`) and `:3135-3140` (`.you`) so they use
   `Determiner.self` (`Check/Words.lean:19`) / reuse their

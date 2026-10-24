@@ -587,5 +587,51 @@ theorem okIndicativeCrewAsThough :
       StaticSpec.check (DRS.ofList []) Cards.cloudspireCaptainCrewLine = [] :=
   ⟨Cards.hotshotMechanic.ok, Cards.okCloudspireCaptainCrewLine⟩
 
+/-! ## Modal boxes close (`semantics-v3.md` §1.3, box 3) -/
+
+private def castFromGraveyard : Action :=
+  .procedure .cast (a (.and [isCreature, .in_ (graveyardOf .you)])) .itsOwnCost none
+    (some (graveyardOf .you)) none
+
+/-- "You may cast a creature card from your graveyard this turn. Exile it." The card the
+permission ranges over is hypothetical, closed with the permission's box, as a prohibition's is
+("You can't cast creature cards from your graveyard this turn. Exile it."), so "it" finds
+nothing. -/
+theorem permissionClosesItsBox :
+    Action.check (DRS.ofList [])
+        (.sequentially [.establish (.can (.actor .you) castFromGraveyard {}) (some thisTurn),
+          exile it]) = [.anaphor .bare .one 0] ∧
+      Action.check (DRS.ofList [])
+        (.sequentially [.establish (.cant (.actor .you) castFromGraveyard {}) (some thisTurn),
+          exile it]) = [.anaphor .bare .one 0] := by
+  decide
+
+/-- "Target creature attacks a planeswalker each combat if able. Tap that planeswalker." The
+planeswalker a requirement ranges over is closed with its box; the target the requirement
+announces is not, chosen as the spell is put on the stack [CR#601.2c], so "Tap it" reads it. -/
+theorem requirementClosesItsBoxButPublishesItsTarget :
+    let req : StaticSpec := .must (.actor (target isCreature)) (.attack (some (a isPlaneswalker))) {}
+    Action.check (DRS.ofList [])
+        (.sequentially [.establish req (some thisTurn),
+          .setStatus .tapped (that (.type .planeswalker))]) =
+        [.anaphor (.word (.type .planeswalker)) .one 0] ∧
+      Action.check (DRS.ofList [])
+        (.sequentially [.establish req (some thisTurn), .setStatus .tapped it]) = [] := by
+  decide
+
+/-- "Target creature can't attack a planeswalker this turn unless its controller pays {2}. Tap
+that planeswalker." A prohibition gated by a payment closes its box as a prohibition does,
+publishing its target. -/
+theorem gatedProhibitionClosesItsBoxButPublishesItsTarget :
+    let gate : StaticSpec :=
+      .gatedBy (.mana [generic 2]) (.actor (target isCreature)) (.attack (some (a isPlaneswalker))) {}
+    Action.check (DRS.ofList [])
+        (.sequentially [.establish gate (some thisTurn),
+          .setStatus .tapped (that (.type .planeswalker))]) =
+        [.anaphor (.word (.type .planeswalker)) .one 0] ∧
+      Action.check (DRS.ofList [])
+        (.sequentially [.establish gate (some thisTurn), .setStatus .tapped it]) = [] := by
+  decide
+
 end Semantics.Proofs.Deontic
 

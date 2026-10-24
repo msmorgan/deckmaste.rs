@@ -1772,19 +1772,26 @@ def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 16)
   | _, _ => false
 termination_by structural fuel
 
-/-- A prohibition publishes the sources its clause names (a target, a definite mention, an
-attachment host) to the text after it. -/
-def publishProhibitionSources (before after : DRS) : DRS :=
-  let sources := after.referents.filter (fun ref => ref.id ≥ before.nextId &&
-    !ref.isActorFrame && !ref.isDifference &&
-    (Kind.lte ref.kind (.join .object .player)) &&
-    (ref.det == .target || ref.det == .the || ref.attachmentHost))
-  let ids := sources.map (·.id)
-  { before with
-    referents := sources ++ before.referents
-    nextId := max before.nextId after.nextId
-    nextSelectionScope := max before.nextSelectionScope after.nextSelectionScope
-    pendingRoles := after.pendingRoles.filter (fun mention => ids.contains mention.1) ++ before.pendingRoles }
+/-- Close a deontic's modal box (`semantics-v3.md` §1.3, box 3), a prohibition's, a
+requirement's, a permission's or a payment-gated prohibition's: what its clause names stands for
+the text after it, a target, a definite mention, an attachment host, the Source or "you", and a
+universal domain ("Creatures your opponents control can be the targets … Ward abilities of those
+creatures don't trigger"); the hypothetical participants its clause introduces, an indefinite, a
+counted or a partitive one, are closed, so after "You may cast a creature card from your
+graveyard", "Exile it" finds no card (owner ruling 2026-10-24). The box keeps the events its
+clause writes, which a later "this way" reads back (§3.8), and its updates to the referents
+already in scope. -/
+def closeModalBox (before after : DRS) : DRS :=
+  let published := fun (ref : Referent) => ref.id < before.nextId ||
+    (!ref.isActorFrame && !ref.isDifference &&
+      Kind.lte ref.kind (.join .object .player) &&
+      (ref.attachmentHost || !(ref.det == .a || ref.det == .count || ref.det == .part)))
+  let ids := (after.referents.filter published).map (·.id)
+  { after with
+    referents := after.referents.filter published
+    pendingRoles := after.pendingRoles.filter (ids.contains ·.1)
+    actionPattern := before.actionPattern
+    groupSizeScope := before.groupSizeScope }
 
 def checkDeckTraitWith (ops : StepOps) (trait : DeckTrait) (fuel : Nat := 32) : List Refusal :=
   match fuel, trait with
@@ -4459,7 +4466,7 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
-          (publishProhibitionSources drs drs4,
+          (closeModalBox drs drs4,
             headErr ++ e0 ++ e1 ++ e2 ++ e3 ++ e4 ++ refuse mods.rider.isNone .deonticRider)
         | .must subj action mods | .can subj action mods =>
           let headErr := (if action.deonticHeadOk then [] else [.eventHead]) ++
@@ -4485,7 +4492,7 @@ def stepOps : Nat → StepOps
           let (out, e5) := match mods.rider with
             | some rider => ops.inst .postEvent .obj (nextClause permitting) rider
             | none => (permitting, [])
-          (out, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
+          (closeModalBox drs out, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
         | .asThough subj action cond =>
           -- Stepped as a permission is, but it permits nothing [CR#609.4,101.2]: the statement
           -- describes how the act happens, so it writes no act for a later "this way" to read.
@@ -4513,8 +4520,7 @@ def stepOps : Nat → StepOps
             referents := paid.referents.filter (·.id != payerId)
             pendingRoles := paid.pendingRoles.filter (fun mention => mention.1 != payerId) }
           let (out, agentErrors) := stepSubjectAfterWith ops withoutPayer subj
-          ({ out with actionPattern := drs.actionPattern, groupSizeScope := drs.groupSizeScope },
-            headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
+          (closeModalBox drs out, headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
         | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
           let (drs2, e2) := stepReplacementWith ops (nextClause drs1) repl ev.isEntering

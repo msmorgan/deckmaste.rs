@@ -766,14 +766,15 @@ def aurasAlreadyAttachedToThoseArtifacts : NounPhrase :=
 /-- Guardian Beast's protection: "As long as this creature is untapped, noncreature artifacts you
 control can't be enchanted, they have indestructible, and other players can't gain control of
 them. This effect doesn't remove Auras already attached to those artifacts." The artifacts are the
-subject the three clauses share, and "can't gain control of" forbids the control change,
+subject the three clauses share; "can't be enchanted" forbids attaching an Aura to them, a
+hypothetical indefinite the prohibition closes, so "they" reads the artifacts, and "can't gain control of" forbids the control change,
 `gainControlOf`. The exemption is the "can't be enchanted" clause's alone: that clause makes an
 Aura already on such an artifact illegal [CR#303.4c,704.5m], and "already attached" reads the
 host back, as *Benevolent Blessing*'s does. -/
 def guardianBeastProtection : StaticSpec :=
   onlyWhile
     (conjunction
-      [ retention (cant any (attachTo (allOf aura) them)) aurasAlreadyAttachedToThoseArtifacts,
+      [ retention (cant any (attachTo (a aura) them)) aurasAlreadyAttachedToThoseArtifacts,
         abilityGrant them indestructible,
         cant (bare (and [isPlayer, isOther])) (gainControlOf them) ]
       (bare (and [non isCreature, isArtifact, youControl])))
@@ -801,7 +802,7 @@ theorem guardianBeastExemptsOnlyTheEnchantProhibition :
       (onlyWhile
         (retention
           (conjunction
-            [ cant any (attachTo (allOf aura) them),
+            [ cant any (attachTo (a aura) them),
               abilityGrant them indestructible,
               cant (bare (and [isPlayer, isOther])) (gainControlOf them) ]
             (bare (and [non isCreature, isArtifact, youControl])))
