@@ -48,9 +48,12 @@ Standard constraints apply.
     `crates/deckmaste_semantics_v3` and `plugins_v3/` with `--deny-drift`
     enforced.
   - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
-    this ticket (`plugins_v2/builtin/` and `deckmaste_lexical_source` are
-    deleted in `english-v4-cutover-v3`, and the MTG lexical catalogs move into
+    this ticket (`deckmaste_lexical_source` is deleted in
+    `english-v4-cutover-v3`, and the MTG lexical catalogs move into
     `plugins_v3/` metadata in `english-v4-final-suffix-cutover`).
+  - Delete `plugins_v2/builtin/` once `plugins_v3/` replaces its readers:
+    `deckmaste_macro_def` (`src/lib.rs` and the `builtin_v2_*` tests), xtask
+    `expansions.rs`, and `tests/suite/plugins_v2_declarations.rs`.
 
 ## Folded Residues from Retired `v2` Surface Tickets
 
@@ -89,6 +92,8 @@ Standard constraints apply.
 
 - `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` are deleted from the
   workspace.
+- `plugins_v2/builtin/` is deleted, with `deckmaste_macro_def`, xtask
+  `expansions.rs`, and `plugins_v2_declarations.rs` reading `plugins_v3/` instead.
 - `cargo test -p deckmaste_semantics_v3 -p xtask` and
   `cargo clippy -p deckmaste_semantics_v3 -p xtask --tests -- -D warnings` pass.
 - `cargo xtask lean check`, `cargo xtask lean definitions`, and

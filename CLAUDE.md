@@ -64,10 +64,10 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 Authorities: `docs/decisions/semantics-v3.md` and `docs/decisions/english-v4.md`.
 - `semantics-v3` is executed Lean-first in `lean/Semantics/` and mirrored into
   `deckmaste_semantics_v3` and `plugins_v3/` (deleting `deckmaste_semantics_v2` and
-  `plugins_v2/canon/` immediately).
+  `plugins_v2/canon/` immediately, and `plugins_v2/builtin/` at `semantics-v3-dsl-and-plugins`).
 - `english-v4` is built alongside `v3` in `deckmaste_syntax`, `deckmaste_lexical_source_v4`, and
   `deckmaste_english_v4`. At `english-v4-cutover-v3`, `deckmaste_english_v3`,
-  `deckmaste_construction_v3*`, `deckmaste_lexical_source`, and `plugins_v2/builtin/` are deleted.
+  `deckmaste_construction_v3*`, and `deckmaste_lexical_source` are deleted.
 - Deletion-bound at parity (`semantics-v1-cutover` and `english-v4-final-suffix-cutover`):
   `deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
   (`deck.rs` and `provenance.rs` rehomed), `deckmaste_english` (v1),
