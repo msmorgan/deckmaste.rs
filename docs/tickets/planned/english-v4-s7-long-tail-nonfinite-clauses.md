@@ -40,3 +40,8 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- Naked Singularity / Reality Twist, *If tapped for mana,*: let `VerblessConditional`'s participle take a complement PP.
+- Deification, Cosmos Charger and Worms of the Earth are plain grammar.

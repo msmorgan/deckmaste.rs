@@ -52,3 +52,8 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- The Artificial Evolution route is right.
+- *Grim Captain's Call*, *do the same for Vampire, Dinosaur, and Merfolk*, interacts with the `for` + AdjP fix (rescan-lexical-leaks).

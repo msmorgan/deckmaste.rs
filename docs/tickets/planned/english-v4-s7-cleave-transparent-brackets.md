@@ -22,6 +22,8 @@ That cannot read Dig Up, *Search your library for a [basic land] card, [reveal i
    - delete the annotated spans' tokens and check whether the remaining chart already contains a complete parse;
    - derive the cleaved tree from the uncleaved one.
 
+   The review expects both options to fail, for the reasons in the review notes below (chart span adjacency on Dig Up; tree surgery across *[reveal it,]* and Lantern Flare's *[creature or]*), and a second parse of the cleaved stream on the 12 cleave faces is the likely outcome. Confirm this quickly rather than building either option out.
+
    Report what works on all 12 cleave faces, Dig Up's *[reveal it,]* in particular. A second parse of the cleaved string is the fallback, and is not part of this ticket unless the investigation shows nothing simpler works.
 
 ## Witness cards
@@ -48,3 +50,8 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- Both no-second-parse options likely fail. Deleting tokens breaks chart span adjacency: on Dig Up, *card,* and *put* were never adjacent in the uncleaved chart. Deriving the cleaved tree needs tree surgery wherever brackets cross a constituent: Dig Up's *[reveal it,]*, and Lantern Flare's *[creature or]* (a conjunct plus its coordinator).
+- Likely outcome: parse the cleaved token stream on the 12 cleave faces, at negligible cost.

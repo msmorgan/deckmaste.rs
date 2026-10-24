@@ -67,3 +67,10 @@ constraints apply.
 ## Landing note
 
 Per `docs/tickets/README.md`, end the ticket with the two landing lines.
+
+## Review notes (hypotheses, verify first)
+
+- Hearth Elemental, Frantic Firebolt and Kosei share one shape: copular *be* + two comma-separated Predicatives + *, and/or* + a lexical VP. Restrict to copular *be* + Predicatives, so object lists (*has flying, first strike, and vigilance*) never gain a gapped parse. One construction reads all three.
+- Invasion of Arcavios: the *outside the game* compound noun is right.
+- Dominaria's Judgment: extend clusters under *gain protection* narrowly.
+- Dralnu's Pet: coordinate *with* + KeywordPhrase with *with* + NP only when explicitly coordinated, never as a general Predicate host (+400 units otherwise).
