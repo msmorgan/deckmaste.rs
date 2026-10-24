@@ -564,10 +564,14 @@
         // recovered from an antecedent (*one or more creatures enter, each
         // enters with ...*; Ch. 5 §9.3, p. 413), as *both* and *either* do;
         // in Oracle only as a Subject (NonNumericComplement,
-        // NominalPredicative). *Either* and *neither* choose from a set in
-        // an implicit partitive (*If a player does either*; p. 413, [11ii]:
-        // *there wasn't time to watch either (of them)*).
-        "FusedQuantifier": ["det:another", "det:both", "det:each", "det:more.count", "det:everything", "det:this", "det:none", "det:either", "det:neither"],
+        // NominalPredicative).
+        "FusedQuantifier": ["det:another", "det:both", "det:each", "det:more.count", "det:everything", "det:this", "det:none"],
+        // *Either* and *neither* choose from a set in an implicit partitive
+        // (*If a player does either*; p. 413, [11ii]: *there wasn't time to
+        // watch either (of them)*). Unlike fused *each*, whose set is the
+        // antecedent's members acting severally, the Noun Phrase they make is
+        // an ordinary singular one, so it is a Complement as well as a Subject.
+        "FusedChoice": ["det:either", "det:neither"],
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
@@ -705,6 +709,7 @@
         // used in the same way" as fused-head *these*).
         (name: "FusedDemonstrative", lhs: "FusedNounPhrase", rhs: [Word("head", "Those")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Number", "Plural"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "FusedQuantifierNominalPhrase", lhs: "NounPhrase", rhs: [Class("head", "FusedQuantifier")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "FusedChoiceNominalPhrase", lhs: "FusedNounPhrase", rhs: [Class("head", "FusedChoice")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Cardinal)], equations: [Require("$.Countability", "Count")]),
         (name: "VariableDeterminer", lhs: "NumericalDeterminer", rhs: [Class("head", "Variable")], equations: [Require("$.Countability", "Count")]),
         (name: "ArabicDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Arabic(false))], equations: [Require("$.Countability", "Count")]),
@@ -1161,6 +1166,7 @@
         (name: "FusableCardinal", lhs: "FusableDeterminer", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.Countability", "Count"), Require("$.NounKind", "Quantity")]),
         (name: "FusableAmount", lhs: "FusableDeterminer", rhs: [Cat("head", "Amount")], equations: [Agree("$.Number", "head.QuantityNumber"), Require("$.Countability", "Count"), Require("$.NounKind", "Numeric")]),
         (name: "FusableQuantifier", lhs: "FusableDeterminer", rhs: [Class("head", "FusedQuantifier")]),
+        (name: "FusableChoice", lhs: "FusableDeterminer", rhs: [Class("head", "FusedChoice")]),
         (name: "FusedQuantityCoordination", lhs: "FusedNounPhrase", rhs: [Cat("head", "FusedQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A focusing or multiplying adverb modifies a Noun Phrase (*only one
         // target*, *twice X life*); a bounding one, its quantity (*at least
@@ -1922,9 +1928,10 @@
         // change to a twin must be made to its restatement, and conversely:
         // RelativeSubjectPredicate / SubjectPredicate, RelativeCliticSubjectPredicate
         // / CliticSubjectPredicate, RelativeFloatedEach / FloatedEach,
-        // RelativeFloatedAll / FloatedAll. (No coordination of
-        // SubjectInitialClause is declared: no card coordinates two bare
-        // relatives under one head.)
+        // RelativeFloatedAll / FloatedAll. (SubjectInitialCoordination
+        // coordinates SubjectInitialClauses: two bare relatives under one
+        // head, as in Serum Powder's *Any time you could mulligan and this
+        // card is in your hand*.)
         (name: "RelativeSubjectPredicate", lhs: "SubjectInitialClause", rhs: [Cat("subject", "NounPhrase"), Free("head", "VerbPhrase")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Exclude("subject.Case", "Accusative"), Exclude("subject.Case", "Genitive")],
             transparent: ["head"]),
@@ -2039,6 +2046,16 @@
         (name: "SetOffComplementClause", lhs: "SetOffClause", rhs: [Mark('—', Free), Cat("head", "Clause")],
             equations: [Require("head.ClauseMarking", "Unmarked"), Exclude("head.Inflection", "Irrealis")], unclosed: true),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
+        // A passive participle with a Preposition Phrase Adjunct is verbal
+        // (*if tapped for mana*), where the bare participle is the Adjectival
+        // Passive that AdjectivalPredicative reads (*if tapped*, *if
+        // sacrificed*): each string has one tree. A verbless clause takes no
+        // such Adjunct of its own, for *unless you control another Ally* in
+        // *attacks each combat if able unless ...* belongs to the clause
+        // outside *if able* (CGEL, Ch. 14 §10(b), p. 1267; the verb's Adjunct,
+        // Ch. 8 §20.1, pp. 779-781).
+        (name: "ParticipialVerblessClause", lhs: "VerblessClause", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "PrepositionPhrase")],
+            equations: [Require("head.VerbForm", "PastParticiple"), Require("head.Voice", "Passive"), Exclude("head.VerbKind", "Auxiliary")], cost: 1),
         // The Absolute Clause Complement of *with* and *without*: a Subject
         // and a past-participial predicate (*with your hand revealed*; CGEL,
         // Ch. 14 §8.3, p. 1262, and §10(a), p. 1267). Its Subject is never

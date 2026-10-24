@@ -813,7 +813,10 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         let auxiliary = t.alts().iter().any(|a| {
             a.class == Class::Core
                 && a.lexeme.is_some_and(|l| {
-                    l.category == Category::Verb && l.source.path.ends_with("closed_class.ron")
+                    l.category == Category::Verb
+                        // Main-verb *do* is lexical (verbs.ron), but this stratum
+                        // reads it with the auxiliaries.
+                        && (l.source.path.ends_with("closed_class.ron") || l.lemma == "do")
                 })
         });
         let bare_verb = |n: &Tok<'_>, form: WordForm| {

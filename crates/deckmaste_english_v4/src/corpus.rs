@@ -383,9 +383,9 @@ mod tests {
 
     #[test]
     fn a_deferral_matches_a_unit_of_any_face_read_kept_or_not() {
-        // Cosmos Charger's line is deferred in `deferred.txt`.
-        let line = "Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.";
-        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Cosmos Charger","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Horse Spirit","oracle_text":"Flash\nFlying\nForetelling cards from your hand costs {1} less and can be done on any player's turn."}"#;
+        // Avatar of Woe's line is deferred in `deferred.txt`.
+        let line = "Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.";
+        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Avatar of Woe","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Demon","oracle_text":"Fear\nIf there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast."}"#;
         let corpus = Corpus::read(std::io::Cursor::new(input), |_| false).unwrap();
         assert!(!corpus.unmatched_deferrals.iter().any(|l| l == line));
         // Every other deferred or declined line names no unit of this stream.
