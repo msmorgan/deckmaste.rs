@@ -8,7 +8,7 @@ Delete the `v1` set (`deckmaste_semantics`, `deckmaste_lowering`,
 `provenance.rs` rehomed, `idris/`, `plugins/builtin`, `plugins/canon`, and the
 `deckmaste_spelling` splice machinery; `deckmaste_semantics_v2`,
 `plugins_v2/canon/`, and `plugins_v2/builtin/` are retired in
-`semantics-v3-dsl-and-plugins`, and `deckmaste_lexical_source` is retired in
+`semantics-v3-dsl-and-plugins`, and `deckmaste_lexical_source` was retired in
 `english-v4-cutover-v3`), rename `deckmaste_semantics_v3` to
 `deckmaste_semantics`, `deckmaste_lowering_v3` to `deckmaste_lowering`, and
 `plugins_v3/` to `plugins/`, drop the symlink, and re-point

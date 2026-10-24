@@ -56,8 +56,7 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 - No word enumerated by the CR as a catalog item (including all `[CR#701.1]` keyword actions) may
   appear directly in grammar declarations (`schema` or `production`); vocabulary and complement
   frames live in the domain catalogs of `deckmaste_lexical_source_v4` (and later `plugins_v3/`).
-- No new work in `deckmaste_english_v3`, `deckmaste_construction_v3*`, `deckmaste_lexical_source`,
-  or the legacy `deckmaste_english` stack.
+- No new work in the legacy `deckmaste_english` stack.
 
 ## Crate fates (semantics_v3 and english_v4)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refuse the FIRST touch of a crate the English v3 cutover deletes or constrains.
+# Refuse the FIRST touch of a legacy crate that a pending cutover deletes or constrains.
 #
 # Session preamble (CLAUDE.md "Crate fates") decays under context pressure and is
 # bypassed entirely when a search result sends a tool straight to a line number.
@@ -20,19 +20,19 @@ path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.path /
 case "$path" in
   */crates/deckmaste_english/*)
     key="deckmaste_english"
-    why="DELETED at the English v3 cutover. deckmaste_english_v3 supersedes this parser. Put new architecture and features in deckmaste_english_v3. Touch this crate only to keep current users functioning or to enable cutover — never as a parallel long-term implementation, and never by copying the v2 design back here for parity." ;;
+    why="LEGACY (v1); deletion-bound at english-v4-final-suffix-cutover. deckmaste_english_v4 supersedes this parser. Put new architecture and features in deckmaste_english_v4. Touch this crate only to keep current users functioning or to enable cutover — never as a parallel long-term implementation, and never by copying the v4 design back here for parity." ;;
   */crates/deckmaste_construction_compiler/*)
     key="deckmaste_construction_compiler"
-    why="DELETED at the English v3 cutover; deckmaste_construction_v3 declaration compiler replaces it. Do not home new English v3 infrastructure here." ;;
+    why="LEGACY; deletion-bound at english-v4-final-suffix-cutover. The english-v4 stack (deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4) replaces it. Do not home new English infrastructure here." ;;
   */crates/deckmaste_constructions_macro/*)
     key="deckmaste_constructions_macro"
-    why="DELETED at the English v3 cutover; deckmaste_construction_v3 declaration compiler replaces it. Do not home new English v3 infrastructure here." ;;
+    why="LEGACY; deletion-bound at english-v4-final-suffix-cutover. The english-v4 stack (deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4) replaces it. Do not home new English infrastructure here." ;;
   */crates/deckmaste_legacy_render/*)
     key="deckmaste_legacy_render"
-    why="LEGACY independently of the English v3 rewrite, and deckmaste_migrations must shed its dependency on it by cutover. Do not build new work on this crate." ;;
+    why="LEGACY; deletion-bound at semantics-v1-cutover, and deckmaste_migrations must shed its dependency on it by then. Do not build new work on this crate." ;;
   */crates/deckmaste_migrations/*)
     key="deckmaste_migrations"
-    why="SURVIVES cutover as a function (card extract/resolve/graduate, snapshot ingestion), but its oracle-text extraction is its own regex pipeline that does NOT consume the construction parser, and it still depends on deletion-slated deckmaste_legacy_render. Do not home new English v3 infrastructure here without recording the deviation in the rewrite ADR. Re-pointing extraction at English v3 is a separate, not-yet-scheduled decision." ;;
+    why="SURVIVES the cutovers as a function (card extract/resolve/graduate, snapshot ingestion), but its oracle-text extraction is its own regex pipeline that does NOT consume the english-v4 parser, and it still depends on deletion-slated deckmaste_legacy_render. Do not home new English infrastructure here without recording the deviation in docs/decisions/english-v4.md. Re-pointing extraction at english-v4 is a separate, not-yet-scheduled decision." ;;
   *)
     exit 0 ;;
 esac
@@ -43,7 +43,7 @@ ledger="/tmp/${session}.old-shit"
 if [ -f "$ledger" ] && grep -qxF "$key" "$ledger" 2>/dev/null; then
   # Already acknowledged this session — let it through, but keep the status in context.
   jq -n --arg k "$key" --arg w "$why" '{hookSpecificOutput:{hookEventName:"PreToolUse",
-    additionalContext:("Reminder — \($k) is pre-cutover: \($w) Authority: CLAUDE.md (English grammar) and docs/decisions/english-lexical-analysis.md")}}'
+    additionalContext:("Reminder — \($k) is a pre-cutover legacy crate: \($w) Authority: CLAUDE.md (English grammar) and docs/decisions/english-lexical-analysis.md")}}'
   exit 0
 fi
 
