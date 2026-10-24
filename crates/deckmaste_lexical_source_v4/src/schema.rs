@@ -303,14 +303,16 @@ pub struct AdjectiveEntry {
     pub frames: Vec<FrameSpec>,
 }
 
-/// An adjective's grade, as the grammar's `Grade` feature: inflectional, or
-/// the equality of *same*, which licenses an *as* Complement (CGEL, Ch. 13
-/// §1, p. 1100).
+/// An adjective's grade, as the grammar's `Grade` feature: inflectional, the
+/// equality of *same*, which licenses an *as* Complement, or the non-scalar
+/// inequality of *different* and *other*, which license a *than* Complement
+/// (CGEL, Ch. 13 §1.1, p. 1100).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum AdjectiveGrade {
     Comparative,
     Superlative,
     Equative,
+    NonScalarInequality,
 }
 
 /// The determiner in a fused modifier-head NP: ordinary determination

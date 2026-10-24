@@ -369,6 +369,11 @@ pub enum SchemaDecl {
         /// Adjunct category permitted before a selected PP or shifted Object.
         #[serde(default)]
         interleaved: Option<Ident>,
+        /// Adjunct category permitted only before the Internalised Complement
+        /// of a passive, a non-core Complement (CGEL, Ch. 4 §3.2.1, p. 241),
+        /// beside the `interleaved` one.
+        #[serde(default)]
+        interleaved_internalised: Option<Ident>,
         #[serde(default)]
         heavy_shift: bool,
         /// Function Category of a Modifier postposed out of the Object past

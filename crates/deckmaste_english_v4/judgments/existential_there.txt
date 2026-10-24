@@ -17,3 +17,8 @@
 *Clause there was three or more card types among the sacrificed permanents
 +Clause there's an additional combat phase
 +Clause there were three or more card types among the sacrificed permanents
+# Existential be agrees by proximity with a singular first conjunct of an and-coordinated displaced subject, or with the plural coordination (CGEL, Ch. 4 §3.2.2, p. 242, n. 21)
++ <card=Flow State> If there is an instant card and a sorcery card in your graveyard, instead put two of them into your hand and the rest on the bottom of your library in any order. => NounPhrase "there" as Subject of be; NounPhrase "an instant card and a sorcery card"; PrepositionPhrase "in your graveyard" as Complement of be; !NounPhrase "a sorcery card in your graveyard"
++Clause there are an instant card and a sorcery card in your graveyard => NounPhrase "an instant card and a sorcery card"; PrepositionPhrase "in your graveyard" as Complement of be; readings 1
++Clause there is an instant card, a land card, and two sorcery cards => NounPhrase "an instant card, a land card, and two sorcery cards"; readings 1
+*Clause there is two instant cards and a sorcery card in your graveyard

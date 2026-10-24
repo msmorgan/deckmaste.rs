@@ -305,6 +305,7 @@ impl Builder {
             Some(AdjectiveGrade::Comparative) => "Comparative",
             Some(AdjectiveGrade::Superlative) => "Superlative",
             Some(AdjectiveGrade::Equative) => "Equative",
+            Some(AdjectiveGrade::NonScalarInequality) => "NonScalarInequality",
         };
         let grades = [
             (Some(&entry.lemma), Some(own)),

@@ -1840,6 +1840,7 @@ impl<'a> Binder<'a> {
                 cost,
                 internalised,
                 interleaved,
+                interleaved_internalised,
                 heavy_shift,
                 postposed,
                 obligatory,
@@ -1884,15 +1885,19 @@ impl<'a> Binder<'a> {
                 } else {
                     HostKind::Nominal
                 };
+                let interleaved = Interleaving {
+                    adjunct: interleaved.as_deref(),
+                    internalised: interleaved_internalised.as_deref(),
+                };
                 let mut ordered =
-                    self.valence_order(drafts.clone(), interleaved.as_deref(), *heavy_shift, host)?;
+                    self.valence_order(drafts.clone(), interleaved, *heavy_shift, host)?;
                 if let Some(modifier) = postposed {
                     ordered.extend(self.postposed_modifiers(&drafts, modifier));
                 }
                 // An Adjunct interleaves in a Complement Cluster as in the
                 // phrase (*deals [half X damage, rounded down, to any target],
                 // and [half X damage, rounded up, to you]*).
-                ordered.extend(self.valence_order(clustered, interleaved.as_deref(), false, host)?);
+                ordered.extend(self.valence_order(clustered, interleaved, false, host)?);
                 Ok(ordered)
             }
             SchemaDecl::Adjunct {
@@ -2756,14 +2761,66 @@ impl<'a> Binder<'a> {
         ordered
     }
 
+    /// A phrase's prefix up to an interleaved dependent of the Adjunct
+    /// Category `adjunct`, ending in it, and that prefix with another one.
+    fn interleaved_dependent(
+        &self,
+        base: &Draft,
+        id: &str,
+        category: usize,
+        adjunct: usize,
+        function: &str,
+        host: HostKind,
+    ) -> [Draft; 2] {
+        let symbol = |category, host| Symbol::Cat {
+            category,
+            host,
+            binding: None,
+            prepositions: None,
+        };
+        let mut prefix = base.clone();
+        prefix.id = Ident::new(id);
+        let a = prefix.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
+        prefix.host_check = Some((0, a, host));
+        prefix.cost += 2;
+        // The interleaved dependent agrees with the phrase in each feature
+        // they both carry, as a postposed Modifier does.
+        let shared: Vec<usize> = self.out.category_features[adjunct]
+            .iter()
+            .copied()
+            .filter(|f| self.out.category_features[category].contains(f))
+            .collect();
+        for &feature in &shared {
+            prefix
+                .equations
+                .push((Path::Mother(feature), Target::Path(Path::Child(a, feature))));
+        }
+        let mut more = Draft::new(format!("{id}/more"), category, 2);
+        more.child("head", symbol(category, None), GapRule::Transparent);
+        more.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
+        more.host_check = Some((0, 1, host));
+        for &feature in &shared {
+            more.equations
+                .push((Path::Mother(feature), Target::Path(Path::Child(1, feature))));
+        }
+        [prefix, more]
+    }
+
     fn valence_order(
         &mut self,
         drafts: Vec<Draft>,
-        adjunct: Option<&str>,
+        interleaving: Interleaving<'_>,
         heavy: bool,
         host: HostKind,
     ) -> Result<Vec<Draft>, LoadError> {
-        let adjunct = adjunct.map(|name| self.category(name)).transpose()?;
+        let adjunct = interleaving
+            .adjunct
+            .map(|name| self.category(name))
+            .transpose()?;
+        let internalised = interleaving
+            .internalised
+            .map(|name| self.category(name))
+            .transpose()?;
         let mut ordered = Vec::new();
         for draft in drafts {
             ordered.extend(Self::internalised_orders(&draft));
@@ -2825,54 +2882,39 @@ impl<'a> Binder<'a> {
                     binding: None,
                     prepositions: None,
                 };
-                let mut prefix = draft.clone();
-                prefix.id = Ident::new(&format!("{}/prefix{split}", draft.id));
-                prefix.lhs = category;
-                prefix.introduces = Gap::None;
-                prefix.children.truncate(split);
-                prefix.equations.retain(|(a, b)| {
+                let mut base = draft.clone();
+                base.lhs = category;
+                base.introduces = Gap::None;
+                base.children.truncate(split);
+                base.equations.retain(|(a, b)| {
                     path_before(*a, split)
                         && match b {
                             Target::Path(p) => path_before(*p, split),
                             Target::Value(_) => true,
                         }
                 });
-                prefix.exclusions.retain(|(i, _, _)| *i < split);
-                prefix
-                    .joint_exclusions
+                base.exclusions.retain(|(i, _, _)| *i < split);
+                base.joint_exclusions
                     .retain(|joint| joint.iter().all(|(i, _, _)| *i < split));
-                prefix.carried.retain(|(i, _, _)| *i < split);
-                prefix.predicative = prefix.predicative.filter(|&i| i < split);
+                base.carried.retain(|(i, _, _)| *i < split);
+                base.predicative = base.predicative.filter(|&i| i < split);
                 // A Nominal's unselected dependent is its Modifier.
                 let function = match host {
                     HostKind::Nominal => "modifier",
                     _ => "adjunct",
                 };
-                let a = prefix.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
-                prefix.host_check = Some((0, a, host));
-                prefix.cost += 2;
-                // The interleaved dependent agrees with the phrase in each
-                // feature they both carry, as a postposed Modifier does.
-                let shared: Vec<usize> = self.out.category_features[adjunct]
-                    .iter()
-                    .copied()
-                    .filter(|f| self.out.category_features[category].contains(f))
-                    .collect();
-                for &feature in &shared {
-                    prefix
-                        .equations
-                        .push((Path::Mother(feature), Target::Path(Path::Child(a, feature))));
+                // Before the Internalised Complement, its own Adjunct
+                // Category interleaves too.
+                let before_internalised =
+                    internalised.filter(|_| draft.internalised == Some(split));
+                for (adjunct, suffix) in std::iter::once((adjunct, ""))
+                    .chain(before_internalised.map(|c| (c, "/internalised")))
+                {
+                    let id = format!("{}/prefix{split}{suffix}", draft.id);
+                    out.extend(
+                        self.interleaved_dependent(&base, &id, category, adjunct, function, host),
+                    );
                 }
-                out.push(prefix);
-                let mut more = Draft::new(format!("{}/prefix{split}/more", draft.id), category, 2);
-                more.child("head", symbol(category, None), GapRule::Transparent);
-                more.child(function, symbol(adjunct, Some(host)), GapRule::Closed);
-                more.host_check = Some((0, 1, host));
-                for &feature in &shared {
-                    more.equations
-                        .push((Path::Mother(feature), Target::Path(Path::Child(1, feature))));
-                }
-                out.push(more);
                 let mut suffix = draft.clone();
                 suffix.id = Ident::new(&format!("{}/interleaved{split}", draft.id));
                 suffix.children.drain(..split);
@@ -3654,6 +3696,15 @@ fn cluster_shapes(frames: &[Frame]) -> Vec<u16> {
             u16::try_from(first).expect("frame index fits")
         })
         .collect()
+}
+
+/// The Adjunct Categories a Valence schema interleaves before its later
+/// Complements: one before any of them, and one only before an Internalised
+/// Complement.
+#[derive(Clone, Copy)]
+struct Interleaving<'a> {
+    adjunct: Option<&'a str>,
+    internalised: Option<&'a str>,
 }
 
 /// The Categories a Valence schema's Complement Clusters are built in

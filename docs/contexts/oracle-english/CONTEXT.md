@@ -1318,7 +1318,10 @@ Agreement of a Coordination with its nearest Conjunct instead of a value
 resolved from all of them (CGEL, Ch. 5 §18.4, pp. 508–509). An *or*-Coordination
 of Noun Phrases takes its last Conjunct's Number and Person, and a
 quantifier Coordination determines as its last Conjunct does (*one or more
-cards*).
+cards*). Existential *be* before an *and*-Coordination of Noun Phrases may
+agree with its first Conjunct, the nearest, when that is singular (*If there
+is an instant card and a sorcery card in your graveyard*; CGEL, Ch. 4 §3.2.2,
+p. 242, n. 21), as well as with the plural Coordination.
 _Avoid_: attraction for this resolution rule
 
 **Feature Resolution** (project term):

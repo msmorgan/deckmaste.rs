@@ -2,3 +2,6 @@
 + <card=Fireball> Fireball deals X damage divided evenly, rounded down, among any number of targets. => AdverbPhrase "evenly" as Adjunct of divide; VerbPhrase "rounded down"; PrepositionPhrase "among any number of targets" as Complement of divide
 + <card=Dwarven Catapult> Dwarven Catapult deals X damage divided evenly, rounded down, among all creatures target opponent controls. => PrepositionPhrase "among all creatures target opponent controls" as Complement of divide
 + <card=Reverse Polarity> You gain X life, where X is twice the damage dealt to you so far this turn by artifacts. => PrepositionPhrase "to you" as Complement of deal; AdverbPhrase "so far this turn" as Adjunct of deal; PrepositionPhrase "by artifacts" as Complement of deal
+# A manner Noun Phrase interleaves before the Internalised Complement of a passive, never before a core Complement
++ <card=Raiding Party> Then destroy all Plains that weren't chosen this way by any player. => NounPhrase "this way" as Adjunct of choose; PrepositionPhrase "by any player" as Complement of choose
++ <card=Lair Delve> Put all creature and land cards revealed this way into your hand and the rest on the bottom of your library in any order. => NounPhrase "this way" as Adjunct of reveal; !NounPhrase "this way" as Adjunct of put
