@@ -3,7 +3,7 @@
 + <card=Homicidal Seclusion> As long as you control exactly one creature, that creature gets +3/+1 and has lifelink. => DeterminerPhrase "exactly one"; AdverbPhrase "exactly"
 + <card=Near-Death Experience> At the beginning of your upkeep, if you have exactly 1 life, you win the game. => DeterminerPhrase "exactly 1"; AdverbPhrase "exactly"
 + <card=Alluring Suitor> When you attack with exactly two creatures, transform this creature. => DeterminerPhrase "exactly two"; AdverbPhrase "exactly"
-+ <card=Amalia Benavides Aguirre> Then destroy all other creatures if its power is exactly 20. => DeterminerPhrase "exactly 20"; AdverbPhrase "exactly"
++ <card=Amalia Benavides Aguirre> Then destroy all other creatures if its power is exactly 20. => NounPhrase "exactly 20" as PredicativeComplement of be; AdverbPhrase "exactly"
 +NounPhrase exactly one creature => DeterminerPhrase "exactly one"; AdverbPhrase "exactly"
 +NounPhrase exactly seven cards in hand => DeterminerPhrase "exactly seven"; AdverbPhrase "exactly"
 +NounPhrase exactly 1 damage => DeterminerPhrase "exactly 1"; AdverbPhrase "exactly"

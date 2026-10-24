@@ -15,7 +15,7 @@
 + If this spell was kicked, any number of target creatures you control gain indestructible until end of turn.
 +Clause instead, that card is revealed and put on the bottom of that player's library => PrepositionPhrase "instead"; VerbPhrase "is revealed and put on the bottom of that player's library"
 # the final connective may scope over the whole coordination or only its last conjunct
-+Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; VerbPhrase "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
++Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; Clause "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
 + <card=Pariah> All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal; PrepositionPhrase "instead"
 + All damage that would be dealt to you is dealt to enchanted creature. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
 # "instead" preposed without a comma to the Clause it modifies, after a fronted conditional

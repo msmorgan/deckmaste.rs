@@ -12,4 +12,6 @@ The Stratum gate holds when the last slice lands:
 - The landing acceptance of §4.4, principle 5, holds for every landing: no face is lost, `cargo xtask english-v4 strata --check` passes, and no real card's forest explodes.
 - Zero CR-cataloged words appear directly in the grammar data file, and zero policing flags exist.
 
+Progress: `COMPLETED_STRATUM` is 7 (`english-v4-s7-raise-stratum`). Every Stratum-7 judgment is enforced, and the units still unread are deferred under the open slices in `deferred.txt`; each slice removes its deferrals as it lands.
+
 Standard constraints apply.
