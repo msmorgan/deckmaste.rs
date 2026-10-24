@@ -54,9 +54,24 @@ impl FeatureValue {
 /// *be*) is not also that head's predicative Complement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum Extension {
-    Preposition(LexemeId),
+    /// A Preposition Phrase headed by the preposition, with a Complement of
+    /// the kind where the slot names one.
+    Preposition(LexemeId, Option<SlotKind>),
     Slot(SlotKind),
     Predicative(LexemeId),
+}
+
+impl Extension {
+    /// Whether a frame selecting `self` selects `phrase`, an adjunct's or a
+    /// following phrase's extension: a Preposition Phrase slot that names no
+    /// Complement kind selects its preposition with any Complement.
+    pub(crate) fn selects(&self, phrase: &Self) -> bool {
+        match (self, phrase) {
+            (Self::Preposition(p, None), Self::Preposition(q, _)) => p == q,
+            (Self::Preposition(p, Some(k)), Self::Preposition(q, Some(j))) => p == q && k == j,
+            (selected, phrase) => selected == phrase,
+        }
+    }
 }
 
 /// The unfilled Gap a Constituent contains.
@@ -153,8 +168,9 @@ pub(crate) enum Symbol {
     Cat {
         category: usize,
         binding: Option<deckmaste_lexical::Binding>,
-        /// A selected `PP` slot: the phrase's preposition must be one of these.
-        prepositions: Option<Vec<LexemeId>>,
+        /// A selected `PP` slot: the phrase's preposition must be one of
+        /// these, and its Complement of the kind where one is named.
+        prepositions: Option<(Vec<LexemeId>, Option<SlotKind>)>,
         /// An unselected adjunct: a phrase with a preposition must admit this
         /// host.
         host: Option<HostKind>,
@@ -935,7 +951,13 @@ impl Production {
             }
             if position == adjunct {
                 let (extension, kind) = match (summary.preposition, self.adjunct_slot) {
-                    (Some((p, _)), _) => (Some(Extension::Preposition(p)), Some(SlotKind::PP)),
+                    (Some((p, frame)), _) => (
+                        Some(Extension::Preposition(
+                            p,
+                            Some(grammar.preposition_frames[frame].complement.kind()),
+                        )),
+                        Some(SlotKind::PP),
+                    ),
                     (None, Some(kind)) => (Some(Extension::Slot(kind)), Some(kind)),
                     (None, None) => (None, None),
                 };
@@ -1231,14 +1253,24 @@ impl Production {
                 if next.omitted_complement != 0 && !next.after_unlike_omissions {
                     let omitted = grammar.extension_set(next.omitted_complement);
                     let heads = [
-                        summary.preposition.map(|(p, _)| p),
-                        summary.other_preposition,
+                        summary.preposition.map(|(p, frame)| {
+                            Extension::Preposition(
+                                p,
+                                Some(grammar.preposition_frames[frame].complement.kind()),
+                            )
+                        }),
+                        summary.other_preposition.map(|p| Extension::Preposition(p, None)),
                     ];
-                    if heads
-                        .into_iter()
-                        .flatten()
-                        .any(|p| omitted.contains(&Extension::Preposition(p)))
-                    {
+                    if heads.into_iter().flatten().any(|phrase| {
+                        omitted.iter().any(|selected| match (selected, &phrase) {
+                            // A second conjunct's Complement kind is not
+                            // recorded: its preposition is the phrase's.
+                            (Extension::Preposition(p, _), Extension::Preposition(q, None)) => {
+                                p == q
+                            }
+                            _ => selected.selects(&phrase),
+                        })
+                    }) {
                         return None;
                     }
                 }
@@ -1534,18 +1566,20 @@ impl Production {
 
     /// Whether child `position`'s slot admits the phrase: a selected `PP`
     /// slot its preposition, an unselected adjunct its Host Categories.
-    fn slot_admits(&self, position: usize, summary: &Summary) -> bool {
+    fn slot_admits(&self, grammar: &CompiledGrammar, position: usize, summary: &Summary) -> bool {
         let Symbol::Cat {
             prepositions, host, ..
         } = &self.rhs[position]
         else {
             return true;
         };
-        if let Some(list) = prepositions {
-            let Some((prep, _)) = summary.preposition.as_ref() else {
+        if let Some((list, complement)) = prepositions {
+            let Some((prep, frame)) = summary.preposition.as_ref() else {
                 return false;
             };
+            let frame = &grammar.preposition_frames[*frame];
             if !list.contains(prep)
+                || complement.map_or(frame.named_only, |kind| frame.complement.kind() != kind)
                 || summary
                     .other_preposition
                     .is_some_and(|o| !list.contains(&o))
@@ -1643,7 +1677,7 @@ impl Production {
         }
         match child {
             ChildView::Node(summary) => {
-                if !self.slot_admits(position, summary) {
+                if !self.slot_admits(grammar, position, summary) {
                     return None;
                 }
                 if summary.gap != Gap::None {
@@ -1736,7 +1770,10 @@ impl Production {
         }
         if self.host_check.is_some()
             && let Some(e) = &state.adjunct_extension
-            && grammar.extension_set(state.host_extensions).contains(e)
+            && grammar
+                .extension_set(state.host_extensions)
+                .iter()
+                .any(|selected| selected.selects(e))
         {
             return None;
         }
@@ -1876,7 +1913,7 @@ impl CompiledGrammar {
         let prepositions = |index| {
             self.extension_set(index)
                 .iter()
-                .filter(|e| matches!(e, Extension::Preposition(_)))
+                .filter(|e| matches!(e, Extension::Preposition(..)))
         };
         a == b || prepositions(a).eq(prepositions(b))
     }

@@ -334,9 +334,11 @@ impl CompiledGrammar {
             let longer = &self.frames[candidate];
             if longer.slots.len() == frame.slots.len() + 1
                 && longer.slots[..frame.slots.len()] == frame.slots[..]
+                // Only a slot that names no Complement kind: a Reading does
+                // not record which frame of its preposition a phrase has.
                 && let Some(FrameSlot {
                     relation: SlotRelation::Complement,
-                    fill: SlotFill::PP(list),
+                    fill: SlotFill::PP(list, None),
                 }) = longer.slots.last()
                 && list.contains(&preposition.lexeme)
             {

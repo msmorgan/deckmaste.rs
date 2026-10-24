@@ -628,6 +628,7 @@ impl<'a> Binder<'a> {
                             relation,
                             complement: SlotFill::AmountOrNP,
                             hosts: np.hosts.meet(amount.hosts),
+                            named_only: false,
                         };
                         let index = intern(&mut preposition_frames, &derived);
                         facts.preposition_frames.insert(index);
@@ -642,18 +643,28 @@ impl<'a> Binder<'a> {
             .chain(preposition_frames.iter().map(|f| vec![&f.complement]))
         {
             for fill in frame {
-                if let SlotFill::PP(list) = fill {
-                    referenced.extend(list.iter().copied());
+                if let SlotFill::PP(list, complement) = fill {
+                    referenced.extend(list.iter().map(|id| (*id, *complement)));
                 }
             }
         }
-        for id in referenced {
-            if lexemes
+        for (id, complement) in referenced {
+            let Some(facts) = lexemes
                 .get(&id)
-                .is_none_or(|facts| facts.preposition_frames.is_empty())
-            {
+                .filter(|facts| !facts.preposition_frames.is_empty())
+            else {
                 return Err(invalid(format!(
                     "a PP slot names `{id}`, which is not a preposition with frames"
+                )));
+            };
+            if let Some(kind) = complement
+                && !facts
+                    .preposition_frames
+                    .iter()
+                    .any(|&frame| preposition_frames[frame].complement.kind() == kind)
+            {
+                return Err(invalid(format!(
+                    "a PP slot names `{id}` with a {kind:?} Complement, which it has no frame for"
                 )));
             }
         }
@@ -706,7 +717,7 @@ impl<'a> Binder<'a> {
                             .collect();
                         if let [(a, b)] = differing.as_slice()
                             && a.fill == SlotFill::Pred
-                            && let SlotFill::PP(list) = &b.fill
+                            && let SlotFill::PP(list, _) = &b.fill
                         {
                             preps.extend(list.iter().map(|p| Extension::Predicative(*p)));
                         }
@@ -976,7 +987,7 @@ impl<'a> Binder<'a> {
             let sibling = &self.out.productions[sibling];
             if sibling.rhs.get(..=at) == Some(through)
                 && let Some(crate::step::Symbol::Cat {
-                    prepositions: Some(list),
+                    prepositions: Some((list, _)),
                     ..
                 }) = sibling.rhs.get(at + 1)
             {
@@ -1327,12 +1338,13 @@ impl<'a> Binder<'a> {
                 Symbol::Cat {
                     binding: None,
                     category: self.category(category)?,
-                    prepositions: Some(
+                    prepositions: Some((
                         words
                             .iter()
                             .map(|w| self.word(w))
                             .collect::<Result<_, _>>()?,
-                    ),
+                        None,
+                    )),
                     host: None,
                 },
             ),
@@ -2471,7 +2483,7 @@ impl<'a> Binder<'a> {
                 && matches!(slots.first(), Some(SlotFill::NP))
             {
                 // The Internalised Complement is a `by` Preposition Phrase.
-                let by_pp = SlotFill::PP(vec![self.word(passive.by)?]);
+                let by_pp = SlotFill::PP(vec![self.word(passive.by)?], None);
                 for agent in [false, true] {
                     let mut rest: Vec<&SlotFill> = slots[1..].to_vec();
                     if agent {
@@ -2501,7 +2513,7 @@ impl<'a> Binder<'a> {
             }
             if let (Some(passive), true) = (passive, head == LexicalCategory::Verb)
                 && frame.family == FrameFamily::Prepositional
-                && let [fill @ SlotFill::PP(_)] = slots.as_slice()
+                && let [fill @ SlotFill::PP(..)] = slots.as_slice()
             {
                 drafts.extend(self.prepositional_passive(lhs, &name, index, cost, fill, passive)?);
             }
@@ -2522,7 +2534,7 @@ impl<'a> Binder<'a> {
         fill: &SlotFill,
         passive: &PassiveDecl<'_>,
     ) -> Result<Vec<Draft>, LoadError> {
-        let by_pp = SlotFill::PP(vec![self.word(passive.by)?]);
+        let by_pp = SlotFill::PP(vec![self.word(passive.by)?], None);
         let relation = self.out.frames[frame].slots[0].relation;
         let mut drafts = Vec::new();
         for agent in [false, true] {
@@ -2567,10 +2579,11 @@ impl<'a> Binder<'a> {
             let frame = &self.out.preposition_frames[index];
             let mut draft = Draft::new(
                 format!(
-                    "Valence:{phrase}/{:?}@{:?}{}",
+                    "Valence:{phrase}/{:?}@{:?}{}{}",
                     frame.complement,
                     frame.hosts,
-                    if frame.relation == SlotRelation::Complement { "" } else { "/predicative" }
+                    if frame.relation == SlotRelation::Complement { "" } else { "/predicative" },
+                    if frame.named_only { "/named" } else { "" }
                 ),
                 lhs,
                 cost,
@@ -2597,14 +2610,15 @@ impl<'a> Binder<'a> {
                 let amount = frame.complement == SlotFill::Amount;
                 let mut stranded = Draft::new(
                     format!(
-                        "Valence:{phrase}/{:?}@{:?}{}/gap0",
+                        "Valence:{phrase}/{:?}@{:?}{}{}/gap0",
                         frame.complement,
                         frame.hosts,
                         if frame.relation == SlotRelation::Complement {
                             ""
                         } else {
                             "/predicative"
-                        }
+                        },
+                        if frame.named_only { "/named" } else { "" }
                     ),
                     lhs,
                     cost,
@@ -2717,7 +2731,7 @@ impl<'a> Binder<'a> {
                     .filter(|(_, fill)| {
                         gappable
                             && if noun {
-                                matches!(***fill, SlotFill::PP(ref list) if list.len() == 1)
+                                matches!(***fill, SlotFill::PP(ref list, _) if list.len() == 1)
                                     || ***fill == SlotFill::Amount
                             } else {
                                 matches!(
@@ -2775,11 +2789,11 @@ impl<'a> Binder<'a> {
                 }
             }
             if let Some(i) = gap {
-                if let SlotFill::PP(list) = slots[i] {
+                if let SlotFill::PP(list, _) = slots[i] {
                     draft.gap_preposition = list.first().copied();
                 }
                 draft.introduces = match slots[i] {
-                    SlotFill::PP(_) => Gap::PP,
+                    SlotFill::PP(..) => Gap::PP,
                     SlotFill::Amount => Gap::Measure,
                     SlotFill::BareInf => Gap::BareInf,
                     SlotFill::Pred => Gap::Pred,
@@ -2797,7 +2811,7 @@ impl<'a> Binder<'a> {
                 let shiftable = heavy_shift
                     && self.out.frames[frame].slots[first_slot + i].relation
                         == SlotRelation::Object
-                    && later.iter().all(|fill| matches!(**fill, SlotFill::PP(_)));
+                    && later.iter().all(|fill| matches!(**fill, SlotFill::PP(..)));
                 draft.gap_followed = !later.is_empty() && !shiftable;
             }
             self.equations(&mut draft, equations)?;
@@ -3128,7 +3142,7 @@ impl<'a> Binder<'a> {
             binding: None,
             category: self.slot_category(fill.kind())?,
             prepositions: match fill {
-                SlotFill::PP(list) => Some(list.clone()),
+                SlotFill::PP(list, complement) => Some((list.clone(), *complement)),
                 _ => None,
             },
             host: None,
@@ -4216,12 +4230,13 @@ pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {
         .slots
         .iter()
         .map(|slot| match &slot.fill {
-            SlotFill::PP(list) => format!(
-                "PP[{}]",
+            SlotFill::PP(list, complement) => format!(
+                "PP[{}{}]",
                 list.iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>()
-                    .join("|")
+                    .join("|"),
+                complement.map_or_else(String::new, |kind| format!(":{kind:?}"))
             ),
             fill => format!("{:?}", fill.kind()),
         })
@@ -4237,7 +4252,10 @@ pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {
 /// What a Frame Slot selects, as same-head complement priority sees it.
 fn extensions_of(fill: &SlotFill) -> Vec<Extension> {
     match fill {
-        SlotFill::PP(list) => list.iter().map(|p| Extension::Preposition(*p)).collect(),
+        SlotFill::PP(list, complement) => list
+            .iter()
+            .map(|p| Extension::Preposition(*p, *complement))
+            .collect(),
         other => vec![Extension::Slot(other.kind())],
     }
 }

@@ -7,5 +7,9 @@
 # An NP Object of ordinary *do*, not an auxiliary or an opaque pro-form verb.
 + <card=Curse of Vitality> Whenever enchanted player is attacked, you gain 2 life. Each opponent attacking that player does the same. => NounPhrase "Each opponent attacking that player" as Subject of do; NounPhrase "the same" as Object of do
 + <card=Super-Adaptoid> Do the same for flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance. => NounPhrase "the same" as Object of do; PrepositionPhrase "for flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance" as Adjunct of do; KeywordPhrase "flying, first strike, double strike, deathtouch, indestructible, lifelink, menace, reach, trample, and vigilance" as Complement of for
+# A cited word (CGEL, Ch. 5 §8.2, p. 401) is the Complement of *for*, and the
+# *for*-phrase *do* selects by that kind alone: *for flying, …* above stays
+# an Adjunct.
++ <card=Grim Captain's Call> Return a Pirate card from your graveyard to your hand, then do the same for Vampire, Dinosaur, and Merfolk. => NounPhrase "the same" as Object of do; PrepositionPhrase "for Vampire, Dinosaur, and Merfolk" as Complement of do; Mention "Vampire, Dinosaur, and Merfolk" as Complement of for
 *Clause Each opponent do the same
 *Clause You does the same

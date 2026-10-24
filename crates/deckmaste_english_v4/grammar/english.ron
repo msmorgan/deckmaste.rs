@@ -2162,7 +2162,7 @@
         // *attacks each combat if able unless ...* belongs to the clause
         // outside *if able* (CGEL, Ch. 14 §10(b), p. 1267; the verb's Adjunct,
         // Ch. 8 §20.1, pp. 779-781).
-        (name: "ParticipialVerblessClause", lhs: "VerblessClause", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "PrepositionPhrase")],
+        (name: "ParticipialVerblessClause", lhs: "VerblessClause", rhs: [Cat("head", "VerbPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate)],
             equations: [Require("head.VerbForm", "PastParticiple"), Require("head.Voice", "Passive"), Exclude("head.VerbKind", "Auxiliary")], cost: 1),
         // The Absolute Clause Complement of *with* and *without*: a Subject
         // and a past-participial predicate (*with your hand revealed*; CGEL,

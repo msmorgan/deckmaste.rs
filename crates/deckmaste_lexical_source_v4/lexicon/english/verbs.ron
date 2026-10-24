@@ -50,7 +50,9 @@
     // (*don't*, closed_class.ron). The pro-form *if you do*; *do this only
     // once each turn*.
     (lemma: "do", third_singular: "does", preterite: "did", past_participle: "done",
-        frames: [Intransitive, Monotransitive]),
+        // *do the same for Vampire*: a cited word, never *for flying*,
+        // which stays an Adjunct.
+        frames: [Intransitive, Monotransitive, TransitiveWithComplement(PPWith(["for"], Mention))]),
     // The pro-form *do so* (CGEL, Ch. 17 §7.5, pp. 1529–1532), inflected on
     // *do*: *all creatures able to block it do so*, *if a player does so*.
     (lemma: "do so", third_singular: "does so", preterite: "did so", past_participle: "done so", gerund: "doing so", frames: [Intransitive]),
