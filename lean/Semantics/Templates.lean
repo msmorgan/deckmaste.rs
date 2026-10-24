@@ -332,8 +332,6 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
                 (``Semantics.Action, `Semantics.Templates.Action.target) ]),
     (`attachment, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.attachment),
                     (``Semantics.Action, `Semantics.Templates.Action.attachment) ]),
-    (`bracketed, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.bracketed),
-                   (``Semantics.Action, `Semantics.Templates.Action.bracketed) ]),
     (`duringPart, [ (``Semantics.Timing, `Semantics.Templates.duringPart),
                     (``Semantics.Condition, `Semantics.Templates.Condition.duringPart) ]),
     (`did, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.did),
@@ -607,7 +605,10 @@ semantic_template anotherSpell : Predicate := .and [isSpell, .other]
 semantic_template Predicate.attachment (side : AttachmentSide)
     (counterpart : Option NounPhrase := none) (word : Option AttachWord := none) : Predicate :=
   .attachment side word counterpart
-semantic_template Predicate.bracketed (predicate : Predicate) : Predicate := .bracketed predicate
+/-- Rules text printed in square brackets: a fact about the wording, so it means what `x` means
+and nothing more. The call survives in the authoring tree, where lowering reads it to find the text
+that cleave removes [CR#702.148a,702.148b]. -/
+semantic_template bracketed {α : Type} (x : α) : α := x
 semantic_template cardIn (zone : Location) : Predicate := .and [.isCard, .in_ zone]
 /-- "<spell> was <designation>": the spell was a card holding it before it was cast, as "if this
 spell was foretold" [CR#702.143c]. -/
@@ -1461,7 +1462,6 @@ semantic_template atNext (part : TurnPart) (action : Action) : Action :=
 semantic_template Action.attachment (move : AttachMove) (subject : NounPhrase)
     (host : Option NounPhrase := none) : Action :=
   .attachment move subject host
-semantic_template Action.bracketed (action : Action) : Action := .bracketed action
 semantic_template changeLife (delta : Delta Amount) : Action := .changeLife delta
 semantic_template chooseNewTargets (subject : NounPhrase) : Action := .chooseNewTargets subject
 semantic_template chooseOne (first second : Action) : Action :=

@@ -25,7 +25,7 @@ event-capable `Action` heads (Table 3.6A) plus CR §701 keyword-action definitio
 def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.eventHeadOk n
+  | n + 1, .inCaller body => body.eventHeadOk n
   | _ + 1, .ownScope (some _) _ => true
   | n + 1, .ownScope none body => body.eventHeadOk n
   | _ + 1, .enact .. => true
@@ -48,7 +48,7 @@ termination_by structural fuel
 def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.deonticHeadOk n
+  | n + 1, .inCaller body => body.deonticHeadOk n
   | _ + 1, .ownScope (some (.action _ _)) _ => true
   | n + 1, .ownScope none body => body.deonticHeadOk n
   | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .target .. | _ + 1, .attachment ..
@@ -70,7 +70,7 @@ can sum (`semantics-v3.md` §3.8). -/
 def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
-  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body | n + 1, .enact _ body _ _ =>
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .enact _ body _ _ =>
       body.eventHasMagnitude n
   | _ + 1, .dealDamage .. | _ + 1, .markDamage ..
   | _ + 1, .changeLife (.up _) | _ + 1, .changeLife (.down _)

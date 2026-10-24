@@ -74,7 +74,7 @@ def SliceCount.plur : SliceCount → Plurality
 def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none
-  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .not body => body.kind? n
+  | n + 1, .inCaller body | n + 1, .not body => body.kind? n
   | _ + 1, .anyPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .chosenPlayer _ | _ + 1, .choseExtreme _ => some .player
   | _ + 1, .qualityNoun q _ => some (.quality q)
   | _ + 1, .counterKindOn _ => some (.quality .counterKind)
@@ -150,7 +150,7 @@ def NounPhrase.selectedKind (phrase : NounPhrase) (drs : DRS)
 def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
   match fuel, p with
   | 0, _ => none
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.seedZone n
+  | n + 1, .inCaller body => body.seedZone n
   | _ + 1, .in_ z => z.sort
   | _ + 1, .inCombat .attackedBy _ => none
   | _ + 1, .isToken | _ + 1, .inCombat .. | _ + 1, .attachment ..
@@ -169,7 +169,7 @@ termination_by structural fuel
 def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, p with
   | 0, _ => false
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.seedsToken n
+  | n + 1, .inCaller body => body.seedsToken n
   | _ + 1, .isToken => true
   | n + 1, .and ps => ps.any (·.seedsToken n)
   | _ + 1, _ => false
@@ -180,7 +180,7 @@ only when it moves to exile, which is exiling [CR#701.13a]; "put" and "return" n
 def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.inferredDeed n
+  | n + 1, .inCaller body => body.inferredDeed n
   | _ + 1, .ownScope (some d) _ => some d
   | n + 1, .ownScope none body => body.inferredDeed n
   | _ + 1, .enact verb _ _ _ => some verb
@@ -221,7 +221,7 @@ termination_by structural fuel
 is written, and the destination [CR#400.7]. -/
 def Action.writtenZoneChange? (inst : Action) (fuel : Nat := 8) : Option (Option Zone × Zone) :=
   match fuel, inst with
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.writtenZoneChange? n
+  | n + 1, .inCaller body => body.writtenZoneChange? n
   | _ + 1, .move _ from_ (some to) _ _ => to.sort.map (from_.sort, ·)
   | _, _ => none
 termination_by structural fuel
@@ -244,10 +244,10 @@ def DidClause.anchor? (clause : DidClause) : Option ParticipialAnchor :=
   | none | some .thisWay => if relativizesSubject then none else clause.action.participialAnchor?
   | some _ => none
 
-/-- A predicate's conjuncts, through `inCaller`, `bracketed` and nested `and`. -/
+/-- A predicate's conjuncts, through `inCaller` and nested `and`. -/
 def Predicate.conjuncts (p : Predicate) (fuel : Nat := 8) : List Predicate :=
   match fuel, p with
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.conjuncts n
+  | n + 1, .inCaller body => body.conjuncts n
   | n + 1, .and ps => ps.flatMap (·.conjuncts n)
   | _, p => [p]
 termination_by structural fuel
@@ -309,7 +309,6 @@ supplies: stepped as "this way" is, it looks back over nothing further. -/
 def Predicate.withAnchorSpan (p : Predicate) (fuel : Nat := 8) : Predicate :=
   match fuel, p with
   | n + 1, .inCaller body => .inCaller (body.withAnchorSpan n)
-  | n + 1, .bracketed body => .bracketed (body.withAnchorSpan n)
   | n + 1, .and ps => .and (ps.map (·.withAnchorSpan n))
   | _ + 1, .did clause =>
     if clause.within.isNone && clause.anchor?.isSome then
@@ -440,7 +439,7 @@ def NounPhrase.slicePossessorOk (phrase : NounPhrase) : Bool :=
 
 def Predicate.headIsPlaceless (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
-  | n + 1, .inCaller b | n + 1, .bracketed b => b.headIsPlaceless n
+  | n + 1, .inCaller b => b.headIsPlaceless n
   | _ + 1, .isSource | _ + 1, .isCard => true
   | n + 1, .and ps => ps.any (fun p => p.headIsPlaceless n)
   | _, _ => false
@@ -448,7 +447,7 @@ termination_by structural fuel
 
 def Predicate.explicitZone (predicate : Predicate) (fuel : Nat := 32) : Option Zone :=
   match fuel, predicate with
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.explicitZone n
+  | n + 1, .inCaller body => body.explicitZone n
   | _ + 1, .in_ zone => zone.sort
   | n + 1, .and predicates => predicates.findSome? (·.explicitZone n)
   | n + 1, .or (first :: rest) | n + 1, .coord .andOr (first :: rest) =>
@@ -464,7 +463,7 @@ def Predicate.phraseZone (kind : Kind) (predicate : Predicate) : Option Zone :=
 
 def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
-  | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
+  | n + 1, .inCaller b | n + 1, .compareOver b _ _ _ =>
     b.seedsAbility n
   | _ + 1, .abilityHead _ | _ + 1, .abilityOf _
   | _ + 1, .triggeredNotLeftStack => true
@@ -1108,7 +1107,7 @@ Reference Scope and its deed to the event its expansion performs. -/
 def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
   match fuel, inst with
   | 0, _ => []
-  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body
+  | n + 1, .inCaller body | n + 1, .ownScope _ body
   | n + 1, .enact _ body _ _ => body.eventVerbs n
   | _ + 1, .dealDamage .. => [.damageDealt]
   | _ + 1, .markDamage .. => [.damageMarked]
@@ -1187,7 +1186,7 @@ them: a keyword action's own Reference Scope, its deed, then the event its expan
 def Action.eventLayers (action : Action) (fuel : Nat := 8) : List Action :=
   match fuel, action with
   | 0, _ => []
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.eventLayers n
+  | n + 1, .inCaller body => body.eventLayers n
   | n + 1, .ownScope deed body => (if deed.isSome then [action] else []) ++ body.eventLayers n
   | n + 1, .enact _ body _ _ => action :: body.eventLayers n
   | _ + 1, _ => if action.eventHeadOk then [action] else []
@@ -1591,14 +1590,9 @@ def colorOpOk : QualityOp → ColorSpec → Bool
   | _, .some [] => false
   | _, _ => true
 
-def Predicate.qualityReadOk (p : Predicate) (fuel : Nat := 64) : Bool :=
-  match fuel with
-  | 0 => false
-  | n + 1 => match p with
-    | .bracketed body => body.qualityReadOk n
-    | .ofChosen _ _ | .ofYourChoice _ _ | .named _ | .shares _ _ _ => true
-    | _ => false
-termination_by structural fuel
+def Predicate.qualityReadOk : Predicate → Bool
+  | .ofChosen _ _ | .ofYourChoice _ _ | .named _ | .shares _ _ _ => true
+  | _ => false
 
 /-- A chosen quality is read as a chosen one. -/
 def WrittenQuality.shape : WrittenQuality → List Refusal
@@ -1670,7 +1664,7 @@ def Subtype.isAttachment (subtype : Subtype) : Bool :=
 enchanted" forbids an Aura's becoming attached. -/
 def Action.attaches (action : Action) (fuel : Nat := 16) : Bool :=
   match fuel, action with
-  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body
+  | n + 1, .inCaller body | n + 1, .ownScope _ body
   | n + 1, .enact _ body _ _ => body.attaches n
   | _ + 1, .attachment .attached _ _ => true
   | _, _ => false
@@ -1965,7 +1959,7 @@ def stepRollRowListWith (ops : StepOps) (drs : DRS) (rows : List RollRow) : DRS 
 
 def Action.hasRepeatedPayment (action : Action) (fuel : Nat := 32) : Bool :=
   match fuel, action with
-  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body =>
+  | n + 1, .inCaller body | n + 1, .ownScope _ body =>
     body.hasRepeatedPayment n
   | _ + 1, .pay _ times .paid _ _ => times != .once
   | _, _ => false
@@ -2360,7 +2354,7 @@ private def choiceSortAtKind : Kind → Option ChoiceSort
 def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
   match fuel, action with
   | 0, _ => []
-  | n+1, .inCaller body | n+1, .ownScope _ body | n+1, .bracketed body
+  | n+1, .inCaller body | n+1, .ownScope _ body
   | n+1, .instruct _ body | n+1, .limited body _ => actionTextChoices body n
   | _+1, .choose _ (.described (.a _) predicate) _ _ =>
     (predicate.kind?.bind choiceSortAtKind).toList
@@ -2667,7 +2661,6 @@ def stepOps : Nat → StepOps
         | .inCaller body =>
           let (callerDrs, errs) := ops.pred (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
-        | .bracketed body => ops.pred drs body
         | .not body =>
           let (out, errors) := ops.pred drs body
           ({ drs with nextId := out.nextId }, errors ++ refuse body.negatable .negatable)
@@ -3455,7 +3448,6 @@ def stepOps : Nat → StepOps
           let outDrs := leaveOwnScope innerDrs'
           let _ := deed
           (outDrs, errs)
-        | .bracketed body => ops.inst phase patientRole drs body
         | .enact verb body becomes locus =>
           let actor := actorShape? drs
           let defaultsToSource := verb.permanentActor && actor.all (·.isYou)
