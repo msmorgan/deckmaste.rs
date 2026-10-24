@@ -198,7 +198,10 @@ pub(crate) fn form_bit(form: WordForm) -> u16 {
 
 /// A compiled Production.
 #[derive(Debug, Clone)]
-#[expect(clippy::struct_excessive_bools, reason = "independent production facts")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent production facts"
+)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
     /// Combinations of (child, feature, value) conditions that may not all
@@ -329,6 +332,9 @@ pub(crate) struct Production {
     pub clusters: Option<(usize, u16)>,
     /// Its part in Complement Cluster remnants (`grammar::ClustersDecl`).
     pub remnant: RemnantRole,
+    /// A coordination whose later conjuncts have its initial conjunct's
+    /// lexical head, overt or elided (`SchemaDecl::Coordination::parallel`).
+    pub parallel: bool,
     /// The State before any child, its variables bound to their constants.
     start: State,
 }
@@ -356,6 +362,10 @@ pub(crate) enum Elided {
     /// lexeme that declares the frame (`grammar::SchemaDecl::Valence`
     /// `remnants`).
     Frame(u16),
+    /// The head of this preposition frame, as a preposition elided from its
+    /// Complement: any preposition that declares the frame
+    /// (`grammar::AdjunctClustersDecl`).
+    PrepositionFrame(u16),
 }
 
 impl Elided {
@@ -368,6 +378,10 @@ impl Elided {
                 .lexemes
                 .get(&head)
                 .is_some_and(|facts| facts.frames.contains(&usize::from(frame))),
+            Self::PrepositionFrame(frame) => grammar
+                .lexemes
+                .get(&head)
+                .is_some_and(|facts| facts.preposition_frames.contains(&usize::from(frame))),
         }
     }
 }
@@ -537,6 +551,7 @@ pub(crate) fn resolve(
         cluster: None,
         clusters: None,
         remnant: RemnantRole::None,
+        parallel: false,
         id,
         lhs,
         rhs,
@@ -599,6 +614,7 @@ pub(crate) fn resolve(
             head_lexeme: None,
             remnant: None,
             shared_head: None,
+            cluster_preposition: None,
             remnant_seen: false,
             remnant_anchor: None,
         },
@@ -768,6 +784,10 @@ pub(crate) struct Summary {
     /// The lexical head of a phrase a later Cluster's remnant may elide,
     /// through its head line (`RemnantRole::SharesHead`).
     pub shared_head: Option<LexemeId>,
+    /// The preposition of an Adjunct Cluster's last Preposition Phrase, or
+    /// the one every Cluster of a parallel coordination shares
+    /// (`grammar::AdjunctClustersDecl`).
+    pub cluster_preposition: Option<LexemeId>,
 }
 
 /// A lexical leaf as a child sees it.
@@ -883,6 +903,8 @@ pub(crate) struct State {
     remnant: Option<Elided>,
     /// `Summary::shared_head` so far.
     shared_head: Option<LexemeId>,
+    /// `Summary::cluster_preposition` so far.
+    cluster_preposition: Option<LexemeId>,
     /// A coordination's initial conjunct has been taken (`remnant_anchor`).
     remnant_seen: bool,
     /// The `Summary::shared_head` of a coordination's initial conjunct that
@@ -1196,9 +1218,14 @@ impl Production {
         position: usize,
         child: &ChildView<'_>,
     ) -> Option<()> {
-        let (remnant, shared) = match child {
-            ChildView::Node(summary) => (summary.remnant, summary.shared_head),
-            ChildView::Leaf(leaf) => (None, leaf.lexeme),
+        let (remnant, shared, preposition, cluster_preposition) = match child {
+            ChildView::Node(summary) => (
+                summary.remnant,
+                summary.shared_head,
+                summary.preposition.map(|(p, _)| p),
+                summary.cluster_preposition,
+            ),
+            ChildView::Leaf(leaf) => (None, leaf.lexeme, None, None),
             ChildView::Punct => return Some(()),
         };
         if self.remnant == RemnantRole::SharesHead && self.head == Some(position) {
@@ -1209,6 +1236,8 @@ impl Production {
             if position == 0 {
                 next.remnant = remnant;
                 next.shared_head = shared;
+            } else if position + 1 == self.rhs.len() {
+                next.cluster_preposition = preposition;
             }
             return Some(());
         }
@@ -1231,9 +1260,23 @@ impl Production {
             next.remnant_seen = true;
             next.remnant = remnant;
             next.remnant_anchor = if remnant.is_some() { None } else { shared };
+            if self.parallel {
+                // A parallel coordination shares its conjuncts' head and
+                // last preposition.
+                next.shared_head = next.remnant_anchor;
+                next.cluster_preposition = cluster_preposition;
+            }
             return Some(());
         }
+        if self.parallel && cluster_preposition != next.cluster_preposition {
+            return None;
+        }
         match (remnant, next.remnant_anchor, next.remnant) {
+            (None, Some(anchor), _) if self.parallel => (shared == Some(anchor)).then_some(()),
+            (None, None, Some(first)) if self.parallel => shared
+                .is_some_and(|head| first.recovered_by(grammar, head))
+                .then_some(()),
+            (None, None, None) if self.parallel => None,
             (None, ..) => Some(()),
             (Some(elided), Some(head), _) => elided.recovered_by(grammar, head).then_some(()),
             (Some(elided), None, Some(first)) => (elided == first).then_some(()),
@@ -1271,7 +1314,9 @@ impl Production {
                                 Some(grammar.preposition_frames[frame].complement.kind()),
                             )
                         }),
-                        summary.other_preposition.map(|p| Extension::Preposition(p, None)),
+                        summary
+                            .other_preposition
+                            .map(|p| Extension::Preposition(p, None)),
                     ];
                     if heads.into_iter().flatten().any(|phrase| {
                         omitted.iter().any(|selected| match (selected, &phrase) {
@@ -1308,9 +1353,7 @@ impl Production {
         match self.weights.iter().find(|(at, _)| *at == position) {
             Some((_, Weight::Light)) if leaves != 1 => None,
             Some((_, Weight::Heavy)) if leaves < 2 => None,
-            Some((_, Weight::Postposable))
-                if !matches!(child, ChildView::Node(s) if !s.head_final || s.head_coordination) =>
-            {
+            Some((_, Weight::Postposable)) if !matches!(child, ChildView::Node(s) if !s.head_final || s.head_coordination) => {
                 None
             }
             _ => Some(leaves),
@@ -1910,6 +1953,7 @@ impl Production {
                 _ => state.remnant,
             },
             shared_head: state.shared_head,
+            cluster_preposition: state.cluster_preposition,
         })
     }
 }

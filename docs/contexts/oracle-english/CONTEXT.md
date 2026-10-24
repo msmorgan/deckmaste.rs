@@ -1238,6 +1238,23 @@ first Cluster (*gain protection from white if ..., from blue if ...*; CGEL,
 Ch. 15 §4.3, p. 1343, note 65).
 _Avoid_: gapping, which elides the verb from a second Clause
 
+**Adjunct Cluster** (project term):
+A sequence of two Preposition Phrase Adjuncts after a verb with no
+Complement, coordinated with parallel sequences, as in *enters with a +1/+1
+counter on it for each other red creature you control and a +1/+1 counter on
+it for each other green creature you control*. Each Cluster has the first
+Cluster's prepositions; a Cluster after the first may open with a remnant,
+the Complement of a Preposition Phrase whose preposition is elided (CGEL,
+Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and Bonn for
+three days*).
+_Avoid_: Complement Cluster, whose sequence begins with Complements
+
+**Idiomatic Coordinate**:
+A pro-form ending a Coordination after its Coordinator, standing for further
+Conjuncts of the same kind: *and so on* (CGEL, Ch. 17 §7.7.3(e), p. 1540). It
+is no Conjunct and takes no part in the Conjuncts' parallelism (*+1/+1 if it
+has flying, +1/+1 if it has first strike, and so on for double strike, ...*).
+
 **Medial Remnant** (project term):
 A medial Conjunct with an element at its beginning elided and recovered from
 the initial Conjunct, in a Coordination at the level of its final Conjunct

@@ -315,6 +315,8 @@ struct Draft {
     clusters: Option<(usize, usize)>,
     /// Its part in Complement Cluster remnants (`Production::remnant`).
     remnant: crate::step::RemnantRole,
+    /// `SchemaDecl::Coordination::parallel`.
+    parallel: bool,
 }
 
 /// What a Valence schema declares its derived phrases carry, beyond their
@@ -399,6 +401,7 @@ impl Draft {
             cluster: None,
             clusters: None,
             remnant: crate::step::RemnantRole::None,
+            parallel: false,
         }
     }
 
@@ -1788,6 +1791,7 @@ impl<'a> Binder<'a> {
             .clusters
             .map(|(at, frame)| (at, u16::try_from(frame).expect("frame index fits")));
         production.remnant = draft.remnant;
+        production.parallel = draft.parallel;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -2208,6 +2212,18 @@ impl<'a> Binder<'a> {
                 .iter()
                 .map(|(kind, remnant)| Ok((self.slot_category(*kind)?, self.category(remnant)?)))
                 .collect::<Result<_, LoadError>>()?,
+            adjunct_clusters: decl
+                .adjunct_clusters
+                .as_ref()
+                .map(|a| {
+                    Ok::<_, LoadError>((
+                        self.category(&a.cluster)?,
+                        self.category(&a.coordination)?,
+                        self.category(&a.preposition)?,
+                        self.category(&a.remnant)?,
+                    ))
+                })
+                .transpose()?,
         })
     }
 
@@ -3203,11 +3219,31 @@ impl<'a> Binder<'a> {
     /// The drafts of a Coordination schema: the whole coordination (binary,
     /// delimited binary, serial, each after a correlative marker too), its
     /// serial tail, and Right Node Raising, once per Category.
+    fn coordination(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
+        let SchemaDecl::Coordination {
+            remnant, parallel, ..
+        } = schema
+        else {
+            unreachable!("a coordination schema")
+        };
+        let mut drafts = self.coordination_drafts(schema, remnant.as_deref())?;
+        if *parallel {
+            for draft in &mut drafts {
+                draft.parallel = true;
+            }
+        }
+        Ok(drafts)
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one coordination schema, shapes in order"
     )]
-    fn coordination(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
+    fn coordination_drafts(
+        &self,
+        schema: &SchemaDecl,
+        remnant: Option<&str>,
+    ) -> Result<Vec<Draft>, LoadError> {
         let SchemaDecl::Coordination {
             category,
             coordinators,
@@ -3216,7 +3252,6 @@ impl<'a> Binder<'a> {
             delimiter,
             delimited,
             serial: serial_shapes,
-            remnant,
             ..
         } = schema
         else {
@@ -3226,12 +3261,7 @@ impl<'a> Binder<'a> {
         // A middle conjunct may be a remnant, its head elided: never the
         // initial or last one (`SchemaDecl::Coordination::remnant`).
         let middles = std::iter::once(None)
-            .chain(
-                remnant
-                    .as_deref()
-                    .map(|r| self.category(r).map(Some))
-                    .transpose()?,
-            )
+            .chain(remnant.map(|r| self.category(r).map(Some)).transpose()?)
             .collect::<Vec<_>>();
         if remnant.is_none() && !conjoin.recovered.is_empty() {
             return Err(invalid(format!(
@@ -3330,6 +3360,24 @@ impl<'a> Binder<'a> {
             }
             drafts.push(serial);
         }
+        // Idiomatic coordinates (`Grammar::idiomatic_coordinates`), derived
+        // for the Category's first coordination schema whose coordinators
+        // admit their coordinator: the pro-form stands for conjuncts of the
+        // coordination's kind, whichever schema joins the overt ones.
+        for (word, idiomatic) in &self.grammar.idiomatic_coordinates {
+            let word = self.word(word)?;
+            if conjoin.unlike.is_none() && self.first_admitting(schema, word)? {
+                drafts.extend(conjoin.idiomatic(
+                    self,
+                    word,
+                    self.category(idiomatic)?,
+                    *cost,
+                    if *delimited { None } else { Some(()) },
+                    *delimiter,
+                    serials,
+                )?);
+            }
+        }
         if !serials {
             return Ok(drafts);
         }
@@ -3399,6 +3447,29 @@ impl<'a> Binder<'a> {
 }
 
 impl Binder<'_> {
+    /// Whether `schema` is the first Coordination schema of its Category
+    /// with no `unlike` feature whose coordinators admit `word`.
+    fn first_admitting(&self, schema: &SchemaDecl, word: LexemeId) -> Result<bool, LoadError> {
+        let SchemaDecl::Coordination { category, .. } = schema else {
+            unreachable!("a coordination schema")
+        };
+        for other in &self.grammar.schemas {
+            let SchemaDecl::Coordination {
+                category: c,
+                coordinators: Some(coordinators),
+                unlike: None,
+                ..
+            } = other
+            else {
+                continue;
+            };
+            if c == category && self.admits(&self.coordinator_test(coordinators)?, word) {
+                return Ok(std::ptr::eq(other, schema));
+            }
+        }
+        Ok(false)
+    }
+
     /// The drafts of a Linked Coordination schema, which has no Coordinator:
     /// the Conjunct after each link is of the `link` Category, marked by its
     /// own initial connective (*Draw a card, then discard a card*; CGEL,
@@ -3809,6 +3880,81 @@ impl Conjoin {
         draft.resolution_last = Some((*last, !ends));
     }
 
+    /// A coordination whose last coordinate is an idiomatic one
+    /// (`Grammar::idiomatic_coordinates`): the binary, plain unless the
+    /// schema only delimits (`plain`) and with its delimiter, and the end of
+    /// the serial tail. The pro-form after the coordinator is no conjunct:
+    /// the overt conjunct before it is the last one, whose features the
+    /// coordination takes as from a last conjunct, while no equation of the
+    /// schema's on its `last` conjunct applies, and it is outside the head
+    /// line, so no Cluster shape is asked of it.
+    #[expect(clippy::too_many_arguments, reason = "the schema's shapes")]
+    fn idiomatic(
+        &self,
+        binder: &Binder<'_>,
+        word: LexemeId,
+        idiomatic: usize,
+        cost: u32,
+        plain: Option<()>,
+        delimiter: Option<char>,
+        serials: bool,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let coordinate = Symbol::Cat {
+            binding: None,
+            category: idiomatic,
+            prepositions: None,
+            host: None,
+        };
+        let name = &self.tail_name;
+        let mut shapes = Vec::new();
+        if plain.is_some() {
+            shapes.push((
+                format!("Coordination:{name}/binary-idiomatic"),
+                self.lhs,
+                None,
+                cost,
+            ));
+        }
+        if let Some(mark) = delimiter {
+            shapes.push((
+                format!("Coordination:{name}/binary-delimited-idiomatic"),
+                self.lhs,
+                Some(mark),
+                cost,
+            ));
+        }
+        if serials {
+            shapes.push((
+                format!("Coordination:{name}/serial-end-idiomatic"),
+                self.tail_id,
+                Some(','),
+                0,
+            ));
+        }
+        let mut drafts = Vec::new();
+        for (id, lhs, mark, cost) in shapes {
+            let tail = lhs == self.tail_id;
+            let mut draft = Draft::new(id, lhs, cost);
+            let a = draft.child("first", self.conjunct(), GapRule::Shared);
+            if let Some(mark) = mark {
+                draft.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+                draft.delimits = !tail;
+            }
+            let c = draft.child(
+                "coordinator",
+                Symbol::Leaf(Test::Word(word)),
+                GapRule::Closed,
+            );
+            draft.child("coordinate", coordinate.clone(), GapRule::Closed);
+            draft.coordinator = Some(c);
+            draft.distinct_coordinator = vec![a];
+            let edge = if tail { Edge::Tail { last: true } } else { Edge::Whole { last: true } };
+            self.close_with(binder, &mut draft, &[a], edge, false)?;
+            drafts.push(draft);
+        }
+        Ok(drafts)
+    }
+
     /// Makes the conjuncts agree and adds the schema's equations; the second
     /// of `conjuncts` is the last conjunct or the serial tail.
     fn close(
@@ -3818,11 +3964,29 @@ impl Conjoin {
         conjuncts: &[usize],
         edge: Edge,
     ) -> Result<(), LoadError> {
+        self.close_with(binder, draft, conjuncts, edge, true)
+    }
+
+    /// `close`, where `overt_last` is false when an idiomatic coordinate
+    /// follows the last of `conjuncts`: then every conjunct is nonfinal and
+    /// no equation on the `last` conjunct applies.
+    fn close_with(
+        &self,
+        binder: &Binder<'_>,
+        draft: &mut Draft,
+        conjuncts: &[usize],
+        edge: Edge,
+        overt_last: bool,
+    ) -> Result<(), LoadError> {
         let whole = matches!(edge, Edge::Whole { .. });
         draft.tail = !whole;
         // The last child is the last conjunct or the serial tail that ends
         // with it; every other is a conjunct before the last.
-        draft.nonfinal_conjuncts = conjuncts[..conjuncts.len() - 1].to_vec();
+        draft.nonfinal_conjuncts = if overt_last {
+            conjuncts[..conjuncts.len() - 1].to_vec()
+        } else {
+            conjuncts.to_vec()
+        };
         self.resolve(draft, conjuncts, edge);
         for &feature in &self.features {
             if self.unshared.contains(&feature)
@@ -3866,7 +4030,7 @@ impl Conjoin {
                 binder.equations(draft, &self.initials)?;
             }
         }
-        if matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true }) {
+        if overt_last && matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true }) {
             binder.equations(draft, &self.lasts)?;
             // Joint exclusions relate the last conjunct to the one before it.
             if first {
@@ -3954,6 +4118,9 @@ struct ClusterCategories {
     adjunct: Option<usize>,
     /// (Slot Category, remnant Category) pairs (`ClustersDecl::remnants`).
     remnants: Vec<(usize, usize)>,
+    /// `ClustersDecl::adjunct_clusters`: (Cluster, coordination, Preposition
+    /// Phrase, remnant) Categories.
+    adjunct_clusters: Option<(usize, usize, usize, usize)>,
 }
 
 /// An active phrase's Complement Clusters (right nonce-constituent
@@ -3970,11 +4137,11 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     let Some(frame) = draft.frame else {
         return Vec::new();
     };
-    if draft.children.len() < 2
-        || derived.iter().any(|d| draft.id.contains(d))
-        || draft.children[0].name != "head"
-    {
+    if derived.iter().any(|d| draft.id.contains(d)) || draft.children[0].name != "head" {
         return Vec::new();
+    }
+    if draft.children.len() < 2 {
+        return adjunct_clusters(draft, frame, categories);
     }
     let slots = draft.children.len() - 1;
     let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
@@ -4104,6 +4271,55 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
     out
 }
 
+/// A phrase with no Frame Slot and its Clusters of Adjuncts alone
+/// (`grammar::AdjunctClustersDecl`): a Preposition Phrase, or a later
+/// Cluster's remnant of one, then a second Preposition Phrase, and the head
+/// with a coordination of such Clusters. Equations on the head and the mother
+/// stay with the head.
+fn adjunct_clusters(draft: &Draft, frame: usize, categories: &ClusterCategories) -> Vec<Draft> {
+    let Some((cluster, coordination, preposition, remnant)) = categories.adjunct_clusters else {
+        return Vec::new();
+    };
+    let symbol = |category, host| Symbol::Cat {
+        category,
+        binding: None,
+        prepositions: None,
+        host,
+    };
+    let adjunct = || symbol(preposition, Some(crate::grammar::HostKind::Predicate));
+    let mut out = Vec::new();
+    for (tag, first) in [
+        ("adjunct-cluster", adjunct()),
+        ("adjunct-cluster/remnant", symbol(remnant, None)),
+    ] {
+        let mut draft = Draft::new(format!("{}/{tag}", draft.id), cluster, 0);
+        draft.child("adjunct", first, GapRule::Closed);
+        draft.child("adjunct", adjunct(), GapRule::Closed);
+        draft.cluster = Some(frame);
+        out.push(draft);
+    }
+    let mut whole = Draft::new(
+        format!("{}/adjunct-clusters", draft.id),
+        draft.lhs,
+        draft.cost,
+    );
+    whole.child("head", draft.children[0].symbol.clone(), GapRule::Closed);
+    let at = whole.child("clusters", symbol(coordination, None), GapRule::Closed);
+    whole.equations.extend(draft.equations.iter().cloned());
+    for (list, original) in [
+        (&mut whole.exclusions, &draft.exclusions),
+        (&mut whole.carried, &draft.carried),
+    ] {
+        list.extend(original.iter().copied());
+    }
+    whole.weights.extend(draft.weights.iter().copied());
+    whole.scoped.extend(draft.scoped.iter().copied());
+    whole.frame = Some(frame);
+    whole.clusters = Some((at, frame));
+    out.push(whole);
+    out
+}
+
 /// A phrase's remnant (`SchemaDecl::Valence::remnants`): an active phrase
 /// whose first Frame Slot is of a remnant's Slot Category, without its head,
 /// a middle conjunct of a coordination whose initial conjunct's head it
@@ -4112,9 +4328,15 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
 /// remnant; those on the head and the mother stay with the head, which the
 /// phrase shares with the remnants after it (`RemnantRole::SharesHead`).
 fn phrase_remnants(draft: &mut Draft, remnants: &[(usize, usize)]) -> Vec<Draft> {
+    use crate::step::Elided;
     let derived = ["/gap", "/passive", "/adjectival"];
-    let Some(frame) = draft.frame else {
-        return Vec::new();
+    let index = |i: usize| u16::try_from(i).expect("frame index fits");
+    let elided = match (draft.frame, draft.children.first().map(|c| &c.symbol)) {
+        (Some(frame), _) => Elided::Frame(index(frame)),
+        (None, Some(Symbol::Leaf(Test::PrepositionFrame(frame)))) => {
+            Elided::PrepositionFrame(index(*frame))
+        }
+        _ => return Vec::new(),
     };
     if draft.children.len() < 2
         || derived.iter().any(|d| draft.id.contains(d))
@@ -4177,8 +4399,7 @@ fn phrase_remnants(draft: &mut Draft, remnants: &[(usize, usize)]) -> Vec<Draft>
                 .filter(|(i, _)| *i > 0)
                 .map(|&(i, w)| (i - 1, w)),
         );
-        let frame = u16::try_from(frame).expect("frame index fits");
-        remnant.remnant = crate::step::RemnantRole::Elides(crate::step::Elided::Frame(frame));
+        remnant.remnant = crate::step::RemnantRole::Elides(elided);
         out.push(remnant);
     }
     if !out.is_empty() {

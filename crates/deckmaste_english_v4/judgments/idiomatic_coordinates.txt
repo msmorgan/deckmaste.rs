@@ -1,0 +1,9 @@
+# *And so on* ends a coordination of any Category, standing for further
+# conjuncts of its kind ("and more / other things of this kind"; CGEL, Ch. 17
+# §7.7.3(e), p. 1540), here with a *for*-phrase naming what they are for.
++ <card=Akroma, Vision of Ixidor> At the beginning of each combat, until end of turn, each other creature you control gets +1/+1 if it has flying, +1/+1 if it has first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, vigilance, and partner. => ComplementCluster "+1/+1 if it has flying"; ComplementCluster "+1/+1 if it has first strike"; IdiomaticCoordinate "so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, vigilance, and partner"
++ <card=Selective Adaptation> Reveal the top seven cards of your library. Choose from among them a card with flying, a card with first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, trample, and vigilance. Put one of the chosen cards onto the battlefield, the other chosen cards into your hand, and the rest into your graveyard. => NounPhrase "a card with flying, a card with first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, trample, and vigilance" as Object of choose; IdiomaticCoordinate "so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, trample, and vigilance"
+# It is only ever a last coordinate, after *and*.
+* Draw so on.
+* Draw so on and a card.
+* Draw a card, a card, or so on.

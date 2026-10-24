@@ -28,3 +28,9 @@
 # recovered from the initial Cluster's Object (CGEL, Ch. 15 §4.3, p. 1343,
 # note 65: *We'll be in Paris for a week and Bonn for three days*).
 + Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest. => ComplementCluster "protection from white if you control a Plains"; ComplementCluster "from blue if you control an Island"; ComplementCluster "from green if you control a Forest"; KeywordPhrase "protection from white" as Object of gain; ParameterRemnant "from blue" as Object of gain; PredicateAdjunct "if you control an Island" as Adjunct of gain; ParameterRemnant "from green" as Object of gain
+# Clusters of Adjuncts alone after a head with no Complement, two Preposition
+# Phrases each; a later Cluster may elide the initial one's first preposition
+# (CGEL, Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and Bonn
+# for three days*), and every Cluster has the initial one's prepositions.
++ <card=Ulasht, the Hate Seed> Ulasht enters with a +1/+1 counter on it for each other red creature you control and a +1/+1 counter on it for each other green creature you control. => AdjunctCluster "with a +1/+1 counter on it for each other red creature you control"; AdjunctCluster "a +1/+1 counter on it for each other green creature you control"; PrepositionRemnant "a +1/+1 counter on it"; readings 1
++ <card=Semester's End> Each of them enters with an additional +1/+1 counter on it if it's a creature and an additional loyalty counter on it if it's a planeswalker. => AdjunctCluster "with an additional +1/+1 counter on it if it's a creature"; AdjunctCluster "an additional loyalty counter on it if it's a planeswalker"; PrepositionRemnant "an additional loyalty counter on it"

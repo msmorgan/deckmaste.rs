@@ -378,8 +378,20 @@ impl CompiledGrammar {
     /// The spans of the multiword nouns of `analyzed`, each with whether its
     /// words may stand apart where they straddle a constituent boundary:
     /// those of a term declared outside the core lexicon may
-    /// (`docs/decisions/english-lexical-analysis.md` §2).
+    /// (`docs/decisions/english-lexical-analysis.md` §2). A noun whose first
+    /// word is also a preposition is none: its words form a Preposition
+    /// Phrase, never the noun's own analysis (*cards you own [outside the
+    /// game]* beside the noun *outside the game*).
     pub(crate) fn atomic_spans(&self, analyzed: &AnalyzedText) -> Vec<(Range<usize>, bool)> {
+        let prepositional = |start: usize| {
+            analyzed.matches.iter().any(|p| {
+                p.start == start
+                    && matches!(&p.reading, LexicalReading::Word(w)
+                    if self.lexemes.get(&w.lexeme).is_some_and(|f| {
+                        f.category == deckmaste_lexical::Category::Preposition
+                    }))
+            })
+        };
         analyzed
             .matches
             .iter()
@@ -388,7 +400,8 @@ impl CompiledGrammar {
                 let facts = self.lexemes.get(&word.lexeme)?;
                 (m.start == 0 || !analyzed.tokens[m.start - 1].is_alphanumeric()).then_some(())?;
                 (facts.category == deckmaste_lexical::Category::Noun
-                    && analyzed.tokens[m.start..m.end].contains(&' '))
+                    && analyzed.tokens[m.start..m.end].contains(&' ')
+                    && !prepositional(m.start))
                 .then_some((
                     m.start..m.end,
                     facts.source != deckmaste_lexical::SourceKind::Core,

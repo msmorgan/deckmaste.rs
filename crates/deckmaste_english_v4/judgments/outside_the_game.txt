@@ -1,0 +1,8 @@
+# *Outside the game* is a compound noun after *from* and as a conjunct beside
+# zone nouns, naming where an object in none of the game's zones is
+# [CR#400.11]; elsewhere *outside* is the preposition.
++ <card=Invasion of Arcavios> When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. => NounPhrase "your library, graveyard, and/or outside the game" as Object of search; Nominal "outside the game" head "outside the game"
++ <card=Turtles Forever> Search your library and/or outside the game for exactly four legendary creature cards you own with different names, then reveal those cards. => NounPhrase "your library and/or outside the game" as Object of search; Nominal "outside the game" head "outside the game"
++ <card=Legion Angel> When this creature enters, you may reveal a card you own named Legion Angel from outside the game and put it into your hand. => NounPhrase "outside the game" as Complement of from
+# The preposition, where the noun has no place: a Nominal's Modifier.
++ <card=Spawnsire of Ulamog> {20}: Cast any number of Eldrazi spells from among cards you own outside the game without paying their mana costs. => PrepositionPhrase "outside the game" head outside; !NounPhrase "outside the game"

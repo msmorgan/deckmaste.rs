@@ -192,7 +192,13 @@ Settled analyses:
   analysis, alone (*[first] [strike]*) or with a dependent of one part
   (*mana [cost for permanent spells]*), which is a second tree beside the term.
   A core multiword term (*mana value*) never splits, nor does a term with a
-  part that is not an ordinary word (the measure in *+1/+1 counter*).
+  part that is not an ordinary word (the measure in *+1/+1 counter*). A
+  multiword noun whose first word is also a preposition is no barrier at
+  all: its words form a Preposition Phrase, never the noun's own analysis.
+  *Outside the game* [CR#400.11] is a noun after *from* and as a conjunct
+  beside zone nouns (*from outside the game*; *your library and/or outside
+  the game*), and *outside* is the preposition where the noun has no place
+  (*cards you own [outside the game]*).
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
 - *Then* after a comma marks a Linked Coordination (Oracle English glossary):
   it is an Adjunct of its Linked Conjunct, never a Coordinator, and the

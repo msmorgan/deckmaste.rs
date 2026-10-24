@@ -53,6 +53,14 @@ pub struct Grammar {
     /// Closed Word (*both … and*, *either … or*, *neither … nor*).
     #[serde(default)]
     pub correlatives: Vec<(Ident, Ident)>,
+    /// Idiomatic coordinates: a Closed Word coordinator and the Category of
+    /// the pro-form it marks as the last coordinate of a coordination, which
+    /// stands for further conjuncts of the coordination's kind (*and so on*,
+    /// "and other things of this kind"; CGEL, Ch. 17 §7.7.3(e), p. 1540). It
+    /// is no conjunct: it shares no feature with the overt conjuncts and
+    /// takes no part in their parallelism (`compile.rs`, `idiomatic`).
+    #[serde(default)]
+    pub idiomatic_coordinates: Vec<(Ident, Ident)>,
 }
 
 impl Grammar {
@@ -310,6 +318,34 @@ pub struct ClustersDecl {
     /// declares the remnant phrases (`SchemaDecl::Parameters::remnant`).
     #[serde(default)]
     pub remnants: Vec<(SlotKind, Ident)>,
+    /// Clusters of Adjuncts alone, after a head whose frame has no Slot.
+    #[serde(default)]
+    pub adjunct_clusters: Option<AdjunctClustersDecl>,
+}
+
+/// Clusters of Adjuncts alone, after a head whose frame has no Slot: two
+/// Preposition Phrases that may modify a Predicate (*enters [with a +1/+1
+/// counter on it for each other red creature you control] and [a +1/+1 counter
+/// on it for each other green creature you control]*). A Cluster after the
+/// first may begin with a remnant, the Preposition Phrase's Complement with its
+/// preposition elided (CGEL, Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris
+/// for a week and Bonn for three days*, "a PP+PP-coordination, with ellipsis of
+/// *in*"). The coordinates are parallel in structure (p. 1341): the
+/// coordination's Coordination schema is `parallel`, so every Cluster has the
+/// initial one's prepositions, the first overt or elided
+/// (`Summary::shared_head`), the last overt (`Summary::cluster_preposition`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdjunctClustersDecl {
+    /// The Category of one Cluster.
+    pub cluster: Ident,
+    /// The Category of a coordination of Clusters.
+    pub coordination: Ident,
+    /// The Category of the Preposition Phrase that begins a Cluster.
+    pub preposition: Ident,
+    /// The Category of a Preposition Phrase's remnant, its preposition
+    /// elided (`SchemaDecl::Valence::remnants` of the Preposition schema).
+    pub remnant: Ident,
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
@@ -540,6 +576,12 @@ pub enum SchemaDecl {
         /// four cards], and he deals 4 damage*, never *[draws four cards]*).
         #[serde(default)]
         recovered: Vec<Ident>,
+        /// Every conjunct after the initial has the initial conjunct's
+        /// lexical head (`Summary::shared_head`), overt or elided in a
+        /// remnant, and its last preposition (`Summary::cluster_preposition`;
+        /// `AdjunctClustersDecl`).
+        #[serde(default)]
+        parallel: bool,
     },
 }
 

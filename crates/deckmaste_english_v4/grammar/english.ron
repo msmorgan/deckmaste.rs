@@ -375,6 +375,17 @@
         // Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and
         // Bonn for three days*, *in* elided).
         "ParameterRemnant": (),
+        // Clusters of Adjuncts alone after a head with no Complement, two
+        // Preposition Phrases each (*enters [with a +1/+1
+        // counter on it for each other red creature you control] and [a +1/+1
+        // counter on it for each other green creature you control]*; CGEL,
+        // Ch. 15 §4.3, p. 1343, note 65: a PP+PP-coordination).
+        "AdjunctCluster": (),
+        "AdjunctClusterCoordination": (category: Some("AdjunctCluster")),
+        // A Preposition Phrase's Complement without the preposition: a later
+        // Adjunct Cluster's remnant, the preposition elided as the initial
+        // Cluster's (*[a +1/+1 counter on it] for each ...*, *with* elided).
+        "PrepositionRemnant": (),
         // A copular Verb Phrase's Predicative Complement without the verb: a
         // medial conjunct of a Verb Phrase coordination, the verb elided and
         // recovered from the initial conjunct (*is enchanted, [equipped], and
@@ -388,6 +399,10 @@
         // §3.6, pp. 1335–1336, [31iii]: *He reads widely, has a questioning
         // mind and he's very mature for his years*).
         "SubjectRemnant": (features: ["Number", "Person", "VerbForm"]),
+        // An idiomatic coordinate (*and [so on for double strike, ...]*),
+        // standing for further conjuncts of its coordination's kind
+        // (`idiomatic_coordinates`).
+        "IdiomaticCoordinate": (),
         "ClauseFragment": (),
         "QualifyingFragment": (),
         // Coordinates joined by *but* that contrast as positive and negative,
@@ -501,6 +516,7 @@
         "Of": "prep:of",
         "Than": "prep:than",
         "From": "prep:from",
+        "For": "prep:for",
         // The locative prepositions of *be* and temporal *after*: an
         // existential's extension (CGEL, Ch. 16 §6.2.1, p. 1394).
         "In": "prep:in",
@@ -620,7 +636,7 @@
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "SumAdjective", "PhrasalAdverb", "MultiplyingAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "SumAdjective", "PhrasalAdverb", "MultiplyingAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CoordinateAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -993,6 +1009,12 @@
             equations: [Require("$.AdjunctPosition", "Front")]),
         (name: "LinkingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "LinkingAdverb")],
             equations: [Require("$.AdjunctPosition", "Linking")]),
+        // An idiomatic coordinate, alone or with a *for*-phrase naming what
+        // the further conjuncts are for, as *do the same* takes one (*and so
+        // on for double strike, deathtouch, ..., and partner*; CGEL, Ch. 17
+        // §7.7.3(e), p. 1540).
+        (name: "IdiomaticCoordinate", lhs: "IdiomaticCoordinate", rhs: [Class("head", "CoordinateAdverb")]),
+        (name: "IdiomaticCoordinateFor", lhs: "IdiomaticCoordinate", rhs: [Class("head", "CoordinateAdverb"), Selected("adjunct", "PrepositionPhrase", ["For"])]),
         // A Linked Conjunct: its linking connective is its Adjunct, never a
         // Coordinator, whether it is the sole link (*Draw a card, then
         // discard a card*) or follows one (*and then discard a card*, a front
@@ -2257,11 +2279,14 @@
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
             interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, shifted_object: [Carry("object.Determination", "Overt")], postposed: Some("PostposedModifier"),
-            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")])),
+            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")],
+                adjunct_clusters: Some((cluster: "AdjunctCluster", coordination: "AdjunctClusterCoordination", preposition: "PrepositionPhrase", remnant: "PrepositionRemnant")))),
             remnants: [(Pred, "PredicativeRemnant")]),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
-        Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
+        // A Preposition Phrase with a Noun Phrase Complement also stands
+        // without its preposition, as a later Adjunct Cluster's remnant.
+        Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")], remnants: [(NP, "PrepositionRemnant")]),
         Valence(head: Noun, phrase: "BareNominal", complement_kind: Some("ComplementKind"), interleaved: Some("InterleavedModifier"), agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement
         // it selects (*until end of turn*, *on top of*, *in excess of*; CGEL,
@@ -2496,6 +2521,10 @@
         // you*; CGEL, Ch. 20 §3.2.1, pp. 1739–1740;
         // `docs/oracle-style-guide.md` §3, Commas and the serial comma).
         Coordination(category: "ClusterCoordination", conjunct: Some("ComplementCluster"), coordinators: "Coordinator", delimiter: Some(',')),
+        // Adjunct Clusters are parallel (CGEL, Ch. 15 §4.3, p. 1341): every
+        // Cluster has the initial one's prepositions, the first overt or
+        // elided.
+        Coordination(category: "AdjunctClusterCoordination", conjunct: Some("AdjunctCluster"), coordinators: "Coordinator", delimiter: Some(','), parallel: true),
         Coordination(category: "ContrastCoordination", conjunct: Some("ContrastConjunct"), coordinators: "But", unshared: ["Polarity"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], delimiter: Some(','), serial: Some(false)),
         Coordination(category: "ContrastPrepositionCoordination", conjunct: Some("ContrastPrepositionConjunct"), coordinators: "But", unshared: ["Polarity", "DeterminativeDistribution"], equations: [Require("first.Polarity", "Affirmative"), Require("last.Polarity", "Negative")], proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"], delimiter: Some(','), serial: Some(false)),
         // Unlike predicate Adjuncts coordinate serially too, not all alike
@@ -2515,4 +2544,7 @@
         Coordination(category: "FusedQuantity", conjunct: Some("FusableDeterminer"), coordinators: "Disjunctive", equations: [ExcludeTogether([("first.NounKind", "Numeric"), ("last.NounKind", "Numeric")])], proximate: ["Number", "Countability", "NounKind"]),
     ],
     correlatives: [("Both", "And"), ("Either", "Or"), ("Neither", "Nor")],
+    // *And so on* ends a coordination of any Category (CGEL, Ch. 17
+    // §7.7.3(e), p. 1540).
+    idiomatic_coordinates: [("And", "IdiomaticCoordinate")],
 )

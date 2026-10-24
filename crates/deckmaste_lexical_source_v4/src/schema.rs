@@ -400,6 +400,11 @@ pub enum AdverbPosition {
     /// Coordination (*Draw a card, then discard a card*; CGEL, Ch. 15 §2.10,
     /// pp. 1319–1320).
     Linking,
+    /// The head of an idiomatic coordinate, after its coordinator, which
+    /// stands for further conjuncts of the coordination's kind (*and so
+    /// on*, "and other things of this kind"; CGEL, Ch. 17 §7.7.3(e),
+    /// p. 1540).
+    Coordinate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

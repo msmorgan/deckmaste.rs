@@ -181,7 +181,16 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   (`Coordination::remnant`). The phrase with the head shares it, and the
   remnant elides any head that declares its frame
   (`Elided::Frame`; *is enchanted, [equipped], and has a counter on it*;
-  CGEL, Ch. 15 §3.6, pp. 1335–1336, [31ii]).
+  CGEL, Ch. 15 §3.6, pp. 1335–1336, [31ii]). A Preposition Phrase's remnant
+  elides any preposition that declares its frame (`Elided::PrepositionFrame`).
+  With `adjunct_clusters`, a phrase of a frame with no Slot heads a
+  coordination of Clusters of two Preposition Phrase Adjuncts, a later
+  Cluster's first one possibly a Preposition Phrase remnant (*enters [with a
+  +1/+1 counter on it for each other red creature you control] and [a +1/+1
+  counter on it for each other green creature you control]*; CGEL, Ch. 15
+  §4.3, p. 1343, note 65), whose Coordination schema is `parallel`: every
+  conjunct after the initial has its lexical head (`Summary::shared_head`),
+  overt or elided, and its last preposition (`Summary::cluster_preposition`).
   A `MeasureNP` slot is a Monotransitive Object filled by the grammar's
   measure Noun Phrase Category, which no `NP` slot accepts (*gets +2/+2*, but
   not *draw 2/2*); like a keyword-phrase Object it derives no passive.
@@ -256,7 +265,14 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   also precede the coordinator of a binary coordination (*X, and Y*). The
   grammar's `correlatives` pair a marker with a coordinator (*both … and*);
   every schema whose coordinators admit the paired one also derives the
-  coordination after the marker. A coordination of Preposition Phrases keeps
+  coordination after the marker. The grammar's `idiomatic_coordinates` pair a
+  coordinator with the Category of a pro-form that may be the last
+  coordinate after it, standing for further conjuncts of the coordination's
+  kind (*and so on*; CGEL, Ch. 17 §7.7.3(e), p. 1540): the first schema of a
+  Category whose coordinators admit it, with no `unlike` feature, derives the
+  binary and the serial tail's end with it. It is no conjunct: the overt
+  conjunct before it is the last one, no `last` equation applies, and it is
+  outside the head line. A coordination of Preposition Phrases keeps
   up to two prepositions for selection, and admits only the Host Categories
   every conjunct admits, where a conjunct whose Host Categories are
   `NominalAndConjoinedPredicate` admits a Predicate host if the coordination
