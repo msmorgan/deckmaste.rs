@@ -11,7 +11,8 @@
 # `default`'s copy (generated there first if missing) as a real dir, never a
 # symlink (deckmaste_plugin's suite loads it, and a symlink would make a
 # workspace's generate write into the main checkout). `default`'s `target/` is
-# CoW-reflinked as a best-effort build-cache pre-warm, then every tracked file
+# CoW-reflinked (btrfs-snapshotted if it is a subvolume) as a best-effort
+# build-cache pre-warm, then every tracked file
 # whose bytes match `default`'s copy gets `default`'s mtime, so only crates
 # whose sources truly differ rebuild. `lean/.lake` is reflinked the same way
 # (only as fresh as `default`'s last `lake build`). Verify with a real `jj st`
@@ -107,13 +108,27 @@ end
 # lean/.lake is seeded the same way (best-effort CoW reflink, plain-copy fallback,
 # never a symlink: lake writes into it). Without it a fresh workspace's first Lean
 # build is cold (~7 minutes against ~2 s warm). Skipped if default has none.
+#
+# If default's target/ is itself a btrfs subvolume (a local setup, not assumed:
+# detected by the btrfs tool being installed, the filesystem type, and the
+# subvolume-root inode number 256), it is snapshotted instead, which is
+# constant-time however many files it holds. Any failure falls back to the copy.
 set -l target_warm 0
 if test -d "$default_dir/target"
     set t (date +%s%N)
-    if cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
+    set -l how reflink
+    if command -q btrfs
+        and test (stat -f -c %T "$default_dir/target" 2>/dev/null) = btrfs
+        and test (stat -c %i "$default_dir/target" 2>/dev/null) = 256
+        and btrfs subvolume snapshot "$default_dir/target" "$ws_dir/target" >/dev/null
+        set how snapshot
+    else if not cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
+        set how ""
+    end
+    if test -n "$how"
         rm -rf "$ws_dir/target"/{debug,release}/incremental
         set target_warm 1
-        phase_done "target reflink" $t
+        phase_done "target $how" $t
     else
         echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
     end
