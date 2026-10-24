@@ -2971,7 +2971,7 @@ def stepOps : Nat → StepOps
         | .eachOf grp =>
           let (drs1, ids, e1) := ops.np drs .other false grp
           let payload := (ids.head?.bind drs1.findById?).map (·.payload) |>.getD (.object [] none none none none)
-          let ref : Referent := { det := .each, plur := .one, payload }
+          let ref : Referent := { det := .each, plur := .one, payload, memberOf := ids.head? }
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1 ++ refuse (grp.plur == .many || grp.det == some .each) .plural ++ refuse grp.groupMention .groupMention)
@@ -3061,8 +3061,8 @@ def stepOps : Nat → StepOps
           (drs3, [rid], e1 ++ e2 ++ refuse (!roles.isEmpty) .nonEmpty)
         | .theRest k pl =>
           let ok := theRestFits k pl drs
-          let zn := zoneOfGroup k drs
-          let ty := tyOfGroup k drs
+          let zn := zoneOfGroup k pl drs
+          let ty := tyOfGroup k pl drs
           let payload := if k == .player then .player false else match zn, ty with | z, t => .object t z none none none
           let ref : Referent := { det := .the, plur := pl, payload }
           let rid := drs.nextId

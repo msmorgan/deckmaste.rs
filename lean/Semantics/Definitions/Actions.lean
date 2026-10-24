@@ -211,6 +211,21 @@ semantic_definition fight (other : NounPhrase) : Action :=
             (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (.inCaller other)))
               (.laterMention "fight.source" .actor))])
         none))
+/-- "<pair> fight each other": the two-creature form of fight, spelled as the rule's own sentence,
+"Each of those creatures deals damage equal to its power to the other creature" (`Definition`,
+[CR#701.14a..701.14c]). The deed is `fight`'s, so "whenever a creature fights" and "if it fought
+this way" read this fight as they read the other form. If either creature is no longer a
+creature on the battlefield, neither deals damage [CR#701.14b]. "The other" is the current
+member's counterpart in the group of two (`DRS.distributivePair?`). That group has one member
+per mention, so if both target slots name one creature, each slot deals its power to the other
+slot and the creature takes twice its power [CR#701.14c]; no separate case is written. -/
+semantic_definition fightEachOther (pair : NounPhrase) : Action :=
+  .ownScope (some (.action "fight" true))
+    (enact (.action "fight" true)
+      (doIf (is (.firstMention "fightEachOther.pair" (.inCaller pair)) isCreature)
+        (instruct (eachOf (.laterMention "fightEachOther.pair" (.inCaller pair)))
+          (.dealDamage (powerOf it) (theOther .object)))
+        none))
 /-- "reveal <cards>" (`Definition`, [CR#701.20]). -/
 semantic_definition reveal (cards : NounPhrase) : Action :=
   .ownScope (some (.action "reveal"))

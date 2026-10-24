@@ -351,6 +351,10 @@ structure Referent where
   change, as the group and its part move together. -/
   groupKey : Option ReferentId := none
   partOf : Option ReferentId := none
+  /-- The group an "each of" mention ranges over ("each of those creatures",
+  `NounPhrase.eachOf`), the referent its members are read from: in a group of two, "the other"
+  names the current member's counterpart (`DRS.distributivePair?`). -/
+  memberOf : Option ReferentId := none
   /-- A mention of the Source ("this", "this creature") or of "you": the Contrast Anchor a bare
   "another"/"other" falls back to ([CR#109.5]), and so never an earlier mention or clause
   participant it is anchored on. -/
@@ -847,7 +851,30 @@ def countedGroupSize (k : Kind) (drs : DRS) : Option Nat :=
   ((preferOrdinary ((wholeGroups drs.visibleReferents).filter fun b =>
     b.det != .part && objGroup k b)).head?).bind (·.size)
 
+/-- The group of exactly two whose current member is the distributive subject of the clause
+being stepped ("each of those creatures deals damage equal to its toughness to the other"), when
+there is one: "the other" names that member's counterpart, the group's other member
+[CR#701.14a]. The group is a coordination's, which counts its members by mention, one per
+conjunct, so two target slots that name one object are still two members. The members are the
+group's whether or not a Definition's own Reference Scope masks them, since the group's mention
+reads them. -/
+def DRS.distributivePair? (k : Kind) (drs : DRS) : Option Referent :=
+  (drs.distributiveSubject.filter drs.isVisible).bind fun member =>
+    ((drs.findById? member).bind (·.memberOf)).bind fun groupId =>
+      (drs.findById? groupId).bind fun group =>
+        match group.groupKey with
+        | some key =>
+          if drs.isVisible group.id && !group.linked && objGroup k group &&
+              (drs.referents.filter fun ref =>
+                ref.partOf == some key && ref.plur.isOne).length == 2
+          then some group else none
+        | none => none
+
+/-- Whether "the other" of kind `k` names one object: the counterpart of the current member of a
+distributive group of two (`DRS.distributivePair?`), or the one left of a counted group once the
+rest of it is taken. -/
 def theOtherOk (k : Kind) (drs : DRS) : Bool :=
+  (drs.distributivePair? k).isSome ||
   countGroups k drs ≤ 1 && countParts k drs != 0 &&
     (match countedGroupSize k drs with
      | none => false
@@ -895,8 +922,16 @@ def DRS.consumeRest (after before : DRS) (kind : Kind) : DRS :=
       !(evidence.scope == before.selectionScope && Kind.lte kind evidence.kind &&
         evidence.sourceGroup.isSome && evidence.sourceGroup == sourceGroup) }
 
-def zoneOfGroup (k : Kind) (drs : DRS) : Option Zone := restSource k drs >>= (·.zone)
-def tyOfGroup (k : Kind) (drs : DRS) : List CardType := (restSource k drs).elim [] (·.ty)
+/-- The group "the rest" (`.many`) or "the other" (`.one`) of kind `k` is read from: for "the
+other", a distributive group of two first (`DRS.distributivePair?`); else the group parts were
+taken from (`restSource`). -/
+def restGroup (k : Kind) (pl : Plurality) (drs : DRS) : Option Referent :=
+  (if pl.isOne then drs.distributivePair? k else none).orElse fun _ => restSource k drs
+
+def zoneOfGroup (k : Kind) (pl : Plurality) (drs : DRS) : Option Zone :=
+  restGroup k pl drs >>= (·.zone)
+def tyOfGroup (k : Kind) (pl : Plurality) (drs : DRS) : List CardType :=
+  (restGroup k pl drs).elim [] (·.ty)
 def anchorTyOk (t : CardType) : List CardType → Bool
   | [] => true
   | ts => ts.contains t

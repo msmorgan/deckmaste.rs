@@ -49,6 +49,91 @@ theorem fightGuardTestsBothCreaturesNow :
       .matches (.firstMention "fight.other" (.inCaller (target isCreature))) isCreature,
       .matches (.firstMention "fight.source" .actor) isCreature]) := rfl
 
+/-! ## Fight each other -/
+
+/-- "Choose target creature you control and target creature you don't control." -/
+private def fightPair : Action :=
+  choose (both (target (and [isCreature, youControl])) (target (and [isCreature, youDontControl])))
+
+/-- "…, then those creatures fight each other." -/
+private def pairFights : Action := sequentially [fightPair, fightEachOther (those creature)]
+
+/-- The two-creature form keeps fight's guard: both participants are tested as creatures now,
+and if either is not, neither deals damage [CR#701.14b]. -/
+theorem fightEachOtherGuardTestsBothCreaturesNow :
+    fightGuard (fightEachOther (those creature)) = some
+      (.matches (.firstMention "fightEachOther.pair" (.inCaller (those creature))) isCreature) :=
+  rfl
+
+/-- "Those creatures fight each other" is a fight [CR#701.14a]: its Definition generates fight's
+deed, and a lookback or a trigger reads it as it reads the other form. -/
+theorem fightEachOtherIsAFight :
+    fightEachOther.deed = fight.deed ∧
+      (fightEachOther (those creature)).inferredDeed = some fight.deed ∧
+      (fightEachOther (those creature)).participialAnchor? =
+        (fight (a isCreature)).participialAnchor? := by decide
+
+/-- "Whenever a creature fights": each event the trigger describes, a fight by a creature, is
+one the two-creature fight records, done by an object, as `fight` records its own. -/
+theorem fightEachOtherMeetsWheneverACreatureFights :
+    let recorded := (stepAction 64 .postEvent .obj (DRS.ofList []) pairFights).1.causedEvents
+    let described := ((fight (a isCreature)).describedEvents (some .object)).filter (·.deed.isSome)
+    !described.isEmpty && described.all (fun event => recorded.any fun caused =>
+      caused.deed == event.deed && caused.performer == some .object) := by decide
+
+/-- "If that creature fought this way" and "each creature that fought this way" read back the
+two-creature fight; "this way" with no fight before it is ungrounded, and a player did not
+fight. -/
+theorem fightEachOtherIsReadBackThisWay :
+    Action.check (DRS.ofList []) (sequentially [pairFights,
+      doIf (did (that creature) (fight (a isCreature)) thisWay) (draw 1)]) = [] ∧
+    Action.check (DRS.ofList []) (sequentially [pairFights,
+      putCounters 1 p1p1Counter (each (and [isCreature, was (fight which) thisWay]))]) = [] ∧
+    Action.check (DRS.ofList []) (sequentially [fightPair,
+      doIf (did (that creature) (fight (a isCreature)) thisWay) (draw 1)]) =
+      [.thisWayUngrounded] ∧
+    Action.check (DRS.ofList []) (sequentially [pairFights,
+      doIf (did you (fight (a isCreature)) thisWay) (draw 1)]) = [.thisWayUngrounded] := by
+  decide
+
+/-- "Each other" needs a group of two: a single creature names no pair to distribute over, and
+"the other" of three coordinated creatures is not one creature. -/
+theorem fightEachOtherNeedsAPair :
+    Action.check (DRS.ofList []) (fightEachOther (target isCreature)) =
+      [.plural, .groupMention, .theRestFits .object] ∧
+    Action.check (DRS.ofList []) (sequentially
+      [ choose (.and [target isCreature, target isCreature, target isCreature]),
+        fightEachOther (those creature) ]) = [.theRestFits .object] := by decide
+
+/-- A creature that fights itself deals damage to itself equal to twice its power [CR#701.14c].
+Two target slots with no restriction between them can name one creature [CR#601.2c], and the
+pair they make is still two members, one per slot, so each slot deals its power to "the other":
+the creature is dealt its power twice, with no case written for it. -/
+theorem fightEachOtherPairIsOneMemberPerSlot :
+    let chosen := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (choose (both (target isCreature) (target isCreature)))).1
+    (chosen.referents.filter (fun ref => ref.partOf.isSome && ref.plur.isOne)).length = 2 ∧
+    Action.check (DRS.ofList []) (sequentially
+      [ choose (both (target isCreature) (target isCreature)),
+        fightEachOther (those creature) ]) = [] := by decide
+
+/-- "Each of those creatures … to the other" reads the current member's counterpart, with the
+pair's Card Types (a group once the clause has read it of each member); the anaphoric "the" does not: "the other creature" admits no earlier mention
+by its "other", so it names nothing unique (owner ruling 2026-10-24). -/
+theorem theOtherIsTheMembersCounterpart :
+    let reciprocal := instruct (eachOf (those creature))
+      (dealDamage (powerOf it) (theOther .object))
+    let after :=
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (sequentially [fightPair, reciprocal])).1
+    Action.check (DRS.ofList []) (sequentially [fightPair, reciprocal]) = [] ∧
+    after.referents.any (fun ref =>
+      ref.det == .the && ref.plur == .many && ref.groupKey.isNone && tyIs .creature ref.ty) ∧
+    Action.check (DRS.ofList []) (sequentially [fightPair,
+      instruct (eachOf (those creature))
+        (dealDamage (powerOf it) (the (and [isCreature, isOther])))]) = [.uniquifying] ∧
+    Action.check (DRS.ofList []) (instruct (each isCreature)
+      (dealDamage (powerOf it) (theOther .object))) = [.theRestFits .object] := by decide
+
 /-- Quenchable Fire's delayed trigger is unconditional: once it triggers, paying {U} no longer
 stops it. Until it would trigger, "that player or that planeswalker's controller" may take a
 special action, paying {U} to stop it from triggering [CR#116.2c]. -/

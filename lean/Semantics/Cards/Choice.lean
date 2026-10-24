@@ -34,8 +34,7 @@ theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction =
 
 /-- "Choose target creature you control and target creature you don't control. … those
 creatures": the fight-and-bite opening (Blizzard Brawl, Joust, Tail Swipe, Malamet Battle Glyph).
-The targets are chosen as the spell is cast [CR#601.2c]; "those creatures" reads both. "Then those
-creatures fight each other" waits on `lean-v3-reciprocal-each-other`. -/
+The targets are chosen as the spell is cast [CR#601.2c]; "those creatures" reads both. -/
 def chooseCreatureYouControlAndCreatureYouDont : Action :=
   sequentially
     [ choose (both (target (and [isCreature, youControl]))
@@ -49,45 +48,70 @@ creature you don't control." -/
 def chooseFightPair : Action :=
   choose (both (target (and [isCreature, youControl])) (target (and [isCreature, youDontControl])))
 
-/-- Blizzard Brawl, through its second sentence: "Choose target creature you control and target
-creature you don't control. If you control three or more snow permanents, the creature you
-control gets +1/+0 and gains indestructible until end of turn." "The creature you control" reads
-back the first target, which its restriction picks out of the two. "Then those creatures fight
-each other" waits on `lean-v3-reciprocal-each-other`. -/
-def blizzardBrawlOpening : Action :=
-  sequentially
-    [ chooseFightPair,
-      doIf (compareAmt (countOf (and [hasSupertype .snow, isPermanent, youControl])) .atLeast 3)
-        (establishFor (the (and [isCreature, youControl]))
-          [getsPt it (up 1) (up 0), abilityGrant it indestructible] untilEndOfTurn) ]
-theorem okBlizzardBrawlOpening : Action.check (DRS.ofList []) blizzardBrawlOpening = [] := by
-  decide
+/-- Blizzard Brawl: "Choose target creature you control and target creature you don't control.
+If you control three or more snow permanents, the creature you control gets +1/+0 and gains
+indestructible until end of turn. Then those creatures fight each other." "The creature you
+control" reads back the first target, which its restriction picks out of the two; "those
+creatures fight each other" is the two-creature fight of [CR#701.14a]. -/
+def blizzardBrawl : Spelled := spelled <| singleFacedCard
+  { name := "Blizzard Brawl", cost := [pip .green], supertypes := [.snow], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ chooseFightPair,
+            doIf (compareAmt (countOf (and [hasSupertype .snow, isPermanent, youControl]))
+                .atLeast 3)
+              (establishFor (the (and [isCreature, youControl]))
+                [getsPt it (up 1) (up 0), abilityGrant it indestructible] untilEndOfTurn),
+            fightEachOther (those creature) ]) ] }
 
-/-- Tail Swipe, through its second sentence: "Choose target creature you control and target
-creature you don't control. If you cast this spell during your main phase, the creature you
-control gets +1/+1 until end of turn." A step in which a spell can be cast ends only with the
-stack empty [CR#500.2], so the spell resolves in the turn it was cast, and its casting is one this
-turn. "Then those creatures fight each other" waits on
-`lean-v3-reciprocal-each-other`. -/
-def tailSwipeOpening : Action :=
-  sequentially
-    [ chooseFightPair,
-      doIf (did you (cast thisSpell)
-          (within soFarThisTurn (some (.inPart .mainPhase (some you) .current))))
-        (get (the (and [isCreature, youControl])) (up 1) (up 1) untilEndOfTurn) ]
-theorem okTailSwipeOpening : Action.check (DRS.ofList []) tailSwipeOpening = [] := by decide
+/-- Tail Swipe: "Choose target creature you control and target creature you don't control. If
+you cast this spell during your main phase, the creature you control gets +1/+1 until end of
+turn. Then those creatures fight each other." A step in which a spell can be cast ends only with
+the stack empty [CR#500.2], so the spell resolves in the turn it was cast, and its casting is one
+this turn. -/
+def tailSwipe : Spelled := spelled <| singleFacedCard
+  { name := "Tail Swipe", cost := [pip .green], types := [.instant],
+    text :=
+      [ spell (sequentially
+          [ chooseFightPair,
+            doIf (did you (cast thisSpell)
+                (within soFarThisTurn (some (duringPart .mainPhase (some you)))))
+              (get (the (and [isCreature, youControl])) (up 1) (up 1) untilEndOfTurn),
+            fightEachOther (those creature) ]) ] }
 
-/-- Malamet Battle Glyph, through its second sentence: "Choose target creature you control and
-target creature you don't control. If the creature you control entered this turn, put a +1/+1
-counter on it." "Then those creatures fight each other" waits on
-`lean-v3-reciprocal-each-other`. -/
-def malametBattleGlyphOpening : Action :=
-  sequentially
-    [ chooseFightPair,
-      doIf (did (the (and [isCreature, youControl])) enter soFarThisTurn)
-        (putCounters 1 p1p1Counter it) ]
-theorem okMalametBattleGlyphOpening :
-    Action.check (DRS.ofList []) malametBattleGlyphOpening = [] := by decide
+/-- Malamet Battle Glyph: "Choose target creature you control and target creature you don't
+control. If the creature you control entered this turn, put a +1/+1 counter on it. Then those
+creatures fight each other." -/
+def malametBattleGlyph : Spelled := spelled <| singleFacedCard
+  { name := "Malamet Battle Glyph", cost := [pip .green], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ chooseFightPair,
+            doIf (did (the (and [isCreature, youControl])) enter soFarThisTurn)
+              (putCounters 1 p1p1Counter it),
+            fightEachOther (those creature) ]) ] }
+
+/-- Grim Contest: "Choose target creature you control and target creature an opponent controls.
+Each of those creatures deals damage equal to its toughness to the other." "The other" is the
+current member's counterpart in the group of two the targets make up
+(`DRS.distributivePair?`). -/
+def grimContest : Spelled := spelled <| singleFacedCard
+  { name := "Grim Contest", cost := [generic 1, pip .black, pip .green], types := [.instant],
+    text :=
+      [ spell (sequentially
+          [ choose (both (target (and [isCreature, youControl]))
+                         (target (and [isCreature, anOpponentControls]))),
+            instruct (eachOf (those creature))
+              (dealDamage (toughnessOf it) (theOther .object)) ]) ] }
+
+/-- Duel for Dominance, through its first sentence: "Coven — Choose target creature you control
+and target creature you don't control." Its "put a +1/+1 counter on the chosen creature you
+control" and "Then the chosen creatures fight each other" wait on
+`lean-v3-chosen-participial-anchor`; the fight is `fightEachOther` once "the chosen creatures"
+reads back the two targets. -/
+def duelForDominanceOpening : Action := chooseFightPair
+theorem okDuelForDominanceOpening :
+    Action.check (DRS.ofList []) duelForDominanceOpening = [] := by decide
 
 /-- Stolen Uniform, through its second sentence: "Choose target creature you control and target
 Equipment. Gain control of that Equipment until end of turn." "Attach it to the chosen creature"
