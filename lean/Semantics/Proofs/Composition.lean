@@ -84,4 +84,43 @@ theorem okThreeDamageRecipientAlternatives :
     Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage 1 (.or [thisCreature, .you, thisCreature]))) =
       [] := by decide
 
+/-! ## Disjunction and negation scoping (`semantics-v3.md` §1.2, §1.3) -/
+
+private def kinds (drs : DRS) : List (ReferentId × Kind) := drs.referents.map (fun r => (r.id, r.kind))
+
+/-- "you or a white creature you control": neither alternative's participant outlives the
+disjunction, which an earlier mention is read through as any mention reads it. -/
+theorem nounAlternativesKeepNoBranchParticipant :
+    kinds (nounResult (DRS.ofList []) (.or [.you, a (.and [isCreature, .colorIs .white])])) = [] ∧
+      kinds (nounResult (nounResult (DRS.ofList []) (target isCreature)) (.or [it, .you])) =
+        [(0, .object)] := by
+  decide
+
+/-- Alternative locations ("from your hand or graveyard") keep only what both introduce, the
+one "you"; joined ones are stepped in order and keep both owners. -/
+theorem locationAlternativesKeepOnlyWhatEveryAlternativeIntroduces :
+    let step := fun (loc : Location) => kinds (stepLocationWith (stepOps 64) (DRS.ofList []) loc).1
+    step (.coord .or [.zone .hand (some .you), .zone .graveyard (some .you)]) = [(0, .player)] ∧
+      step (.coord .or [.zone .hand (some .you), .zone .graveyard (some anOpponent)]) = [] ∧
+      step (.coord .and [.zone .hand (some .you), .zone .graveyard (some anOpponent)]) =
+        [(1, .player), (0, .player)] := by
+  decide
+
+/-- A negated location ("anywhere other than your graveyard") introduces nothing the text after
+it reads, as a negated Timing or Condition does. -/
+theorem negatedLocationIntroducesNothing :
+    kinds (stepLocationWith (stepOps 64) (DRS.ofList []) (.not (.zone .graveyard (some .you)))).1
+      = [] := by
+  decide
+
+/-- "during your turn or an opponent's turn": the alternatives' owners differ, so neither
+outlives the Timing; where both name "you", the one "you" does. -/
+theorem timingAlternativesKeepOnlyWhatEveryAlternativeIntroduces :
+    let step := fun (tm : Timing) => kinds (stepTimingWith (stepOps 64) (DRS.ofList []) tm).1
+    step (.or [.inPart .turn (some .you) .current, .inPart .turn (some anOpponent) .current]) =
+        [] ∧
+      step (.or [.inPart .turn (some .you) .current, .inPart .combat (some .you) .current]) =
+        [(0, .player)] := by
+  decide
+
 end Semantics.Proofs.Composition

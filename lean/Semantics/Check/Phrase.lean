@@ -947,10 +947,18 @@ def stepTimingWith (ops : StepOps) (drs : DRS) (tm : Timing) (fuel : Nat := 8) :
   | n + 1, .not t =>
     let (_, errs) := stepTimingWith ops drs t n
     (drs, errs)
-  | n + 1, .and ts | n + 1, .or ts =>
+  | n + 1, .and ts =>
     ts.foldl (fun (d, es) t =>
       let (d', e') := stepTimingWith ops d t n
       (d', es ++ e')) (drs, [])
+  -- Each alternative is stepped from the enclosing context, as a Condition's are, and only what
+  -- every alternative introduces is kept (`commonHeaderContext`): one alternative's participant
+  -- is no antecedent of the text after them (`semantics-v3.md` §1.3).
+  | n + 1, .or ts =>
+    let (branches, errors) := ts.foldl (fun (branches, es) t =>
+      let (d', e') := stepTimingWith ops drs t n
+      (branches ++ [d'], es ++ e')) ([], [])
+    (commonHeaderContext drs branches, errors)
 termination_by structural fuel
 
 def stepLookbackSpanWith (ops : StepOps) (drs : DRS) (sp : LookbackSpan) : DRS × List Refusal :=
@@ -997,7 +1005,19 @@ def stepLocationWith (ops : StepOps) (drs : DRS) (z : Location) (fuel : Nat := 8
     (out, errors ++ kindCheck .pile ((ids.head?.bind out.findById?).map (·.kind)) ++
       refuse made.pileMention .pileMention)
   | _ + 1, .anyLocation => (drs, [])
-  | n + 1, .not loc => stepLocationWith ops drs loc n
+  -- A negated location ("from anywhere other than your graveyard") introduces nothing the text
+  -- after it reads, as a negated Timing or Condition does (`semantics-v3.md` §1.3, box 3).
+  | n + 1, .not loc =>
+    let (_, errs) := stepLocationWith ops drs loc n
+    (drs, errs)
+  -- Alternative locations are stepped each from the enclosing context and keep only what every
+  -- alternative introduces (`commonHeaderContext`), as alternative Conditions do; joined ones
+  -- ("and", "and/or") are stepped in order.
+  | n + 1, .coord .or locs =>
+    let (branches, errs) := locs.foldl (fun (branches, es) loc =>
+      let (d', e') := stepLocationWith ops drs loc n
+      (branches ++ [d'], es ++ e')) ([], [])
+    (commonHeaderContext drs branches, errs ++ refuse (locs.length >= 2) .atLeastTwoZones)
   | n + 1, .coord _ locs =>
     let (out, errs) := locs.foldl (fun (d, es) loc =>
       let (d', e') := stepLocationWith ops d loc n
@@ -1516,10 +1536,9 @@ def coordinatedSelfIn (drs : DRS) (ids : List ReferentId) : Option ReferentId :=
 
 def stepNounAlternativesWith (ops : StepOps) (drs : DRS) (role : GramRole)
     (inArgSlot : Bool) (alternatives : List NounPhrase) : DRS × List ReferentId × List Refusal :=
-  alternatives.foldl (fun (out, ids, errs) phrase =>
+  let (out, ids, errs, branches) := alternatives.foldl (fun (out, ids, errs, branches) phrase =>
     let branch := { drs with nextId := out.nextId, coordinatedSelf := coordinatedSelfIn out ids }
     let (result, branchIds, branchErrors) := ops.np branch role inArgSlot phrase
-    let additions := result.referents.filter (fun r => r.id ≥ out.nextId)
     let earlier := out.referents.filter (fun r => r.id ≥ drs.nextId)
     let inherited := (result.referents.filter (fun r => r.id < drs.nextId)).map fun r =>
       match out.findById? r.id with
@@ -1529,13 +1548,25 @@ def stepNounAlternativesWith (ops : StepOps) (drs : DRS) (role : GramRole)
           pronounResolved := prior.pronounResolved || r.pronounResolved
           idents := mergeIdents prior.idents r.idents }
     let merged := { result with
-      referents := additions ++ earlier ++ inherited
+      referents := earlier ++ inherited
       pendingRoles := (out.pendingRoles ++ result.pendingRoles).eraseDups
       resolvedIds := (out.resolvedIds ++ result.resolvedIds).eraseDups
       relativeUses := out.relativeUses + (result.relativeUses - drs.relativeUses)
       coordinatedSelf := drs.coordinatedSelf }
-    (merged, ids ++ branchIds, errs ++ branchErrors))
-    (drs, [], refuse (alternatives.length ≥ 2) .atLeastTwo)
+    (merged, ids ++ branchIds, errs ++ branchErrors, branches ++ [(result, branchIds)]))
+    (drs, [], refuse (alternatives.length ≥ 2) .atLeastTwo, [])
+  -- Each alternative is stepped from the enclosing context, and only what every alternative
+  -- introduces is kept (`commonHeaderContext`): one alternative's participant is no antecedent of
+  -- the text after it, so after "deals damage to you or a white creature you control", "that
+  -- creature" reads the source (*Mangara's Equity*, `semantics-v3.md` §1.2, §1.5 card 10). An
+  -- alternative that reads an earlier mention reads it as any mention does.
+  let common := (commonHeaderContext drs (branches.map (·.1))).referents.filter (·.id ≥ drs.nextId)
+  let kept := fun (id : ReferentId) => id < drs.nextId || common.any (·.id == id)
+  ({ out with
+      referents := common ++ out.referents.filter (fun r => r.id < drs.nextId)
+      pendingRoles := out.pendingRoles.filter (kept ·.1)
+      resolvedIds := out.resolvedIds.filter kept },
+    ids.filter kept, errs)
 
 def stepGameEventListWith (ops : StepOps) (drs : DRS) (evs : List GameEvent) : DRS × List Refusal :=
   evs.foldl (fun (d, es) e =>

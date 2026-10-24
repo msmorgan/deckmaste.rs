@@ -127,8 +127,12 @@ private def mangaraContext : DRS :=
   (stepGameEvent 64 (DRS.ofList [ChoiceSort.binding (.quality .color)])
     (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient))).1
 
-theorem mangarasEquityRawDemonstrativeSelectsWrongCreature :
-    selected (.type .creature) mangaraContext = [["mangara.recipient"]] := by decide
+/-- *Mangara's Equity*: "Whenever a creature of the chosen color deals damage to you or a white
+creature you control, this enchantment deals 1 damage to that creature." The disjunction "you or
+a white creature you control" keeps no alternative's participant (`stepNounAlternativesWith`,
+`semantics-v3.md` §1.2, §1.5 card 10), so the raw "that creature" reads the damage source. -/
+theorem mangarasEquityRawDemonstrativeSelectsTheDamageSource :
+    selected (.type .creature) mangaraContext = [["mangara.source"]] := by decide
 
 theorem mangarasEquityExplicitSelectorRestoresDamageSource :
     let (after, ids, errors) := stepNounPhrase 64 (nextClause mangaraContext) .obj true
