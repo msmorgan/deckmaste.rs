@@ -183,8 +183,8 @@ pub(crate) enum Symbol {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Omission {
     None,
-    /// A noun's bare phrase omits the Complements its head's frames select
-    /// (`Summary::omitted_complement`).
+    /// A non-verbal head's bare phrase omits the Complements its head's
+    /// frames select (`Summary::omitted_complement`).
     Selected,
     /// It ends in an ellipsis site whose omitted Complement takes these word
     /// forms (`ProductionDecl::elliptical`), as a mask (`form_bit`).
@@ -672,10 +672,10 @@ pub(crate) struct Summary {
     /// (`Production::edge_line`), when that Category closes some
     /// `unadjoined` child.
     pub final_adjunct: Option<u16>,
-    /// The Complements omitted by the bare noun phrase it ends in, through
-    /// any of its last children, as an index into
+    /// The Complements omitted by the bare non-verbal phrase it ends in,
+    /// through any of its last children, as an index into
     /// [`CompiledGrammar::extension_sets`] (0: none). A Preposition Phrase
-    /// right after it headed by one of their prepositions is that noun's
+    /// right after it headed by one of their prepositions is that head's
     /// Complement, never a dependent of another host
     /// (`english-lexical-analysis.md` §2, same-head complement priority).
     pub omitted_complement: u16,
@@ -925,8 +925,8 @@ pub(crate) struct State {
     /// The trailing Adjunct the last child so far ends in
     /// (`Summary::final_adjunct`).
     final_adjunct: Option<u16>,
-    /// The Complements omitted by the bare noun phrase the last child so far
-    /// ends in (`Summary::omitted_complement`).
+    /// The Complements omitted by the bare non-verbal phrase the last child
+    /// so far ends in (`Summary::omitted_complement`).
     omitted_complement: u16,
     /// The omitted Complement forms of the ellipsis site the last child so
     /// far ends in (`Summary::ellipsis`).
@@ -1386,10 +1386,10 @@ impl Production {
         }
     }
 
-    /// The Complements omitted by the bare noun phrase the phrase so far ends
-    /// in, or `None` if the child is a Preposition Phrase right after one and
-    /// headed by a preposition it omits: that phrase is the bare noun's own
-    /// Complement, which no other host may take. Only a coordination whose
+    /// The Complements omitted by the bare non-verbal phrase the phrase so
+    /// far ends in, or `None` if the child is a Preposition Phrase right after
+    /// one and headed by a preposition it omits: that phrase is the bare
+    /// head's own Complement, which no other host may take. Only a coordination whose
     /// conjuncts omit unlike Complements may take it as its own dependent.
     fn track_omitted_complement(
         &self,

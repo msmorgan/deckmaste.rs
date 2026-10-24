@@ -293,7 +293,7 @@ struct Draft {
     foreign_coordinators: Vec<LexemeId>,
     /// A derived passive's Internalised Complement.
     internalised: Option<usize>,
-    /// A noun's bare phrase, which omits its head's Complements.
+    /// A non-verbal head's bare phrase, which omits its head's Complements.
     omits_complement: bool,
     /// It ends in an ellipsis site whose omitted Complement takes these word
     /// forms, as a mask (`ProductionDecl::elliptical`).
@@ -2451,11 +2451,15 @@ impl<'a> Binder<'a> {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
             let test = if obligatory { Test::FreeOptional(head) } else { Test::FreeLexical(head) };
             bare.child("head", Symbol::Leaf(test), GapRule::Closed);
-            // A bare noun omits the Complements its frames select: a
-            // Preposition Phrase right after it that one of them selects is
-            // its Complement, never another host's dependent (CGEL, Ch. 5
-            // §14.1, pp. 439–441; §15, p. 454).
-            bare.omits_complement = head == LexicalCategory::Noun;
+            // A bare non-verbal head omits the Complements its frames
+            // select: a Preposition Phrase right after it that one of them
+            // selects is its Complement, never another host's dependent. A
+            // noun's and an adjective's PP Complements alike are licensed by
+            // the head, which chooses the preposition, and are optional
+            // (CGEL, Ch. 5 §14.1, pp. 439–441; §15, p. 454; Ch. 6 §3.1,
+            // pp. 542–545): *equal [to the difference]*, never *equal* with
+            // *to the difference* stranded for an outer host.
+            bare.omits_complement = true;
             if let Some(f) = complement_kind {
                 let kind = self.value(f, &format!("{:?}", SlotFill::Intransitive.kind()))?;
                 bare.equations.push((Path::Mother(f), Target::Value(kind)));

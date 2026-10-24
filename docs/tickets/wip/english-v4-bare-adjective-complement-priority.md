@@ -1,28 +1,31 @@
 ---
 needs: []
 ---
-# english-v4: bare-adjective complement priority and the depictive Comparative excludes
+# english-v4: bare-adjective complement priority
 
-Two follow-ups of the post-Stratum-7 oncology re-scan.
+A follow-up of the post-Stratum-7 oncology re-scan (Spiteful Repossession).
 
-1. **Spiteful Repossession.** A Reading takes the relative clause *who controls
-   more lands than you equal*: bare *equal* (`Valence:AdjectivePhrase/Bare`,
-   its PP[to] omitted) is a DepictiveAdjective on *controls*, which strands
-   *to the difference* for *opponent*'s `Complement(PP(["to"]))` across the
-   relative clause (InterleavedRelative). An omitted complement whose own PP
-   then attaches to an outer host is not English. Verify the mechanism, then
-   measure the engine fix: same-head complement priority on
-   `Valence:{phrase}/Bare` (`deckmaste_syntax` compile.rs,
-   `bare.omits_complement`) for every non-verb head, not only nouns. Every
-   Reading it removes must be of that non-English kind. If it removes endorsed
-   analyses or loses faces, measure the alternative: bare *equal* is symmetric
-   and needs a plural or reciprocal predicand (CGEL Ch. 4 §3.2.2, p. 235;
-   Ch. 6 §3.1, p. 543). Choose with a citation.
-2. **Depictive Comparative excludes.** `Exclude(... Grade, Comparative)` on
-   DepictiveAdjunct and DepictiveAdjective has no CGEL basis (p. 529; p. 1154
-   [47iv]); InterleavedDepictive and AdjectivalDepictive lack it. Its only
-   effect is to suppress class-D readings. Remove both (Principle 1,
-   consistent with F1) and report the growth. Stop if any unit crosses 4,096
-   Readings or explodes.
+A Reading took the relative clause *who controls more lands than you equal*:
+bare *equal* (`Valence:AdjectivePhrase/Bare`, its PP[to] omitted) was a
+DepictiveAdjective on *controls*, which stranded *to the difference* for
+*opponent*'s `Complement(PP(["to"]))` across the relative clause
+(InterleavedRelative). An omitted complement whose own PP then attaches to an
+outer host is not English.
+
+Fix: same-head complement priority on `Valence:{phrase}/Bare`
+(`deckmaste_syntax` compile.rs, `bare.omits_complement`) now holds for every
+non-verb head, not only nouns. An adjective's PP Complements are licensed by
+the head, which picks the preposition, and are mostly optional, as a noun's
+are (CGEL, Ch. 6 §3.1, pp. 542–545; Ch. 5 §14.1, pp. 439–441). Every one of
+the 521 Readings removed strands a bare adjective's own selected PP (*equal*
++ *to*, *tied* + *for*, *true* + *for*). The alternative, that bare *equal*
+needs a plural or reciprocal predicand, is not CGEL's: a singular predicand
+takes an understood secondary term (Ch. 13 §5, p. 1137).
+
+The depictive Comparative excludes, first planned here, moved to
+`english-v4-depictive-comparative-excludes`.
 
 Standard constraints apply. No face lost.
+
+Census delta (measured on nsszmxxl): faces read 32,825 -> 32,825 of 32,828; Readings 324,006 -> 323,485 (112 units down); lost faces: none.
+Judgment set (measured on nsszmxxl): all judgments hold, including the new Spiteful Repossession entry in `difference_noun.txt`.

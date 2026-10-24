@@ -4,3 +4,4 @@
 + <card=Kozilek, the Great Distortion> When you cast this spell, if you have fewer than seven cards in hand, draw cards equal to the difference. => PrepositionPhrase "to the difference" as Complement of equal
 + <card=Ancient Cellarspawn> Whenever you cast a spell, if the amount of mana spent to cast it was less than its mana value, target opponent loses life equal to the difference. => PrepositionPhrase "to the difference" as Complement of equal
 + <card=Shadow of Mortality> If your life total is less than your starting life total, this spell costs {X} less to cast, where X is the difference. => NounPhrase "the difference" as PredicativeComplement of be
++ <card=Spiteful Repossession> Spiteful Repossession deals damage to each opponent who controls more lands than you equal to the difference. => AdjectivePhrase "equal to the difference"; !VerbPhrase "controls more lands than you equal"

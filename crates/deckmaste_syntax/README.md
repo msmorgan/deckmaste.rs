@@ -219,11 +219,13 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Frame Slot selects only a Preposition Phrase whose Complement is of that kind,
   and pre-empts only that one (*do the same for [Vampire]* is a Complement,
   *do the same for [flying]* an Adjunct); a preposition frame declared
-  `named_only` is selected by no slot that names its preposition alone. A noun's bare phrase omits the
-  Complements its frames select, and a Preposition Phrase right after it headed
-  by one of their prepositions is that noun's Complement, never a dependent of
-  another host (*on top of your library*, *equal to the number of cards in
-  their hand*): every constituent ending in a bare noun passes its omitted
+  `named_only` is selected by no slot that names its preposition alone. A
+  non-verbal head's bare phrase (a noun's, an adjective's, a determinative's)
+  omits the Complements its frames select, and a Preposition Phrase right after
+  it headed by one of their prepositions is that head's Complement, never a
+  dependent of another host (*on top of your library*, *equal to the number of
+  cards in their hand*; never bare *equal* with *to the difference* stranded
+  for an outer noun): every constituent ending in such a bare phrase passes its omitted
   Complements on to the sibling that follows it. A coordination of bare nouns
   that omit unlike prepositions may take such a phrase as its own dependent
   (*the type and amount of mana*); an omitted Amount is no preposition, so
