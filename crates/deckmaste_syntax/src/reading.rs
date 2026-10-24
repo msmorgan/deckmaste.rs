@@ -271,9 +271,9 @@ impl Parse<'_> {
         let head = || anchors.head.map(|(start, end)| self.words(start, end));
         let first = || {
             let (start, end) = anchors.first?;
-            // Only punctuation and the coordinator, which keep it, follow the
-            // first conjunct, so the previous item records whether the first
-            // conjunct ends in its head, for this family.
+            // Only punctuation and the coordinator, neither in the head line,
+            // follow the first conjunct, so the previous item's `head_final`
+            // is the first conjunct's, for this family.
             let head_final = self.forest.items[previous?].state.head_final;
             Some((self.words(start, end), head_final))
         };

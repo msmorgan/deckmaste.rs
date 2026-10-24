@@ -39,8 +39,9 @@ It has no proc macros and no generated code: a grammar is data.
    counts the second of two dependents before their head (`adjunct` or
    `modifier`): it belongs inside the first where the first can hold it
    (*At the beginning of each combat this turn, …*). The chart
-   carries the first conjunct's `head_final` across the coordinator so that
-   the last conjunct's item records it. `best_ranked(k)` returns the keys too,
+   tracks `head_final` as the last head-line child's, which neither
+   punctuation nor the coordinator changes, so that the last conjunct's item
+   records the first's. `best_ranked(k)` returns the keys too,
    the tree-side `CompiledGrammar::ranking_key` (feature
    `tree-ranking-key`, enabled for tests only) computes a given Reading's key to
    check the forest's, and `cheapest_tier()` counts the Derivations sharing the least key without

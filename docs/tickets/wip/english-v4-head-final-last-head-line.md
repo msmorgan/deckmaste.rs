@@ -59,5 +59,5 @@ tweak or residual ticket is added to win a rank.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on the claim change → this landing): faces read 32825 → 32825 of 32828; total Readings 323485 → 323485; Surplus 139280 → 139280; units changed 0; lost faces: none. Cheapest tier after: singleton in 17440 of 20606 ambiguous units, summed 24715, largest 16.
+Judgment set: every judgment holds (`cargo test -p deckmaste_english_v4` passes, `strata --check` passes). The forest/tree key mismatch was reproduced before the fix (forest Attachment Class 0, tree 1) by the new `tests/last_head_line.rs`; no census unit changed.

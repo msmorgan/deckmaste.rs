@@ -663,7 +663,8 @@ pub(crate) struct Summary {
     /// Its lexical leaves, counted to two.
     pub leaves: u8,
     /// It ends in its head (through conjuncts of a coordination), not in a
-    /// dependent of it.
+    /// dependent of it: its last child is in the head line and itself ends in
+    /// its head (a leaf does).
     pub head_final: bool,
     /// The preposition of the Preposition Phrase dependent it ends in, through
     /// its head line, when that preposition closes some `unextended` child.
@@ -917,7 +918,8 @@ pub(crate) struct State {
     conjoined: bool,
     /// Lexical leaves so far, counted to two.
     leaves: u8,
-    /// The last child so far is in the head line and ends in its head.
+    /// The last head-line child so far ends in its head
+    /// (`Production::track_head_final`).
     pub head_final: bool,
     /// The preposition of the Preposition Phrase dependent the last child
     /// so far ends in (`Summary::final_preposition`).
@@ -1122,18 +1124,29 @@ impl Production {
         summary.values[index].get()
     }
 
-    /// Whether the phrase so far ends in its head: the last child is in the
-    /// head line and itself ends in its head (a leaf does). A coordinator
-    /// leaves it as its first conjunct left it, so that the last conjunct's
-    /// item records whether the first ended in its head (the Ranking Key's
-    /// Attachment Class reads it there); the last conjunct then sets it.
+    /// Whether the last non-punctuation child is in the head line.
+    fn ends_in_head_line(&self) -> bool {
+        self.rhs
+            .iter()
+            .rposition(|symbol| !matches!(symbol, Symbol::Punct(..)))
+            .is_some_and(|position| self.head_line[position])
+    }
+
+    /// Tracks whether the last head-line child so far ends in its head: a
+    /// head-line child sets it (a leaf to true, a phrase to its own
+    /// `head_final`), and every other child, punctuation and a coordinator
+    /// leaf included, leaves it as it was. The item before a coordination's
+    /// last conjunct therefore records whether the first ended in its head
+    /// (the Ranking Key's Attachment Class reads it there); the last conjunct
+    /// then sets it. [`Production::finish`] reports it only when the last
+    /// non-punctuation child is in the head line.
     fn track_head_final(&self, next: &mut State, position: usize, child: &ChildView<'_>) {
+        if !self.head_line[position] {
+            return;
+        }
         match child {
-            ChildView::Node(summary) => {
-                next.head_final = self.head_line[position] && summary.head_final;
-            }
-            ChildView::Leaf(_) if self.coordinator == Some(position) => {}
-            ChildView::Leaf(_) => next.head_final = self.head_line[position],
+            ChildView::Node(summary) => next.head_final = summary.head_final,
+            ChildView::Leaf(_) => next.head_final = true,
             ChildView::Punct => {}
         }
     }
@@ -2008,7 +2021,7 @@ impl Production {
                 _ => None,
             },
             leaves: state.leaves,
-            head_final: state.head_final,
+            head_final: state.head_final && self.ends_in_head_line(),
             final_preposition: state.final_preposition,
             final_adjunct: state.final_adjunct,
             ellipsis: match self.omission {
