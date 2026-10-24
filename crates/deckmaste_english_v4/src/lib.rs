@@ -56,9 +56,9 @@ pub const OUTER_CATEGORIES: &[&str] = &[
 pub const SEGMENT_EDGES: &[char] = &['.', '•', '—', ':', '|', ','];
 
 pub mod corpus;
-pub mod segments;
 pub mod judgment;
 pub mod profile;
+pub mod segments;
 
 /// The highest Complexity Stratum whose gate has been met, if any. Judgments
 /// at or below it are enforced, and the census reports a unit at or below it
@@ -68,6 +68,10 @@ pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(6);
 /// The tracked deferral list: units at or below the completed Stratum left
 /// unread on purpose, each owned by a ticket (`census::deferrals`).
 pub const DEFERRED: &str = include_str!("../deferred.txt");
+
+/// The tracked list of declined units: pre-8th-Edition cards whose
+/// construction is unique to them and costly to support (`census::declined`).
+pub const DECLINED: &str = include_str!("../declined.txt");
 
 /// The tracked Editorial Corrections the census reads in place of Oracle text
 /// (`corpus::editorial_corrections`).

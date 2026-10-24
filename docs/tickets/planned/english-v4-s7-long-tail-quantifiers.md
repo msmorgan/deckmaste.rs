@@ -14,9 +14,7 @@ Quantifier, determiner and partitive gaps.
 - **All Hallow's Eve**: *If there are no more scream counters*. Hypothesis: *no more* is not licensed without *than*.
 - **Goblin Game**: *tied for fewest*. Hypothesis: a bare superlative fused head without *the*. Second triage: also a central *then* (*… the fewest items then loses …*).
 - **Hawkeye, Master Marksman**: *choose up to that many —*. Hypothesis: *up to* with a *that many* fused head. Second triage: also `• Word — Ability` modes.
-- **Illusionary Mask**: *paid by [some amount of, or all of,] the mana …*. Hypothesis: a coordinated partitive prefix is not a right-nonce-constituent route.
 - **Wolverine, Fierce Fighter**: *all other damage already dealt to him is healed*. Hypothesis: a pre-head adverb on a participial postmodifier, or *healed* is missing from the lexicon (unverified; check the lexicon first). Second triage: verb *heal* missing.
-- **Soul Echo**: *for each 1 damage …, you remove …*. Hypothesis: `DistributiveQuantity` requires Count, and *each 1 damage* is a numeral determiner on a mass noun.
 
 ## Witness cards
 
@@ -25,13 +23,13 @@ Quantifier, determiner and partitive gaps.
 - All Hallow's Eve
 - Goblin Game
 - Hawkeye, Master Marksman
-- Illusionary Mask
 - Wolverine, Fierce Fighter
-- Soul Echo
 
 ## Estimated faces
 
-8 faces.
+6 faces.
+
+Illusionary Mask and Soul Echo moved to `crates/deckmaste_english_v4/declined.txt` (pre-8th Edition, unique constructions); they are no longer witnesses here.
 
 ## Hypotheses, not findings
 

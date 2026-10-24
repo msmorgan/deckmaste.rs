@@ -143,7 +143,7 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
     }
     if args.check && !report.stale_deferrals.is_empty() {
         anyhow::bail!(
-            "{} deferred units are read; remove them from deferred.txt",
+            "{} deferred units are read; remove them from deferred.txt or declined.txt",
             report.stale_deferrals.len()
         );
     }
@@ -251,14 +251,7 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         }
         for (index, (key, reading)) in parse.best_ranked(args.limit).iter().enumerate() {
             parse.admit(reading, &env.lexicon)?;
-            dump_reading(
-                &grammar,
-                &env,
-                *key,
-                reading,
-                index + 1,
-                output,
-            )?;
+            dump_reading(&grammar, &env, *key, reading, index + 1, output)?;
         }
         writeln!(output)?;
     }

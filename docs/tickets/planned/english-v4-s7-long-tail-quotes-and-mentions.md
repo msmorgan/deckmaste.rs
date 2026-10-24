@@ -11,7 +11,6 @@ Quoted text used as a constituent, and mentioned words and phrases.
 
 Quotes:
 - **Brutal Suppression, Drought**: *cost an additional "Sacrifice a land" to activate*. Hypothesis: a quoted imperative acts as a count nominal after *an additional*.
-- **Raging River**: *into a "left" pile and a "right" pile … choose "left" or "right."*. Hypothesis: quoted words as premodifiers and as mentioned objects, with a period inside the closing quote. Second triage: a period absorbed inside *"right."*, plus two comma-set front adjuncts.
 - **Volrath's Shapeshifter**: *has the text "{2}: Discard a card."*. Hypothesis: an appositive quoted ability after the noun *text*.
 - **Urza's Saga**: a single-quoted ability nested inside a double-quoted one. Hypothesis: nested quotation depth is unsupported.
 
@@ -19,13 +18,13 @@ Mentions:
 - **Teferi's Realm**: *chooses [artifact, creature, land, or non-Aura enchantment]*. Hypothesis: a multiword mention in a coordination.
 - **Sarpadian Empires, Vol. VII**: *choose [white Citizen, blue Camarid, …, or green Saproling]*. Hypothesis: each mention is a color adjective plus a subtype noun.
 - **Artificial Evolution**: *The new creature type can't be [Wall]*. Hypothesis: a general predicative mention multiplied forests, so this needs a narrow, head-selected route. Measure.
+  Artificial Evolution must parse. Route: a copular *be* whose subject's head is a type noun (*creature type*, *card type*, ...) takes a subtype name as its predicative complement. The general version (any mention after *be* or *become*) quadrupled forests, for example Gavony Dawnguard 115 -> 460 on *becomes night* / *is red*. Acceptance: zero growth on those units.
 - **Grim Captain's Call**: *then do the same for [Vampire, Dinosaur, and Merfolk]*. Hypothesis: a mention coordination as the complement of *for*.
 
 ## Witness cards
 
 - Brutal Suppression
 - Drought
-- Raging River
 - Volrath's Shapeshifter
 - Urza's Saga
 - Teferi's Realm
@@ -35,7 +34,9 @@ Mentions:
 
 ## Estimated faces
 
-9 faces.
+8 faces.
+
+Raging River moved to `crates/deckmaste_english_v4/declined.txt` (pre-8th Edition, unique construction); it is no longer a witness here.
 
 ## Hypotheses, not findings
 
