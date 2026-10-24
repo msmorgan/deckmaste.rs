@@ -9,3 +9,5 @@
 +Clause <card=Dark Dabbling> also regenerate each other creature you control => AdverbPhrase "also" as Adjunct of regenerate; NounPhrase "each other creature you control" as Object of regenerate
 + <card=Deadly Complication> • Put a +1/+1 counter on target suspected creature you control. You may have it become no longer suspected. => AdverbPhrase "no longer" as Adjunct of become; AdjectivePhrase "suspected" as PredicativeComplement of become
 + Target snow land is no longer snow. => AdverbPhrase "no longer" as Adjunct of be; readings 1
+# A central adverb is not a Subject remnant's own: *then* in *then draws …* is the Linked Adjunct of its Conjunct, never part of a finite Verb Phrase that recovers its Subject (Sycorax Commander)
++ <card=Sycorax Commander> Sanctified Rules of Combat — When this creature enters, each opponent faces a villainous choice — That opponent discards all the cards in their hand, then draws that many cards minus one, or this creature deals damage to that player equal to the number of cards in their hand. => !SubjectRemnant "then draws that many cards minus one"

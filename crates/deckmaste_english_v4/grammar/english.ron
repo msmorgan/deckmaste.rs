@@ -917,7 +917,7 @@
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
         // A Subject remnant (SubjectRemnant) is a finite Verb Phrase, which
         // a medial conjunct of a Clause coordination may be.
-        (name: "SubjectRemnant", lhs: "SubjectRemnant", rhs: [Cat("head", "VerbPhrase")], equations: [Require("head.VerbForm", "Finite")]),
+        (name: "SubjectRemnant", lhs: "SubjectRemnant", rhs: [Cat("head", "VerbPhrase")], equations: [Require("head.VerbForm", "Finite"), Exclude("head.CentralPosition", "Occupied")]),
         // Restated as RelativeSubjectPredicate (a SubjectInitialClause, for
         // bare relatives); a change to one must be made to the other.
         (name: "SubjectPredicate", lhs: "Clause",
