@@ -854,8 +854,9 @@ def mentionYou (drs : DRS) (plur : Plurality) (role : GramRole) (inArgSlot : Boo
 
 /-- A mention of the Source ("this", "this creature"): one object, whatever the number of
 mentions, so a later mention re-mentions the referent the first introduced, as the object it is
-now (but never one a linked ability published, `Referent.linked`), a self-referent (`Determiner.self`) no noun word reads ("that creature" never names "this
-creature"), the Contrast Anchor a bare "another"/"other" Object falls back to ([CR#109.5]). -/
+now (but never one a linked ability published, `Referent.linked`), a self-referent
+(`Determiner.self`) no noun word reads ("that creature" never names "this creature"), the Contrast
+Anchor a bare "another"/"other" Object falls back to (`semantics-v3.md` §0.1). -/
 def mentionThis (drs : DRS) (role : GramRole) (inArgSlot : Bool) :
     DRS × List ReferentId × List Refusal :=
   let errors := refuse (!drs.sourceless) .noSource
