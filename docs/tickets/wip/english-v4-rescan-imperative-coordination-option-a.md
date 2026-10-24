@@ -25,5 +25,14 @@ coordination route builds, so that route is the duplicate.
 
 Census unit by unit with no face lost; judgments hold.
 
-Census delta:
-Judgment set:
+The coordination bit also lets one coordination of Clauses take several
+shared trailing Adjuncts, as a Verb Phrase coordination already could. It also
+restores the wide-scope tree over a coordination whose first conjunct has its
+own fronted dependent (*[At the beginning of your upkeep, put …, then
+sacrifice …] unless …*), which the `ClauseType` route had removed. Those trees
+account for the units whose Reading count rose.
+
+Census delta (rowozrtp): faces read 32,769 of 32,828 before and after;
+Readings 338,531 → 337,675 (113 units down by 2,601, 112 up by 1,745); lost
+faces: none.
+Judgment set (rowozrtp): all hold, 3,219 enforced and 317 pending.
