@@ -7,10 +7,10 @@
 //! definition, which is how `KeywordAction(name: …)` reads as one
 //! (`docs/decisions/semantics-v2.md` §11).
 //!
-//! The declaration file is the shared contract: `deckmaste_lexical_source`
-//! reads its spelling and grammar, this crate reads its params and body. The
-//! metadata half is opaque here — [`OpaqueMetadata`] accepts and discards any
-//! shape — so neither crate depends on the other for the file.
+//! This crate reads a declaration file's params and body. The spelling and
+//! grammar half is opaque here — [`OpaqueMetadata`] accepts and discards any
+//! shape — and nothing reads it now: English vocabulary is declared in
+//! `deckmaste_lexical_source_v4`'s catalogs.
 //!
 //! Nothing here validates. A file that will not read is an error with its path
 //! and the reader's message; a file that reads is taken as written.

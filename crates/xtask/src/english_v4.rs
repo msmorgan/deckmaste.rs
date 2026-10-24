@@ -1,7 +1,6 @@
 //! `cargo xtask english-v4`: a thin CLI over `deckmaste_english_v4`'s corpus,
 //! stratum profiler and census.
 
-use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Write;
@@ -38,10 +37,6 @@ struct StrataArgs {
     /// Only faces of cards with this name (repeatable).
     #[arg(long = "card")]
     cards: Vec<String>,
-    /// A v3 census report (`cargo xtask english-v3 --output`) whose unread
-    /// faces are accounted for by Stratum.
-    #[arg(long)]
-    baseline: Option<PathBuf>,
     /// Where to write the full report as JSON.
     #[arg(long, default_value = "target/english-v4/strata.json")]
     output: PathBuf,
@@ -52,18 +47,6 @@ struct StrataArgs {
     /// deferred, or when a deferred unit is read.
     #[arg(long)]
     check: bool,
-}
-
-/// The fields of a v3 census report the baseline needs.
-#[derive(serde::Deserialize)]
-struct V3Report {
-    faces: Vec<V3Face>,
-}
-
-#[derive(serde::Deserialize)]
-struct V3Face {
-    id: String,
-    census: String,
 }
 
 pub fn run(args: &EnglishV4Args, output: &mut dyn Write) -> Result<()> {
@@ -91,23 +74,7 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
             .filter(|(name, _)| name != "seed.txt")
             .flat_map(|(_, entries)| entries)
             .collect();
-    let baseline = args
-        .baseline
-        .as_ref()
-        .map(|path| -> Result<BTreeMap<String, bool>> {
-            let file = BufReader::new(
-                File::open(path).with_context(|| format!("opening {}", path.display()))?,
-            );
-            let report: V3Report = serde_json::from_reader(file)
-                .with_context(|| format!("reading {}", path.display()))?;
-            Ok(report
-                .faces
-                .into_iter()
-                .map(|f| (f.id, f.census != "no"))
-                .collect())
-        })
-        .transpose()?;
-    let report = census::run(&corpus, &env, &judgments, baseline.as_ref());
+    let report = census::run(&corpus, &env, &judgments);
     if let Some(parent) = args.output.parent() {
         std::fs::create_dir_all(parent)?;
     }

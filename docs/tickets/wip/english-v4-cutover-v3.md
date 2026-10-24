@@ -34,3 +34,6 @@ Execute Cutover 1 of [`docs/decisions/english-v4.md`](../../decisions/english-v4
   with 0 stale citations.
 
 Standard constraints apply.
+
+**Census delta** (`xtnxuryy`): faces read 32825 → 32825 of 32828 (3 declined), Readings 316930 → 316930, no unit changed; `strata --check` passes. Lost faces: none.
+**Judgment set** (`xtnxuryy`): all 3381 entries hold at Stratum 7, none pending (`cargo test -p deckmaste_english_v4`).

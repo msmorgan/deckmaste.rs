@@ -134,6 +134,12 @@ has an admitted Reading and both round-trip laws hold; known-wrong-only when it
 has Readings but a Judgment shows every one of them wrong; otherwise unread.
 _Avoid_: coverage for a count that includes known-wrong-only units
 
+**Round-trip Laws** (project term):
+The two laws every admitted Reading obeys, under the same parse context and
+Lexical Environment: realizing a Reading of a text yields that text, and
+parsing the realization of an independently constructed grammatical Reading
+yields that Reading again.
+
 **Segment** (project term):
 A top-level stretch of a Corpus Unit delimited by its outer structure: a
 sentence of its top-level sentence sequence, an activation cost, a label before
@@ -160,6 +166,12 @@ Family it contains.
 **Completed Stratum** (project term):
 The highest Complexity Stratum whose gate has been met: every non-deferred Corpus
 Unit at or below it is read.
+
+**Deferred Unit** (project term):
+A Corpus Unit at or below the Completed Stratum that is left unread on purpose,
+listed with the ticket that owns it; the census fails if it becomes read while
+still listed.
+_Avoid_: known failure, expected failure
 
 **Editorial Correction** (project term):
 A recorded replacement for part of one face's Oracle text that breaks a
@@ -517,8 +529,8 @@ type with Vampire* (CGEL, Ch. 5 §8.2, p. 401).
 
 **Locative Complement**:
 A Complement expressing location, source or goal, such as *on the battlefield*
-after *be*; it is distinct from a predicative Complement (CGEL, Ch. 4 §5.2,
-p. 257).
+after *be*; it is distinct from a predicative Complement and from an optional
+locative Adjunct (CGEL, Ch. 4 §5.2, p. 257).
 _Avoid_: predicative Complement for a locative
 
 **Displaced Subject**:
@@ -903,6 +915,13 @@ case.
 A grammatical relation licensed by a head, not a constituent Category. This
 term may coexist with the unrelated Game Model Object.
 
+**Indirect Object**:
+The first of the two Objects of a ditransitive verb such as *deal* or *give*,
+usually the recipient; the second is the direct Object. It becomes the Subject
+of the recipient passive, as *this creature* in *this creature is dealt
+damage*.
+_Avoid_: Object for the recipient of a ditransitive verb
+
 **Postposed Object**:
 An Object realized to the right of its basic position, commonly after a
 Preposition Phrase, while retaining Object function (CGEL, Ch. 16 §4,
@@ -970,10 +989,6 @@ _Avoid_: intransitive for such a verb
 One position in a lexical subcategorization frame: the grammatical relation the
 position bears paired with the Category and markers that fill it.
 _Avoid_: Complement for the slot descriptor
-
-**Locative Complement**:
-A Complement expressing location, source, or goal, distinct from a predicative
-Complement and from an optional locative Adjunct.
 
 **Source Complement**:
 A Locative Complement expressing the starting location (CGEL, Ch. 8 §4.3,

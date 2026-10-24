@@ -494,26 +494,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_construction_v3"
-version = "0.1.0"
-dependencies = [
- "deckmaste_construction_v3_core",
- "deckmaste_english_v3",
- "deckmaste_lexical",
-]
-
-[[package]]
-name = "deckmaste_construction_v3_core"
-version = "0.1.0"
-dependencies = [
- "deckmaste_lexical_model",
- "proc-macro2",
- "quote",
- "ron",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "deckmaste_constructions_macro"
 version = "0.1.0"
 dependencies = [
@@ -584,21 +564,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_english_v3"
-version = "0.1.0"
-dependencies = [
- "clap",
- "deckmaste_construction_v3",
- "deckmaste_lexical",
- "deckmaste_lexical_source",
- "libc",
- "macro_ron",
- "memchr",
- "proc-macro2",
- "thiserror",
-]
-
-[[package]]
 name = "deckmaste_english_v4"
 version = "0.1.0"
 dependencies = [
@@ -655,23 +620,6 @@ version = "0.1.0"
 dependencies = [
  "dpsi",
  "serde",
-]
-
-[[package]]
-name = "deckmaste_lexical_source"
-version = "0.1.0"
-dependencies = [
- "deckmaste_catalogs",
- "deckmaste_data",
- "deckmaste_english_v3",
- "deckmaste_lexical",
- "deckmaste_macro_def",
- "dpsi",
- "macro_ron",
- "ron",
- "serde",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]
@@ -2379,11 +2327,9 @@ dependencies = [
  "deckmaste_core",
  "deckmaste_data",
  "deckmaste_english",
- "deckmaste_english_v3",
  "deckmaste_english_v4",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
- "deckmaste_lexical_source",
  "deckmaste_lexical_source_v4",
  "deckmaste_macro_def",
  "deckmaste_migrations",

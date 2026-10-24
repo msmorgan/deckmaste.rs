@@ -9,6 +9,27 @@ stem as the v3 file), its remainder retired with a reason.
 
 1163 tests: 372 migrated, 638 partly migrated, 120 retired, and 33 parser-engine tests.
 
+## Verification at cutover
+
+`english-v4-cutover-v3` deleted the v3 suite after checking this record against
+the judgment set. The line counts below are as migrated. Later judgment passes
+replaced uncited lines with cited card text and retired entries whose
+construction no card prints, under owner rulings; `correlative_adjectives.txt`
+was deleted that way (change `rpyvvkst`). At cutover the judgment set held 3381
+entries, all enforced at Stratum 7, none pending, with no deferred unit. Every
+`gap` row under "Lexical facts" is closed or ruled out:
+
+- closed: *put* takes *back* and *there*, *half* is a predeterminer, plural and
+  introduced names, plural *d6*/*d20*, *twice that many*, preverbal *next*, and
+  the 53 named-token, anchor-word and vote-option names
+  (`english-v4-named-token-and-anchor-word-catalogs`), each with an enforced
+  judgment;
+- ruled out: independent *mine* (no Oracle text uses it; only card names and
+  the *mine* counter, which has a judgment), "landwalk has no standalone
+  lexeme" (wrong: cards print landwalk [CR#702.14a] bare, as *Traveler's
+  Cloak* does), and *play with* + absolute as a selected Complement (judged an
+  Adjunct, `crates/deckmaste_english_v4/judgments/README.md`).
+
 ## Retirement reasons
 
 | Code | Retired because the test |

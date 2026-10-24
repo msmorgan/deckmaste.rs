@@ -55,8 +55,7 @@ cheapest Readings), **known-wrong-only** (a judgment for that exact text is
 satisfied by none of its Readings) or **unread** (with the reason: the grammar
 does not bind, a vocabulary gap, no Reading, or a law failure, which is a
 defect). Counts are per Stratum, with faces counted at their highest unit, plus
-per Syntactic Family and the most frequent skeletons. Given an earlier census's
-face verdicts as a baseline, it also places every face that census did not read.
+per Syntactic Family and the most frequent skeletons.
 No attachment tree is enumerated except for a unit with a judgment.
 
 Each unit's count is reported two ways. `derivations` is the size of its Packed
@@ -102,7 +101,7 @@ predates and current Oracle texts already carry. A correction whose Oracle text
 no longer occurs exactly once in its face's text is stale and fails `--check`.
 
 ```
-cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<census>.json] [--check]
+cargo xtask english-v4 strata [--card NAME]... [--check]
 ```
 
 prints the summary and writes the full per-unit report to

@@ -5,13 +5,9 @@ members = [
     "crates/deckmaste_semantics_v2",
     "crates/deckmaste_card",
     "crates/deckmaste_catalogs",
-    "crates/deckmaste_english_v3",
     "crates/deckmaste_english_v4",
-    "crates/deckmaste_construction_v3_core",
-    "crates/deckmaste_construction_v3",
     "crates/deckmaste_lexical",
     "crates/deckmaste_lexical_model",
-    "crates/deckmaste_lexical_source",
     "crates/deckmaste_lexical_source_v4",
     "crates/deckmaste_core",
     "crates/deckmaste_data",
@@ -89,12 +85,6 @@ opt-level = 2
 [profile.dev.package.deckmaste_english]
 opt-level = 2
 
-# Complete v3 censuses execute admission and structural comparison for every
-# Reading. Optimize the runtime and census orchestration in the ordinary xtask
-# profile, just as for the legacy parser and corpus readers.
-[profile.dev.package.deckmaste_english_v3]
-opt-level = 2
-
 # Optimize the v4 chart parser, packed forest, and round-trip verification.
 [profile.dev.package.deckmaste_syntax]
 opt-level = 2
@@ -106,10 +96,6 @@ opt-level = 2
 opt-level = 2
 
 [profile.dev.package.deckmaste_lexical]
-opt-level = 2
-
-# Generic JSONL/macro_ron decoding is monomorphized here and governs startup.
-[profile.dev.package.deckmaste_lexical_source]
 opt-level = 2
 
 [profile.dev.package.deckmaste_macro_def]

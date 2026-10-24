@@ -36,18 +36,16 @@ does not infer stress or paradigm classes. An override replaces the default for
 the selected slot. Multiple valid spellings occupy explicit variant indices.
 There is no fallback dictionary or unknown-word POS inference.
 
-The `deckmaste_lexical_source` adapter reads the existing construction
-vocabulary, authored plugin morphology and generated catalogs. Original owner
-identities and source paths survive normalization. Optional RON exports are
-inspection artifacts, not a v3 input interface: the prototype `FrameItem`
+`deckmaste_lexical_source_v4` declares the English vocabulary and its
+`LexicalEnvironment` loader builds the `Lexicon` from `lexicon/english/*.ron`
+(closed-class vocabulary, pronoun bundles, auxiliary paradigms, irregular
+replacements and frame additions), `catalogs/*.ron` (the Comprehensive Rules'
+catalog items) and the generated card names. Optional RON exports are
+inspection artifacts, not an input interface: the prototype `FrameItem`
 representation changed when correlated marked slots entered the shared model,
 so regenerate old artifacts rather than expecting backward deserialization.
 Catalog phrases remain whole entries; their internal words are not added as new
-lexemes. Unmapped inventories and construction literals remain named source gaps.
-V3-owned `deckmaste_lexical_source/lexicon/core.ron` declares closed-class
-vocabulary, pronoun bundles, auxiliary paradigms and frame additions.
-`lexicon/overrides.ron` supplies explicit irregular replacements under existing
-owners and preserves the noun/determinative `one` entries.
+lexemes.
 
 Ordinary verbs acquire the regular paradigm before overrides. Old verb
 `Unavailable` markers based on nonattestation are reported as retired source
@@ -127,9 +125,9 @@ cargo run -p deckmaste_lexical --example inspect -- /tmp/lexemes.ron 'counters'
 Use the command's face selectors during development; pass `--export-subset`
 to retain the selected source records as JSONL. The report retains raw face
 text, input digests, byte occurrences, overlapping material classes, unknown
-words, unrecognized nonword material and unmapped source declarations. Ordinary
-vocabulary, catalogs, keywords, numerals, symbols, affixes and clitics are
-accounted separately. Schema 3 lists every indexed lexical owner with its
+words and unrecognized nonword material, analyzed in each face's card-name
+scope. Ordinary vocabulary, catalogs, keywords, numerals, symbols, affixes and
+clitics are accounted separately. Schema 3 lists every indexed lexical owner with its
 Category, properties, frame signatures and independently checked value count.
 Every unknown word remains named; every nonlexical scalar is classified as a
 structural separator, notation material or unresolved nonword. Those classes

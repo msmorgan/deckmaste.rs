@@ -1,8 +1,8 @@
 // "Assemble" [CR#701.45a] is an Unstable keyword action the rules do not
 // define, so the declaration has no body and keeps none: Un-sets are out of
 // scope. It stays for its spelling alone, which the Vintage-legal Steamflogger
-// Boss prints ("would assemble a Contraption"), and english_v3 reads that word
-// only through this declaration (`lexeme:keyword_action/assemble`).
+// Boss prints ("would assemble a Contraption"). The v4 grammar declares it in
+// `crates/deckmaste_lexical_source_v4/catalogs/keyword_actions.ron`.
 KeywordAction(
     name: "assemble",
     spelling: "assemble",

@@ -16,7 +16,6 @@ pub mod cite;
 pub mod coverage;
 pub mod derive_cards;
 pub mod english;
-pub mod english_v3;
 pub mod english_v4;
 pub mod expansions;
 pub mod extract;

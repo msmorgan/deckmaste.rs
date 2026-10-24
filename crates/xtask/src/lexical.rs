@@ -6,15 +6,16 @@ use std::collections::BTreeSet;
 use std::io::BufWriter;
 use std::io::Write;
 use std::num::NonZeroUsize;
-use std::path::Path;
 use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
+use deckmaste_english_v4::corpus::card_name_lexeme;
 use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical::Category;
+use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalProperties;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
@@ -208,7 +209,6 @@ struct Report {
     /// Declared frame signatures belong to lexical identities; they are not
     /// stand-alone surface readings or constructed grammar values.
     declared_frame_signatures: usize,
-    unmapped_sources: Vec<String>,
     #[serde(rename = "timings_seconds")]
     timings: Timings,
     inventory: Inventory,
@@ -218,15 +218,13 @@ struct Report {
 pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let sources = deckmaste_lexical_source::load_workspace(
-        &root,
-        &deckmaste_english_v3::grammar::lexical_registry(),
-    )?;
+    let lexicon = deckmaste_lexical_source_v4::LexicalEnvironment::load()
+        .context("loading the v4 lexical environment")?
+        .lexicon;
+    // The environment loader builds the lexicon index as part of loading, so
+    // the whole measurement is `load` and there is no separate `index` step.
     let load = started.elapsed().as_secs_f64();
-    let started = Instant::now();
-    let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
-    let index = started.elapsed().as_secs_f64();
+    let index = 0.0;
     let started = Instant::now();
     let independent_values_checked = check_independent_values(&lexicon)?;
     let value_law = started.elapsed().as_secs_f64();
@@ -234,7 +232,6 @@ pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let mut report = analyze_cards(&corpus.faces, &lexicon, args.workers.get())?;
     report.input.clone_from(&args.data);
     apply_corpus_metadata(&mut report, &corpus, args.workers.get());
-    report.unmapped_sources = sources.unmapped;
     report.independent_values_checked = independent_values_checked;
     report.timings = Timings {
         load,
@@ -277,12 +274,18 @@ pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     Ok(())
 }
 
+/// Every value realizes to a spelling that analyzes back to it on the cards
+/// whose scope admits it: its own card for a card name or Shortened Name, the
+/// introducing cards for a card-scoped Catalog item.
 fn check_independent_values(lexicon: &Lexicon) -> Result<usize> {
     let mut checked = 0;
     for value in lexicon.values() {
         let reading = LexicalReading::Word(value.clone());
         let surface = lexicon.realize(&reading)?;
-        let analyzed = lexicon.analyze_source(&surface, None);
+        let cards = &lexicon.lexemes()[&value.lexeme].card_scope;
+        let scope: BTreeSet<LexemeId> =
+            if cards.is_empty() { [value.lexeme].into() } else { cards.clone() };
+        let analyzed = lexicon.analyze_source_scoped(&surface, None, &scope);
         ensure!(
             analyzed.matches.iter().any(|found| {
                 found.start == 0 && found.end == analyzed.tokens.len() && found.reading == reading
@@ -322,7 +325,6 @@ fn analyze_cards(faces: &[SelectedFace], lexicon: &Lexicon, workers: usize) -> R
             .values()
             .map(|lexeme| lexeme.properties.frames.len())
             .sum(),
-        unmapped_sources: Vec::new(),
         timings: Timings::default(),
         inventory: Inventory::default(),
         faces: Vec::new(),
@@ -352,7 +354,12 @@ fn analyze_face(face: &SelectedFace, lexicon: &Lexicon) -> Result<Option<(FaceRe
     let Some(raw) = face.text.as_deref() else {
         return Ok(None);
     };
-    let analyzed = lexicon.analyze_source(raw, None);
+    // A face's text names its own face and card [CR#201.5c].
+    let scope = BTreeSet::from([
+        card_name_lexeme(&face.name),
+        card_name_lexeme(&face.group_name),
+    ]);
+    let analyzed = lexicon.analyze_source_scoped(raw, None, &scope);
     let mut inventory = Inventory::default();
     let (words, unrecognized_nonwords) = account_text(&analyzed, lexicon, &mut inventory)
         .with_context(|| format!("lexical laws for {} ({})", face.name, face.identity))?;

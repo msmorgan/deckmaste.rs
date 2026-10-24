@@ -516,8 +516,7 @@ mod selection_tests {
     }
 
     fn fixture_directory() -> tempfile::TempDir {
-        let path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/english-v3/selection-tests");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/xtask/selection-tests");
         fs::create_dir_all(&path).unwrap();
         tempfile::tempdir_in(path).unwrap()
     }

@@ -109,8 +109,6 @@ pub struct StratumRow {
     pub faces: usize,
     /// Of those faces, the ones every unit of which is read.
     pub faces_read: usize,
-    /// Of those faces, the ones the baseline census did not read.
-    pub baseline_unread_faces: Option<usize>,
 }
 
 /// A Syntactic Skeleton's frequency.
@@ -131,10 +129,6 @@ pub struct Report {
     pub strata: Vec<StratumRow>,
     /// Units per Syntactic Family.
     pub families: Vec<(Family, usize)>,
-    /// Units per family among the faces the baseline census did not read.
-    pub baseline_unread_families: Option<Vec<(Family, usize)>>,
-    /// Baseline-unread faces absent from this corpus (they should be none).
-    pub baseline_unread_missing: Option<Vec<String>>,
     pub skeletons: Vec<SkeletonRow>,
     /// Units at or below the completed Stratum that are not read and not
     /// deferred.
@@ -159,8 +153,7 @@ pub struct Report {
     pub units: Vec<UnitResult>,
 }
 
-/// Runs the census over `corpus`. `baseline` maps face identities to
-/// whether an earlier census read them.
+/// Runs the census over `corpus`.
 ///
 /// # Panics
 /// If a census worker thread panics.
@@ -169,7 +162,6 @@ pub fn run(
     corpus: &Corpus,
     env: &LexicalEnvironment,
     judgments: &[Judgment],
-    baseline: Option<&BTreeMap<String, bool>>,
 ) -> Report {
     let grammar = crate::bind(&env.lexicon, &env.frames).and_then(|grammar| {
         let frame = crate::segments::segment_frame(&grammar)?;
@@ -282,7 +274,7 @@ pub fn run(
             .flat_map(|w| w.join().expect("census worker"))
             .collect()
     });
-    summarize(corpus.faces.len(), bind_error, baseline, units)
+    summarize(corpus.faces.len(), bind_error, units)
 }
 
 /// Judges a bracketed line of a cleave face as its Uncleaved Text, then, if
@@ -365,19 +357,16 @@ fn judge_parse(
 fn summarize(
     faces: usize,
     bind_error: Option<String>,
-    baseline: Option<&BTreeMap<String, bool>>,
     units: Vec<UnitResult>,
 ) -> Report {
     let completed = crate::COMPLETED_STRATUM;
     let mut strata: Vec<StratumRow> = (0..=MAX_STRATUM)
         .map(|stratum| StratumRow {
             stratum,
-            baseline_unread_faces: baseline.map(|_| 0),
             ..StratumRow::default()
         })
         .collect();
     let mut families: BTreeMap<Family, usize> = BTreeMap::new();
-    let mut residual_families: BTreeMap<Family, usize> = BTreeMap::new();
     let mut skeletons: BTreeMap<(Stratum, &str), (usize, &str)> = BTreeMap::new();
     // Per face: highest Stratum, and whether every unit is read.
     let mut by_face: BTreeMap<&str, (Stratum, bool)> = BTreeMap::new();
@@ -393,7 +382,6 @@ fn summarize(
     let mut stale_deferrals = Vec::new();
     let deferrals = deferrals();
     let declined_list = declined();
-    let residual = |face: &str| baseline.is_some_and(|b| b.get(face) == Some(&false));
     for unit in &units {
         let stratum = unit.profile.stratum;
         let row = &mut strata[usize::from(stratum)];
@@ -452,9 +440,6 @@ fn summarize(
         }
         for family in &unit.profile.families {
             *families.entry(*family).or_default() += 1;
-            if residual(&unit.face) {
-                *residual_families.entry(*family).or_default() += 1;
-            }
         }
         let skeleton = skeletons
             .entry((stratum, unit.profile.skeleton.as_str()))
@@ -464,22 +449,11 @@ fn summarize(
         face.0 = face.0.max(stratum);
         face.1 &= unit.verdict == Verdict::Read;
     }
-    for (face, (stratum, read)) in &by_face {
+    for (stratum, read) in by_face.values() {
         let row = &mut strata[usize::from(*stratum)];
         row.faces += 1;
         row.faces_read += usize::from(*read);
-        if residual(face)
-            && let Some(count) = &mut row.baseline_unread_faces
-        {
-            *count += 1;
-        }
     }
-    let baseline_unread_missing = baseline.map(|b| {
-        b.iter()
-            .filter(|(face, read)| !**read && !by_face.contains_key(face.as_str()))
-            .map(|(face, _)| face.clone())
-            .collect()
-    });
     let mut skeletons: Vec<SkeletonRow> = skeletons
         .into_iter()
         .map(|((stratum, skeleton), (units, example))| SkeletonRow {
@@ -501,8 +475,6 @@ fn summarize(
         faces,
         strata,
         families: families.into_iter().collect(),
-        baseline_unread_families: baseline.map(|_| residual_families.into_iter().collect()),
-        baseline_unread_missing,
         skeletons,
         regressions,
         stale_deferrals,
@@ -598,12 +570,12 @@ impl Report {
         );
         let _ = writeln!(
             out,
-            "stratum  units   read  known-wrong-only  unread  deferred  declined  law-failures   faces  faces-read  baseline-unread-faces"
+            "stratum  units   read  known-wrong-only  unread  deferred  declined  law-failures   faces  faces-read"
         );
         for row in &self.strata {
             let _ = writeln!(
                 out,
-                "{:>7}  {:>5}  {:>5}  {:>16}  {:>6}  {:>8}  {:>8}  {:>12}  {:>6}  {:>10}  {:>21}",
+                "{:>7}  {:>5}  {:>5}  {:>16}  {:>6}  {:>8}  {:>8}  {:>12}  {:>6}  {:>10}",
                 row.stratum,
                 row.units,
                 row.read,
@@ -613,33 +585,15 @@ impl Report {
                 row.declined,
                 row.law_failures,
                 row.faces,
-                row.faces_read,
-                row.baseline_unread_faces
-                    .map_or_else(|| "-".to_owned(), |c| c.to_string())
+                row.faces_read
             );
         }
-        if let Some(missing) = &self.baseline_unread_missing {
-            let _ = writeln!(
-                out,
-                "baseline-unread faces missing from this corpus: {}",
-                missing.len()
-            );
-        }
-        let residual: BTreeMap<Family, usize> = self
-            .baseline_unread_families
-            .iter()
-            .flatten()
-            .copied()
-            .collect();
-        let _ = writeln!(out, "\nfamily units (units in baseline-unread faces)");
+        let _ = writeln!(out, "\nfamily units");
         for (family, units) in &self.families {
             let _ = writeln!(
                 out,
-                "  S{} {:<26} {:>6} ({})",
-                family.stratum,
-                family.name,
-                units,
-                residual.get(family).copied().unwrap_or(0)
+                "  S{} {:<26} {:>6}",
+                family.stratum, family.name, units
             );
         }
         for stratum in 0..=MAX_STRATUM {

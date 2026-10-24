@@ -3,7 +3,6 @@
 #[allow(dead_code, reason = "the seed module also serves seed_proof.rs")]
 mod seed;
 
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 use deckmaste_english_v4::census::Unread;
@@ -49,8 +48,7 @@ fn each_unit_is_read_known_wrong_only_or_unread() {
         r#"+ Search your library for a card. => PrepositionPhrase "for a card" as Modifier of library"#,
     )
     .unwrap();
-    let baseline = BTreeMap::from([("a".to_owned(), true), ("b".to_owned(), false)]);
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &judgments, Some(&baseline));
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &judgments);
     assert_eq!(report.bind_error, None);
     let verdicts: Vec<(&str, &Verdict)> = report
         .units
@@ -97,15 +95,6 @@ fn each_unit_is_read_known_wrong_only_or_unread() {
     );
     // No face is read: each has an unread type line.
     assert_eq!(report.strata.iter().map(|r| r.faces_read).sum::<usize>(), 0);
-    assert_eq!(
-        report
-            .strata
-            .iter()
-            .filter_map(|r| r.baseline_unread_faces)
-            .sum::<usize>(),
-        1
-    );
-    assert_eq!(report.baseline_unread_missing, Some(Vec::new()));
 }
 
 #[test]
@@ -116,7 +105,7 @@ fn an_unbound_grammar_leaves_every_unit_unread() {
     };
     let mut corpus = Corpus::default();
     corpus.push(face("a", "Destroy target creature."));
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[]);
     assert!(report.bind_error.is_some());
     assert!(
         report
@@ -165,7 +154,7 @@ fn a_cleave_line_is_read_without_its_brackets_and_without_their_text() {
         r#"+ Search your library for a card. => PrepositionPhrase "for a card" as Modifier of library"#,
     )
     .unwrap();
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &judgments, None);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &judgments);
     let verdict = |face: &str| {
         &report
             .units
@@ -203,7 +192,7 @@ fn a_face_counts_the_sum_of_its_units() {
         "b",
         "Destroy target creature.\n\"Destroy\ntarget creature.\"",
     ));
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[]);
     let counts: Vec<u128> = report
         .units
         .iter()
@@ -280,7 +269,7 @@ fn a_unit_counts_its_segments_and_their_surplus() {
         "a",
         &format!("{sentence} {sentence}\nDestroy target creature."),
     ));
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[]);
     let unit = |text: &str| report.units.iter().find(|u| u.text == text).unwrap();
     let pair = unit(&format!("{sentence} {sentence}"));
     assert_eq!(pair.derivations, 4);
@@ -324,7 +313,7 @@ fn a_declined_unit_is_counted_as_declined_not_unread() {
     declined_face.name = name.to_owned();
     declined_face.type_line = None;
     corpus.push(declined_face);
-    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[]);
     let rows = |f: fn(&deckmaste_english_v4::census::StratumRow) -> usize| -> usize {
         report.strata.iter().map(f).sum()
     };
