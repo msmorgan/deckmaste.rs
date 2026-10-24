@@ -295,7 +295,7 @@
     (rule: "[CR#702.145e]", name: "Nightbound", lemma: "nightbound"),
     (rule: "[CR#702.146]", name: "Disturb", lemma: "disturb", parameters: [[Cost]]),
     (rule: "[CR#702.147]", name: "Decayed", lemma: "decayed"),
-    (rule: "[CR#702.148]", name: "Cleave", lemma: "cleave", parameters: [[Cost]]),
+    (rule: "[CR#702.148]", name: "Cleave", lemma: "cleave", parameters: [[Cost]], bracketed_text_removable: true),
     (rule: "[CR#702.149]", name: "Training", lemma: "training",
         verbs: [
             (lemma: "train", frames: [Intransitive]),
