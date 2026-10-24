@@ -424,7 +424,10 @@ Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in
 the same equations as inflectional features. `Require` values an unvalued
 feature; `Carry` requires the child to carry the value itself; `ExcludeTogether`
-rejects only a combination of child values, every one of them carried. An
+rejects only a combination of child values, every one of them carried. A
+mother shares each feature its `head` child carries, except those its
+Production lists as `unshared`, which its own equations value instead (a degree
+modifier that changes its head's grade). An
 equation on a child name that several children share (two preposed `adjunct`s)
 constrains each of them that carries the feature. Multiword noun terms, measured compounds
 (`+1/+1 counter`) among them, are one leaf in both parsing and Admission.

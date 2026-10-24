@@ -1446,9 +1446,10 @@
         (name: "EquativeIndirectComplement", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal"), Selected("complement", "PrepositionPhrase", ["As"])],
             equations: [Require("modifier.Grade", "Equative"), Require("complement.ComplementKind", "NP"), Agree("modifier.Determination", "$.Determination")]),
         // An analytic superlative (*your most recent turn*, *most recently
-        // cast*; CGEL, Ch. 13 §4.3, p. 1122).
-        (name: "DegreeModifiedAdjective", lhs: "AdjectivePhrase", rhs: [Word("modifier", "Most"), Cat("head", "AdjectivePhrase")],
-            equations: [Require("$.AdjectivePosition", "Attributive")]),
+        // cast*; CGEL, Ch. 13 §4.3, p. 1122): a plain adjective heads a
+        // superlative phrase.
+        (name: "DegreeModifiedAdjective", lhs: "AdjectivePhrase", rhs: [Word("modifier", "Most"), Cat("head", "AdjectivePhrase")], unshared: ["Grade"],
+            equations: [Require("$.AdjectivePosition", "Attributive"), Require("head.Grade", "Plain"), Require("$.Grade", "Superlative")]),
         (name: "DegreeModifiedAdverb", lhs: "AdverbPhrase", rhs: [Word("modifier", "Most"), Cat("head", "AdverbPhrase")],
             equations: [Require("head.AdjunctPosition", "Central")]),
         // A comparative determinative and its *than* Complement as a fused
@@ -1607,6 +1608,10 @@
         // §6.3.4, pp. 1168–1169), here in a bare nominal Complement: *tied
         // for lowest life total*.
         (name: "SuperlativeBareNominal", lhs: "BareNominalComplement", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], equations: [Require("modifier.Grade", "Superlative"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative"), Require("head.Number", "Singular"), Require("head.Countability", "Count")]),
+        // A superlative also fuses with the head it would modify (CGEL, Ch. 5
+        // §9.3(b), p. 416), its article unexpressed as above: *tied for
+        // greatest*, *tied for most common*.
+        (name: "SuperlativeFusedHead", lhs: "BareNominalComplement", rhs: [Cat("modifier", "AdjectivePhrase")], equations: [Carry("modifier.Grade", "Superlative"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         // Noun phrases.
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],

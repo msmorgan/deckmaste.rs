@@ -19,6 +19,10 @@
 # A bare superlative nominal after *tied for* (CGEL, Ch. 13 §6.3.4).
 + <card=Loxodon Peacekeeper> At the beginning of your upkeep, the player with the lowest life total gains control of this creature. If two or more players are tied for lowest life total, you choose one of them, and that player gains control of this creature. => PrepositionPhrase "for lowest life total" as Complement of tied
 + <card=Celestial Convergence> At the beginning of your upkeep, remove an omen counter from this enchantment. If there are no omen counters on this enchantment, the player with the highest life total wins the game. If two or more players are tied for highest life total, the game is a draw. => PrepositionPhrase "for highest life total" as Complement of tied
+# A superlative fused with its head, its article unexpressed (CGEL, Ch. 5 §9.3(b), p. 416; Ch. 13 §6.3.4), synthetic or analytic; *for* takes no Adjective Phrase Complement.
++ <card=Psychic Battle> If two or more cards are tied for greatest, the target or targets remain unchanged. => Nominal "greatest" as Complement of for; !AdjectivePhrase "greatest" as Complement of for
++ If two or more creature types are tied for most common, choose one of them. => Nominal "most common" as Complement of for; AdjectivePhrase "most common"; readings 1
+* Each player votes for untapped.
 # A gerund-participial Supplement (CGEL, Ch. 14 §9) with a heavy-shifted Object.
 + <card=Karn Liberated> −14: Restart the game, leaving in exile all non-Aura permanent cards exiled with Karn. Then put those cards onto the battlefield under your control. => VerbPhrase "leaving in exile all non-Aura permanent cards exiled with Karn"; NounPhrase "all non-Aura permanent cards exiled with Karn" as Object of leave
 + <card=Time and Tide> Simultaneously, all phased-out creatures phase in and all creatures with phasing phase out. => AdverbPhrase "Simultaneously"; AdjectivePhrase "phased-out" as Modifier of creature

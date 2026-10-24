@@ -279,6 +279,8 @@ struct Draft {
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
     coordinated: Vec<usize>,
+    /// Mother features not shared with the `head` child.
+    unshared: Vec<usize>,
     /// Children that are not, nor are headed by, a Linked Coordination.
     unlinked: Vec<usize>,
     scoped: Vec<usize>,
@@ -377,6 +379,7 @@ impl Draft {
             uncoordinated: Vec::new(),
             unlinked: Vec::new(),
             coordinated: Vec::new(),
+            unshared: Vec::new(),
             scoped: Vec::new(),
             delimits: false,
             tail: false,
@@ -1122,6 +1125,17 @@ impl<'a> Binder<'a> {
                 draft.weights.push((child, weight));
             }
         }
+        for name in &declaration.unshared {
+            let feature = self.feature(name.as_str()).map_err(context)?;
+            if !self.out.category_features[draft.lhs].contains(&feature)
+                || !draft.children.iter().any(|c| c.name == "head")
+            {
+                return Err(context(invalid(format!(
+                    "unshared feature `{name}` is not one the mother shares with a head"
+                ))));
+            }
+            draft.unshared.push(feature);
+        }
         for name in &declaration.uncoordinated {
             let child = draft
                 .children
@@ -1671,7 +1685,9 @@ impl<'a> Binder<'a> {
     fn add_production(&mut self, mut draft: Draft) -> Result<(), LoadError> {
         if let Some(head) = draft.children.iter().position(|c| c.name == "head") {
             for &feature in &self.out.category_features[draft.lhs] {
-                if self.carries(&draft.children[head].symbol, feature) {
+                if !draft.unshared.contains(&feature)
+                    && self.carries(&draft.children[head].symbol, feature)
+                {
                     draft.equations.push((
                         Path::Mother(feature),
                         Target::Path(Path::Child(head, feature)),

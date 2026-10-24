@@ -14,6 +14,10 @@
 + <card=Lieutenants of the Guard> Put a +1/+1 counter on this creature for each strength vote and create a 1/1 white Soldier creature token for each numbers vote. => NounPhrase "each numbers vote"; Name "numbers" as Modifier of vote
 + <card=Trial of a Time Lord> If guilty gets more votes, the owner of each card exiled with this Saga puts that card on the bottom of their library. => NounPhrase "guilty" as Subject of get
 + <card=Path of the Enigma> If planeswalk gets more votes, planeswalk. => NounPhrase "planeswalk" as Subject of get
+# A vote option the general lexicon also lacks is a Name only: no adjective (*wild*, *free*) or common noun (*fellowship*) reading.
++ <card=Selvala's Stampede> Starting with you, each player votes for wild or free. => NounPhrase "wild or free" as Complement of for; !AdjectivePhrase "wild or free"; readings 1
++ <card=Selvala's Stampede> You may put a permanent card from your hand onto the battlefield for each free vote. => Name "free" as Modifier of vote; !AdjectivePhrase "free"
++ <card=Elrond of the White Council> Each player secretly votes for fellowship or aid. => NounPhrase "fellowship or aid" as Complement of for; readings 1
 # Quotation marks around a term that mentions literal wording (style guide §3, Quotation marks and apostrophes)
 + <card=Mirror Box> The "legend rule" doesn't apply to permanents you control. => NounPhrase "The \"legend rule\"" as Subject of do
 + <card=Shelkin Brownie> {T}: Target creature loses all "bands with other" abilities until end of turn. => NounPhrase "all \"bands with other\" abilities" as Object of lose

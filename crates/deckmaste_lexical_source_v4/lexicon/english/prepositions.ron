@@ -99,10 +99,9 @@
         (complement: Gerund, hosts: Predicate),
         (complement: KeywordPhrase, hosts: Predicate),
         (complement: PP(["as long as"]), hosts: Predicate),
-        // Selected only: *tied for most common*.
-        (complement: AdjP, hosts: ComplementOnly),
-        // Selected only, a bare superlative nominal: *tied for lowest life
-        // total* (CGEL, Ch. 13 §6.3.4, pp. 1168–1169).
+        // Selected only, a bare superlative nominal or fused head: *tied for
+        // lowest life total*, *tied for most common* (CGEL, Ch. 13 §6.3.4,
+        // pp. 1168–1169).
         (complement: Nominal, hosts: ComplementOnly),
     ]),
     // *cast spells ... from the top of your library*; *a card you own from

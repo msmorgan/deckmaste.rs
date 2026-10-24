@@ -187,15 +187,10 @@
     // Ordinary nouns that cards name as choice options (*chooses war or
     // peace*) or that their text also uses. A vote option is a Name in
     // `catalogs/vote_options.ron` [CR#701.38b].
-    (lemma: "bribery", countability: [Mass]),
     (lemma: "chaos", countability: [Mass]),
-    (lemma: "death", countability: [Count, Mass]),
     (lemma: "evidence", countability: [Mass]),
     (lemma: "fame", countability: [Mass]),
-    "feather",
-    (lemma: "fellowship", countability: [Mass]),
     (lemma: "fortune", countability: [Count, Mass]),
-    (lemma: "knowledge", countability: [Mass]),
     (lemma: "money", countability: [Mass]),
     (lemma: "peace", countability: [Mass]),
     "secret",

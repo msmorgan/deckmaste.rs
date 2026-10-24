@@ -17,5 +17,7 @@ Census before and after with no face lost; judgments hold; the witnesses above d
 
 ## Landing note
 
-Census delta:
-Judgment set:
+Findings: MEDIUM-4 no longer reproduced at the claim (`ymlxxuwp` had already made *at random* Predicate-hosted: *Discard a card at random.* has 1 Reading, `selection_idioms.txt:23` holds, Camouflage's unit has 1,650); nothing changed for it. The *for* + AdjP frame is gone: *tied for greatest / most common* reads through a fused superlative head (`SuperlativeFusedHead`), and the analytic superlative now has Grade Superlative through a new Production field `unshared` (the mother does not share the listed features with its head). Vote words *bribery, death, feather, fellowship, knowledge, free, guilty, innocent, wild* left the general lexicon; *chaos* (*chaos ensues*), *evidence* (*evidence was collected*), *money* (a choice option) and *time* stay.
+
+Census delta (measured on `ttutswwq` → `vqzvwpvo`): faces read 32,769 → 32,769; total Readings 344,348 → 344,020 and Surplus 142,949 → 142,909, over 10 units: Selvala's Stampede 192 → 16, Elrond of the White Council 64 → 16, Tivit, Seller of Secrets 40 → 8, Council Guardian 64 → 40, Plea for Power 32 → 8, Trial of a Time Lord 15 → 5, Capital Punishment 8 → 2, Messenger Jays 6 → 3, Tyrant's Choice 4 → 1, Everquill Phoenix 4 → 2. Lost faces: none. Refreshed onto `ttutswwq` with engine hygiene, duplicate trees and imperative coordination landed: 337,675 → 337,348 and Surplus 141,628 → 141,589, the same 10 units and no other (Messenger Jays 4 → 2 there).
+Judgment set (`vqzvwpvo`, refreshed): 3,223 enforced and 319 pending, all enforced holding.
