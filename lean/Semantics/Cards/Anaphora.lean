@@ -873,4 +873,76 @@ def pippinsBravery : Spelled := spelled <| singleFacedCard
           (some (get (that creature) (up 2) (up 2) untilEndOfTurn))) ] }
 theorem okPippinsBravery : pippinsBravery.card.check = [] := pippinsBravery.ok
 
+/-! ## A spell's later spell abilities read its targets
+
+Each paragraph of a spell's text is its own spell ability [CR#113.2c], but the spell's targets are
+announced for the spell as a whole [CR#601.2c] and its instructions are followed in the order
+written [CR#608.2c]: a later spell ability reads the targets an earlier one announced as it reads
+any earlier mention (`Ability.textContextWith`). -/
+
+/-- Dispatch: "Tap target creature. / Metalcraft — If you control three or more artifacts, exile
+that creature." -/
+def dispatch : Spelled := spelled <| singleFacedCard
+  { name := "Dispatch", cost := [pip .white], types := [.instant],
+    text :=
+      [ spell (tap (target isCreature)),
+        metalcraft (spell (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast 3)
+          (exile (that creature)))) ] }
+theorem okDispatch : dispatch.card.check = [] := dispatch.ok
+
+/-- Efflorescence: "Put two +1/+1 counters on target creature. / Infusion — If you gained life
+this turn, that creature also gains trample and indestructible until end of turn." -/
+def efflorescence : Spelled := spelled <| singleFacedCard
+  { name := "Efflorescence", cost := [generic 2, pip .green], types := [.instant],
+    text :=
+      [ spell (putCounters 2 p1p1Counter (target isCreature)),
+        infusion (spell (doIf (did you (gainLife anyAmount) soFarThisTurn)
+          (establishFor (that creature) [abilityGrant it trample, abilityGrant it indestructible]
+            untilEndOfTurn))) ] }
+theorem okEfflorescence : efflorescence.card.check = [] := efflorescence.ok
+
+/-- Foolish Fate: "Destroy target creature. / Infusion — If you gained life this turn, that
+creature's controller loses 3 life." "That creature" reads the target as the first ability left
+it. -/
+def foolishFate : Spelled := spelled <| singleFacedCard
+  { name := "Foolish Fate", cost := [generic 2, pip .black], types := [.instant],
+    text :=
+      [ spell (destroy (target isCreature)),
+        infusion (spell (doIf (did you (gainLife anyAmount) soFarThisTurn)
+          (instruct (controllerOf (that creature)) (loseLife 3)))) ] }
+theorem okFoolishFate : foolishFate.card.check = [] := foolishFate.ok
+
+/-- The probes that found the defect: a later spell ability's "that creature", and its bare "it"
+after an ability word, read an earlier spell ability's target. -/
+theorem laterSpellAbilitiesReadEarlierTargets :
+    Ability.checkText (DRS.ofList [])
+        [spell (tap (target isCreature)), spell (untap (that creature))] = [] ∧
+      Ability.checkText (DRS.ofList [])
+        [spell (tap (target isCreature)), delirium (spell (untap it))] = [] := by decide
+
+/-- Only targets pass on: an earlier spell ability's other mentions stay in it. -/
+theorem laterSpellAbilitiesDoNotReadEarlierNonTargets :
+    Ability.checkText (DRS.ofList [])
+        [spell (tap (a isCreature)), spell (untap it)] = [.anaphor .bare .one 0] := by decide
+
+/-- A triggered or activated ability's target is still no ordinary antecedent in a later ability,
+which is linked to it at most [CR#607.1,607.2a]; and a spell's targets are its spell abilities'
+alone, not a later ability of another kind's. -/
+theorem otherAbilitiesTargetsStayTheirOwn :
+    Ability.checkText (DRS.ofList [])
+        [when (does thisCreature enter) (tap (target isCreature)), spell (untap (that creature))] =
+        [.anaphor (.word creature) .one 0] ∧
+      Ability.checkText (DRS.ofList [])
+        [activated tapSymbol (tap (target isCreature)),
+         activated tapSymbol (untap (that creature))] =
+        [.anaphor (.word creature) .one 0] ∧
+      Ability.checkText (DRS.ofList [])
+        [when (does thisCreature enter) (tap (target isCreature)),
+         at_ (beginningOfYour .endStep) (untap (that creature))] =
+        [.anaphor (.word creature) .one 0] ∧
+      Ability.checkText (DRS.ofList [])
+        [spell (tap (target isCreature)),
+         at_ (beginningOfYour .endStep) (untap (that creature))] =
+        [.anaphor (.word creature) .one 0] := by decide
+
 end Semantics.Cards

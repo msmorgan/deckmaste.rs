@@ -346,6 +346,11 @@ structure Referent where
   on the way to the deed that acted on it. -/
   linkSite : ReferentId := 0
   linkArms : List (Nat × Nat) := []
+  /-- A target a spell ability announced, published to the later spell abilities of the same
+  spell (`Ability.textContext`), which read it as any earlier mention: the targets are announced
+  for the spell as a whole [CR#601.2c] and its instructions are read as one text [CR#608.2c]. No
+  other ability of the text reads it (`checkTextWith`). -/
+  spellTarget : Bool := false
   /-- A group's key, which a part taken from it records in `partOf` ("the card that stopped the
   run" is part of the run), so that a group reading counts the part once. Keys survive a zone
   change, as the group and its part move together. -/

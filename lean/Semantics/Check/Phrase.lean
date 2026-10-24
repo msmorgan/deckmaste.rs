@@ -2574,8 +2574,31 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, _ => drs
 termination_by structural fuel
 
-/-- Choices, cost results, added targets, and the objects a printed triggered or activated ability
-acted on, available to later lines of card text [CR#607.2a]. -/
+/-- The targets a spell ability announces, as they stand once its instructions are stepped from
+`drs`, published to the later spell abilities of the same spell as ordinary mentions. Each
+paragraph is its own ability [CR#113.2c], but the targets are announced for the spell as a whole
+[CR#601.2c] and its instructions are followed in the order written, read as one text
+[CR#608.2c]: "Tap target creature. / Metalcraft — … exile that creature." Only targets pass on;
+any other mention stays in the ability that makes it. -/
+private def publishSpellTargets (ops : StepOps) (drs : DRS) (timing : Option Timing)
+    (action : Action) : DRS :=
+  let start := match timing with
+    | some t => (stepTimingWith ops drs t).1
+    | none => drs
+  let (done, _) := ops.inst .postEvent .obj start action
+  let targets := done.visibleReferents.filterMap fun ref =>
+    if ref.id ≥ drs.nextId && ref.det == .target && !ref.isActorFrame then
+      some { ref with spellTarget := true }
+    else none
+  if targets.isEmpty then drs else
+  nextClause { drs with
+    referents := targets ++ drs.referents,
+    nextId := Nat.max drs.nextId done.nextId,
+    currentClause := Nat.max drs.currentClause done.currentClause }
+
+/-- Choices, cost results, added targets, the objects a printed triggered or activated ability
+acted on [CR#607.2a], and a spell ability's targets [CR#601.2c,608.2c], available to later lines
+of card text. -/
 def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fuel : Nat := 64) :
     DRS :=
   match fuel, ability with
@@ -2594,7 +2617,8 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
       | none => header
     publishTextChoices (publishArms ops drs (nextClause guarded) action)
       (actionTextChoices action)
-  | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
+  | _+1, .spell timing action =>
+    publishTextChoices (publishSpellTargets ops drs timing action) (actionTextChoices action)
   | _+1, .static spec => staticTextContextWith ops drs spec
   | n+1, .keyword _ _ body =>
     body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
@@ -2615,11 +2639,31 @@ def grantorPublished (ops : StepOps) (drs : DRS) (ability : Ability) : List Refe
     ref.id ≥ drs.nextId && ref.linked &&
       (match ref.payload with | .object .. => true | _ => false)
 
+/-- `drs` as an ability that is not a spell ability reads it: without the targets the spell
+abilities before it published (`Referent.spellTarget`), which only the spell's own later spell
+abilities read [CR#601.2c,608.2c]. -/
+def DRS.withoutSpellTargets (drs : DRS) : DRS :=
+  { drs with referents := drs.referents.filter (!·.spellTarget) }
+
+/-- The context `ability` leaves for the lines after it, from `drs`. A spell ability reads and
+extends `drs` whole. Any other ability is stepped without the spell's targets, which it neither
+reads nor hides: they stay in the context it leaves, for any later spell ability. A line's
+context prepends what it adds to the referents it is given, as it leaves them. -/
+def lineTextContextWith (ops : StepOps) (drs : DRS) (ability : Ability) : DRS :=
+  if ability.category == some .spell then Ability.textContextWith ops drs ability else
+  let seen := drs.withoutSpellTargets
+  let out := Ability.textContextWith ops seen ability
+  let added := out.referents.take (out.referents.length - seen.referents.length)
+  let given := drs.referents.map fun ref =>
+    if ref.spellTarget then ref else (out.findById? ref.id).getD ref
+  { out with referents := added ++ given }
+
 /-- Check each line of `abilities` in the context the lines before it leave
-(`Ability.textContextWith`). -/
+(`lineTextContextWith`). -/
 def checkTextWith (ops : StepOps) (drs : DRS) (abilities : List Ability) : List Refusal :=
   (abilities.foldl (fun (context, errors) ability =>
-    (Ability.textContextWith ops context ability, errors ++ ops.ab context ability)) (drs, [])).2
+    let seen := if ability.category == some .spell then context else context.withoutSpellTargets
+    (lineTextContextWith ops context ability, errors ++ ops.ab seen ability)) (drs, [])).2
 
 /-- The objects a `withContinuation` body or arm, stepped from `before` to `after`, stamped: one
 it introduced with a stamp, or an earlier one whose stamp it changed ("you may exile it"), as it

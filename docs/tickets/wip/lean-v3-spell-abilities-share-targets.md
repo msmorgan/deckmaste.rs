@@ -43,19 +43,40 @@ the ability boundaries [CR#113.2c] and the ability word on the second paragraph.
 - "the creature you control": *Savage Punch* (Ferocious; its "if" is also postposed,
   `lean-v3-postposed-doif-condition`).
 
-## Design (proposed)
+## Design
+
+There is no owner ruling. The design follows from the CR text: [CR#113.2c] makes each paragraph
+its own ability, [CR#601.2c] announces the targets for the spell as a whole, and [CR#608.2c] has
+the spell's instructions followed in the order written, read as one text.
 
 - The `.spell` arm of `Ability.textContextWith` passes the spell's announced targets on to the
   later spell abilities of the same spell, as ordinary mentions in their Reference Scope. Every
   Reference kind reads them as it reads any earlier mention, not only Participial Descriptions.
-- Read [CR#608.2c] to decide whether other announced referents (an amount, a chosen mode's targets)
-  pass on too. Pass on only what the CR supports.
+  They are passed on as the earlier ability's instructions leave them, as they would stand in one
+  run of instructions.
+- Only targets pass on. [CR#601.2c] is what makes a target the spell's rather than one
+  paragraph's. [CR#608.2c] says how the text is read, but it does not plainly say that a
+  paragraph's other mentions (an amount, "a creature" chosen on resolution) reach a later
+  ability. Its examples are all within one paragraph. The existing pin
+  `cardTextDoesNotExportOrdinaryObjectMentions` keeps those mentions inside their own ability.
+- The targets reach only later spell abilities. A triggered, activated or static ability of the
+  same text is not part of the spell's resolution [CR#113.3a], so it does not read them.
 - Non-spell abilities are unchanged: an activated or triggered ability still publishes to later
   abilities only what a Participial Description reads [CR#607.1,607.2a].
 
 ## Tests
 
 - *Beastie Beatdown* spelled in full in `Cards/Choice.lean`.
-- *Dispatch* or *Fatal Push* spelled in full.
+- *Dispatch* spelled in full. *Efflorescence* and *Foolish Fate* are spelled beside it.
 - A pin that a triggered or activated ability's target is still not an ordinary antecedent in a
   later ability.
+
+## Witnesses moved
+
+Two witnesses need constructs this ticket does not add, so they moved to new tickets:
+
+- *Fatal Push*, together with *Stubborn Denial*, *Hunger of the Howlpack*, *Kamahl's Sledge* and
+  *Bring the Ending*, moved to `lean-v3-cross-ability-self-replacement`. In each, the later
+  paragraph's "instead" replaces the earlier paragraph's effect.
+- *Searing Barrage* moved to `lean-v3-colored-mana-spent-count`, because its Adamant condition
+  counts the red mana spent.

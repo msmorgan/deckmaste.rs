@@ -199,6 +199,8 @@ def Ability.category (a : Ability) (fuel : Nat := 64) : Option AbilityCategory :
   | _ + 1, .activated .. => some .activated
   | _ + 1, .spell .. => some .spell
   | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.category n
+  -- An ability word or flavor word has no rules meaning [CR#207.2c,207.2d].
+  | n + 1, .italicHead _ a => a.category n
   | _, _ => none
 termination_by structural fuel
 
