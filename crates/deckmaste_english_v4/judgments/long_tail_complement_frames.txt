@@ -1,0 +1,12 @@
+# Nouns and verbs whose Complement frames the long tail needed
++ <card=Marvo, Deep Operative> Whenever you win a clash, draw a card. Then you may cast a spell from your hand with mana value 8 or less without paying its mana cost. => NounPhrase "a clash" as Object of win
+# "opponent" takes the relational "to" Complement "player" does (CGEL, Ch. 5 §14.1, pp. 439-441)
++ <card=Barroom Brawl> Target creature you control fights target creature the opponent to your left controls. Then that player may copy this spell and may choose new targets for the copy. => PrepositionPhrase "to your left" as Complement of opponent; NounPhrase "the opponent to your left" as Subject of control; RelativeClause "the opponent to your left controls"
++ <card=Widespread Brutality> Amass Zombies 2, then the Army you amassed deals damage equal to its power to each non-Army creature. => RelativeClause "you amassed" gap "Army"; NounPhrase "the Army you amassed" as Subject of deal
+# Both plurals of the subtype Spawn are attested
++ <card=Azlask, the Swelling Scourge> {W}{U}{B}{R}{G}: Creatures you control get +X/+X until end of turn, where X is the number of experience counters you have. Scions and Spawns you control gain indestructible and annihilator 1 until end of turn. => NounPhrase "Scions and Spawns you control" as Subject of gain
++ <card=Hand of Emrakul> You may sacrifice four Eldrazi Spawn rather than pay this spell's mana cost. => NounPhrase "four Eldrazi Spawn" as Object of sacrifice
+# "number" takes an Amount Complement, as "mana value" does
++ <card=Wheel of Misfortune> Each player secretly chooses a number 0 or greater, then all players reveal those numbers simultaneously and determine the highest and lowest numbers revealed this way. Wheel of Misfortune deals damage equal to the highest number to each player who chose that number. Each player who didn't choose the lowest number discards their hand, then draws seven cards. => NounPhrase "a number 0 or greater" as Object of choose
+# "put" takes a position from an end of a pile as its locative Complement (CGEL, Ch. 4 §5.2, p. 258)
++ <card=Long-Term Plans> Search your library for a card, then shuffle and put that card third from the top. => AdjectivePhrase "third from the top" as Complement of put; NounPhrase "that card" as Object of put

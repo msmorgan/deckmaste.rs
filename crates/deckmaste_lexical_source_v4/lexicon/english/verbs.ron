@@ -123,7 +123,9 @@
     (lemma: "produce", frames: [Monotransitive]),
     (lemma: "promise", frames: [Monotransitive]),
     (lemma: "protect", frames: [Monotransitive]),
-    (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithComplement(LocativeNP), TransitiveWithPP(["into", "in", "on", "onto", "back", "there"])]),
+    // A locative Complement: *put that card anywhere*, *put that card third
+    // from the top* (CGEL, Ch. 4 §5.2, p. 258).
+    (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithComplement(LocativeNP), TransitiveWithComplement(Position), TransitiveWithPP(["into", "in", "on", "onto", "back", "there"])]),
     (lemma: "receive", frames: [Monotransitive]),
     (lemma: "redistribute", frames: [Monotransitive]),
     // *reduce their speed below 1*

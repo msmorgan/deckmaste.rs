@@ -4,10 +4,8 @@
 # fails `strata --check`.
 
 # english-v4-stratum-7-discourse-and-long-tail
-Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
-
 
 # english-v4-s7-gapping-remnants-rest
 Akroma, Vision of Ixidor | At the beginning of each combat, until end of turn, each other creature you control gets +1/+1 if it has flying, +1/+1 if it has first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, vigilance, and partner.
@@ -19,19 +17,6 @@ Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
 Kosei, Penitent Warlord | As long as Kosei is enchanted, equipped, and has a counter on it, Kosei has "Whenever Kosei deals combat damage to an opponent, you draw that many cards and Kosei deals that much damage to each other opponent."
 Aang, Master of Elements | At the beginning of each upkeep, you may transform Aang, Master of Elements. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.
-
-# english-v4-s7-long-tail-edge-cases
-Collective Voyage | Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.
-Wheel of Misfortune | Each player secretly chooses a number 0 or greater, then all players reveal those numbers simultaneously and determine the highest and lowest numbers revealed this way. Wheel of Misfortune deals damage equal to the highest number to each player who chose that number. Each player who didn't choose the lowest number discards their hand, then draws seven cards.
-Strixhaven Stadium | Whenever a creature you control deals combat damage to an opponent, put a point counter on this artifact. Then if it has ten or more point counters on it, remove them all and that player loses the game.
-Marvo, Deep Operative | Whenever you win a clash, draw a card. Then you may cast a spell from your hand with mana value 8 or less without paying its mana cost.
-Widespread Brutality | Amass Zombies 2, then the Army you amassed deals damage equal to its power to each non-Army creature.
-Azlask, the Swelling Scourge | {W}{U}{B}{R}{G}: Creatures you control get +X/+X until end of turn, where X is the number of experience counters you have. Scions and Spawns you control gain indestructible and annihilator 1 until end of turn.
-Blood for the Blood God! | Discard your hand, then draw eight cards. Blood for the Blood God! deals 8 damage to each opponent. Exile Blood for the Blood God!
-Sway of the Stars | Each player shuffles their hand, graveyard, and all permanents they own into their library, then draws seven cards. Each player's life total becomes 7.
-Barroom Brawl | Target creature you control fights target creature the opponent to your left controls. Then that player may copy this spell and may choose new targets for the copy.
-Long-Term Plans | Search your library for a card, then shuffle and put that card third from the top.
-Finale of Promise | You may cast up to one target instant card and/or up to one target sorcery card from your graveyard each with mana value X or less without paying their mana costs. If a spell cast this way would be put into your graveyard, exile it instead. If X is 10 or more, copy each of those spells twice. You may choose new targets for the copies.
 
 # english-v4-s7-cited-for-complement
 Grim Captain's Call | Return a Pirate card from your graveyard to your hand, then do the same for Vampire, Dinosaur, and Merfolk.
@@ -48,3 +33,9 @@ Pyxis of Pandemonium | {7}, {T}, Sacrifice this artifact: Each player turns face
 Tragic Arrogance | For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker. Then each player sacrifices all other nonland permanents they control.
 Cataclysm | Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest.
 Guided Passage | Reveal the cards in your library. An opponent chooses from among them a creature card, a land card, and a noncreature, nonland card. You put the chosen cards into your hand. Then shuffle.
+
+# english-v4-s7-postpositive-sum-total
+Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
+
+# english-v4-s7-supplement-between-vp-conjuncts
+Collective Voyage | Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.

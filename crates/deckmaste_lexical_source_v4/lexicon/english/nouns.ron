@@ -25,6 +25,8 @@
     "card",
     "chapter",
     "characteristic",
+    // The event of the keyword action [CR#701.30]: *Whenever you win a clash*.
+    "clash",
     (lemma: "choice", frames: [Complement(PP(["of"]))]),
     "coin",
     "color",
@@ -96,9 +98,11 @@
     (lemma: "maximum", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "mode",
     "name",
-    (lemma: "number", distribution: Quantity, frames: [Complement(PP(["of"]))]),
+    // *a number 0 or greater*, as *a mana value 0 or greater*.
+    (lemma: "number", distribution: Quantity, frames: [Complement(PP(["of"])), Complement(Amount)]),
     "offer",
-    "opponent",
+    // *the opponent to your left*
+    (lemma: "opponent", frames: [Complement(PP(["to"]))]),
     (lemma: "order", countability: [Count, Mass]),
     "outlaw",
     (lemma: "owner", frames: [Complement(PP(["of"]))]),

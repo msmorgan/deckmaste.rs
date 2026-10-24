@@ -302,7 +302,9 @@
         "Soldier",
         (lemma: "Soltari", plural: "Soltari"),
         "Sorcerer",
-        (lemma: "Spawn", plural: "Spawn"),
+        // Both plurals are attested: *four Eldrazi Spawn* (Hand of Emrakul),
+        // *Scions and Spawns you control* (Azlask, the Swelling Scourge).
+        (lemma: "Spawn", plural: ["Spawn", "Spawns"]),
         "Specter",
         "Spellshaper",
         "Sphinx",

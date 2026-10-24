@@ -1117,7 +1117,14 @@ impl CompiledGrammar {
                             ));
                         }
                     } else if let Symbol::Punct(c, binding) = symbol {
-                        out.push((c.to_string(), *binding, AtomKind::Punct));
+                        // Nor is a period after a word that ends in terminal
+                        // punctuation (`CompiledGrammar::run`).
+                        let absorbed = *c == '.'
+                            && out.last().is_some_and(|last| {
+                                last.2 == AtomKind::Word && last.0.ends_with(['.', '!', '?'])
+                            });
+                        let text = if absorbed { String::new() } else { c.to_string() };
+                        out.push((text, *binding, AtomKind::Punct));
                     } else {
                         let child = children.next().ok_or_else(|| AdmissionError::Rejected {
                             production: node.production.to_string(),

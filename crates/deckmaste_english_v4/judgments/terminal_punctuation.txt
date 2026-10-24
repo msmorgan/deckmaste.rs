@@ -1,0 +1,5 @@
+# A sentence that ends in a word whose spelling ends in terminal punctuation writes no period of its own after it (CGEL, Ch. 20 §8.4, p. 1764; §6, p. 1757, n. 21)
++ <card=Blood for the Blood God!> Discard your hand, then draw eight cards. Blood for the Blood God! deals 8 damage to each opponent. Exile Blood for the Blood God! => NounPhrase "Blood for the Blood God!"#2 as Object of exile; readings 1
++ Exile Kaboom! => NounPhrase "Kaboom!" as Object of exile
+* Exile Kaboom!.
+* Draw a card..

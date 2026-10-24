@@ -59,7 +59,9 @@ It has no proc macros and no generated code: a grammar is data.
    supplies, double and single by nesting depth; the chart pairs the marks of
    the text and reads it in logical order, where a period or comma written
    inside a closing mark follows it and the quotation's own final period is
-   not written (`docs/oracle-style-guide.md` §3). Realization writes them back
+   not written (`docs/oracle-style-guide.md` §3). Nor is a sentence's period
+   after a word whose spelling ends in terminal punctuation (*Exile Blood for
+   the Blood God!*; CGEL, Ch. 20 §8.4, p. 1764). Realization writes them back
    from structure, so no quotation punctuation is stored.
    A square bracket is an ordinary punctuation char to the engine. The
    brackets that mark the text a cleave spell removes [CR#702.148a] never
@@ -199,7 +201,10 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   by one of their prepositions is that noun's Complement, never a dependent of
   another host (*on top of your library*, *equal to the number of cards in
   their hand*): every constituent ending in a bare noun passes its omitted
-  Complements on to the sibling that follows it.
+  Complements on to the sibling that follows it. A coordination of bare nouns
+  that omit unlike prepositions may take such a phrase as its own dependent
+  (*the type and amount of mana*); an omitted Amount is no preposition, so
+  *number and kind [of counters]* shares it as a Complement.
   A delimited (comma-set) post-adjunct's host passes up no Gap, so it never
   closes a relative clause's Clause (CGEL, Ch. 12 §4, p. 1058).
   Likewise a frame's predicative

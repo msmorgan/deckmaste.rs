@@ -74,6 +74,9 @@ pub enum SlotFill {
     /// *twice* or *three times* in *more than twice*.
     AdvP,
     LocativeNP,
+    /// An ordinal position from an end of an ordered pile, the location a
+    /// verb of placement selects (*put that card third from the top*).
+    Position,
     /// A slash measure as a Noun Phrase, taken only where a head selects
     /// one (*gets +2/+2*).
     MeasureNP,
@@ -130,6 +133,7 @@ pub enum SlotKind {
     AdjP,
     AdvP,
     LocativeNP,
+    Position,
     MeasureNP,
     FiniteClause,
     ExpandableClause,
@@ -161,6 +165,7 @@ impl SlotFill {
             Self::AdjP => SlotKind::AdjP,
             Self::AdvP => SlotKind::AdvP,
             Self::LocativeNP => SlotKind::LocativeNP,
+            Self::Position => SlotKind::Position,
             Self::MeasureNP => SlotKind::MeasureNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::ExpandableClause => SlotKind::ExpandableClause,
@@ -236,7 +241,10 @@ impl Frame {
                     (Object, SlotFill::NP),
                     (
                         Complement,
-                        SlotFill::LocativeNP | SlotFill::HollowToInf | SlotFill::SetOffClause
+                        SlotFill::LocativeNP
+                            | SlotFill::Position
+                            | SlotFill::HollowToInf
+                            | SlotFill::SetOffClause
                     )
                 ]
             ),

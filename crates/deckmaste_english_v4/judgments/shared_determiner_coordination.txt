@@ -1,0 +1,7 @@
+# Singular count nominals under one determiner, then a final conjunct with a determiner of its own (CGEL, Ch. 15 §3.6, pp. 1335-1336; §2.1(c), p. 1291)
++ <card=Sway of the Stars> Each player shuffles their hand, graveyard, and all permanents they own into their library, then draws seven cards. Each player's life total becomes 7. => NounPhrase "their hand, graveyard, and all permanents they own" as Object of shuffle; NounPhrase "all permanents they own"; readings 1
++NounPhrase a creature, land, and all artifacts => NounPhrase "all artifacts"
+# The shape gives an ordinary coordination no second bracketing
++NounPhrase your hand, graveyard, and library => readings 1
++NounPhrase your hand, your graveyard, and all permanents => readings 1
+*NounPhrase your hand, graveyard, and lands

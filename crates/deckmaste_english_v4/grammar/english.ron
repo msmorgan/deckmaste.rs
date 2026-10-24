@@ -277,6 +277,9 @@
         // restate NominalPostmodifier and TemporalPostmodifier for that reason.
         "RelativeTemporalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution"]),
         "BareNominal": (category: Some("Nominal"), features: ["Variable", "Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueNounKind", "CompoundPart"], gap: true),
+        // The singular count nominals that share a determiner before the
+        // final, determined conjunct of a SharedDeterminerCoordination.
+        "SharedNominals": (features: ["Number", "Countability"]),
         "NounPremodifier": (category: Some("Nominal"), features: ["Polarity"]),
         // A Word-Part Coordination of Compound Nouns that share their head
         // word (*a +1/+1, first strike, or vigilance counter*), and each of
@@ -607,6 +610,7 @@
         AdjP: "AdjectivePhrase",
         AdvP: "Adverbial",
         LocativeNP: "LocativeHead",
+        Position: "PositionPhrase",
         MeasureNP: "MeasureNounPhrase",
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
@@ -1236,6 +1240,10 @@
         // pronoun Object, as part of the pronoun: *invited us both*). A
         // Subject keeps FloatedEach.
         (name: "FloatedObjectBoth", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase"), Word("adjunct", "Both")], equations: [Require("head.Number", "Plural"), Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], uncoordinated: ["head"]),
+        // *All* after an accusative personal pronoun forms a compound
+        // pronoun (*remove them all*; CGEL, Ch. 5 §10.1.1, pp. 427–428:
+        // *They've invited us all*, never *the girls all*).
+        (name: "FloatedObjectAll", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase"), Word("adjunct", "All")], equations: [Require("head.Number", "Plural"), Require("head.Case", "Accusative")], uncoordinated: ["head"]),
         (name: "AdverbModifiedPrepositionPhrase", lhs: "PrepositionPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "PrepositionPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
         (name: "AdverbModifiedDeterminerPhrase", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "DeterminerPhrase")], equations: [Require("modifier.AdjunctPosition", "Bounding"), Require("head.DeterminativeDistribution", "Numerical")]),
         // A focused predicative adjective (*attack only alone*).
@@ -1620,6 +1628,27 @@
         // above (CGEL, Ch. 5 §9.3, p. 413; §10.1.1, p. 428).
         (name: "FloatedEachPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Word("adjunct", "Each"), Hosted("modifier", "PrepositionPhrase", Nominal)],
             equations: [Require("head.Number", "Plural")], heavy: ["modifier"], cost: 1),
+        // A serial coordination whose initial conjuncts are nominals under
+        // one determiner and whose last is a Noun Phrase with its own
+        // (*their hand, graveyard, and all permanents they own*): a
+        // coordination at unlike levels (CGEL, Ch. 15 §3.6, pp. 1335–1336;
+        // the shared determiner, §2.1(c), p. 1291). The shared nominals are
+        // singular and count, so none is a Noun Phrase alone and no serial
+        // Noun Phrase coordination brackets the same words.
+        (name: "SharedDeterminerCoordination", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "SharedNominals"), Punct(','), Word("coordinator", "And"), Cat("last", "NounPhrase")],
+            equations: [Require("last.Determination", "Overt"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.ComplementKind", "PP"), Require("$.Number", "Plural"), Require("$.Person", "Third"), Require("$.Case", "Plain"), Require("$.Determination", "Overt")]),
+        (name: "SharedNominalPair", lhs: "SharedNominals", rhs: [Cat("first", "Nominal"), Punct(','), Cat("last", "Nominal")],
+            equations: [Require("first.Number", "Singular"), Require("first.Countability", "Count"), Require("last.Number", "Singular"), Require("last.Countability", "Count")]),
+        (name: "SharedNominalSequence", lhs: "SharedNominals", rhs: [Cat("first", "Nominal"), Punct(','), Cat("rest", "SharedNominals")],
+            equations: [Require("first.Number", "Singular"), Require("first.Countability", "Count")]),
+        // It quantifies the members of a coordination of Noun Phrases the
+        // same way, each conjunct its own (*up to one target instant card
+        // and/or up to one target sorcery card from your graveyard each with
+        // mana value X or less*); an uncoordinated plural one has the nominal
+        // site above, and a singular coordination none, never *a creature or
+        // a land each with flying*.
+        (name: "FloatedEachCoordinationPostmodifier", lhs: "NounPhrase", rhs: [Cat("head", "NounPhrase"), Word("adjunct", "Each"), Hosted("modifier", "PrepositionPhrase", Nominal)],
+            equations: [Exclude("head.Number", "Singular")], coordinated: ["head"], heavy: ["modifier"], cost: 1),
         // A floating quantifier after an auxiliary (*any number of target players may
         // each search ...*; CGEL, Ch. 5 §10.1.1, p. 428).
         (name: "AuxiliaryFloatedEach", lhs: "VerbPhrase", rhs: [Class("adjunct", "FloatingQuantifier"), Cat("head", "VerbPhrase")],
