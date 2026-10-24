@@ -19,3 +19,12 @@
 # from: Gerrard's Hourglass Pendant
 + Return to the battlefield tapped all permanent cards in your graveyard that were put there from the battlefield this turn. => NounPhrase "all permanent cards in your graveyard that were put there from the battlefield this turn" as Object of return; AdjectivePhrase "tapped" as Adjunct of return
 + Return at random from your graveyard to your hand all creature cards in your graveyard. => NounPhrase "all creature cards in your graveyard" as Object of return; PrepositionPhrase "at random" as Adjunct of return
+# A heavy Object postposed past an Adjunct or a predicative Complement (CGEL, Ch. 16 §4, p. 1384 [7]): it ends in a dependent or is a coordination
++ You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. => NounPhrase "a nonland card with mana value 3 or less and a card with mana value 4 or greater" as Object of choose; PrepositionPhrase "from it" as Adjunct of choose
++ Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest. => NounPhrase "an artifact, a creature, an enchantment, and a land" as Object of choose; PrepositionPhrase "from among the permanents they control" as Adjunct of choose
++ For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker. => NounPhrase "an artifact, a creature, an enchantment, and a planeswalker" as Object of choose
++ An opponent chooses from among them a creature card, a land card, and a noncreature, nonland card. => NounPhrase "a creature card, a land card, and a noncreature, nonland card" as Object of choose
++ Each player chooses from the lands they control a land of each basic land type, then sacrifices the rest. => NounPhrase "a land of each basic land type" as Object of choose; PrepositionPhrase "from the lands they control" as Adjunct of choose
++ {7}, {T}, Sacrifice this artifact: Each player turns face up all cards they own exiled with this artifact, then puts all permanent cards among them onto the battlefield. => NounPhrase "all cards they own exiled with this artifact" as Object of turn
+# A head-final Object is not postposed past an Adjunct
++ Activate only if you attacked with two or more creatures this turn. => NounPhrase "this turn" as Adjunct of attack; !NounPhrase "this turn" as Object of attack

@@ -50,3 +50,6 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 - Use the existing `/shifted-object` + `interleaved` machinery in `valence_order` (compile.rs ~2827-2870), not an ObjectAfterAdjunct production.
 - Pyxis (*turns face up all cards they own ...*): let `heavy_shift` cross a particle when the object is heavy (postmodified, coordinated or quantified).
 - The *choose from (among) X [heavy NP]* group: permit postposing the Object across a *from* / *from among* PP only when the Object is coordinated or postmodified. That excludes light NPs like *this turn*, which caused the +2,144 explosion. Alternatively, use *choose*'s existing `Expandable` frame.
+
+**Census delta** (`spkrozto`): faces read 32,789 → 32,795 of 32,828; Readings 338,000 → 338,144 (41 units up, none down); lost faces: none.
+**Judgment set** (`spkrozto`): all hold (`cargo test -p deckmaste_english_v4 --test judgments`, 6 passed).

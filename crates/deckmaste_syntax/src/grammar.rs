@@ -397,8 +397,16 @@ pub enum SchemaDecl {
         /// beside the `interleaved` one.
         #[serde(default)]
         interleaved_internalised: Option<Ident>,
+        /// Postpose the Object to the end of the phrase: past selected
+        /// Preposition Phrase Complements, and, when it is heavy, past a
+        /// predicative Complement or an `interleaved` Adjunct alone (CGEL,
+        /// Ch. 16 §4, pp. 1382–1384).
         #[serde(default)]
         heavy_shift: bool,
+        /// Equations over the child `object` that a heavy postposed Object
+        /// satisfies, beside ending in a dependent or being a coordination.
+        #[serde(default)]
+        shifted_object: Vec<Equation>,
         /// Function Category of a Modifier postposed out of the Object past
         /// the selected Preposition Phrase Complements after it, at the end
         /// of the phrase (*put a number of counters [on it] [equal to …]*;

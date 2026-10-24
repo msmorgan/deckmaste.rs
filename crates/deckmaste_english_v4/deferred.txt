@@ -4,7 +4,6 @@
 # fails `strata --check`.
 
 # english-v4-stratum-7-discourse-and-long-tail
-Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
 
 # english-v4-s7-nonparallel-object-coordination
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
@@ -30,11 +29,6 @@ Grim Captain's Call | Return a Pirate card from your graveyard to your hand, the
 # english-v4-s7-long-tail-quantifiers
 
 # english-v4-s7-heavy-object-shift
-Global Ruin | Each player chooses from the lands they control a land of each basic land type, then sacrifices the rest.
-Pyxis of Pandemonium | {7}, {T}, Sacrifice this artifact: Each player turns face up all cards they own exiled with this artifact, then puts all permanent cards among them onto the battlefield.
-Tragic Arrogance | For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker. Then each player sacrifices all other nonland permanents they control.
-Cataclysm | Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest.
-Guided Passage | Reveal the cards in your library. An opponent chooses from among them a creature card, a land card, and a noncreature, nonland card. You put the chosen cards into your hand. Then shuffle.
 
 # english-v4-s7-postpositive-sum-total
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
