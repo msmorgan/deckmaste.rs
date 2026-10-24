@@ -31,3 +31,38 @@ witness-aimed exclusion.
    all demand one), then declare the relational nouns.
 
 Standard constraints apply. No face lost.
+
+## Finding: both are class D (grammatical; wrong only for the rules)
+
+Both readings were measured against CGEL and found to be English. No grammar,
+lexicon or schema change lands, and no Reading is removed.
+
+1. **F7.** An active finite *round* with no Object is English. Object
+   omission with *round up*/*round down* is not limited to the instructional
+   register (CGEL, Ch. 4 §8.1.3, pp. 300–301, [15ia]). It is the
+   unexpressed-definite-object type, licensed verb by verb and free in clause
+   type ([15ib], [16]; compare *pull*, *lead*): *Always round down*, *Excel
+   rounds up*, *I rounded down to be safe*. The ergative use is also English
+   (*0.5 rounds up to 1*). So `Prepositional(["down","up"])` states what the
+   lexeme means, and the finite reading is grammatical. *This creature rounded
+   down.* is semantically anomalous (#), not ungrammatical (∗). The Aspect of
+   Wolf growth (16 → 28; 12 Readings take *rounded down* as a medial
+   SubjectRemnant) belongs to SubjectRemnant's own licensing (F10's
+   territory), not to *round*. Excluding finite *round* would reject English
+   (Principle 1). A transitive-only frame with register-wide instructional
+   omission would be the CGEL route for an imperative-only verb, but *round*
+   is not one. *Round up each time.* keeps its intransitive-particle analysis.
+2. **F9.** *the total [that] [mana value of the cards] exiled _ this way* is
+   English in form. `mana value` is declared `[Count, Mass]`. Countability
+   belongs to a noun's senses (CGEL, Ch. 5 §3.1, p. 334). A non-count
+   abstract noun heads a bare singular Noun Phrase with an *of*-Complement:
+   *Full discussion of the land question is vital*, *Permission is required*
+   (p. 337, [12ia–b]). Only a count singular is barred bare (p. 340, [23]).
+   So *[mana value of the cards] exiled …* has the shape of *[discussion of
+   the question] exiled …*: grammatical, with a subject that is semantically
+   anomalous as an exiler. The same holds for *the number [mana value of …]
+   exiled this way*. *Total* keeps an optional *of* (*your life total*, *in
+   that total*), and no lexeme-level obligatory Complement is needed.
+
+1. **Census delta** (`sloluysz`): faces read 32,825 → 32,825 of 32,828; Readings 324,006 → 324,006; no unit changed; lost faces: none.
+2. **Judgment set**: all 3,363 hold (0 pending)
