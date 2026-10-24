@@ -60,3 +60,16 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 - B4TBG!: implementing the terminal-punctuation rule is the natural point to delete `unwritten_period`. The rescan-engine-hygiene ticket may already have deleted it.
 - Sway of the Stars: restrict the shared-determiner shape to a final determined conjunct after bare conjoined nominals, so ordinary NP coordinations do not gain a second bracketing.
 - Marvo, Barroom Brawl, Widespread Brutality and Azlask are lexical or equation gaps.
+
+## Outcome (the hypotheses as verified on each witness)
+
+- **Blood for the Blood God!**: as designed. The chart writes no sentence period after a word whose spelling ends in `.`, `!` or `?`, and rejects a written one there; realization drops it. `Summary::unwritten_period` stays: it is now the one-unwritten-period check for both this and a quotation's final period, so the six faces it protects keep it (CGEL, Ch. 20 §8.4, p. 1764).
+- **Strixhaven Stadium**: FloatedObjectAll, *them all* as a compound pronoun after an accusative pronoun only (CGEL, Ch. 5 §10.1.1, pp. 427–428).
+- **Finale of Promise**: postmodifier order was not the problem. FloatedEachPostmodifier needs a plural nominal, so FloatedEachCoordinationPostmodifier adds *each* + PP over a non-singular Noun Phrase coordination.
+- **Sway of the Stars**: SharedDeterminerCoordination, *Det [N, N], and NP*, over singular count nominals only, which no serial Noun Phrase coordination can bracket.
+- **Long-Term Plans**: a `Position` slot (`PositionPhrase`) and *put*'s `TransitiveWithComplement(Position)` frame.
+- **Marvo** (noun *clash*), **Barroom Brawl** (*opponent* takes *player*'s `to` Complement; *left* was not missing), **Widespread Brutality** (*amass* gains `Monotransitive`, as *collect* has), **Azlask** (the plural *Spawns* was missing: both *Spawn* and *Spawns* are attested), **Wheel of Misfortune** (*number* takes `Complement(Amount)`): lexical. Adding the Amount frame to *number* exposed an engine fault: bare nouns that omit unlike Complements let a following PP attach to their coordination, and an Amount counted as unlike. `CompiledGrammar::like_omissions` now compares only the omitted prepositions.
+- **Avatar of Woe** moved to `english-v4-s7-postpositive-sum-total`, and **Collective Voyage** to `english-v4-s7-supplement-between-vp-conjuncts`. Both are listed in the umbrella's `needs:`.
+
+**Census delta** (`wrytzrwq`): faces read 32796 → 32806, Readings 338045 → 338087. Lost faces: none.
+**Judgment set** (`wrytzrwq`): all entries hold (`cargo test -p deckmaste_english_v4`).

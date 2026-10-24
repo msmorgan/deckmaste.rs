@@ -20,3 +20,10 @@
 + <card=Angelic Aberration> When this creature enters, sacrifice any number of creatures each with base power or toughness 1 or less. Create that many 4/4 colorless Eldrazi Angel creature tokens with flying and vigilance. => Nominal "creatures each with base power or toughness 1 or less"; PrepositionPhrase "with base power or toughness 1 or less" as Modifier of creature
 *NounPhrase a creature each with flying
 + <card=Storyweave> • Put two lore counters on target Saga you control. The next time one or more enchantment creatures you control enter this turn, each enters with two additional +1/+1 counters on it. => NounPhrase "each" as Subject of enter
+# Floated "each" over a coordination of Noun Phrases, each conjunct its own member
++ <card=Finale of Promise> You may cast up to one target instant card and/or up to one target sorcery card from your graveyard each with mana value X or less without paying their mana costs. If a spell cast this way would be put into your graveyard, exile it instead. If X is 10 or more, copy each of those spells twice. You may choose new targets for the copies. => NounPhrase "up to one target instant card and/or up to one target sorcery card from your graveyard each with mana value X or less" as Object of cast; NounPhrase "up to one target instant card and/or up to one target sorcery card from your graveyard"
+*NounPhrase a creature or a land each with flying
+# "All" after an accusative personal pronoun is part of a compound pronoun, never after a common-noun Noun Phrase (CGEL, Ch. 5 §10.1.1, pp. 427-428)
++ <card=Strixhaven Stadium> Whenever a creature you control deals combat damage to an opponent, put a point counter on this artifact. Then if it has ten or more point counters on it, remove them all and that player loses the game. => NounPhrase "them all" as Object of remove
+* Remove the counters all.
+* Remove it all.

@@ -38,7 +38,10 @@ keyword-ability list, which is always a comma once reminder text is removed
 (see below), and the punctuation of a quotation: its marks are double, and
 single inside a double one, and the period or comma after it is written inside
 its closing mark, where its own final period is not written
-(`docs/oracle-style-guide.md` §3, Periods; Quotation marks and apostrophes).
+(`docs/oracle-style-guide.md` §3, Periods; Quotation marks and apostrophes),
+and the period of a sentence that ends in a word whose spelling ends in
+terminal punctuation, which is not written either (*Exile Blood for the Blood
+God!*; OSG §3, "Semicolons and expressive punctuation").
 The square brackets of Bracketed text, which a cleave spell removes
 [CR#702.148a], are no Constituent and are not parsed at all: a line of a
 cleave face is read as its Uncleaved Text, without the brackets, which are

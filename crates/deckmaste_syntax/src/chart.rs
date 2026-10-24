@@ -449,6 +449,16 @@ impl CompiledGrammar {
                 });
             }
         }
+        // A word whose spelling ends in terminal punctuation (*Blood for the
+        // Blood God!*, *Agents of S.H.I.E.L.D.*) ends a sentence with it: the
+        // sentence's period is not written after it, as it is not after a
+        // quotation's own (CGEL, Ch. 20 §8.4, p. 1764, and §6, p. 1757, n. 21).
+        let mut terminal = vec![false; n + 1];
+        for leaf in &forest.leaves {
+            if leaf.end > leaf.start + 1 && matches!(tokens[leaf.end - 1], '.' | '!' | '?') {
+                terminal[leaf.end] = true;
+            }
+        }
         let seams = Seams::new(
             atomic
                 .into_iter()
@@ -684,12 +694,15 @@ impl CompiledGrammar {
                             marks[at].is_none()
                                 && !(matches!(c, '.' | ',')
                                     && marks.get(at + 1) == Some(&Some(Quote::Close)))
+                                && !(*c == '.' && at == position && terminal[at])
                         } else if *c == '.'
-                            && marks.get(position) == Some(&Some(Quote::Close))
+                            && (marks.get(position) == Some(&Some(Quote::Close))
+                                || terminal[position])
                             && !forest.items[id].state.unwritten_period
                         {
                             // A quotation's own final period is not written,
-                            // and is the one period there.
+                            // nor is one after a word ending in terminal
+                            // punctuation, and it is the one period there.
                             (at, end) = (position, position);
                             true
                         } else {

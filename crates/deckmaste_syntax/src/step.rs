@@ -664,8 +664,10 @@ pub(crate) struct Summary {
     /// it hosts no post-verbal Adjunct, which attaches to the lexical
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
     pub auxiliary: bool,
-    /// It ends in the final period of a quotation, which is not written
-    /// (`chart::quotations`): no other period follows it there. A keyword's
+    /// It ends in a period that is not written: a quotation's final period
+    /// (`chart::quotations`), or one after a word whose spelling ends in
+    /// terminal punctuation (*Exile Blood for the Blood God!*): no other
+    /// period follows it there. A keyword's
     /// verbal cost ends in its own period (`docs/oracle-style-guide.md` §3,
     /// Periods), so without this *have "Ward—Pay 2 life."* would also read as
     /// *Ward—Pay 2 life..*, a cost sentence and a keyword line each ending in
@@ -1173,8 +1175,8 @@ impl Production {
                     let first = *next
                         .conjunct_omitted
                         .get_or_insert(summary.omitted_complement);
-                    next.unlike_omissions |=
-                        summary.unlike_omissions || first != summary.omitted_complement;
+                    next.unlike_omissions |= summary.unlike_omissions
+                        || !grammar.like_omissions(first, summary.omitted_complement);
                 }
                 if next.omitted_complement != 0 && !next.after_unlike_omissions {
                     let omitted = grammar.extension_set(next.omitted_complement);
@@ -1796,6 +1798,16 @@ impl CompiledGrammar {
     /// The extension list an interned index names.
     pub(crate) fn extension_set(&self, index: u16) -> &[Extension] {
         &self.extension_sets[usize::from(index)]
+    }
+
+    /// Whether two bare nouns' omitted Complements are alike where a
+    /// Preposition Phrase after their coordination could be one: in the
+    /// prepositions they omit. An omitted Amount is no such Complement
+    /// (*number and kind [of counters]*, where *number* also takes one).
+    pub(crate) fn like_omissions(&self, a: u16, b: u16) -> bool {
+        let prepositions =
+            |index| self.extension_set(index).iter().filter(|e| matches!(e, Extension::Preposition(_)));
+        a == b || prepositions(a).eq(prepositions(b))
     }
 
     /// Whether a lexical leaf satisfies a test.

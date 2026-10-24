@@ -147,7 +147,8 @@
         (lemma: "adapt", frames: [Amount, Intransitive]),
     ]),
     (rule: "[CR#701.47]", name: "Amass", verbs: [
-        (lemma: "amass", frames: [TransitiveAmount]),
+        // *the Army you amassed*, as *collect*.
+        (lemma: "amass", frames: [TransitiveAmount, Monotransitive]),
     ]),
     (rule: "[CR#701.48]", name: "Learn", verbs: [
         (lemma: "learn", frames: [Intransitive]),

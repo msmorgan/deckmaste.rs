@@ -77,6 +77,9 @@ pub enum FillSpec {
     /// An Adverb Phrase or a Noun Phrase of frequency (*than twice*).
     AdvP,
     LocativeNP,
+    /// An ordinal position from an end of a pile (*put that card third from
+    /// the top*).
+    Position,
     /// A slash measure as a Noun Phrase (*gets +2/+2*; *your choice of 5/1
     /// or 1/5*). A bare slash measure occurs only where a head selects one,
     /// so *get* and *of* are its only holders (project term Measure Noun
