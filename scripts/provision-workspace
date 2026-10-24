@@ -7,9 +7,10 @@
 # What it does: `data` is symlinked back to `default`. Each dir present under
 # `default/docs/` but absent from the new tracked workspace is symlinked too,
 # sharing ignored local dirs such as `docs/superpowers` and `docs/memory` while
-# leaving tracked documentation alone. `plugins/wizards` is generated as a real
-# dir, never a symlink (deckmaste_plugin's suite loads it, and a symlink would
-# make generate write into the main checkout). `default`'s `target/` is
+# leaving tracked documentation alone. `plugins/wizards` is reflinked from
+# `default`'s copy (generated there first if missing) as a real dir, never a
+# symlink (deckmaste_plugin's suite loads it, and a symlink would make a
+# workspace's generate write into the main checkout). `default`'s `target/` is
 # CoW-reflinked as a best-effort build-cache pre-warm, then every tracked file
 # whose bytes match `default`'s copy gets `default`'s mtime, so only crates
 # whose sources truly differ rebuild. `lean/.lake` is reflinked the same way
@@ -58,22 +59,33 @@ and begin
 end
 and phase_done symlinks $t
 
-# Re-generate cards from Oracle text. Run default's built xtask binary directly
-# (it is what the `cargo xtask` alias runs): `cargo xtask` takes cargo's build
-# lock on default's target/, so any other cargo build in default stalls
-# provisioning, and with it every other session's kata claim (.jj/kata.lock).
-# Fall back to cargo only when the binary is missing. A stale binary only
-# matters when the generator itself changed, and a ticket changing the
-# generator rebuilds before it provisions.
+# Copy the generated cards from default's plugins/wizards, generating that copy
+# from Oracle text first if it is missing. The generator rarely changes, so
+# regenerating per workspace is pure overhead; to refresh default's copy after
+# a generator change, delete default's plugins/wizards (the next provision
+# regenerates it) or run the generate command below against it by hand.
+# Generation runs default's built xtask binary directly (it is what the
+# `cargo xtask` alias runs): `cargo xtask` takes cargo's build lock on default's
+# target/, so any other cargo build in default stalls provisioning, and with it
+# every other session's kata claim (.jj/kata.lock). Fall back to cargo only
+# when the binary is missing. The copy is a CoW reflink (plain-copy fallback),
+# never a symlink, for the reason given above.
 and set t (date +%s%N)
 and begin
-    if test -x "$default_dir/target/debug/cargo-xtask"
-        "$default_dir/target/debug/cargo-xtask" generate "$ws_dir/plugins/wizards"
-    else
-        cargo xtask generate "$ws_dir/plugins/wizards"
+    test -d "$default_dir/plugins/wizards"
+    or begin
+        if test -x "$default_dir/target/debug/cargo-xtask"
+            "$default_dir/target/debug/cargo-xtask" generate "$default_dir/plugins/wizards"
+        else
+            cargo xtask generate "$default_dir/plugins/wizards"
+        end
+        and phase_done "wizards generate (default)" $t
     end
 end
-and phase_done "wizards generate" $t
+and set t (date +%s%N)
+and mkdir -p "$ws_dir/plugins/wizards"
+and cp --reflink=auto -a "$default_dir/plugins/wizards/." "$ws_dir/plugins/wizards/"
+and phase_done "wizards copy" $t
 
 or begin
     echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — check symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
