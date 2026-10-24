@@ -118,6 +118,21 @@ theorem okParticipialDiscardedCard :
         (putInto (the (and [was (discard which), isCard])) battlefield)) = [] := by
   decide
 
+/-- "Exile target creature. Reveal it. Return the exiled card to the battlefield." A deed stamps
+an object beside the deeds already on it (`Stamp.deeds`, `semantics-v3.md` §1.2), so revealing
+the exiled card leaves it read back as exiled, and as revealed; a deed that never acted on it
+still finds nothing. -/
+theorem deedsAccumulateOnAReferent :
+    let exiled := fun (deed : Predicate) (between : List Action) =>
+      Action.check (DRS.ofList [])
+        (.sequentially ([exile (target isCreature)] ++ between ++
+          [putInto (the (and [deed, isCard])) battlefield]))
+    exiled (was (exile which)) [reveal it] = [] ∧
+      exiled (was (reveal which)) [reveal it] = [] ∧
+      exiled (was (reveal which)) [] =
+        [.participialDescription (.deed (.action "reveal")) 0] := by
+  decide
+
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badParticipialWrongVerb :
     Ability.check (DRS.ofList [])

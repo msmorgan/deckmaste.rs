@@ -5,7 +5,7 @@ namespace Semantics.Proofs.HistoricalMove
 private def departedCreature : Referent := {
   det := .the, plur := .one, id := 7,
   payload := .object [.creature] (some .graveyard)
-    (some { verb := some (.action "destroy"), wasField := true,
+    (some { deeds := [.action "destroy"], wasField := true,
             zoneChange := some ⟨some .battlefield, some .graveyard⟩ }) none none }
 
 private def creatureRead : NounPhrase := .pro (.word (.type .creature)) .one

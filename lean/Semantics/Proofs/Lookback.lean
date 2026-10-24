@@ -908,7 +908,7 @@ uses no stack: the land is put onto the battlefield, stamped "play" and never ca
 so "each land played this way" reads it and "each spell cast this way" does not. A spell play is
 a cast, and is played as well: both lookbacks read it. -/
 theorem playRecordsALandPlayOrASpellCast :
-    (stepped playLand).referents.map (·.payload.prov.bind (·.verb)) = [some (.action "play")] ∧
+    (stepped playLand).referents.map (·.payload.prov.map (·.deeds)) = [some [.action "play"]] ∧
     Action.check (DRS.ofList [])
       (sequentially [playLand,
         doForEach (each (and [isLand, was (play which) thisWay])) (draw 1)]) = [] ∧

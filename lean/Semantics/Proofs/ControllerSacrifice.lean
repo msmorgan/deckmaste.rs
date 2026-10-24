@@ -158,7 +158,7 @@ theorem laterCardIsTheSacrificedObject :
       (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
       some (3, .target, .one,
         .object [.creature, .artifact] (some .graveyard)
-          (some ⟨some (.action "sacrifice"), true, some ⟨some .battlefield, some .graveyard⟩, [], false⟩)
+          (some ⟨[.action "sacrifice"], true, some ⟨some .battlefield, some .graveyard⟩, false⟩)
           none none) := by decide
 
 theorem outerArtifactDoesNotStealThePatient :
@@ -376,7 +376,7 @@ private def afterPrefix (fresh : Nat) : List Referent :=
  [ { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
    { id := fresh + 5, det := .target, plur := .one,
      payload := .object [.creature] (some .graveyard)
-       (some ⟨some (.action "sacrifice"), true, some ⟨some .battlefield, some .graveyard⟩, [], false⟩)
+       (some ⟨[.action "sacrifice"], true, some ⟨some .battlefield, some .graveyard⟩, false⟩)
        none none, movedFrom := [fresh + 2] },
    { id := fresh + 1, det := .the, plur := .one, payload := .player false },
    { id := fresh, det := .target, plur := .one,

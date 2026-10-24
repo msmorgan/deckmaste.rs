@@ -618,7 +618,8 @@ def pushCoordinatedGroup (drs : DRS) (start : ReferentId) (members : List Refere
     let group : Referent := { det := .the, plur := .many, payload, groupKey := some groupId, partOf }
     (withParts.push group role inArgSlot, [groupId])
 
-/-- Stamp `refIds` in place with `deed` without changing zone. -/
+/-- Stamp `refIds` in place with `deed` without changing zone, beside the deeds that already
+stamped them (`Stamp.deeds`). -/
 def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed) : DRS :=
   match deed, refIds with
   | none, _ | _, [] => drs
@@ -628,27 +629,11 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
         let newPayload := match r.payload with
           | .object ty zn oldProv orig sz =>
             let newStamp := match oldProv with
-              | some old => some { old with verb := some v, through := [] }
+              | some old => some { old with deeds := v :: old.deeds.erase v }
               | none => mkStamp (some v) zn
             .object ty zn newStamp orig sz
           | other => other
         { r with payload := newPayload }) drs
-
-/-- Stamp `refIds` with the verb `deed` a keyword ability defines for itself, done by the deed
-that already stamped them: both stand ("each creature sacrificed this way", "creatures it
-devoured" [CR#702.82b]). -/
-def applyThroughStamp (drs : DRS) (refIds : List ReferentId) (deed : Deed) : DRS :=
-  refIds.foldl (fun d rid =>
-    d.updateById rid fun r =>
-      let newPayload := match r.payload with
-        | .object ty zn oldProv orig sz =>
-          let newStamp := match oldProv with
-            | some old =>
-              some { old with verb := some deed, through := old.verb.toList ++ old.through }
-            | none => mkStamp (some deed) zn
-          .object ty zn newStamp orig sz
-        | other => other
-      { r with payload := newPayload }) drs
 
 /-- What carrying out `kind` on `refIds` records, each procedure under its own Deed. Casting puts
 the card onto the stack as a spell [CR#601.2a]. Playing a card is playing it as a land or casting
@@ -674,8 +659,8 @@ def applyProcedureDeed (drs : DRS) (kind : Procedure) (refIds : List ReferentId)
     let cast := applyZoneMove (applyZoneMove drs (refIds.filter isLand) (some (.action "play"))
       (some .battlefield)) spells (some (.action "cast")) (some .stack)
     -- The spell is played as well as cast: both deeds stand ("each spell played this way").
-    applyThroughStamp cast (cast.referents.filter (fun r => r.movedFrom.head?.any spells.contains)
-      |>.map (·.id)) (.action "play")
+    applyInPlaceStamp cast (cast.referents.filter (fun r => r.movedFrom.head?.any spells.contains)
+      |>.map (·.id)) (some (.action "play"))
   | .activate =>
     applyZoneMove (applyInPlaceStamp drs (refIds.filter (!isAbility ·)) (some (.action "activate")))
       (refIds.filter isAbility) (some (.action "activate")) (some .stack)
@@ -3561,9 +3546,10 @@ def stepOps : Nat → StepOps
             else drs1.pendingRoles
           let actedIds := bodyMentions.filterMap fun (id, role) =>
             if role == patientRole then some id else none
-          let drs1 := if phase != .postEvent then drs1 else match verb with
-            | .ofAbility _ => applyThroughStamp drs1 actedIds verb
-            | _ => applyInPlaceStamp drs1 actedIds (some verb)
+          -- A keyword ability's verb done by doing another deed stands beside that deed:
+          -- devouring is sacrificing [CR#702.82b] (`Stamp.deeds`).
+          let drs1 := if phase != .postEvent then drs1 else
+            applyInPlaceStamp drs1 actedIds (some verb)
           let (drs2, e2) := match becomes with | some p => ops.pred drs1 p | none => (drs1, [])
           let (drs3, e3) := match locus with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
           let out := if defaultsToSource then dropActorFrame drs3 else drs3

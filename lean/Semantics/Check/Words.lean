@@ -126,17 +126,19 @@ structure ZoneChange where
   destination : Option Zone
   deriving DecidableEq, Repr, BEq
 
-/-- Provenance: the deed that last acted on a referent, if a deed names it; whether it was on the
-battlefield then; the Zone Change that last moved it, if it changed zones, which a move records
-whether or not a deed names it ("put", "return" [CR#400.7]); and the deeds `verb` was done by
-(`through`), when a keyword ability's verb is done by doing another deed: devouring is
-sacrificing [CR#702.82b]; and whether an earlier move took it off the battlefield
-(`leftField`), as the creature that died before it was exiled. -/
+/-- Provenance: the deeds that acted on a referent since it last changed zones, latest first
+(`.actedOn deed`, `semantics-v3.md` §1.2, §1.5), each standing whatever deed follows it, so
+"Exile target creature. Reveal it. Return the exiled card …" reads the revealed card as exiled,
+and a keyword ability's verb done by doing another deed stands beside that deed: devouring is
+sacrificing [CR#702.82b]; whether it was on the battlefield when they began; the Zone Change that
+last moved it, if it changed zones, which a move records whether or not a deed names it ("put",
+"return" [CR#400.7]); and whether an earlier move took it off the battlefield (`leftField`), as
+the creature that died before it was exiled. A move makes a new object [CR#400.7], which keeps
+only the deed that moved it. -/
 structure Stamp where
-  verb : Option Deed
+  deeds : List Deed
   wasField : Bool
   zoneChange : Option ZoneChange
-  through : List Deed := []
   leftField : Bool := false
   deriving DecidableEq, Repr, BEq
 
@@ -1074,14 +1076,14 @@ def slotZoneOk : SlotCarrier → Option Zone → Bool
 /-- The stamp a deed leaves on an object it acts on where it is (`zone`); no deed, no stamp. -/
 def mkStamp : Option Deed → Option Zone → Option Stamp
   | none, _ => none
-  | some v, zone => some { verb := some v, wasField := onFieldZone zone, zoneChange := none }
+  | some v, zone => some { deeds := [v], wasField := onFieldZone zone, zoneChange := none }
 
 /-- The stamp a move leaves on the object it moved from `origin` to `destination`, whether or not
 a deed names the move [CR#400.7]; `leftField` when an earlier move took it off the battlefield. -/
 def moveStamp (deed : Option Deed) (origin destination : Option Zone) (leftField : Bool := false) :
     Stamp :=
-  { verb := deed, wasField := onFieldZone origin, zoneChange := some ⟨origin, destination⟩,
-    leftField }
+  { deeds := deed.toList, wasField := onFieldZone origin,
+    zoneChange := some ⟨origin, destination⟩, leftField }
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
@@ -1182,7 +1184,7 @@ def Reach.kind : Reach → Kind
   | .unionHalf w => w.kind
   | _ => .object
 
-def stampedBy (v : Deed) (s : Stamp) : Bool := s.verb == some v || s.through.contains v
+def stampedBy (v : Deed) (s : Stamp) : Bool := s.deeds.contains v
 
 /-- Whether `word` names a stamped object by what it was when its deed acted on it: a Card Type
 or "permanent" reads the permanent it is, if it is on the battlefield now (one a move put there:
@@ -1215,7 +1217,7 @@ def markTy (ty : List CardType) (b : Referent) : Referent :=
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
-    b.librarySearchResult || st.verb == some searchDeed
+    b.librarySearchResult || st.deeds.contains searchDeed
   | .object _ (some .library) none _ _ => false
   | _ => true
 
