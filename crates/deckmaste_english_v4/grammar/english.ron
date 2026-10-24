@@ -125,6 +125,12 @@
         // *target of those*). TargetedNounPhrase and BareTargetingMarker
         // carry it.
         "DeterminativeDistribution": ["Dependent", "Independent", "Numerical", "IndefiniteArticle", "Distributive", "Deictic", "SingularOrQuantified", "FreeChoice", "Multiplier", "Targeting"],
+        // Whether a determiner is a cardinal numeral or a coordination with one
+        // (*ten*, *ten or more*; CGEL, Ch. 15 §3.3(d), p. 1330). Every
+        // determinative values it, so a Production that needs a numerically
+        // quantified Noun Phrase `Carry`s it (a postpositive sum adjective,
+        // CGEL, Ch. 5 §14.2(b), pp. 445-446).
+        "Cardinality": ["Cardinal", "NonCardinal"],
         "Case": ["Plain", "Nominative", "Accusative", "Genitive"],
         "Countability": ["Count", "Mass"],
         // `Linking` is the position of a connective that marks a Linked
@@ -327,7 +333,7 @@
         "FusedQuantity": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative's Complement has a Number of its own (*all but
         // one*; CGEL, Ch. 5 §7.3, p. 375).
-        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination", "ObliqueDistribution"]),
+        "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "Cardinality", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "ObliqueDetermination", "ObliqueDistribution"]),
         // A determiner ending in the Targeting Marker, without the Number
         // the Marker has on its own, which an outer determiner or an
         // adjective gives it instead (*two target creatures*, *other target
@@ -614,7 +620,7 @@
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "MultiplyingAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "SumAdjective", "PhrasalAdverb", "MultiplyingAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -1467,6 +1473,13 @@
         // §2.1, p. 1104).
         (name: "ComparativeAmount", lhs: "Amount", rhs: [Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Require("quantifier.Countability", "Mass"), Require("complement.NounKind", "Numeric"), Require("$.ComplementKind", "PP")]),
+        // An adjective that follows a specific sum qualifies a numerically
+        // quantified Noun Phrase (*ten or more creature cards total*, *fifty
+        // dollars net*; CGEL, Ch. 5 §14.2(b), pp. 445-446), never a bare or
+        // definite one: the determiner `Carry`s `Cardinal`, as an unvalued one
+        // would pass a `Require`.
+        (name: "SumQualifiedNounPhrase", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal"), Class("modifier", "SumAdjective")],
+            equations: [Carry("determiner.Cardinality", "Cardinal"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
             equations: [Require("head.Number", "Singular"), Require("modifier.ComplementKind", "PP"), Require("modifier.Countability", "Count"), Exclude("modifier.ObliqueKind", "AdvP")], heavy: ["modifier"], cost: 2),
         (name: "PostpositiveLocativeAdjective", lhs: "LocativeHead", rhs: [Cat("head", "LocativeHead"), Cat("modifier", "AdjectivePhrase")],
@@ -1716,7 +1729,7 @@
         // Restated as RelativeFloatedAll; a change to one must be made to the
         // other.
         (name: "FloatedAll", lhs: "Clause", rhs: [Cat("subject", "NounPhrase"), Word("adjunct", "All"), Cat("head", "VerbPhrase")], equations: [Require("subject.Number", "Plural"), Require("subject.Case", "Nominative"), Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")], transparent: ["head"]),
-        (name: "NumericalDetermination", lhs: "DeterminerPhrase", rhs: [Cat("head", "NumericalDeterminer")], equations: [Require("$.DeterminativeDistribution", "Numerical"), Require("$.ComplementKind", "Intransitive")]),
+        (name: "NumericalDetermination", lhs: "DeterminerPhrase", rhs: [Cat("head", "NumericalDeterminer")], equations: [Require("$.DeterminativeDistribution", "Numerical"), Require("$.Cardinality", "Cardinal"), Require("$.ComplementKind", "Intransitive")]),
         (name: "MeasuredMass", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Require("determiner.DeterminativeDistribution", "Numerical"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Case", "Plain"), Require("$.Determination", "Overt"), Require("$.Person", "Third")]),
         // A measure noun counted unit by unit (*for each mana spent*).
         (name: "DistributiveMeasure", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Require("head.NounDistribution", "DirectMeasure"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.NounKind", "head.NounKind"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
@@ -2495,7 +2508,7 @@
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
         // A coordination of quantifiers determines as its last one does (*one
         // or more cards*, *one or more of them*; CGEL, Ch. 15 §3.3, p. 1330).
-        Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind"]),
+        Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind"], resolve: [("Cardinality", "Cardinal")]),
         // Numbers alone are an Amount coordination (*X is 2 or 3*), never also
         // a fused quantity over them (`docs/decisions/english-lexical-analysis.md`
         // §2).

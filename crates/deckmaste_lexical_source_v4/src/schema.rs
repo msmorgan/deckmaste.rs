@@ -305,6 +305,10 @@ pub struct AdjectiveEntry {
     pub determination: Option<Determination>,
     #[serde(default)]
     pub fused_head: Option<FusedHeadDetermination>,
+    /// The adjective follows a specific sum (*fifty dollars net*; CGEL, Ch. 5
+    /// §14.2(b), pp. 445-446): it is in the grammar's `SumAdjective` class.
+    #[serde(default)]
+    pub follows_sum: bool,
     pub lemma: String,
     #[serde(default)]
     pub comparative: Option<String>,
@@ -361,6 +365,7 @@ impl AdjectiveDecl {
                 position: None,
                 determination: None,
                 fused_head: None,
+                follows_sum: false,
                 lemma: lemma.clone(),
                 comparative: None,
                 grade: None,

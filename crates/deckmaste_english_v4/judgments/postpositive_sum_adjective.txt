@@ -1,0 +1,6 @@
+# A postpositive adjective follows a specific sum and qualifies a numerically quantified Noun Phrase (ten or more creature cards total; CGEL, Ch. 5 §14.2(b), pp. 445-446), never a bare or definite one
++ If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast. => NounPhrase "ten or more creature cards total" head card; !NounPhrase "creature cards total"; !NounPhrase "ten or more creature cards"; readings 1
++NounPhrase ten creature cards total
++NounPhrase ten or more creature cards total
+*NounPhrase creature cards total
+*NounPhrase the creature cards total

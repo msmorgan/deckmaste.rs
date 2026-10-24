@@ -14,3 +14,6 @@ Blocker: the grammar cannot tell a numerically quantified Noun Phrase from a def
 ## Landing note
 
 Per `docs/tickets/README.md`, end the ticket with the two landing lines.
+
+**Census delta** (`xsrttmrt`): faces read 32817 → 32818, Readings 338306 → 338307. Lost faces: none. Avatar of Woe reads with one Reading.
+**Judgment set** (`xsrttmrt`): all entries hold (`cargo test -p deckmaste_english_v4`).
