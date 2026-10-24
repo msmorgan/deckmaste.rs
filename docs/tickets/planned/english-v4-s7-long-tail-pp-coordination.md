@@ -10,17 +10,14 @@ Part of `english-v4-stratum-7-discourse-and-long-tail`. Implement in `crates/dec
 Correlative, elliptical and adjunct-level coordination, and preposed or postposed adjuncts.
 
 - **Dream Cache**: *[both on top of your library] or [both on the bottom of your library]*. Hypothesis: correlative *both* inside PP conjuncts of a disjunction.
-- **Naked Singularity, Reality Twist**: *Plains produce {R}, Islands produce {G}, …, and Forests produce {B} [instead of any other type]*. Hypothesis: a trailing PP over a clause coordination.
 - **Don't Blink**: *enter [from exile] or [after being cast from exile]*. Hypothesis: check *after* + Gerund as a coordinate PP.
-- **Library of Leng**: *but you may put it on top of your library instead of into your graveyard*. Hypothesis: *instead of* + PP.
+- **Library of Leng**: *but you may put it on top of your library instead of into your graveyard*. Hypothesis: *instead of* + PP. Second triage: also mixed-mood Clause coordination with *but*; those schemas allow only the Coordinator class, not *but*.
 - **Dance with Calamity, Lim-Dûl's Vault**: *As many times as you choose, you may …*. Hypothesis: a preposed equative frequency phrase.
 - **Serum Powder**: *Any time you could mulligan and this card is in your hand*. Hypothesis: an adverbial relative coordinated with a gapless clause.
 
 ## Witness cards
 
 - Dream Cache
-- Naked Singularity
-- Reality Twist
 - Don't Blink
 - Library of Leng
 - Dance with Calamity
@@ -29,7 +26,7 @@ Correlative, elliptical and adjunct-level coordination, and preposed or postpose
 
 ## Estimated faces
 
-8 faces.
+6 faces.
 
 ## Hypotheses, not findings
 

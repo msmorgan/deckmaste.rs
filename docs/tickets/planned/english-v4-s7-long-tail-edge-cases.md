@@ -10,16 +10,16 @@ Part of `english-v4-stratum-7-discourse-and-long-tail`. Implement in `crates/dec
 Faces that fit no cluster. The coordination faces with existing owners (the unlike-cluster, cleave-bracketed-conjunct and gapping-remnants tickets) are not repeated here.
 
 - **Finale of Promise**: *cast [up to one target instant card and/or up to one target sorcery card] [from your graveyard] [each with mana value X or less]*. Hypothesis: floated *each* + postmodifier ordering.
-- **Marvo, Deep Operative**: *cast a spell from your hand with mana value 8 or less without paying its mana cost* (unverified).
+- **Marvo, Deep Operative**: *cast a spell from your hand with mana value 8 or less without paying its mana cost* (unverified). Second triage: noun *clash* missing (*win a clash*).
 - **Long-Term Plans**: *put that card third from the top*. Hypothesis: *put* requires a locative PP, which the position phrase does not satisfy (unverified).
-- **Wheel of Misfortune**: *secretly chooses a number 0 or greater … determine the highest and lowest numbers revealed this way* (unverified).
-- **Barroom Brawl**: *target creature the opponent to your left controls*. Hypothesis: a PP-postmodified subject inside a bare relative.
+- **Wheel of Misfortune**: *secretly chooses a number 0 or greater … determine the highest and lowest numbers revealed this way* (unverified). Second triage: *a number 0 or greater*, a postpositive numeric bound.
+- **Barroom Brawl**: *target creature the opponent to your left controls*. Hypothesis: a PP-postmodified subject inside a bare relative. Second triage: noun *left* missing (*the opponent to your left*).
 - **Widespread Brutality**: *then the Army you amassed deals damage …*. Hypothesis: the keyword action *amass* as a finite verb in a bare relative.
 - **Azlask, the Swelling Scourge**: *Scions and Spawns you control gain [indestructible and annihilator 1]*. Hypothesis: plural subtypes as bare plurals, and a bare keyword coordinated with a parametric one.
 - **Avatar of Woe**: *ten or more creature cards total*. Hypothesis: postpositive *total*.
 - **Collective Voyage**: a *, where X is …,* supplement between two VP conjuncts.
-- **Blood for the Blood God!**: *Exile Blood for the Blood God!*. Hypothesis: a card name ending in *!* absorbs the sentence-final period, as with Kaboom!.
-- **Strixhaven Stadium, Sway of the Stars**: not triaged. Diagnose first. Suspects: for Strixhaven Stadium *remove them all and that player loses the game*, and for Sway of the Stars the coordinated *hand, graveyard, and all permanents they own* object list.
+- **Blood for the Blood God!**: *Exile Blood for the Blood God!*. Hypothesis: a card name ending in *!* absorbs the sentence-final period, as with Kaboom!. Second triage: handle it in normalization, or treat it like Kaboom!.
+- **Strixhaven Stadium, Sway of the Stars**: second triage, unverified. Strixhaven Stadium: *remove them all*, postpositive *all* after an accusative pronoun; FloatedAll only licenses nominative subjects. Sway of the Stars: *their hand, graveyard, and all permanents they own*, a shared determiner over bare singular nominals plus a final conjunct with its own determiner.
 
 ## Witness cards
 

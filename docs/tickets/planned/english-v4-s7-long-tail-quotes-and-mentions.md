@@ -11,7 +11,7 @@ Quoted text used as a constituent, and mentioned words and phrases.
 
 Quotes:
 - **Brutal Suppression, Drought**: *cost an additional "Sacrifice a land" to activate*. Hypothesis: a quoted imperative acts as a count nominal after *an additional*.
-- **Raging River**: *into a "left" pile and a "right" pile … choose "left" or "right."*. Hypothesis: quoted words as premodifiers and as mentioned objects, with a period inside the closing quote.
+- **Raging River**: *into a "left" pile and a "right" pile … choose "left" or "right."*. Hypothesis: quoted words as premodifiers and as mentioned objects, with a period inside the closing quote. Second triage: a period absorbed inside *"right."*, plus two comma-set front adjuncts.
 - **Volrath's Shapeshifter**: *has the text "{2}: Discard a card."*. Hypothesis: an appositive quoted ability after the noun *text*.
 - **Urza's Saga**: a single-quoted ability nested inside a double-quoted one. Hypothesis: nested quotation depth is unsupported.
 

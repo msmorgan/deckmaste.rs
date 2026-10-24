@@ -12,10 +12,10 @@ Quantifier, determiner and partitive gaps.
 - **Academy Manufactor**: *create one of each*. Hypothesis: `NonNumericComplement`'s ExcludeTogether blocks fused *each* after *of*.
 - **Avatar Aang**: *if you've done all four*. Hypothesis: `PredeterminerCount` requires an Overt head, and here the head is absent.
 - **All Hallow's Eve**: *If there are no more scream counters*. Hypothesis: *no more* is not licensed without *than*.
-- **Goblin Game**: *tied for fewest*. Hypothesis: a bare superlative fused head without *the*.
-- **Hawkeye, Master Marksman**: *choose up to that many —*. Hypothesis: *up to* with a *that many* fused head.
+- **Goblin Game**: *tied for fewest*. Hypothesis: a bare superlative fused head without *the*. Second triage: also a central *then* (*… the fewest items then loses …*).
+- **Hawkeye, Master Marksman**: *choose up to that many —*. Hypothesis: *up to* with a *that many* fused head. Second triage: also `• Word — Ability` modes.
 - **Illusionary Mask**: *paid by [some amount of, or all of,] the mana …*. Hypothesis: a coordinated partitive prefix is not a right-nonce-constituent route.
-- **Wolverine, Fierce Fighter**: *all other damage already dealt to him is healed*. Hypothesis: a pre-head adverb on a participial postmodifier, or *healed* is missing from the lexicon (unverified; check the lexicon first).
+- **Wolverine, Fierce Fighter**: *all other damage already dealt to him is healed*. Hypothesis: a pre-head adverb on a participial postmodifier, or *healed* is missing from the lexicon (unverified; check the lexicon first). Second triage: verb *heal* missing.
 - **Soul Echo**: *for each 1 damage …, you remove …*. Hypothesis: `DistributiveQuantity` requires Count, and *each 1 damage* is a numeral determiner on a mass noun.
 
 ## Witness cards

@@ -20,6 +20,7 @@ face below needs a construction beyond those, or a ruling.
   a new entry in `english-lexical-analysis.md` §2 for the owner, or another
   general restriction. Measure before and after.
 - **Ulasht, the Hate Seed** (*enters with A for each X and B for each Y*):
+  Second triage, alternative: *for each* inside each conjunct conflicts with the global `high_attachment` rule for distributive PPs.
   Clusters of Adjuncts after an intransitive head, with the second *with*
   elided (CGEL, Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week
   and Bonn for three days*, a PP+PP coordination with ellipsis of *in*).
@@ -34,6 +35,7 @@ face below needs a construction beyond those, or a ruling.
   Adjunct (*Choose from among them a card with flying, ...*), which has no
   Reading today.
 - **Dralnu's Pet** (*enters with flying and with X +1/+1 counters on it*):
+  Second triage, additionally: the em-dash composite cost *Kicker—{2}{B}, Discard a creature card.*
   *with* + keyword phrase is a Nominal postmodifier only. A complement frame
   for *enter* breaks Master Biomancer (*with ... and as a Mutant*); a
   Predicate host for *with* + keyword grows about 400 units.

@@ -12,16 +12,19 @@ Gerund, absolute and causative non-finite clauses.
 - **Deification**: *would result in [all loyalty counters on it being removed]*. Hypothesis: a gerund clause with its own subject as a PP complement (CGEL Ch. 14 §4 on gerund-participial clauses).
 - **Cosmos Charger**: *Foretelling cards from your hand costs {1} less and can be done …*. Hypothesis: a keyword action used as a transitive gerund subject.
 - **Worms of the Earth**: *or have this enchantment deal 5 damage to that player*. Hypothesis: causative *have* + NP + bare infinitive.
+- **Naked Singularity, Reality Twist**: *If tapped for mana, this land produces {R}.* Verified blocker: the verbless conditional *If tapped for mana,* does not read (*If tapped, …* does). The earlier trailing-*instead of*-PP diagnosis and the plural-land-subtype diagnosis were both tested and are wrong (*Plains*, *Islands* and *Swamps* already read).
 
 ## Witness cards
 
 - Deification
 - Cosmos Charger
 - Worms of the Earth
+- Naked Singularity
+- Reality Twist
 
 ## Estimated faces
 
-3 faces.
+5 faces.
 
 ## Hypotheses, not findings
 
