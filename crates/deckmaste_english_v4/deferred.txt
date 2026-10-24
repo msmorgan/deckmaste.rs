@@ -8,7 +8,6 @@ Avatar of Woe | If there are ten or more creature cards total in all graveyards,
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
 Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.
 Worms of the Earth | At the beginning of each upkeep, any player may sacrifice two lands of their choice or have this enchantment deal 5 damage to that player. If a player does either, destroy this enchantment.
-All Hallow's Eve | At the beginning of your upkeep, if this card is exiled with a scream counter on it, remove a scream counter from it. If there are no more scream counters on it, put it into your graveyard and each player returns all creature cards from their graveyard to the battlefield.
 Crabomination | When this creature enters, target opponent exiles the top card of their library, a card at random from their graveyard, and a card at random from their hand. You may cast a spell from among cards exiled this way without paying its mana cost.
 
 
@@ -58,10 +57,6 @@ Naked Singularity | If tapped for mana, Plains produce {R}, Islands produce {G},
 # english-v4-s7-long-tail-pp-coordination
 
 # english-v4-s7-long-tail-quantifiers
-Goblin Game | Each player hides at least one item, then all players reveal them simultaneously. Each player loses life equal to the number of items they revealed. The player who revealed the fewest items then loses half their life, rounded up. If two or more players are tied for fewest, each loses half their life, rounded up.
-Hawkeye, Master Marksman | Trick Arrows — Whenever Hawkeye becomes tapped, you may pay {1} up to three times. When you do, choose up to that many —
-Avatar Aang | Whenever you waterbend, earthbend, firebend, or airbend, draw a card. Then if you've done all four this turn, transform Avatar Aang.
-Academy Manufactor | If you would create a Clue, Food, or Treasure token, instead create one of each.
 
 # english-v4-s7-heavy-object-shift
 Global Ruin | Each player chooses from the lands they control a land of each basic land type, then sacrifices the rest.

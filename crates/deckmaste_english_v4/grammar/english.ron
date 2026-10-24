@@ -126,7 +126,13 @@
         // `Linking` is the position of a connective that marks a Linked
         // Coordination, initial in its Linked Conjunct (CGEL, Ch. 15 §2.10,
         // pp. 1319–1320).
-        "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Bounding", "Linking"],
+        // `Multiplying` is the position of a multiplier of a quantity (*twice
+        // the damage*), which is also a frequency adverb at the end of a Verb
+        // Phrase (*draw a card twice*): it modifies a Noun Phrase or a
+        // measure only, never a Preposition Phrase or a temporal Noun Phrase,
+        // where it would build a second tree for the frequency adverb's
+        // Adjunct (`english-lexical-analysis.md` §2, frequency interval).
+        "AdjunctPosition": ["Front", "Central", "End", "Phrasal", "Multiplying", "Bounding", "Linking"],
         // A Clause whose front position holds a dependent set off by a comma
         // (*If you do, ...*, *Once each turn, ...*). Front dependents that
         // share one comma are siblings in one Production (*Then if ...*,
@@ -496,6 +502,7 @@
         "How": "adv:how",
         "Target": "det:target",
         "Most": "det:most",
+        "No": "det:no",
         "Anywhere": "det:anywhere",
     },
     lexical_classes: {
@@ -544,6 +551,12 @@
         // personal pronoun only, in FloatedAll.
         "FloatingQuantifier": ["det:each", "det:both"],
         "SuperlativeQuantifier": ["det:most", "det:least", "det:fewest"],
+        // The superlative determinative that is no degree word, so that it
+        // fuses with its head with the article unexpressed (*tied for
+        // fewest*; CGEL, Ch. 13 §6.3.4, pp. 1168-1169). *Most* and *least*
+        // also modify an adjective (*most common*), and fused so they would
+        // leave it a depictive Adjunct of the clause.
+        "CountSuperlativeQuantifier": ["det:fewest"],
         // Determinatives that stand alone as a fused determiner-head (CGEL,
         // Ch. 5 §9.1, p. 410): *both*, *none*, and *another* opposed to *one*
         // (*replacing all instances of one color word with another*; p. 391).
@@ -567,7 +580,7 @@
     // has one member, `LEVEL`, the marker of a level symbol [CR#711.2a], and
     // `Pawprint` one, `{P}` [CR#107.18]; each is a CR-enumerated symbol read
     // by its header and mode Productions (RangeHeader, SinglePawprint).
-    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "DefiniteFusedHeadAdjective", "PhrasalAdverb", "MultiplyingAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "LinkingAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "SharedHeadCompound"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -699,6 +712,10 @@
         (name: "NegativeAdjective", lhs: "AdjectivePhrase", rhs: [Lex("prefix", Affix), Cat("head", "AdjectivePhrase")], equations: [Require("$.Polarity", "Negative")]),
         // A modal header labelled by an ability word, as a unit of its own.
         (name: "LabelledModalHeader", lhs: "Document", rhs: [Class("label", "AbilityWord"), Mark('—', Free), Cat("head", "ModalHeader")]),
+        // The same with a flavor word, which the card's own text introduces
+        // (*Trick Arrows — Whenever ..., choose one —*); as FlavorLabelledAbility,
+        // its dash belongs to the word.
+        (name: "FlavorLabelledModalHeader", lhs: "Document", rhs: [Lex("label", FlavorWord), Cat("head", "ModalHeader")]),
         (name: "ChapterModalHeader", lhs: "Document", rhs: [Cat("chapters", "Chapters"), Mark('—', Free), Cat("head", "ModalHeader")]),
 
         (name: "CompleteKeywordPhrase", lhs: "KeywordPhrase", rhs: [Cat("head", "KeywordParameters")]),
@@ -1063,6 +1080,7 @@
         (name: "WholeCompound", lhs: "CompoundConjunct", rhs: [Class("head", "SharedHeadCompound")], equations: [Require("$.CompoundPart", "Whole")]),
         // A multiplied measure (*gets twice -X/-X*).
         (name: "AdverbModifiedMeasure", lhs: "MeasureNounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "MeasureNounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
+        (name: "AdverbMultipliedMeasure", lhs: "MeasureNounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "MeasureNounPhrase")], equations: [Require("modifier.AdjunctPosition", "Multiplying")]),
         // A creature's size as a predicative Complement (*except it's 4/3*,
         // *base power and toughness become 4/2*).
         (name: "MeasurePredicative", lhs: "Predicative", rhs: [Cat("head", "MeasureNounPhrase")]),
@@ -1121,6 +1139,7 @@
         (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Grade", "Comparative"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
 
         (name: "PhrasalAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "PhrasalAdverb")], equations: [Require("$.AdjunctPosition", "Phrasal")]),
+        (name: "MultiplyingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "MultiplyingAdverb")], equations: [Require("$.AdjunctPosition", "Multiplying")]),
         (name: "BoundingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "BoundingAdverb")], equations: [Require("$.AdjunctPosition", "Bounding")]),
         (name: "DegreeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "That"), Class("head", "DegreeQuantifier")], equations: [Require("$.ComplementKind", "Intransitive")]),
         // Scalar equality: *as much / as many* (CGEL, Ch. 13 §§4.1.2,
@@ -1152,6 +1171,7 @@
         (name: "BoundingNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Require("modifier.AdjunctPosition", "Bounding"), Exclude("determiner.DeterminativeDistribution", "Numerical"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AdverbModifiedNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "NounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
+        (name: "AdverbMultipliedNounPhrase", lhs: "NounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "NounPhrase")], equations: [Require("modifier.AdjunctPosition", "Multiplying")]),
         // *Both* floats after a plural Object, ahead of the Complement that
         // follows it (*put two cards from your hand both on top of your
         // library*; CGEL, Ch. 5 §9.2(c), p. 413 and §10.1.1, pp. 427–428,
@@ -1168,6 +1188,13 @@
         (name: "AdverbModifiedAdverbPhrase", lhs: "AdverbPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "AdverbPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")], light: ["head"]),
         (name: "PredeterminerCount", lhs: "NounPhrase", rhs: [Class("determiner", "Predeterminer"), Cat("head", "NounPhrase")], equations: [Require("head.Determination", "Overt"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability")]),
         (name: "PredeterminerMass", lhs: "NounPhrase", rhs: [Class("determiner", "Predeterminer"), Cat("head", "NounPhrase")], equations: [Require("head.Determination", "Overt"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability")]),
+        // *All* before a fused cardinal, the head of its Noun Phrase unexpressed
+        // (*if you've done all four*; CGEL, Ch. 5 §12, p. 434: before a cardinal
+        // *all* is the determiner and the numeral an internal modifier, which
+        // fuses with the omitted head, §9.3(a), pp. 415-416): it counts the
+        // members of a set, as *all of them* does.
+        (name: "AllFusedCardinal", lhs: "NounPhrase", rhs: [Word("determiner", "All"), Cat("head", "ChoiceQuantity")],
+            equations: [Require("head.Number", "Plural"), Require("$.Number", "Plural"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "SingularQuantifier", lhs: "DeterminerPhrase", rhs: [Word("head", "Any"), Numeral("modifier", Cardinal)], equations: [Require("modifier.Number", "Singular"), Require("$.Number", "Singular"), Require("$.ComplementKind", "Intransitive")]),
         // A temporal Noun Phrase Adjunct: a period noun with a deictic or
         // distributive determinative (*this turn*, *each combat*), never with
@@ -1207,6 +1234,12 @@
         (name: "RelativeTime", lhs: "RelativeTemporalNominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "RelativeClause")],
             equations: [Require("head.NounKind", "Temporal"), Agree("head.Number", "modifier.Number"), Agree("head.NounKind", "modifier.NounKind")]),
         (name: "RelativeTimePostmodifier", lhs: "RelativeTemporalNominal", rhs: [Cat("head", "RelativeTemporalNominal"), Cat("modifier", "TemporalNounPhrase")], cost: 2),
+        // A preposed frequency adverb and its interval, set off by a comma
+        // (*Twice this turn, ...*; CGEL, Ch. 8 §9, p. 715), as the fronted
+        // *Once each turn, ...* is (FrequencyInterval). *Twice* is no Front
+        // adverb, which would admit *Twice that many counters are put ...*
+        // without the comma.
+        (name: "PreposedFrequency", lhs: "Clause", rhs: [Cat("adverb", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adverb.AdjunctPosition", "Multiplying"), Require("$.FrontPosition", "Occupied")], transparent: ["head"]),
         // A preposed temporal Noun Phrase (*This turn, ...*; *The next time ..., ...*).
         (name: "PreposedTemporalAdjunct", lhs: "Clause", rhs: [Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("$.FrontPosition", "Occupied")], transparent: ["head"]),
         // A preposed Preposition Phrase and temporal Noun Phrase set off by
@@ -1240,7 +1273,7 @@
             equations: [Require("head.NounKind", "Temporal")], cost: 2),
         (name: "TemporalAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "TemporalNounPhrase")], transparent: ["head"], cost: 2),
         (name: "MannerAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "NounPhrase")], equations: [Carry("adjunct.NounKind", "Manner")], transparent: ["head"], cost: 2),
-        (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal"), Exclude("head.AdjunctPosition", "Linking")]),
+        (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal"), Exclude("head.AdjunctPosition", "Multiplying"), Exclude("head.AdjunctPosition", "Linking")]),
         (name: "NumericCountPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.QuantityNumber", "head.Number")]),
         (name: "NumericMassPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
         (name: "CardinalCountPremodifier", lhs: "QuantifiedNominal", rhs: [Numeral("modifier", Cardinal), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.Number", "head.Number")]),
@@ -1306,6 +1339,17 @@
         // count one over a count oblique, a non-count one over a non-count
         // oblique. The Noun Phrase has the determiner's Number: the
         // exceptive's own, the comparative's standard's.
+        // A quantity with *each* as its oblique, the implicit partitive's set
+        // recovered from the context (*create one of each*; CGEL, Ch. 5 §9.3,
+        // p. 413): fused *each* is no Complement elsewhere (NonNumericComplement),
+        // and a Preposition Phrase would let *of* take it before a second
+        // *of* Phrase (*the beginning of each of your main phases*). It is a
+        // fused Noun Phrase at once, so that no Preposition Phrase after it
+        // modifies it (*one of each of those kinds of counters* is the
+        // partitive of a partitive).
+        (name: "QuantityPartitiveOfEach", lhs: "FusedNounPhrase", rhs: [Cat("head", "DeterminerPhrase"), Word("preposition", "Of"), Word("oblique", "Each")], unshared: ["DeterminativeDistribution"],
+            equations: [Require("head.DeterminativeDistribution", "Numerical"), Require("$.DeterminativeDistribution", "Distributive"),
+                Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComplementedPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "PP"), Carry("head.Countability", "Count"), Agree("head.Countability", "complement.Countability"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComplementedMassPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
@@ -1383,6 +1427,12 @@
         // than one*, *many more than two*; CGEL, Ch. 13 §4.4, p. 1126).
         (name: "ModifiedComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Lex("modifier", Determinative), Class("quantifier", "ComparativeQuantifier"), Selected("complement", "PrepositionPhrase", ["Than"])],
             equations: [Require("complement.Determination", "Bare"), Exclude("complement.ComplementKind", "AdvP"), Agree("$.Number", "complement.Number"), Agree("$.Countability", "quantifier.Countability"), Agree("$.DeterminativeDistribution", "quantifier.DeterminativeDistribution"), Require("$.ComplementKind", "PP"), Agree("$.ObliqueNumber", "complement.Number"), Agree("$.ObliqueKind", "complement.ComplementKind"), Agree("$.ObliqueDetermination", "complement.Determination")]),
+        // The same without the *than* Complement, the standard being the
+        // nominal it determines (*no more scream counters*, *no fewer
+        // cards*; CGEL, Ch. 13 §4.4, p. 1126), as a measure phrase does in
+        // MeasuredComparativeDeterminer.
+        (name: "DegreeModifiedComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "No"), Class("quantifier", "ComparativeQuantifier")],
+            equations: [Agree("$.Number", "quantifier.Number"), Agree("$.Countability", "quantifier.Countability"), Agree("$.DeterminativeDistribution", "quantifier.DeterminativeDistribution"), Require("$.ComplementKind", "Intransitive")]),
         // Arithmetic: *plus* and *minus* head Preposition Phrases modifying a
         // quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
         // one*).
@@ -1418,8 +1468,11 @@
         // frequency Noun Phrase does (CGEL, Ch. 8 §9, p. 715).
         (name: "FrequencyAdverbArithmetic", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Require("head.AdjunctPosition", "End"), Require("modifier.NounKind", "Temporal")]),
+        // Its operand is no distributive phrase (*that many plus one of each of
+        // those kinds*: *one of each* is the partitive's, and *of those kinds*
+        // its oblique).
         (name: "DegreeArithmetic", lhs: "DeterminerPhrase", rhs: [Cat("head", "DeterminerPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
-            equations: [Require("head.ComplementKind", "Intransitive")], heavy: ["head"]),
+            equations: [Require("head.ComplementKind", "Intransitive"), Exclude("modifier.DeterminativeDistribution", "Distributive")], heavy: ["head"]),
         // A fraction or multiplier before a determined Noun Phrase (*half their
         // life*, *double that damage*).
         (name: "MultiplierPredetermination", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "NounPhrase")],
@@ -1617,6 +1670,9 @@
         // A superlative also fuses with the head it would modify (CGEL, Ch. 5
         // §9.3(b), p. 416), its article unexpressed as above: *tied for
         // greatest*, *tied for most common*.
+        // A superlative determinative fuses the same way, its article
+        // unexpressed: *tied for fewest*.
+        (name: "SuperlativeQuantifierFusedHead", lhs: "BareNominalComplement", rhs: [Class("head", "CountSuperlativeQuantifier")]),
         (name: "SuperlativeFusedHead", lhs: "BareNominalComplement", rhs: [Cat("modifier", "AdjectivePhrase")], equations: [Carry("modifier.Grade", "Superlative"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         // Noun phrases.
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],

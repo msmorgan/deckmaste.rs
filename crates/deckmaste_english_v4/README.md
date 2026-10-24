@@ -274,7 +274,14 @@ creatures*); a fraction or multiplier precedes a determined Noun Phrase (*half
 their life*, *double that damage*), and *, rounded up* is a participial
 Supplement, of a verbal cost too. *Plus* and *minus* head Preposition Phrases
 on a quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
-one*), and *N times X* multiplies an amount.
+one*), and *N times X* multiplies an amount. A superlative that is no degree
+word fuses with its head, its article unexpressed (*tied for fewest*); *no*
+modifies a comparative determinative with no *than* Complement (*no more scream
+counters*); *all* precedes a fused cardinal (*if you've done all four*). A
+multiplying adverb (*twice that many*) modifies a Noun Phrase or a measure, never
+a temporal Noun Phrase: *twice this turn* is the frequency adverb and a second
+Adjunct, as *once each turn* is. *But* coordinates Clauses (*that damage is
+dealt, but all other damage is healed*).
 
 Stratum 6 (complete) coordinates Clauses, Verb Phrases, Noun Phrases,
 nominals, noun and participle premodifiers, Adjective, Preposition and Adverb
@@ -327,7 +334,8 @@ shared Complement inside it (*total [power and toughness 5 or less]*). Floated
 *each* and *both* follow a plural or second-person Subject or an auxiliary
 (*you each lose*, *this creature and target creature both gain*), and *each*
 precedes a postmodifying Preposition Phrase (*cards each with mana value 3 or
-less*); fused *each* is an implicit partitive Subject (*each enters with*).
+less*); fused *each* is an implicit partitive Subject (*each enters with*) or
+a quantity's oblique (*create one of each*).
 A temporal Noun Phrase is an unlike predicate-adjunct conjunct (*that many
 times or until you lose a flip*). A preposition that selects both an Amount
 and a Noun Phrase also selects their unlike coordination (*equal to 2 or the

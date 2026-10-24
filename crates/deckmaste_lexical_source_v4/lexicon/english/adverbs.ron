@@ -59,6 +59,6 @@
     // §2.10, pp. 1319–1320).
     (lemma: "then", positions: [Front, Central, Linking]),
     // *copy that spell twice*; *deals twice that much damage*
-    (lemma: "twice", positions: [End, Phrasal]),
+    (lemma: "twice", positions: [End, Multiplying]),
     (lemma: "yet", positions: [End]),
 ]

@@ -214,14 +214,17 @@
         (lemma: "harness", frames: [Monotransitive]),
     ]),
     (rule: "[CR#701.65]", name: "Airbend", verbs: [
-        // Past forms follow the head verb "bend".
-        (lemma: "airbend", past: "airbent", frames: [Monotransitive]),
+        // Past forms follow the head verb "bend". A trigger names the action
+        // alone: *whenever you airbend* [CR#701.65b].
+        (lemma: "airbend", past: "airbent", frames: [Monotransitive, Intransitive]),
     ]),
     (rule: "[CR#701.66]", name: "Earthbend", verbs: [
-        (lemma: "earthbend", past: "earthbent", frames: [Amount]),
+        // A trigger names the action alone: *whenever you earthbend* [CR#701.66b].
+        (lemma: "earthbend", past: "earthbent", frames: [Amount, Intransitive]),
     ]),
     (rule: "[CR#701.67]", name: "Waterbend", verbs: [
-        (lemma: "waterbend", past: "waterbent", frames: [Cost]),
+        // A trigger names the action alone: *whenever you waterbend* [CR#701.67c].
+        (lemma: "waterbend", past: "waterbent", frames: [Cost, Intransitive]),
     ]),
     (rule: "[CR#701.68]", name: "Blight", verbs: [
         (lemma: "blight", frames: [Amount]),
