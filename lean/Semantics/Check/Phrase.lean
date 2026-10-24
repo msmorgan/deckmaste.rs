@@ -4585,9 +4585,15 @@ def stepOps : Nat → StepOps
             (if drs.actionPattern then out
               else { out with causedEvents := payment :: out.causedEvents }, errors)
           | .compound cs =>
-            cs.foldl (fun (d, es) x =>
-              let (d', e') := ops.cost d x
-              (d', es ++ e')) (drs, refuse (!cs.isEmpty) .nonEmpty)
+            -- Each member is its own clause, as `sequentially` steps its steps: "Sacrifice a
+            -- creature, Exile it:" reads "it" as the sacrificed creature.
+            match cs with
+            | [] => (drs, [.nonEmpty])
+            | first :: rest =>
+              let (drs1, e1) := ops.cost drs first
+              rest.foldl (fun (d, es) x =>
+                let (d', e') := ops.cost (nextClause d) x
+                (d', es ++ e')) (drs1, e1)
           | .or cs =>
             let errors := cs.flatMap fun c =>
               (ops.cost drs c).2 ++ (match c with | .compound _ => [.notCompound] | _ => [])

@@ -76,13 +76,25 @@ theorem okEffectReadsTheCreatureItsCostReturned :
       returned isCreature (was (returnToHand which) thisWay) = [] := by
   decide
 
-/-- "Discard a card, Sacrifice a creature: Exile it." -/
-theorem badTwoCostMentions :
+/-- "Discard a card, Sacrifice a creature: Exile it." Each member of a compound cost is its own
+clause, as each step of `sequentially` is (`lean/CONTRACTS.md`, "Enclosed traversals"), so `D′`
+reads "it" as the nearer mention, the sacrificed creature, not as a tie with the discarded card. -/
+theorem okTwoCostMentionsItReadsTheNearer :
+    let cost := Cost.compound
+      [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))]
+    let after := (stepAction 64 .postEvent .obj
+      (nextClause (stepCost 64 (DRS.ofList []) cost).1) (exile it)).1
+    Ability.check (DRS.ofList []) (activatedAbility cost (exile it)) = [] ∧
+      (after.referents.filter (·.zone == some .exile)).map (·.ty) = [[.creature]] := by
+  decide
+
+/-- "Sacrifice a creature, Exile it:" The second cost member reads the creature the first
+sacrificed: a compound cost opens a clause per member (`lean/CONTRACTS.md`, "Enclosed
+traversals"), so the sacrificed creature is no clause-mate of "it". -/
+theorem okLaterCostMemberReadsAnEarlierOne :
     Ability.check (DRS.ofList [])
-      (activatedAbility
-        (.compound
-          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))])
-        (exile it)) = [.anaphor .bare .one 2] := by
+      (activatedAbility (.compound [.perform (sacrifice (a isCreature)), .perform (exile it)])
+        (draw 1)) = [] := by
   decide
 
 /-- "Tap target creature you control. Sacrifice it." -/
