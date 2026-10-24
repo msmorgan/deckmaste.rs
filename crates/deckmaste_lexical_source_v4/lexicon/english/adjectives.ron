@@ -38,15 +38,12 @@
     (lemma: "phased-out", position: Some(Attributive)),
     "final",
     "four-sided",
-    "free",
     "full",
     "generic",
     (lemma: "great", comparative: "greater", superlative: "greatest"),
-    "guilty",
     (lemma: "high", comparative: "higher", superlative: "highest"),
     "historic",
     "illegal",
-    "innocent",
     "last",
     "following",
     // Directional *the left half*; predicative *left* is the participle of *leave*.
@@ -110,7 +107,6 @@
     "unspent",
     // "faces a villainous choice" [CR#701.55a]; the verb `face` is the keyword action.
     "villainous",
-    "wild",
     "worthy",
     "wrong",
 

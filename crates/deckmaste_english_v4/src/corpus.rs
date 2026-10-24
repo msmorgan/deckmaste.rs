@@ -38,6 +38,23 @@ pub struct Face {
     pub oracle_text: Option<String>,
 }
 
+impl Face {
+    /// The face's units as (kind, index, text): its trimmed type line, then
+    /// its rules-text lines ([`split_lines`]).
+    fn units(&self) -> impl Iterator<Item = (UnitKind, usize, String)> {
+        let type_line = self
+            .type_line
+            .iter()
+            .map(|line| (UnitKind::TypeLine, 0, line.trim().to_owned()));
+        let lines = self
+            .oracle_text
+            .iter()
+            .flat_map(|text| split_lines(text).into_iter().enumerate())
+            .map(|(line, text)| (UnitKind::Line, line, text));
+        type_line.chain(lines)
+    }
+}
+
 /// One Editorial Correction: `corrected` read in place of `oracle`, which
 /// occurs exactly once in the Oracle text of the face named `card`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,6 +170,10 @@ pub struct Corpus {
     /// Editorial Corrections that matched no face of the stream read: the
     /// Oracle text they correct has changed or gone.
     pub stale_corrections: Vec<EditorialCorrection>,
+    /// Deferral and declined lines (`NAME | TEXT`) that name no unit of any
+    /// face of the stream read, kept or not: the unit they name has changed
+    /// or gone.
+    pub unmatched_deferrals: Vec<String>,
 }
 
 /// Why the corpus could not be read.
@@ -207,6 +228,8 @@ impl Corpus {
     pub fn read(reader: impl BufRead, keep: impl Fn(&Face) -> bool) -> Result<Self, CorpusError> {
         let corrections = editorial_corrections();
         let mut applied = vec![false; corrections.len()];
+        let mut unmatched: BTreeSet<(&'static str, &'static str)> = crate::census::deferrals();
+        unmatched.extend(crate::census::declined());
         let mut corpus = Self::default();
         for card in OracleCardReader::new(reader) {
             let card = card.map_err(|e| CorpusError::Read(e.to_string()))?;
@@ -232,6 +255,12 @@ impl Corpus {
                         .oracle_text()
                         .map(|text| correct(unit.display_name(), text, &corrections, &mut applied)),
                 };
+                if !unmatched.is_empty() {
+                    let texts: Vec<String> = face.units().map(|(_, _, text)| text).collect();
+                    unmatched.retain(|&(name, text)| {
+                        name != face.name || !texts.iter().any(|t| t == text)
+                    });
+                }
                 if keep(&face) {
                     corpus.push(face);
                 }
@@ -241,6 +270,10 @@ impl Corpus {
             .into_iter()
             .zip(applied)
             .filter_map(|(correction, applied)| (!applied).then_some(correction))
+            .collect();
+        corpus.unmatched_deferrals = unmatched
+            .into_iter()
+            .map(|(name, text)| format!("{name} | {text}"))
             .collect();
         Ok(corpus)
     }
@@ -257,24 +290,13 @@ impl Corpus {
     /// Adds a face and its units.
     pub fn push(&mut self, face: Face) {
         let index = self.faces.len();
-        if let Some(type_line) = &face.type_line {
-            self.units.push(Unit {
+        self.units
+            .extend(face.units().map(|(kind, line, text)| Unit {
                 face: index,
-                kind: UnitKind::TypeLine,
-                index: 0,
-                text: type_line.trim().to_owned(),
-            });
-        }
-        if let Some(text) = &face.oracle_text {
-            for (line, text) in split_lines(text).into_iter().enumerate() {
-                self.units.push(Unit {
-                    face: index,
-                    kind: UnitKind::Line,
-                    index: line,
-                    text,
-                });
-            }
-        }
+                kind,
+                index: line,
+                text,
+            }));
         self.faces.push(face);
     }
 }
@@ -357,6 +379,22 @@ mod tests {
                 .iter()
                 .any(|c| c.card == "Agency Outfitter")
         );
+    }
+
+    #[test]
+    fn a_deferral_matches_a_unit_of_any_face_read_kept_or_not() {
+        // Cosmos Charger's line is deferred in `deferred.txt`.
+        let line = "Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.";
+        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Cosmos Charger","layout":"normal","legalities":{"vintage":"legal"},"type_line":"Creature — Horse Spirit","oracle_text":"Flash\nFlying\nForetelling cards from your hand costs {1} less and can be done on any player's turn."}"#;
+        let corpus = Corpus::read(std::io::Cursor::new(input), |_| false).unwrap();
+        assert!(!corpus.unmatched_deferrals.iter().any(|l| l == line));
+        // Every other deferred or declined line names no unit of this stream.
+        assert_eq!(
+            corpus.unmatched_deferrals.len(),
+            crate::census::deferrals().len() + crate::census::declined().len() - 1
+        );
+        let corpus = Corpus::read(std::io::Cursor::new(""), |_| true).unwrap();
+        assert!(corpus.unmatched_deferrals.iter().any(|l| l == line));
     }
 
     #[test]

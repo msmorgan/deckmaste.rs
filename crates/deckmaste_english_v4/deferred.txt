@@ -1,9 +1,9 @@
 # Units at or below the completed Stratum left unread on purpose: `NAME | TEXT`,
 # one per line, each owned by a ticket. The census counts them apart; a
-# deferred unit that reads is stale and fails `strata --check`.
+# deferred unit that reads, or a line that names no corpus unit, is stale and
+# fails `strata --check`.
 
 # english-v4-stratum-7-discourse-and-long-tail
-Kutzil, Malamet Exemplar | Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player, draw a card.
 Avatar of Woe | If there are ten or more creature cards total in all graveyards, this spell costs {6} less to cast.
 Distended Mindbender | When you cast this spell, target opponent reveals their hand. You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. That player discards those cards.
 Cosmos Charger | Foretelling cards from your hand costs {1} less and can be done on any player's turn.

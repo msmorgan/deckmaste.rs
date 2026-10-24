@@ -13,7 +13,8 @@
 //! A unit the tracked deferral list ([`crate::DEFERRED`]) names, by card and
 //! text, is deferred while it is not read: counted apart and never a
 //! regression. A law failure is a defect and is never deferred. A deferral
-//! whose unit is read is stale.
+//! whose unit is read is stale, as is one that names no unit at all
+//! ([`crate::corpus::Corpus::unmatched_deferrals`]).
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;

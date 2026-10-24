@@ -208,6 +208,12 @@ pub struct ProductionDecl {
     /// own (CGEL, Ch. 15 §1.3.4, pp. 1285–1286).
     #[serde(default)]
     pub coordinated: Vec<Ident>,
+    /// Features of the mother that it does not share with its `head` child
+    /// and that the Production's equations value instead: a degree modifier
+    /// that changes its head's grade (an analytic superlative, CGEL, Ch. 13
+    /// §4.3, p. 1122).
+    #[serde(default)]
+    pub unshared: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {

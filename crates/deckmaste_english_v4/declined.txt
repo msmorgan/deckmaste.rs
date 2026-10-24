@@ -3,7 +3,8 @@
 # `NAME | TEXT`, one per line, each preceded by comment lines giving the
 # construction and the reason. The census counts them apart from unread. A
 # declined card is scope, not an accepted wrong reading. A declined unit that
-# reads is stale and fails `strata --check`.
+# reads, or a line that names no corpus unit, is stale and fails
+# `strata --check`.
 
 # Partitive right-node raising, "paid by some amount of, or all of, the mana".
 # Reason: no other card coordinates partitive prefixes sharing one head noun.

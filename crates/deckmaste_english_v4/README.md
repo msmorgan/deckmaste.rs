@@ -90,7 +90,8 @@ reported statistic, never an acceptance gate (`docs/decisions/english-v4.md`
 it that is not read is a regression, unless [`deferred.txt`](deferred.txt) names
 it by card and text: a deferred unit is left unread on purpose, owned by a
 ticket, and counted apart. A law failure is never deferred, and a deferred unit
-that reads is stale.
+that reads is stale, as is a deferred or declined line that names no unit of the
+whole snapshot (with or without `--card`).
 
 Where a face's Oracle text breaks a convention its printed card keeps, the
 census reads the Editorial Correction recorded in
@@ -106,7 +107,7 @@ cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<ce
 
 prints the summary and writes the full per-unit report to
 `target/english-v4/strata.json` (untracked). `--check` fails on a regression, a
-stale deferral or a unit that is not segmentable.
+stale deferral (read, or naming no unit) or a unit that is not segmentable.
 
 The full lexical environment binds. Stratum 0 covers Type Lines, complete
 keyword lists and non-clausal parameters, symbolic costs and structured
