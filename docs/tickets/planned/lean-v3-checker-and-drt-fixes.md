@@ -15,117 +15,201 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
 ### 1. Referent Stamps, Clauses, Modal Boxes, Self/Performer Identity & Disjunction Scoping (Opus §§2.1–2.6)
 
 - **Accumulate deeds on a referent (§2.1):** Replace single-verb overwrite in
-  `Stamp` (`Check/Words.lean:232`, `applyInPlaceStamp` at `Check/Phrase.lean:439`,
-  `stampedBy` at `Check/Words.lean:1012`) with accumulated `.actedOn deed` stamps
+  `Stamp` (`Check/Words.lean:135-141`, `verb : Option Deed`; `applyInPlaceStamp` at
+  `Check/Phrase.lean:622-635` still sets `verb := some v, through := []`; `stampedBy` at
+  `Check/Words.lean:1124`) with accumulated `.actedOn deed` stamps
   per [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md) §1.2/§1.5
   so an intermediate action (e.g. `"Exile target creature. Reveal it. Return the
   exiled card..."`) does not erase an earlier deed stamp.
+  **Reconciled 2026-10-24: live** (the Zone Change now rides on its own `Stamp.zoneChange`
+  field from [lean-v3-move-deeds-and-verbs](../done/lean-v3-move-deeds-and-verbs.md), but the
+  deed itself is still a single overwritten `verb`).
 - **Advance `nextClause` in `Cost.compound` (§2.2):** Update the `Cost.compound`
-  fold in `Check/Phrase.lean:3010` to advance `nextClause` between members per
-  `lean/CONTRACTS.md` ("Enclosed traversals") so cross-cost pronouns
+  fold in `Check/Phrase.lean:4453-4456` to advance `nextClause` between members per
+  `lean/CONTRACTS.md` ("Enclosed traversals", `:627`) so cross-cost pronouns
   (`"Sacrifice a creature, Exile it:"`) resolve.
+  **Reconciled 2026-10-24: live** (the fold still threads `ops.cost d x` with no `nextClause`).
 - **Close modal boxes across all four deontics (§2.3):** Close the inner DRS box
-  on `must`, `can`, and `gatedBy` in `Check/Phrase.lean:2896-2930` just as `cant`
+  on `must`, `can`, and `gatedBy` in `Check/Phrase.lean:4315-4353` just as `cant`
+  (`:4302-4314`, via `publishProhibitionSources` at `:1761`)
   does (`docs/decisions/semantics-v3.md` §1.3 box 3), preventing modal-scoped
   referents from leaking into outer discourse.
+  **Reconciled 2026-10-24: live** (`must`/`can` return `drs4` with every inner referent;
+  `gatedBy` filters only the payer).
 - **Produce `Determiner.self` for `"this"` and `"you"` (§2.4):** Fix `.this` and
-  `.you` in `Check/Phrase.lean:1982` so they use `Determiner.self` / reuse their
+  `.you` in `Check/Phrase.lean:3158-3164` (`.this`) and `:3135-3140` (`.you`) so they use
+  `Determiner.self` (`Check/Words.lean:19`) / reuse their
   referent rather than pushing a fresh `det := .the` referent on every mention
-  (activating the dead `wordNow`, `reachesCharacteristic`, and `countTokenSpecs`
-  guards and refusing `"Tap this creature. Untap that creature."`).
+  (activating the dead `.self` guards in `wordNow` (`Check/Words.lean:1096-1098`),
+  `reachesCharacteristic` (`:1172-1175`), and `countTokenSpecs` (`:1527-1529`)
+  and refusing `"Tap this creature. Untap that creature."`).
+  **Reconciled 2026-10-24: live** (no checker site produces `det := .self`).
 - **Wire `DRS.performer : Option ReferentId` and retire fake `Payload.actor`
   referents (§2.5):** Track the performer in `DRS.performer` per
   `docs/decisions/semantics-v3.md` §1.2/§1.4 instead of pushing `Payload.actor`
   frames with `.outcome` kind into `referents` and filtering `!b.isActorFrame` /
   `r.kind != .outcome` across counting helpers; reconcile `Payload`'s 11
   constructors with the ADR.
+  **Reconciled 2026-10-24: live** (`DRS.performer` exists at `Check/Words.lean:460` but no
+  site assigns it; `Payload.actor` (`Check/Words.lean:251`, 11 constructors at `:235-252`) frames
+  are still pushed at `Check/Phrase.lean:854,3458,3497` and `Check/AbilityRules.lean:163`, and
+  `isActorFrame` (`Check/Words.lean:386`) is filtered at 21 `Check/` sites).
 - **Consistent disjunction, conditional, and negation scoping (§2.6):** Fix
-  `NounPhrase.or` (`stepNounAlternativesWith` in `Check/Phrase.lean:975-995`),
-  `Timing.or`/`.and` (`Check/Phrase.lean:720`), `Location.or` (`:771`),
-  `Location.not` (`:770`), and `doIf` (`Check/Phrase.lean:2759-2803`) so branches
+  `NounPhrase.or` (`stepNounAlternativesWith` in `Check/Phrase.lean:1532-1553`),
+  `Timing.or`/`.and` (`Check/Phrase.lean:965-968`), `Location.or` (now
+  `Location.coord`, `:1016-1020`), `Location.not` (`:1015`), and `doIf`
+  (`Check/Phrase.lean:4030-4081`) so branches
   do not thread left-to-right or leak branch-local non-target indefinites into
   outer discourse (preserving announced targets `[CR#601.2c,115.1]` and outer
   mutations across both `elseInst = none` and `elseInst = some _`, matching
-  `doOnlyIf`), and update `lean/CONTRACTS.md` to match.
+  `doOnlyIf`, now a Template over `doIf`), and update `lean/CONTRACTS.md` (`doIf` row at
+  `:640`) to match.
+  **Reconciled 2026-10-24: live** (partly: `doIf` now announces then-branch targets before the
+  condition and hands them, with named amounts, to the else-branch, per `lean/CONTRACTS.md:640`,
+  no single landing ticket; `NounPhrase.or` branches now each start from the pre-disjunction
+  context. Still live: `NounPhrase.or` keeps every branch's additions; `Timing.and/.or` and
+  `Location.coord` thread left-to-right; `Location.not` returns the inner output; `doIf` with no
+  else-branch keeps the branch's non-target indefinites (`CONTRACTS.md:640` currently says "its
+  output continues"), and with an else-branch returns `withTargets`, dropping the branch's
+  outer mutations).
+  This ticket owns the `lean/CONTRACTS.md:640` `doIf` row and rewrites it in the same landing as
+  the `doIf` fix (cross-noted 2026-10-24 in `lean-v3-proofs-and-docs-alignment` §3).
 - **Foreground non-argument possessor re-mentions in `DRS.recordMention`:** When
   an existing referent is re-mentioned in a non-argument slot (`inArgSlot = false`,
   e.g. `"that creature's owner"`), update `r.clause := drs.currentClause` and
   `r.role := .other` (matching a newly introduced possessor NP) without recording
   in `drs.pendingRoles`, so *Weeping Angel*'s raw `"it"` in
-  `"that creature's owner shuffles it into their library"` (`Proofs/DrtCards.lean:240-266`)
+  `"that creature's owner shuffles it into their library"` (`Proofs/DrtCards.lean:264-290`)
   resolves directly to the damaged creature without `.laterMention`.
+  **Reconciled 2026-10-24: live** (`DRS.recordMention` at `Check/Words.lean:664-671` updates
+  neither `clause` nor `role`; `weepingAngelRawPronounCurrentlySelectsTheDamageSource` at
+  `Proofs/DrtCards.lean:284-289` still pins the raw `it` reading the source).
 
 ### 2. Shared Action-Clause Spine, Head Gates & Deed Identity (Opus §§2.7–2.8, §3.1–3.3)
 
 - **Share the action-clause spine (§2.8):** Factor `stepDidClauseWith`
-  (`Check/Phrase.lean:861`), `stepWouldClauseWith` (`:911`), `ev .does` (`:2200`),
-  and `cant`/`must`/`can`/`gatedBy` onto a single shared action-clause stepper
+  (`Check/Phrase.lean:1349`), `stepWouldClauseWith` (`:1458`), `ev .does` (`:3409`),
+  and `cant`/`must`/`can`/`gatedBy` (`:4302-4353`) onto a single shared action-clause stepper
   (`docs/decisions/semantics-v3.md` §3.1), eliminating drift in locus/historical
   handling and actor-kind checks (including `.draw`).
+  **Reconciled 2026-10-24: live** (they share `stepEventSubjectWith` (`:892`) and
+  `stepSubjectAfterWith`, but each still hand-rolls the head gate, the `.draw` actor-kind
+  exemption (`:1463-1467`, `:3412-3416`) and the locus check).
 - **Reconcile `deonticHeadOk` and `eventHeadOk` (§2.7):** Align
-  `Check/Events.lean:30-70` so non-battlefield zone moves (e.g. `move` to exile)
+  `Check/Events.lean:25-67` (`eventHeadOk` `:25-45`, `deonticHeadOk` `:48-67`) so
+  non-battlefield zone moves (e.g. `move` to exile)
   and `ownScope` headers are admitted consistently across event and deontic
   clauses.
+  **Reconciled 2026-10-24: live** (`deonticHeadOk` admits only `.move … battlefield` (`:64`)
+  and only `ownScope (some (.action _ _))` (`:52`); `eventHeadOk` admits any move and any
+  `ownScope (some _)`).
 - **Unify deed stamping and prune dead `CoreDeed` constructors (§§3.1, 3.3):**
   - Eliminate the three competing deed-stamping mechanisms (`ownScope (some (.action ...))`
     header, `.enact`, and `Action.inferredDeed` string-guessing at
-    `Check/Phrase.lean:455-478`) and remove the `ownScope` + `.enact` double-wrap.
+    `Check/Phrase.lean:178-200`) and remove the `ownScope` + `.enact` double-wrap (still
+    written by every Action Definition, e.g. `Definitions/Actions.lean:283-284,622-623`; the
+    stepper ignores the `ownScope` deed, `Check/Phrase.lean:3445-3450`, and stamps from
+    `.enact`, `:3451-3469`).
   - Delete the 8 dead `CoreDeed` constructors (`attack`, `block`, `gainLife`,
-    `loseGame`, `winGame`, `spend`, `unlock`, `tapForMana` in `Words.lean:225-228`).
-  - [lean-v3-move-deeds-and-verbs](lean-v3-move-deeds-and-verbs.md) removes
+    `loseGame`, `winGame`, `spend`, `unlock`, `tapForMana` in `Words.lean:318-321`).
+    Added 2026-10-24: `CoreDeed.copy` (`Words.lean:319`) is a ninth, never constructed anywhere
+    in `lean/` (spell and ability copies go through `Action.copy`, not a `CoreDeed`).
+    **Reconciled 2026-10-24: live.**
+  - Added 2026-10-24: the `ownScope` header's deed is read by the head gates and the deed guess
+    (`eventHeadOk` `Check/Events.lean:29`, `deonticHeadOk` `:52`, `inferredDeed`
+    `Check/Phrase.lean:184`, `eventLayers` `:1190`) but discarded by the stepper itself
+    (`let _ := deed`, `Check/Phrase.lean:3445-3450`), so the header's deed and the `.enact`
+    stamp can disagree unchecked. Unifying the stamping mechanisms must leave one deed that
+    both the gates and the stepper read. **Reconciled 2026-10-24: live.**
+  - [lean-v3-move-deeds-and-verbs](../done/lean-v3-move-deeds-and-verbs.md) removes
     `CoreDeed.put` and `.return_`, the `inferredDeed` cases that guess them, and
     gives a move its own stamp (owner ruling 2026-10-21). Neither ticket needs the
     other; whichever lands second rebases onto the other's stamp.
+  **Reconciled 2026-10-24: live** (partly: the third sub-bullet is done by
+  [lean-v3-move-deeds-and-verbs](../done/lean-v3-move-deeds-and-verbs.md): `CoreDeed` has no
+  `put`/`return_` (`Words.lean:318-321`), `inferredDeed` keeps only the exile move case
+  (`Check/Phrase.lean:187`), and a move stamps `Stamp.zoneChange` (`Check/Words.lean:138`), so
+  this ticket rebases onto that stamp. Still live: the three stamping mechanisms and the
+  double-wrap, and the 8 dead `CoreDeed` constructors, all still declared and never
+  constructed).
 
 ### 3. `theGrantor`, `permanentActor`, Refusal Hygiene, Positional Hacks, Fuel & Dead Code (Opus §§1.16, 2.9, 2.11–2.13, 5.4, 6.7; Astra §§2, 7)
 
 - **Honor the head noun in `NounPhrase.theGrantor` (§1.16):** In
-  `Check/Phrase.lean:2569-2575` (`| .theGrantor head => … payload := .object [] (some
+  `Check/Phrase.lean:3119-3126` (`| .theGrantor head => … payload := .object [] (some
   .battlefield) …`), set the pushed referent's zone and type from its `head : NounWord`
-  (`Abilities.lean:318`; the earlier `HeadNoun` is retired), using the mapping the `this…` heads
+  (`Abilities.lean:359`; the earlier `HeadNoun` is retired), using the mapping the `this…` heads
   use: an emblem is put "into the command zone" and its abilities "function in the command zone"
   [CR#114.2,114.4]. Flip the pin `emblemGrantorReadsABattlefieldObject`
-  (`Proofs/MovementScopes.lean:172-176`) to `some .command`. Re-verified 2026-10-21
+  (`Proofs/MovementScopes.lean:172-177`) to `some .command`. Re-verified 2026-10-21
   (mtg-rules review, `departures-lean.md` #54).
+  **Reconciled 2026-10-24: live** (payload still hard-codes `some .battlefield`).
 - **Align `permanentActor` facts with the CR (§2.11; mtg-rules review 2026-10-21,
   `departures-lean.md` #22):** adapt, harness and monstrosity are "this permanent" instructions
   [CR#701.46a,701.64a,701.37a] that the ability's controller follows [CR#608.2c] (a player is
   instructed "to 'monstrosity X'" [CR#701.37c]); only fight, explore, connive and endure instruct
   a permanent [CR#701.14a,701.44a,701.50a,701.63a]. Set `permanentActor := false` for all three
-  (`Check/Words.lean:144,176,185`; consumed at `Check/Phrase.lean:2887`). For adapt and
+  (the facts rows are gone; the flag is now the `true` argument of `Deed.action` in each
+  Definition's `ownScope`/`enact` header: monstrosity `Definitions/Actions.lean:283-284`, adapt
+  `:622-623`, harness `:718-719`; read by `Deed.permanentActor` `Check/Words.lean:112-114`;
+  consumed at `Check/Phrase.lean:1210,3453`). For adapt and
   monstrosity also replace the `.actor` patient with the source permanent (`this_`) in their
-  bodies (`Definitions/Actions.lean:591-596,264-271`); harness (`:681-688`) already takes an
-  explicit subject. Correct the [CR#701.46a] claim in `Proofs/Actor.lean:735-737`,
-  `lean/CONTRACTS.md:383-390`, and the "A permanent performs it" comments in
-  `plugins_v2/builtin/macros/keyword_actions/{adapt,monstrosity,harness}.ron`. Pin: under
+  bodies (`Definitions/Actions.lean:621-626,282-289`); harness (`:717-725`) already takes an
+  explicit subject. Correct the [CR#701.46a] claim in `Proofs/Actor.lean:735-737`, the
+  `permanentPerformedActions` pin and its docstring (`Proofs/Tables.lean:55-64`), the `Deed.action`
+  docstring (`Words.lean:335-337`), `lean/CONTRACTS.md:485-496` (which still names
+  `ActFacts.permanentActor`), and the "A permanent performs it" comments in
+  `plugins_v2/builtin/macros/keyword_actions/{adapt,monstrosity,harness}.ron` (`:4-5`). Pin: under
   *Doc Samson*'s `would you (putCounters …)` (`Cards/Counters.lean:354-359`), Adapt 2 puts 3
   counters.
+  **Reconciled 2026-10-24: live** (adapt, harness and monstrosity still write
+  `.action … true`).
 - **One constructor per refusal obligation (§2.12):** Stop reusing
   `.anaphor (.word .permanent)` for failed reflexive/`which`, `.lookbackSubject`
   for unused `which`, and `kindMismatch (.quality .color)` for non-replaceable
-  text-change sorts (`Check/Phrase.lean:1748-1760`, `Check/TextChanges.lean`).
+  text-change sorts (`Check/Phrase.lean:2882,2889` for `refl`/`which`, `:1440` for unused
+  `which`; `Check/TextChanges.lean:32`, and the `.color` default in `TextWord.sortCheck` `:21`).
+  **Reconciled 2026-10-24: live** (all three reuses remain;
+  [lean-v3-checker-rules-scope-refusals](../done/lean-v3-checker-rules-scope-refusals.md) §1
+  widened `QualitySort.replaceable` to creature types but left the refusal constructor to this
+  ticket).
 - **Remove one-purpose flags and positional hacks (§2.13):** Clean up
-  `DeedFeature.librarySearch` / `Referent.librarySearchResult`,
-  `Referent.attachmentHost` / `announcedTargetResult` / `createdResult` (deriving
+  `DeedFeature.librarySearch` / `Referent.librarySearchResult` (`Check/Words.lean:339`, read
+  `:1146,1157`, set `Check/Phrase.lean:596`),
+  `Referent.attachmentHost` / `announcedTargetResult` / `createdResult` (`Check/Words.lean:336-338`;
+  `Check/LoopResults.lean:13-27`) (deriving
   loop plural abstraction from `det == .target` and `Origin.token` + `.actedOn`
   stamps and projecting/reusing `attachHost` as a definite presuppositional
-  reference), `historicalMoveFrom`, `NounPhrase.plur`'s hard-coded slice rule,
-  `.addedAbilities` toxic parameter matching (`Check/Phrase.lean:1136`),
-  `stepPlayPaymentWith` `zipWith`, `enact` `pendingRoles.take`, `DRS.ofList`
-  id-0 renumbering, and the ambiguous `EmptyCollection DRS` instance.
+  reference), `historicalMoveFrom` (`Check/Words.lean:487`), `NounPhrase.plur`'s hard-coded
+  slice rule (`Check/Phrase.lean:340-345`),
+  `.addedAbilities` letter-parameter matching (`Check/Phrase.lean:1834-1840`; no longer named
+  for toxic, it matches any keyword whose sole parameter is a letter, positionally),
+  `stepPlayPaymentWith` `zipWith` (`Check/Phrase.lean:2332`), `enact` `pendingRoles.take`
+  (`Check/Phrase.lean:3462-3464`), `DRS.ofList` (`Check/Words.lean:554-558`)
+  id-0 renumbering, and the ambiguous `EmptyCollection DRS` instance (`Check/Words.lean:564`).
+  **Reconciled 2026-10-24: live** (partly: `DeedFeature` is gone, deleted by
+  [lean-v3-action-facts-deleted](../done/lean-v3-action-facts-deleted.md); everything else
+  listed remains).
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
-  fallbacks (`NounPhrase.kind?`, `NounPhrase.plur`, `Quantity.plur`,
-  `predicatePayload`, `GameEvent.facts`, `numberSlots`) and tight helper fuel
-  limits (`stepQuantityWith`, `stepTimingWith` at 8) so fuel exhaustion cannot
+  fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
+  `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,
+  `predicatePayload` `:506-508` → `.difference`, `GameEvent.facts` `Check/Events.lean:87-89` →
+  `{}`, the `numberSlots` family `Check/NumberSlots.lean:65-200` → `[]`) and tight helper fuel
+  limits (`stepQuantityWith` `Check/Phrase.lean:725`, `stepTimingWith` `:948`, and
+  `stepLocationWith` `:996`, at 8) so fuel exhaustion cannot
   silently produce default classifications.
+  **Reconciled 2026-10-24: live** (every listed fallback is unchanged).
 - **Resolve *Mangara's Equity* and *Noetic Scales* without explicit selectors
   (Astra §2, Opus §6.7):** With `NounPhrase.or` branch-local indefinites closed
   (`stepNounAlternativesWith`), prove that *Mangara's Equity* resolves raw
-  `that creature` to the damage source in `Proofs/CorpusRecency.lean:119-136`;
+  `that creature` to the damage source in `Proofs/CorpusRecency.lean:120-136`;
   express *Noetic Scales* (`Proofs/CorpusRecency.lean:138-152`) as the actual
   `Action.move` / `returnToHand` AST (stepping the moved subject NP before the
   destination) so raw `that player` resolves to the upkeep player; and delete
   the `.laterMention` explicit-selector workarounds.
+  **Reconciled 2026-10-24: live** (`mangarasEquityRawDemonstrativeSelectsWrongCreature`,
+  `noeticScalesRawDemonstrativeSelectsWrongPlayer` and both `…ExplicitSelectorRestores…`
+  workarounds remain; *Noetic Scales* is still a `stepLocationWith` over `.zone .hand`).
 - **Delete dead `Check/` code (§5.4):** Remove unused `NounResult` API,
   `introducedNounResult`, `HeadTy`, `unionPayload`/`unionBinding`/`unionReferentLists`/`unionBindings`,
   `recordHead`, `overIdentity`, `markFirst*`, `spentDistributively*`,
@@ -134,6 +218,11 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `stepTokenSpecWith`, `stepCreationSpecWith`, `knownActs`,
   `Predicate.writtenTypesAll`, and rehome `Check/SelectionEvidence.lean` into
   `Proofs/`.
+  **Reconciled 2026-10-24: live** (partly: no single landing ticket; every listed name is gone
+  from `lean/Semantics` except `spentDistributively*`, which survives as
+  `spentDistributivelyList` (`Check/Words.lean:859-863`, referenced only by itself), and
+  `SelectionEvidence` now lives at `Proofs/SelectionEvidence.lean`. Still live: delete
+  `spentDistributivelyList`).
 
 ## Verification
 

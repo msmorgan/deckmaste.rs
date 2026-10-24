@@ -70,8 +70,10 @@ Standard constraints apply.
      `Bindings` aliases, and the `Semantic Macro` glossary entry in favor of
      `Primitives`, `Templates`, `Definitions`, `CallerScope`, `AuthoringContext`,
      `Referent`, and `DRS`.
+   **Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-14-ast-and-authoring-cleanup](../done/lean-v3-authoring-impl-14-ast-and-authoring-cleanup.md): see §6.3.
 
 ## Implementation Tickets
+**Reconciled 2026-10-24: done**: all 14 `lean-v3-authoring-impl-*` tickets are in `docs/tickets/done/`.
 
 1. [`lean-v3-authoring-impl-1-core-ast-and-checker`](lean-v3-authoring-impl-1-core-ast-and-checker.md):
    Land all Core AST and checker changes in one pass (`Instruction` → `Action`,
@@ -172,6 +174,7 @@ Standard constraints apply.
 ## Detailed Design Specification
 
 ### 1. Core AST Rename: `Instruction` → `Action`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): `inductive Action` at `Abilities.lean:1163`; no `Instruction` identifier remains in `lean/Semantics/`.
 
 Because the Unified Action-Clause Spine embeds the same verb-phrase AST inside
 imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
@@ -185,11 +188,13 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 ### 2. Stage 1: Deontic & Gated Static Clauses
 
 #### 2.1 `StaticSpec.may` → `StaticSpec.can`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): `StaticSpec.can` at `Abilities.lean:938`; no `StaticSpec.may` remains.
 - Rename `StaticSpec.may` to **`StaticSpec.can`** (`[CR#101.2]`), reserving
   `may` exclusively for optional one-shot actions
   (`Action.withContinuation .optional`, `[CR#603.5]`).
 
 #### 2.2 Four Deontic Templates Only (`cant`, `can`, `must`, `gatedBy`) — No Fused `*Be` Variants
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): the four Templates `cant`/`can`/`must`/`gatedBy` with `timing`/`asThough`/`except` kwargs at `Templates.lean:999-1028`, `Subject.actor`/`any`/`by` at `Abilities.lean:125`, `by_` at `Templates.lean:137`; no `*Be` variant, `deonticActionFor` or listed wrapper remains.
 - Voice is carried by `Subject`, never by fused `*Be` template names:
   - **Active (`Subject.actor np`):** written as bare `np` via
     `Coe NounPhrase Subject`.
@@ -230,6 +235,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   `cantBeBlockedExceptBy`, `cantExcept`).
 
 #### 2.3 Retire `DeonticRider` (`stateBased | noRider | play`)
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): no `DeonticRider` remains; `DeonticMods.timing` at `Abilities.lean:888`; *Haakon*'s `can`/`cant` pair at `Cards/Choice.lean:1227-1228`; `loseGame (cause := …)` at `Templates.lean:1101`.
 - Delete `DeonticRider` completely:
   - **`from_` and `payment`** live on `cast`, `play`, and `activate`
     (`Action.procedure`), which already carry `(payment : PlayPayment)` and
@@ -263,6 +269,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     is `cant you (loseGame (cause := nonpositiveLife))`, over `Action.conclude (verb) (cause)`.
 
 #### 2.4 Quantifiers on `Quantity` (Retiring `DeonticMods.bound`)
+**Reconciled 2026-10-24: live** (partly: `DeonticMods.bound`, `CountBound` and `allPlayers` retired, `Quantity.moreThanOf`/`.additional` at `Abilities.lean:450,453` with `moreThan`/`additional` at `Templates.lean:172,174`, `DeonticExcept.byObjects (objects : NounPhrase)` at `Abilities.lean:686`, menace `counted (orMore 2) isCreature` at `Definitions/Keywords.lean:1111-1114`, `UsageLimit.mk` at `Abilities.lean:572`, all by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-6-cards-dewarting](../done/lean-v3-authoring-impl-6-cards-dewarting.md); live: `cast (allOf …)` is still the only spelling of a cast object, 23 sites and no `cast (bare …)` anywhere, e.g. bare-plural "spells" on *Vedalken Orrery* `Cards/Choice.lean:579`, *Borne Upon a Wind* `Cards/Choice.lean:610`, *Grand Abolisher* `Cards/Deontic.lean:433`, *Conqueror's Flail* `Cards/Deontic.lean:748`, and `Definitions/Keywords.lean:1524`, `Cards/Mana.lean:371,437,438`, `Cards/Keyword.lean:561`, `Cards/Deontic.lean:316,326,335,347`, plus `Cards/Copy.lean` and the rest of `Cards/Choice.lean`; `bare` shares `allOf`'s tree (`Templates.lean:184-186`), so only the recorded Form differs).
 - Delete `DeonticMods.bound` (`Option CountBound`).
 - Add `.moreThanOf (amount : Amount)` (`moreThan n`) and
   `.additional (quantity : Quantity)` (`additional q`) to `Quantity` so noun
@@ -297,6 +304,13 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   `cast (allOf isSpell)` with `cast (a isSpell)` / `cast (bare isSpell)`.
 
 #### 2.5 `AsThough` Carries a `Condition` (Preserving Pronouns & Fixing Polarity)
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): `AsThough.condition (cond : Condition)` at `Abilities.lean:589-592`; the spelling is `holds` with `Coe Condition AsThough` (`Templates.lean:2367-2369`) over `is <np> <pred>` rather than `matches`; *Glaring Spotlight* reads `holds (is them (not (hasKeyword hexproof)))` (`Cards/Deontic.lean:507`), flash via `asThoughHadFlash` (`Cards/Choice.lean:579`).
+- Added 2026-10-24: `Definitions/Keywords.lean:870,873` still write
+  `asThough := some (.condition (controlledSinceTheirTurnBegan …))` with the raw `AsThough.condition`
+  constructor instead of the `holds` Template (`Templates.lean:2367-2369`) the rest of the corpus
+  uses (e.g. `Cards/Keyword.lean:93-95`). The queued indicative-`asThough` ticket (next in the
+  queue; not yet on disk at reconcile time) rewrites the `asThough` sites, so fold this into it or
+  land it first and let that ticket rebase. **Reconciled 2026-10-24: live.**
 - Replace `AsThough.of (predicate : Predicate)` with
   `AsThough.condition (cond : Condition)` (with coercion from `Condition` to
   `AsThough`) so the subject pronoun in *"as though **it** didn't have
@@ -317,6 +331,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 ### 3. Cross-Cutting: Unified `Location` Algebra
 
 #### 3.1 Replace `ZoneExpr`, `Pile`, `EventSource`, `SearchScope`, and `ZoneScope` with `Location`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): `Location` at `Abilities.lean:91-108` (the union is `coord (coordinator) (locs)`, not `or`); `AnyValue Location` at `Templates.lean:157`; `topOf`/`bottomOf`/`fromTop`/`fromBottom` at `Templates.lean:244-250`; none of `ZoneExpr`/`Pile`/`EventSource`/`SearchScope`/`ZoneScope` remains.
 - Delete `ZoneExpr`, `Pile`, `EventSource`, `SearchScope`, and `ZoneScope`.
 - Introduce a single orthogonal **`Location`** inductive in `Abilities.lean`:
   ```lean
@@ -338,6 +353,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - `fromBottom n loc` := `.fromEnd .bottom (.nth n) loc`
 
 #### 3.2 Collapse Location Predicates and `MoveRider` Placement Hacks
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md): `Predicate.in_` at `Abilities.lean:294` (`inPile` survives only as a Template over it, `Templates.lean:639`); flattened `MoveRider` at `Abilities.lean:1085`, no `EntryRider`/`PilePlacement` type; `Location.positiveZones?` at `Abilities.lean:1428` and `Location.observedOnDeparture` at `Abilities.lean:1500`; *Approach* `fromTop 7 library` at `Cards/Description.lean:256`.
 - Replace the three separate `Predicate` constructors (`Predicate.inZone`,
   `Predicate.inPile`, `Predicate.exiledWith`) with a single
   **`Predicate.in_ (loc : Location)`** (or `atLocation`).
@@ -359,6 +375,14 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 ### 4. Stage 2: Verb and Clause Spine
 
 #### 4.1 Retire 3p-Singular `GameEvent` Wrappers in Favor of `does <subj> <action>`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): `does` at `Templates.lean:1647`; none of the listed 3p-singular wrappers remains (`zoneChange` survives only as a private move helper, `Templates.lean:1063`).
+- Added 2026-10-24, **needs ruling:** a family of non-`does` `GameEvent` wrapper Templates
+  survives outside this section's list (`Templates.lean:1650` `transformsInto`, and
+  `Templates.lean:1687-1716`: `bareCountersPut`, `bareCountersRemoved`, `lastCounterRemovedBy`,
+  `manyCountersPutByEffect`, `manyBareCountersPutBy`, `tokenCreationEvent`, `tokensCreated`,
+  `tokensCreatedByEffectUnder`, `lastCounterRemoved`). Each expands to `.does …`, but callers
+  write the 3p-singular wrapper rather than `does <subj> <action>`. Rule whether they retire in
+  favour of `does` or stay as named event Templates. **Reconciled 2026-10-24: live.**
 - Retire all ~35 `v2`-port 3rd-person singular `GameEvent` wrapper templates in
   `Primitives.lean`, `Macros.lean`, and `Declared.lean` (`dies`, `enters`,
   `leaves`, `leavesZone`, `attacks`, `attacksPlayer`, `attacksWith`, `blocks`,
@@ -376,6 +400,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - `whenever (does (by_ (a isSpell)) (target thisCreature))` (*"becomes the target of a spell"*)
 
 #### 4.2 Intransitive (`.actor`) vs. Transitive (`subject`) Zone Transitions
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): intransitive `die`/`enter`/`leave` over `NounPhrase.actor` at `Templates.lean:1040-1048`; transitive `putInto` at `Templates.lean:1069`.
 - `Action.move` remains the single Core AST zone-transition primitive.
 - **Transitive move definitions/templates** (`putInto X loc`, `exile X`,
   `destroy X`, `sacrifice X`, `discard X`) take `X : NounPhrase` as their
@@ -413,6 +438,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     `cant (a isCreature) (enter (from_ := graveyard))`
 
 #### 4.3 Status Changes (`setStatus`): Intransitive vs. Transitive
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-5-definitions-dewarting](../done/lean-v3-authoring-impl-5-definitions-dewarting.md): `phaseOut`/`phaseIn` at `Templates.lean:1050-1052`, the intransitive status verb is `Status.become` (`Templates.lean:1054`), `turnFaceUp` at `Templates.lean:1073`, `turnFaceDown` (with a `FaceDown` spec) at `Templates.lean:1599`; `tap`/`untap` at `Definitions/Actions.lean:130,171`.
 - **`phaseOut` and `phaseIn` are intransitive (`[CR#702.26b]`):**
   ```lean
   semantic_template phaseOut : Action := .setStatus .phasedOut .actor
@@ -438,6 +464,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     `whenever (does any (turnFaceUp (a (and [isPermanent, youControl]))))`
 
 #### 4.4 `dealDamage`, `winGame` / `loseGame`, `flipCoins`, and `rollDice` with Optional Kwargs
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): `dealDamage` kwargs at `Templates.lean:1090`, `winGame`/`loseGame` at `Templates.lean:1098-1102`, `flipCoins` at `Templates.lean:1110` (its kwargs became `call`/`outcome` in place of `watch`/`caller`), `rollDice` at `Templates.lean:1115`.
 - **`dealDamage`:**
   ```lean
   semantic_template dealDamage (amount : Amount := any)
@@ -472,6 +499,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 ### 5. Stage 3: Composable Nominals, Predicates, and Top-Level Combinators (`lean-v3-authoring-3-nominals-and-predicates`)
 
 #### 5.1 List and Wrapper Coercions in the Rust DSL vs. Explicit Top-Level Templates in Lean
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): explicit combinators `Predicate.and`/`or`/`not` and `Condition.and`/`or`/`not` at `Templates.lean:275-286`, `sequentially`/`simultaneously` at `Templates.lean:1581,1587`, `compound`/`conjunction` at `Templates.lean:1957,1961`; the Rust half belongs to `semantics-v3-dsl-and-plugins`.
 - **In the Rust `v3` DSL (`deckmaste_dsl_v3` / `plugins_v3`):**
   - List literals coerce by default in each domain slot at the syntax/serde layer:
     - `[p1, p2, ...] : Predicate` → `Predicate::And(vec![p1, p2, ...])`
@@ -483,6 +511,11 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - To avoid Lean typeclass resolution (`CoeHTCT` → `CoeTC` → `CoeB` → `Coe` / `OfNat`), loss of top-down expected-type propagation inside list literals, and 4-layer typeclass projection unfolding in `Authoring.inspect` and kernel `by decide`, Lean uses direct top-level `semantic_template`s (`and [...]`, `or [...]`, `not ...`, `sequentially [...]`, `simultaneously [...]`, `compound [...]`, `conjunction [...]`).
 
 #### 5.2 Uniform Boolean-Like (`is*` / `has*` / Participial / Prepositional) Naming for All `Predicate`s
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads](../done/lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads.md): every listed `is*` Template exists (`Templates.lean:402-458`, `Definitions/Phrasings.lean`); `isOpponentOf`/`isTeammateOf` at `Abilities.lean:228,230`, no `PlayerGroupWord`; possessor and location Templates at `Templates.lean:463-483`; stat Templates at `Templates.lean:552-566` (`hasCounter` lost its bound with `CountBound`, `Templates.lean:549`); no listed compound macro remains.
+- Added 2026-10-24: the `Predicate.anyPlayer` constructor (`Abilities.lean:226`, 127 uses
+  under `lean/Semantics`) keeps a non-`is*` name; only its Template is `isPlayer`
+  (`Templates.lean:402`), though this section asks for boolean-like naming of the constructors too.
+  **Reconciled 2026-10-24: live.**
 - **Adopt boolean-like naming across all `Predicate` constructors and templates:**
   - **Types, kinds, and roles (`is*`):**
     - `isCreature`, `isArtifact`, `isEnchantment`, `isLand`, `isInstant`, `isSorcery`, `isPlaneswalker`, `isBattle`, `isKindred`, `isInstantOrSorcery`, `isPermanentType`
@@ -530,6 +563,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     - `tapped`, `untapped`, `faceDown`, `faceUp`, `phasedIn`, `phasedOut` are free for `Status` (`become tapped`, `become untapped`, `entersAs tapped`).
 
 #### 5.3 Attached Hosts (`enchanted`, `equipped`, `fortified`) & Quantified `targets`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): `enchanted`/`equipped`/`fortified`/`targets` at `Templates.lean:769-775`.
 - **Attached Hosts (`NounPhrase.attachHost` — 126 occurrences in `Cards/`):**
   ```lean
   semantic_template enchanted (w : NounWord) : NounPhrase := .attachHost .enchanted w
@@ -545,6 +579,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - Examples: `targets (upTo 2) isCreature`, `targets (oneThrough 3) isAnyTarget`, `targets anyNumber isAnyTarget`.
 
 #### 5.4 Top-Level Templates Eliminating All Remaining `Primitives.*` Qualifications
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-3-cards-reauthoring](../done/lean-v3-authoring-impl-3-cards-reauthoring.md)/[lean-v3-authoring-impl-10-definitions-and-cards-polish](../done/lean-v3-authoring-impl-10-definitions-and-cards-polish.md): no `Primitives.` qualification remains in `Cards/` or `Definitions/` (only in `Proofs/`); the listed Templates exist (`static`/`spell` at `Templates.lean:2083-2085`, costs and payments at `Templates.lean:2009-2088`, `you`/`this_`/`theActor`/`actor`/`by_` at `Templates.lean:84,86,1609,135,137`, `any` via `AnyValue`); superseded spellings: `this` is `this_` ([lean-v3-authoring-impl-5-definitions-dewarting](../done/lean-v3-authoring-impl-5-definitions-dewarting.md)), `matches_` is `is`/`holds`, and `Amount.moreThan` is the `Quantity` `moreThan` (*Spirit of the Labyrinth*, `Cards/Deontic.lean:104`).
 - **Expose top-level `semantic_template`s for all remaining `Primitives.*` constructors used in `Cards/` and `Definitions.lean`:**
   - **Abilities:** `static (spec : StaticSpec) : Ability := .static spec`, `spell (body : Action) (timing : Option Timing := none) : Ability := .spell timing body`.
   - **Nouns & Subjects:** `you`, `this`, `theActor` (`NounPhrase.actor`), `yourOpponents`, `eachPlayer`, `eachOpponent`, `actor (np : NounPhrase) : Subject`, `by_ (np : NounPhrase) : Subject`, `any : Subject / NounPhrase / Amount / Location`.
@@ -559,6 +594,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 ### 6. Stage 4: Consolidating `Templates` and `Definitions` and Retiring `v1`/`v2` Holdover Names (`lean-v3-authoring-4-declared-bodies`)
 
 #### 6.1 Module Consolidation (`Primitives.lean`, `Templates.lean`, `Definitions.lean`)
+**Reconciled 2026-10-24: superseded** by [lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads](../done/lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads.md): `Macros*` modules are gone; `Primitives.lean`, `Templates.lean` and `Proofs/DefinitionsAndTemplates.lean` exist, but `Definitions.lean` is now an umbrella over `Definitions/*.lean` leaf and composite modules rather than one module.
 - Retire `lean/Semantics/Macros.lean`, `lean/Semantics/Macros/Primitives.lean`, `lean/Semantics/Macros/Declared.lean`, `lean/Semantics/Macros/CharacteristicInputs.lean`, and `lean/Semantics/Macros/Checks.lean`, replacing them with:
   - **`lean/Semantics/Primitives.lean`**: `Semantics.Primitives` namespace for `declare_semantic_primitives` + `CharacteristicInputs`.
   - **`lean/Semantics/Templates.lean`**: Single authoritative module of `semantic_template` phrasing helpers.
@@ -566,6 +602,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - **`lean/Semantics/Proofs/DefinitionsAndTemplates.lean`**: Replaces `Macros/Checks.lean`.
 
 #### 6.2 Reconciling the `Macros.lean` vs. `Declared.lean` Signature and Body Drifts
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-5-definitions-dewarting](../done/lean-v3-authoring-impl-5-definitions-dewarting.md): `amass`/`fateseal`/`create`/`createToken*` in `Definitions/Actions.lean:26,251,270,596-606`; `bushido`/`modular`/`renown`/`companion`/`levelUp` in `Definitions/Keywords.lean:17-99`; `forEach` at `Templates.lean:935`; `gainControl` defaulting `controller := .actor` at `Templates.lean:1430`; `creatureToken(Of)` with `abilities` at `Definitions/Phrasings.lean:140-148`; `lookAndSortSlice` at `Templates.lean:1368`, no `lookAndSort`/`lookAndSortInto`/`lookedCards`.
 - **Generalize `Nat`/`String` parameters to `Amount`/`Subtype`:**
   - `amass (subtype : Subtype) (count : Amount)` (`[CR#701.47a]`)
   - `bushido (count : Amount)` (`[CR#702.45a]`), `modular (count : Amount)` (`[CR#702.43a]`), `renown (count : Amount)` (`[CR#702.112a]`)
@@ -580,6 +617,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - `lookAndSortSlice` — single helper backing `scry`, `surveil`, and `fateseal`, retiring `lookAndSort`, `lookAndSortInto`, and `lookedCards`.
 
 #### 6.3 Retiring `v1`/`v2` Holdover Names & Amending the Glossary and `lean/CONTRACTS.md`
+**Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-14-ast-and-authoring-cleanup](../done/lean-v3-authoring-impl-14-ast-and-authoring-cleanup.md): `CallerScope.lean` and `Proofs/CallerScope.lean` exist, no `semantic_macro`/`MacroContext`/`MacroSplice`/`onlyMacros`; no `Phrase.lean`/`Triggers.lean` shims or `Check/Triggers.lean`/`EventContext.lean`/`PhraseRules.lean`; no `Binding`/`Bindings` alias; `Payload.difference`, `Referent.isDifference`, `differenceB`, `countDifferences` at `Check/Words.lean:242,391,675,702` and `Refusal.differenceInScope` at `Check/Refusal.lean:89`; glossary **Definition**/**Template** with `_Avoid_: Semantic Macro, macro` and **Action** with `_Avoid_: Instruction` in `docs/contexts/game-model/CONTEXT.md`.
 - **`Authoring.lean` & `CallerScope.lean`:**
   - Rename `lean/Semantics/MacroParameters.lean` (`MacroExpansion`, `MacroSplice`) and `lean/Semantics/Proofs/MacroParameters.lean` → `lean/Semantics/CallerScope.lean` (`CallerScope`, `CallerSplice`) and `lean/Semantics/Proofs/CallerScope.lean`.
   - In `lean/Semantics/Authoring.lean`, retire raw `semantic_macro` and `macroAttribute` so only `semantic_definition` and `semantic_template` exist; rename `MacroContext` → `AuthoringContext`, `contextualMacroAttribute` → `contextualAuthoringAttribute`, `macro_splice_type%` → `caller_splice_type%`, and `Form.onlyMacros` / `Forms.onlyMacros` → `Form.onlyAuthored` / `Forms.onlyAuthored`.
