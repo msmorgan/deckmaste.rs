@@ -76,7 +76,7 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Eleven canonicalizations apply:
+of the text.** Twelve canonicalizations apply:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -85,6 +85,17 @@ of the text.** Eleven canonicalizations apply:
   then C* nor *A, then [B, then C]*);
 - clause versus verb-phrase coordination of bare imperatives, where nothing
   distinguishes them;
+- **bare coordination:** a coordination of bare Noun Phrases with no
+  determiner and no dependent to share (*creatures and lands*, *damage and
+  life*, *devotion to [white and black]*, *choose [black or red]*) is a
+  coordination of Noun Phrases, never also one bare Noun Phrase over a
+  coordination of Nominals: the two differ in no meaning. A coordination is
+  of Nominals only where something outside it is shared, as the determiner
+  *her* is outside *her [son and younger daughter]* (CGEL, Ch. 15 §2.1,
+  p. 1291): *all [creatures and lands]*, *[creatures and lands] you control*.
+  The canonical site is built structurally: a bare Noun Phrase's Nominal is no
+  coordination (BarePlural and BareMass, `uncoordinated`), though it may be a
+  modified one;
 - **adverbs before a bare imperative:** a bare imperative has no Subject, so
   its front and central positions coincide. An adverb before it is the front
   Adjunct of its Clause, outermost over its Verb Phrase and that phrase's

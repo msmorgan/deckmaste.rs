@@ -1518,9 +1518,13 @@
         (name: "PostpositiveLocativeAdjective", lhs: "LocativeHead", rhs: [Cat("head", "LocativeHead"), Cat("modifier", "AdjectivePhrase")],
             equations: [], heavy: ["modifier"]),
         // A comparative adjective modified by a measure phrase (*2 greater*;
-        // CGEL, Ch. 13 §4.4, pp. 1125–1126).
+        // CGEL, Ch. 13 §4.4, pp. 1125–1126). The head `Carry`s `Comparative`:
+        // a coordination, whose Grade is unshared, would pass a `Require`,
+        // and *both* is no measure of *red and white* (*the plural meaning of
+        // both excludes it from such modifying constructions*; CGEL, Ch. 5
+        // §7.3, p. 377).
         (name: "MeasuredComparative", lhs: "AdjectivePhrase", rhs: [Cat("modifier", "NounPhrase"), Cat("head", "AdjectivePhrase")],
-            equations: [Require("head.Grade", "Comparative"), Require("head.ComplementKind", "Intransitive"), Require("modifier.Determination", "Bare"), Carry("modifier.Case", "Plain")]),
+            equations: [Carry("head.Grade", "Comparative"), Require("head.ComplementKind", "Intransitive"), Require("modifier.Determination", "Bare"), Carry("modifier.Case", "Plain")]),
         // The same with the comparative's *than* Complement, its measure a
         // number (*at least 10 greater than your starting life total*); a
         // property noun before a comparative is its postpositive adjective's
@@ -1842,7 +1846,14 @@
         // never *if it's [outside the game]* with the noun.
         (name: "FixedFrameBareNoun", lhs: "FixedFrameNounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("head.NounDistribution", "FixedFrame"), Require("head.Number", "Singular"), Require("head.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
+        // A bare Noun Phrase is no coordination of Nominals: with no
+        // determiner or dependent to share, the coordination is of the bare
+        // Noun Phrases (*creatures and lands*, *choose [black] or [red]*), the
+        // same analysis one level up; a Nominal coordination is for what
+        // something outside it shares (*all [creatures and lands]*,
+        // *[creatures and lands] you control*; CGEL, Ch. 15 §2.1, p. 1291;
+        // `english-lexical-analysis.md` §2, bare coordination). BarePlural too.
+        (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")], uncoordinated: ["head"],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],
             transparent: ["head"]),
         (name: "SymbolFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "SymbolHead")]),
@@ -1933,7 +1944,7 @@
         // pp. 409–410; Ch. 15 §3.1, p. 1323; OSG §7, Plurals and agreement).
         // Mass-noun coordinations remain bare; exceptional bare singular
         // expressions are separately licensed, not ordinary bare plurals.
-        (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
+        (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")], uncoordinated: ["head"],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third"), ExcludeTogether([("head.Countability", "Count"), ("head.ConjunctNumber", "Singular")])]),
         (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Exclude("head.Case", "Genitive"), Exclude("head.PronounKind", "Existential"), Exclude("head.PronounKind", "Relative"), Require("head.Inflection", "Invariant")]),

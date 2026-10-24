@@ -166,5 +166,5 @@
 * Draw cards, creatures, and they.
 * You draws cards, discard cards, and gain life.
 # from: Frozen Aether
-+NounPhrase artifacts, creatures, and lands => NounPhrase "creatures" || Nominal "artifacts, creatures, and lands"
++NounPhrase artifacts, creatures, and lands => NounPhrase "artifacts"; NounPhrase "creatures"; NounPhrase "lands"; readings 1
 +Clause Draw cards

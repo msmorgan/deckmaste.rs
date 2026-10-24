@@ -28,3 +28,6 @@ either of the last two is English.
 - One tree per bare coordination analysis; no face lost.
 
 Standard constraints apply.
+
+Census delta (measured on yqlzkmry): faces read 32,825 -> 32,825 of 32,828; Readings 323,485 -> 316,930 (487 units down, none up); lost faces: none.
+Judgment set (measured on yqlzkmry): all judgments hold, including the new `bare_coordination_level.txt`; `grammar.txt` (*artifacts, creatures, and lands*) and `supplement_coordination.txt` (*power and toughness*) rewritten from the Nominal tree to the Noun Phrase coordination.

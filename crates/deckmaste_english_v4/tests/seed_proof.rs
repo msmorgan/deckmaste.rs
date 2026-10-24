@@ -498,6 +498,50 @@ fn normal_form_identifies_clause_and_verb_phrase_coordination_of_imperatives() {
     );
 }
 
+#[test]
+fn normal_form_identifies_bare_noun_phrase_and_nominal_coordination() {
+    let s = seed();
+    // With nothing outside it to share, a bare coordination is of Noun
+    // Phrases (`english-lexical-analysis.md` §2, bare coordination).
+    let readings = s.readings("Destroy creatures and permanents.");
+    assert_eq!(readings.len(), 1);
+    let phrases = &readings[0];
+    let coordination = coordination(phrases);
+    assert_eq!(coordination.category, dpsi::Ident::new("NounPhrase"));
+    // A determiner outside it is shared by a coordination of Nominals.
+    let determined = s.readings("Destroy each creature and permanent.");
+    let nominals = determined
+        .iter()
+        .filter_map(outermost_coordination)
+        .find(|c| c.category == dpsi::Ident::new("Nominal"))
+        .expect("a coordination of Nominals under one determiner");
+    // Hand-build the excluded bare Noun Phrase over a coordination of
+    // Nominals.
+    let bare = node(&coordination.children[0]);
+    let nominal = |i: usize| node(&coordination.children[i]).children[0].clone();
+    let excluded = Reading::Node(ReadingNode {
+        children: vec![Reading::Node(ReadingNode {
+            production: nominals.production,
+            category: nominals.category,
+            features: node(&nominal(0)).features.clone(),
+            gap: node(&nominal(0)).gap,
+            selected_frame: None,
+            children: vec![nominal(0), coordination.children[1].clone(), nominal(2)],
+        })],
+        ..bare.clone()
+    });
+    let excluded = replace(phrases, coordination, &excluded);
+    assert_eq!(s.surface(&excluded), s.surface(phrases));
+    assert!(
+        s.grammar.admit(&excluded, &s.lexicon).is_err(),
+        "a bare Noun Phrase's Nominal is no coordination"
+    );
+    assert_eq!(
+        s.grammar.normal_form(&excluded),
+        s.grammar.normal_form(phrases)
+    );
+}
+
 /// The outermost coordination in a Reading.
 fn coordination(reading: &Reading) -> &ReadingNode {
     outermost_coordination(reading).expect("a coordination")
