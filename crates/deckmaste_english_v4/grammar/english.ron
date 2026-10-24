@@ -188,7 +188,11 @@
         "Subtypes": (),
         "KeywordList": (),
         "Quality": (),
-        "Name": (),
+        // A name has the Number of what it names, from the lexicon: singular
+        // unless it names a collection (*When The Notary Hobbits enter*;
+        // CGEL, Ch. 5 §20.2.1, p. 517), so never *Turn target ...* with
+        // *Turn* a name and *target* a plural verb.
+        "Name": (features: ["Number"]),
         "Condition": (),
         "Measure": (),
         "Symbols": (),

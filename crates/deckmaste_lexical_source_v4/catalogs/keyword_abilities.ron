@@ -8,15 +8,17 @@
     (rule: "[CR#702.2]", name: "Deathtouch", lemma: "deathtouch"),
     (rule: "[CR#702.3]", name: "Defender", lemma: "defender"),
     (rule: "[CR#702.4]", name: "Double Strike", lemma: "double strike"),
+    // *Enchanted*, *equipped* and *fortified* name one host, so each determines a singular
+    // count noun (see the combat-role determinatives in closed_class.ron).
     (rule: "[CR#702.5]", name: "Enchant", lemma: "enchant", parameters: [[Quality(None)]],
-        determinatives: [(lemma: "enchanted")],
+        determinatives: [(number: Singular, countability: Count, lemma: "enchanted")],
         verbs: [
             (lemma: "enchant", frames: [Monotransitive]),
         ],
     ),
     // "Equip legendary creature {1}", "Equip—Discard a card."
     (rule: "[CR#702.6]", name: "Equip", lemma: "equip", parameters: [[Cost], [Quality(None), Cost], [DashNonManaCost]],
-        determinatives: [(lemma: "equipped")],
+        determinatives: [(number: Singular, countability: Count, lemma: "equipped")],
         verbs: [
             (lemma: "equip", past: "equipped", gerund: "equipping", frames: [Monotransitive]),
         ],
@@ -142,7 +144,7 @@
     (rule: "[CR#702.64]", name: "Absorb", lemma: "absorb", parameters: [[Amount]]),
     (rule: "[CR#702.65]", name: "Aura Swap", lemma: "Aura swap", parameters: [[Cost]]),
     (rule: "[CR#702.66]", name: "Delve", lemma: "delve"),
-    (rule: "[CR#702.67]", name: "Fortify", lemma: "fortify", determinatives: [(lemma: "fortified")], parameters: [[Cost]],
+    (rule: "[CR#702.67]", name: "Fortify", lemma: "fortify", determinatives: [(number: Singular, countability: Count, lemma: "fortified")], parameters: [[Cost]],
         verbs: [
             (lemma: "fortify", frames: [Monotransitive]),
         ],

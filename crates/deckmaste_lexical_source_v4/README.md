@@ -38,6 +38,7 @@ authored type.
 | `catalogs/anchor_words.ron` | Catalog | `anchor_word:`, `anchor_name:` |
 | `catalogs/vote_options.ron` | Catalog | `vote_option:` |
 | `catalogs/cited_names.ron` | Catalog | `cited_name:` |
+| `catalogs/plural_names.ron` | Catalog | none: the Number of `name:` Lexemes (every other Catalog name is singular) |
 | `data/gen/catalogs/card-names.txt` (read at load) | Catalog | `name:` |
 
 Only Core vocabulary may be named by a grammar (`deckmaste_syntax` rejects any

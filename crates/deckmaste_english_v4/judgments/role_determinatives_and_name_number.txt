@@ -1,0 +1,14 @@
+# The role determinatives (enchanted, equipped, fortified, attacking, defending) determine a singular count noun; a plural is a bare plural with the participle as premodifier (CGEL, Ch. 5 §4, p. 355)
++ <card=Morale> Attacking creatures get +1/+1 until end of turn. => VerbPhrase "Attacking" as Modifier of creature; !DeterminerPhrase "Attacking" as Determiner of creature; readings 1
++NounPhrase attacking creatures your opponents control => VerbPhrase "attacking" as Modifier of creature; !DeterminerPhrase "attacking" as Determiner of creature; readings 1
++ <card=Greater Auramancy> Enchanted creatures you control have shroud. => VerbPhrase "Enchanted" as Modifier of creature; !DeterminerPhrase "Enchanted" as Determiner of creature
++NounPhrase equipped creatures => VerbPhrase "equipped" as Modifier of creature; readings 1
++ Enchanted creature gets +1/+1. => DeterminerPhrase "Enchanted" as Determiner of creature; readings 1
++ Whenever this creature attacks, defending player loses 1 life. => DeterminerPhrase "defending" as Determiner of player
+# A name has the Number of what it names: singular unless it names a collection (CGEL, Ch. 5 §20.2.1, p. 517)
++ <card=The Notary Hobbits> When The Notary Hobbits enter, if they're not a token, create a Food token. => NounPhrase "The Notary Hobbits" as Subject of enter
+* <card=The Notary Hobbits> When The Notary Hobbits enters, create a Food token.
++ <card=Vicious Rumors> Vicious Rumors deals 1 damage to each opponent. => NounPhrase "Vicious Rumors" as Subject of deal
+* <card=Vicious Rumors> Vicious Rumors deal 1 damage to each opponent.
+# from: Kaust, Eyes of the Glade (never *Turn* a name with *target* a plural verb)
++ {T}: Turn target face-down attacking creature you control face up. => NounPhrase "target face-down attacking creature you control" as Object of turn; readings 1

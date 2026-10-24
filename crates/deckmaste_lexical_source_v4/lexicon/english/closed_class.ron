@@ -20,8 +20,12 @@
         // 1 life*, *defending player's hand*), as it names an Aura's host *enchanted* [CR#303.4b].
         // After another determinative the word is the participle of *attack* or *defend*
         // (*the attacking player*, *each defending player*).
-        (lemma: "attacking"),
-        (lemma: "defending"),
+        // Each names the one holder of a role, so it determines a singular count noun, as
+        // *enchanted*, *equipped* and *fortified* do: a plural (*attacking creatures*,
+        // *enchanted creatures*) is a bare plural with the participle as premodifier (CGEL,
+        // Ch. 5 §4, p. 355), never a second tree with the determinative.
+        (number: Singular, countability: Count, lemma: "attacking"),
+        (number: Singular, countability: Count, lemma: "defending"),
         // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
         (lemma: "anywhere", distribution: Independent),
         (number: Plural, countability: Count, lemma: "both"),

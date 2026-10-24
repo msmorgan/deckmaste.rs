@@ -107,6 +107,7 @@ fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
     sources.anchor_words.clear();
     sources.vote_options.clear();
     sources.cited_names.clear();
+    sources.plural_names.clear();
     let none = AttestedShortenings::default();
     sources.environment(card_names, &none).unwrap();
 
@@ -157,4 +158,33 @@ fn scoped(name: &str) -> ScopedName {
         name: name.to_owned(),
         cards: vec!["Citadel Siege".to_owned()],
     }
+}
+
+#[test]
+fn a_name_is_singular_unless_listed_plural_and_a_plural_name_names_a_card() {
+    let card_names = "Dark Depths\nCitadel Siege\n";
+    let mut sources = Sources::load().unwrap();
+    sources.introduced_names.clear();
+    sources.anchor_words.clear();
+    sources.vote_options.clear();
+    sources.cited_names.clear();
+    sources.plural_names = vec!["Citadel Siege".to_owned()];
+    let none = AttestedShortenings::default();
+    let env = sources.environment(card_names, &none).unwrap();
+    let number = |name: &str| {
+        env.lexicon.lexemes()[&deckmaste_lexical::LexemeId::new(&format!("name:{name}"))]
+            .properties
+            .features
+            .get("Number")
+            .map(ToString::to_string)
+    };
+    assert_eq!(number("Dark Depths").as_deref(), Some("Singular"));
+    assert_eq!(number("Citadel Siege").as_deref(), Some("Plural"));
+
+    sources.plural_names.push("Not a Card".to_owned());
+    let error = sources
+        .environment(card_names, &none)
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("names no card"), "{error}");
 }
