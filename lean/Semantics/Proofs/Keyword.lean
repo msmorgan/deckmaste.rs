@@ -408,7 +408,7 @@ private def partEdits : Ability → List (List CharacteristicEdit)
     | .conditional (.characteristicChange _ edits) _ _ => edits
     | _ => []
   | .triggered _ _ _ _ _ _ _ (.sequentially steps) => steps.map fun
-    | .doIf _ (.establish (.characteristicChange _ edits) _) _ => edits
+    | .doIf _ (.establish (.characteristicChange _ edits) _) _ _ => edits
     | _ => []
   | _ => []
 

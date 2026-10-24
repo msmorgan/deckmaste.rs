@@ -91,6 +91,40 @@ def malametBattleGlyph : Spelled := spelled <| singleFacedCard
               (putCounters 1 p1p1Counter it),
             fightEachOther (those creature) ]) ] }
 
+/-- Joust: "Choose target creature you control and target creature you don't control. The
+creature you control gets +2/+1 until end of turn if it's a Knight. Then those creatures fight
+each other." The "if" is printed after its clause, so its "it" reads that clause's subject, "the
+creature you control", though the condition is checked before the creature gets +2/+1
+[CR#608.2c]. -/
+def joust : Spelled := spelled <| singleFacedCard
+  { name := "Joust", cost := [generic 1, pip .red], types := [.sorcery],
+    text :=
+      [ spell (sequentially
+          [ chooseFightPair,
+            doOnlyIf (get (the (and [isCreature, youControl])) (up 2) (up 1) untilEndOfTurn)
+              (is it (hasSubtype knight)),
+            fightEachOther (those creature) ]) ] }
+theorem okJoust : joust.card.check = [] := joust.ok
+
+/-- Joust's postposed "if it's a Knight" reads the one creature its clause re-mentions, the
+target you control, and not the target you don't control, which its clause does not mention. -/
+theorem joustConditionReadsTheClauseSubject :
+    let out := (stepAction 16 .postEvent .obj (DRS.ofList []) (sequentially
+      [ chooseFightPair,
+        doOnlyIf (get (the (and [isCreature, youControl])) (up 2) (up 1) untilEndOfTurn)
+          (is it (hasSubtype knight)) ])).1
+    (out.resolvedIds.filterMap out.findById?).map (·.controlledByYou) = [some true] := by
+  decide
+
+/-- "If it's a Knight, the creature you control gets +2/+1 until end of turn.": a preposed "if"
+is read before its clause, so its "it" reads neither target over the other, and is refused. -/
+theorem badPreposedConditionReadsNoLaterClauseSubject :
+    Action.check (DRS.ofList []) (sequentially
+      [ chooseFightPair,
+        doIf (is it (hasSubtype knight))
+          (get (the (and [isCreature, youControl])) (up 2) (up 1) untilEndOfTurn) ]) =
+      [.anaphor .bare .one 2] := by decide
+
 /-- Grim Contest: "Choose target creature you control and target creature an opponent controls.
 Each of those creatures deals damage equal to its toughness to the other." "The other" is the
 current member's counterpart in the group of two the targets make up

@@ -144,7 +144,7 @@ def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
   | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
   | _ + 1, .rerollStored .. | _ + 1, .procedure .. | _ + 1, .relate .. | _ + 1, .merge .. => .reflexive
   | n + 1, .withContinuation _ body none _ => body.reflexEncloseUse n
-  | n + 1, .instruct _ body | n + 1, .limited body _ | n + 1, .doIf _ body none =>
+  | n + 1, .instruct _ body | n + 1, .limited body _ | n + 1, .doIf _ body none _ =>
     body.reflexEncloseUse n
   | _ + 1, .repeat_ (.fixed _ body) =>
     match body.scopeBody with

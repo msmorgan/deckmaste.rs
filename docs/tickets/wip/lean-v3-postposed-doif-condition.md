@@ -39,13 +39,32 @@ Action.check (DRS.ofList [])
   subject's grammatical role, not only the targets the branch announces.
 - The branch keeps the ids it takes now, so later lines read the same referents.
 - A preposed "if" keeps its present reading.
-- Open question: `doOnlyIf` and `doIf` both build `.doIf`, so Core does not record which side the
-  "if" was written on. Decide whether to record it on `.doIf` or to read every condition against
-  what its branch announces.
+- `doOnlyIf` and `doIf` both built `.doIf`, so Core did not record which side the "if" was
+  written on. Settled by the owner ruling below.
+
+## Owner ruling (2026-10-24)
+
+Option A: add `postposed : Bool` (default `false`) to `Action.doIf`, set by the `doOnlyIf`
+template. `Action.check` runs on the reduced Core term, so the order that affects anaphora must be
+in Core.
+
+- Even when postposed, the condition is checked at resolution, before the branch acts
+  [CR#608.2c] (read with [CR#601.2c]).
+- In the `.doIf` arm of the action stepper (`Check/Phrase.lean`), when `postposed = true`, the
+  context the condition is stepped in also includes:
+  1. new targets the branch announces (`det == .target`), as before;
+  2. the branch's pre-event re-mentions of existing referents, with their updated roles, so that
+     in *Joust* "the creature you control" ranks as the clause subject for "if it's a Knight".
+- It must not expose fresh non-target referents (`det == .a`, created tokens, drawn cards) that
+  the branch would only choose or create as it acts: `conditionReadsOnlyTheBranchsTargets`
+  (`Proofs/DrtCards.lean`) keeps holding.
+- A preposed "If it's a Knight, the creature you control …" is unchanged: the forward reference
+  is still refused.
 
 ## Tests
 
 - *Joust* through "if it's a Knight" in `Cards/Choice.lean`: the probe above checks `[]`, and the
   condition's "it" reads the first target.
+- The preposed "If it's a Knight, the creature you control …" is still refused.
 - The existing `doIf`/`doOnlyIf` pins in `Proofs/Description.lean` and `Proofs/Zone.lean` still
   hold.

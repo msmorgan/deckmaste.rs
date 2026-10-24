@@ -2184,7 +2184,7 @@ def Action.createsDelayedTrigger (action : Action) (fuel : Nat := 8) : Bool :=
   match fuel, action with
   | 0, _ => false
   | _ + 1, .delay .. => true
-  | n + 1, .inCaller body | n + 1, .doIf _ body none => body.createsDelayedTrigger n
+  | n + 1, .inCaller body | n + 1, .doIf _ body none _ => body.createsDelayedTrigger n
   | _ + 1, _ => false
 termination_by structural fuel
 
@@ -2472,7 +2472,7 @@ def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
       | some other => other.arms n
       | none => []
     done ++ otherwise
-  | n + 1, .doIf _ action otherwise =>
+  | n + 1, .doIf _ action otherwise _ =>
     let rest : List Action := match otherwise with
       | some other => other.arms n
       | none => []
@@ -2488,7 +2488,8 @@ def Action.wrapArms (wrap : Action → Action) : Action → Option Action
   | .sequentially steps => some (.sequentially (steps.map wrap))
   | .withContinuation policy body ifDid ifNot =>
     some (.withContinuation policy (wrap body) (ifDid.map wrap) (ifNot.map wrap))
-  | .doIf condition action otherwise => some (.doIf condition (wrap action) (otherwise.map wrap))
+  | .doIf condition action otherwise postposed =>
+    some (.doIf condition (wrap action) (otherwise.map wrap) postposed)
   | _ => none
 
 /-- Publish the objects `action`, stepped from `state`, acts on into `context`, from the referents
@@ -2524,7 +2525,7 @@ private def publishArmsWith (ops : StepOps) (site : ReferentId) (fuel : Nat)
           publishArmsWith ops site n (arms ++ [(counter, 1)]) counter2 context2 state other
         (context3, state2, counter3)
       | none => (context2, state2, counter2)
-    | .doIf _ action otherwise =>
+    | .doIf _ action otherwise _ =>
       let (context1, state1, counter1) :=
         publishArmsWith ops site n (arms ++ [(counter, 0)]) (counter + 1) context state action
       match otherwise with
@@ -4129,7 +4130,7 @@ def stepOps : Nat → StepOps
           let (out, errors) := ops.inst phase patientRole drs inst
           let (out', limitErrors) := stepUsageLimitWith ops out limit
           (out', errors ++ limitErrors)
-        | .doIf cond thenInst elseInst =>
+        | .doIf cond thenInst elseInst postposed =>
           -- The branch's targets are chosen as the spell or ability is put on the stack
           -- [CR#601.2c,115.1], before the condition is checked as it resolves [CR#608.2c]: the
           -- condition reads them back wherever it is printed ("counter target spell if its mana
@@ -4138,20 +4139,37 @@ def stepOps : Nat → StepOps
           -- The branch keeps the ids it announced its targets under: it is stepped again from
           -- the ids it took then, and the condition's referents take ids past every id the
           -- branch takes, so a later line reads the target the condition read.
+          -- A postposed condition ("the creature you control gets +2/+1 until end of turn if
+          -- it's a Knight") is still checked before the branch acts [CR#608.2c], but it is
+          -- printed after its clause, so it also reads the branch's mentions of earlier referents
+          -- as the clause ranks them, its subject first [CR#608.2c]. Nothing the branch would
+          -- choose or create as it resolves is among them [CR#601.2c]. The branch itself is
+          -- read before its condition, from the ranks its mentions had before it.
           let (announced, _) := ops.inst .preEvent .obj drs thenInst
           let fresh := announced.referents.filter fun ref => !(drs.referents.any (·.id == ref.id))
           let targets := fresh.filter (·.det == .target)
           let targetIds := targets.map (·.id)
+          let committed := nextClause announced
+          let reMentioned := if !postposed then [] else
+            drs.referents.filterMap fun ref => (committed.findById? ref.id).bind fun now =>
+              if now.clause ≥ drs.currentClause && (now.clause != ref.clause || now.role != ref.role)
+              then some (ref.id, now.role) else none
+          let reMentionedIds := reMentioned.map (·.1)
           let branchExtent := if targets.isEmpty then announced.nextId
             else (ops.inst phase .obj (nextClause drs) thenInst).1.nextId
-          let withTargets := if targets.isEmpty then drs else
+          let withTargets := if targets.isEmpty && reMentioned.isEmpty then drs else
             nextClause { drs with
               referents := targets ++ drs.referents
-              nextId := max announced.nextId branchExtent }
+              pendingRoles := reMentioned ++ drs.pendingRoles
+              nextId := if targets.isEmpty then drs.nextId
+                else max announced.nextId branchExtent }
           let (drs1, e1) := ops.cond withTargets cond
           let branchStart := if targets.isEmpty then drs1.nextId else drs.nextId
           let branchContext := { drs1 with
-            referents := drs1.referents.filter (!targetIds.contains ·.id) }
+            referents := (drs1.referents.filter (!targetIds.contains ·.id)).map fun ref =>
+              match reMentionedIds.contains ref.id, drs.findById? ref.id with
+              | true, some before => { ref with clause := before.clause, role := before.role }
+              | _, _ => ref }
           let (reused, reusedErrors) := ops.inst phase .obj
             (nextClause { branchContext with nextId := branchStart }) thenInst
           -- What the branch allocates depends on its context (a letter is introduced only when

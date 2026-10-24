@@ -1513,11 +1513,13 @@ semantic_template doIfDone (body : Action) (ifDid : Option Action := none)
     (ifNot : Option Action := none) : Action :=
   .withContinuation .required body ifDid ifNot
 /-- "<action> if <condition>" ("counter target spell if its mana value is X"): the conditional
-action with its condition printed after it, which reads the action's targets back as any
-condition does. -/
+action with its condition printed after it (`postposed`): the condition reads the action's
+targets and its mentions of earlier referents as the clause ranks them ("the creature you control
+gets +2/+1 until end of turn if it's a Knight"), but nothing the action would choose or create
+as it resolves [CR#601.2c,608.2c]. -/
 semantic_template doOnlyIf (action : Action) (condition : Condition)
     (otherwise : Option Action := none) : Action :=
-  .doIf condition action otherwise
+  .doIf condition action otherwise (postposed := true)
 /-- "the game is a draw" [CR#104.4c] -/
 semantic_template drawGame : Action := .conclude .drawGame none
 semantic_template enact (verb : Deed) (action : Action) : Action :=

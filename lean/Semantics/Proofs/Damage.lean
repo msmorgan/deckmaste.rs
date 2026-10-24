@@ -22,7 +22,7 @@ theorem okFightCreatures :
 private def fightParticipantPairs : Action → List (BindingId × BindingId)
   | .ownScope _ (.enact _ (.doIf _ (.simultaneously [
       .dealDamage (.statOf _ (.laterMention source _)) (.laterMention recipient (.inCaller _)) _,
-      .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none) _ _) =>
+      .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none _) _ _) =>
     [(source, recipient), (reverseSource, reverseRecipient)]
   | _ => []
 
@@ -38,7 +38,7 @@ theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
         [("fight.source", "fight.other"), ("fight.other", "fight.source")] := by decide
 
 private def fightGuard : Action → Option Condition
-  | .ownScope _ (.enact _ (.doIf guard _ none) _ _) => some guard
+  | .ownScope _ (.enact _ (.doIf guard _ none _) _ _) => some guard
   | _ => none
 
 /-- Fight's guard tests both participants as creatures, a present-tense guard that reads them as
@@ -173,7 +173,7 @@ private def screamingNemesisThey : Option (List (Kind × Determiner)) :=
   match (match Cards.screamingNemesis.card with
       | .singleFaced face => face.characteristics.text
       | _ => []) with
-  | [_, .triggered _ _ _ _ _ _ _ (.sequentially [first, .doIf condition _ _])] =>
+  | [_, .triggered _ _ _ _ _ _ _ (.sequentially [first, .doIf condition _ _ _])] =>
     let header := GameEvent.extend { DRS.ofList [] with sourceTypes := [.creature] }
       (.does .any (dealDamage (to := thisCreature)))
     let afterDamage := (stepAction 64 .postEvent .obj (nextClause header) first).1

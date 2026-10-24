@@ -335,7 +335,7 @@ private def conditionIsInTheEffect (card : Spelled) : Bool :=
     match (face.characteristics.text.head? : Option Ability) with
     | some (.triggered _ _ _ _ _ _ none (.sequentially steps)) =>
       !steps.isEmpty && steps.all fun
-        | .doIf _ _ none => true
+        | .doIf _ _ none _ => true
         | _ => false
     | _ => false
   | _ => false

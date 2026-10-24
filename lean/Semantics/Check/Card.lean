@@ -47,7 +47,7 @@ def Action.printedAfterKeywords (i : Action) (fuel : Nat := 64) : List KeywordLa
   | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .instruct _ b
   | n + 1, .limited b _ => b.printedAfterKeywords n
   | _ + 1, .establish se _ => se.printedAfterKeywords
-  | n + 1, .doIf _ b other => b.printedAfterKeywords n ++
+  | n + 1, .doIf _ b other _ => b.printedAfterKeywords n ++
     other.toList.flatMap (fun i => i.printedAfterKeywords n)
   | n + 1, .sequentially is | n + 1, .simultaneously is =>
     is.flatMap (fun i => i.printedAfterKeywords n)

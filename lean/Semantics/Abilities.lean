@@ -1341,7 +1341,13 @@ mutual
     source's controller has not yet taken `action` within `limit`, so declining a "may" leaves it
     free to trigger again [CR#603.2h]. -/
     | limited (action : Action) (limit : UsageLimit)
+    /-- "If <condition>, <action>" or, `postposed`, "<action> if <condition>": the condition is
+    checked as the spell or ability resolves, before `action` is taken [CR#608.2c]. A postposed
+    condition is printed after its clause, so its anaphora read that clause's mentions as the
+    clause ranks them; the instructions are read as a whole text by the rules of English
+    [CR#608.2c]. -/
     | doIf (condition : Condition) (action : Action) (otherwise : Option Action)
+        (postposed : Bool := false)
     | doForEach (group : NounPhrase) (body : Action)
     | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)
         (body : Action)

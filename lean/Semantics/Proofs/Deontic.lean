@@ -518,7 +518,7 @@ theorem durationConventionWitnesses :
       | .keyword _ _ [.spell _ (.establish _ d), _] => some d
       | _ => none) = some (some restOfGame) ∧
     (match printedText Cards.screamingNemesis with
-      | [_, .triggered _ _ _ _ _ _ _ (.sequentially [_, .doIf _ (.establish _ d) _])] => some d
+      | [_, .triggered _ _ _ _ _ _ _ (.sequentially [_, .doIf _ (.establish _ d) _ _])] => some d
       | _ => none) = some (some restOfGame) ∧
     (match printedText Cards.terror with
       | [.spell _ (.sequentially [_, .establish _ d])] => some d
