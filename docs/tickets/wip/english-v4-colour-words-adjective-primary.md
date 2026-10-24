@@ -76,3 +76,6 @@ after:
   analysis, each named.
 
 Standard constraints apply.
+
+1. **Census delta** (`kxsspqpy`): faces read 32,825 → 32,825 of 32,828; Readings 324,591 → 324,006; 127 units fell, none rose (Vizier of Many Faces 288 → 144, Rowan, Scion of War 80 → 32, Scion of Draco 32 → 1); lost faces: none.
+2. **Judgment set**: all 3,363 hold (0 pending)
