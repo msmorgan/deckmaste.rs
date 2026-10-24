@@ -1238,6 +1238,16 @@ first Cluster (*gain protection from white if ..., from blue if ...*; CGEL,
 Ch. 15 §4.3, p. 1343, note 65).
 _Avoid_: gapping, which elides the verb from a second Clause
 
+**Medial Remnant** (project term):
+A medial Conjunct with an element at its beginning elided and recovered from
+the initial Conjunct, in a Coordination at the level of its final Conjunct
+(CGEL, Ch. 15 §3.6, pp. 1335–1336, [31]): a Predicative Complement whose
+copula is elided (*is enchanted, equipped, and has a counter on it*), or a
+Verb Phrase whose Subject is elided (*you gain 4 life, draw four cards, and he
+deals 4 damage to each opponent*). The initial and last Conjuncts are never
+remnants.
+_Avoid_: gapping, which elides the verb between a Subject and its dependents
+
 **End-attachment Coordination**:
 A Coordination whose second Conjunct is attached at the end of a Clause
 rather than beside the first (CGEL, Ch. 15 §4.5, pp. 1345–1348). In its

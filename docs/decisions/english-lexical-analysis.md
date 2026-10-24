@@ -76,7 +76,7 @@ Multiple Readings are successful parsing. The Ranking Key
 it never decides admission and never removes one.
 
 **The grammar avoids producing distinct trees for the same grammatical analysis
-of the text.** Nine canonicalizations apply:
+of the text.** Ten canonicalizations apply:
 
 - the order in which commuting pre- and post-modifiers are applied to one
   nominal head (from a stated, reviewed list; anything unlisted is a barrier);
@@ -145,7 +145,20 @@ of the text.** Nine canonicalizations apply:
   a postmodifier*). The interval is the adverb's only where no Verb Phrase
   follows it, as in the fronted *Once each turn, …*. The canonical site is built
   structurally: the end Adverbial of a Verb Phrase takes no Adverb Phrase that
-  ends in a temporal Noun Phrase.
+  ends in a temporal Noun Phrase;
+- **medial remnants:** a coordination may have a remnant for a conjunct, a
+  phrase with an element at its beginning elided and recovered from the
+  initial conjunct: a copular Verb Phrase's Predicative Complement without the
+  copula (*is enchanted, [equipped], and has a counter on it*). It is at the
+  level of the final conjunct, with the ellipsis in the medial ones (CGEL,
+  Ch. 15 §3.6, pp. 1335–1336, [31ii]: *He was middle-aged, of sallow
+  complexion and had penetrating blue eyes*), so a remnant is only ever a
+  medial conjunct, never the initial or the last. A coordination whose later
+  conjuncts were all remnants would be the coordination of their Predicatives
+  under the one copula (*is [a creature, an artifact, and an enchantment]*;
+  §3.2, pp. 1326–1327), and the two trees would differ in no meaning. The
+  canonical site is built structurally: a remnant is the first conjunct of a
+  serial tail only, never the last conjunct after its coordinator.
 
 Whenever a grammar change introduces or tightens a structural canonicalization,
 its gate compares, per unit, the set of Reading Normal Forms before and after

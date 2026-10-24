@@ -174,7 +174,14 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   `remnant` derives each pattern that begins with its head again without it,
   in that Category; the phrase with the head records it
   (`Summary::shared_head`) and the remnant the head it elides
-  (`Summary::remnant`), which must be the initial Cluster's.
+  (`Summary::remnant`), which must be the initial Cluster's. A Valence
+  schema's `remnants` pair a Slot Kind with a Category: an active phrase
+  whose frame's first Slot is of that kind is derived again without its head,
+  in that Category, as a medial conjunct of a coordination that admits it
+  (`Coordination::remnant`). The phrase with the head shares it, and the
+  remnant elides any head that declares its frame
+  (`Elided::Frame`; *is enchanted, [equipped], and has a counter on it*;
+  CGEL, Ch. 15 §3.6, pp. 1335–1336, [31ii]).
   A `MeasureNP` slot is a Monotransitive Object filled by the grammar's
   measure Noun Phrase Category, which no `NP` slot accepts (*gets +2/+2*, but
   not *draw 2/2*); like a keyword-phrase Object it derives no passive.
@@ -242,7 +249,16 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   every schema whose coordinators admit the paired one also derives the
   coordination after the marker. A coordination of Preposition Phrases keeps
   up to two prepositions for selection, and admits only the Host Categories
-  every conjunct admits. A coordination of a function may name its `conjunct`
+  every conjunct admits, where a conjunct whose Host Categories are
+  `NominalAndConjoinedPredicate` admits a Predicate host if the coordination
+  has one preposition and another conjunct admits that host on its own
+  (*enters with flying and with X +1/+1 counters on it*). A coordination
+  with a `remnant` Category may have a phrase of it for a medial conjunct,
+  the first conjunct of a serial tail, never the initial or the last one: a
+  coordination at the level of its final conjunct (CGEL, Ch. 15 §3.6,
+  pp. 1335–1336). Its `recovered` features are unshared among the conjuncts
+  but shared by each remnant with the initial conjunct, through the serial
+  tails (a Subject remnant's Number and Person). A coordination of a function may name its `conjunct`
   Category, and `unlike` a feature its two conjuncts must not share: unlike
   categories coordinated in one function (a depictive *tapped and attacking*),
   binary unless `serial` is set (an *and*-list of an Object with keywords), whose serial and polysyndetic shapes have conjuncts not all of one value

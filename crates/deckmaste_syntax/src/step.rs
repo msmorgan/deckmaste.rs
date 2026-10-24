@@ -321,7 +321,32 @@ pub(crate) enum RemnantRole {
     /// (`Summary::shared_head`).
     SharesHead,
     /// It is a remnant, this head elided (`Summary::remnant`).
-    Elides(LexemeId),
+    Elides(Elided),
+}
+
+/// The head a remnant elides (`Summary::remnant`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) enum Elided {
+    /// This lexeme, as a keyword elided from its parameters.
+    Lexeme(LexemeId),
+    /// The head of this frame, as a verb elided from its Complements: any
+    /// lexeme that declares the frame (`grammar::SchemaDecl::Valence`
+    /// `remnants`).
+    Frame(u16),
+}
+
+impl Elided {
+    /// Whether `head`, the lexical head shared by an initial conjunct
+    /// (`Summary::shared_head`), is the head this remnant elides.
+    fn recovered_by(self, grammar: &CompiledGrammar, head: LexemeId) -> bool {
+        match self {
+            Self::Lexeme(elided) => elided == head,
+            Self::Frame(frame) => grammar
+                .lexemes
+                .get(&head)
+                .is_some_and(|facts| facts.frames.contains(&usize::from(frame))),
+        }
+    }
 }
 
 /// Builds a Production from resolved equations by unifying paths into
@@ -532,6 +557,8 @@ pub(crate) fn resolve(
             other_preposition: None,
             mixed_prepositions: false,
             conjunct_hosts: u8::MAX,
+            plain_hosts: u8::MAX,
+            conjoined_host: false,
             unlike_value: None,
             unlike_mixed: false,
             nonlast: [FeatureValue::UNSET; MAX_RESOLUTIONS],
@@ -709,7 +736,7 @@ pub(crate) struct Summary {
     /// (`grammar::ClustersDecl::remnants`): a Cluster after the first may
     /// begin with a remnant only of the head of the initial Cluster's first
     /// Slot (CGEL, Ch. 15 §4.3, p. 1343, note 65).
-    pub remnant: Option<LexemeId>,
+    pub remnant: Option<Elided>,
     /// The lexical head of a phrase a later Cluster's remnant may elide,
     /// through its head line (`RemnantRole::SharesHead`).
     pub shared_head: Option<LexemeId>,
@@ -789,6 +816,12 @@ pub(crate) struct State {
     mixed_prepositions: bool,
     /// The Host Categories every conjunct so far admits, or the head admits.
     conjunct_hosts: u8,
+    /// The Host Categories some conjunct so far admits on its own, or the
+    /// head admits (`frames::conjoined_hosts`).
+    plain_hosts: u8,
+    /// A conjunct admits a Predicate host only as a conjunct
+    /// (`frames::conjoined_hosts`).
+    conjoined_host: bool,
     /// The first conjunct's value of an `unlike` feature.
     unlike_value: Option<u16>,
     /// The conjuncts so far do not all share the `unlike` feature's value.
@@ -819,7 +852,7 @@ pub(crate) struct State {
     head_lexeme: Option<LexemeId>,
     /// The head elided from the remnant it is or begins with
     /// (`Summary::remnant`).
-    remnant: Option<LexemeId>,
+    remnant: Option<Elided>,
     /// `Summary::shared_head` so far.
     shared_head: Option<LexemeId>,
     /// A coordination's initial conjunct has been taken (`remnant_anchor`).
@@ -894,6 +927,7 @@ impl Production {
             next.other_preposition = summary.other_preposition;
             next.extensions = summary.extensions;
             next.conjunct_hosts = summary.hosts;
+            next.plain_hosts = summary.hosts;
         }
         if let Some((host, adjunct, _)) = self.host_check {
             if position == host {
@@ -1123,6 +1157,7 @@ impl Production {
     /// conjunct's.
     fn track_remnant(
         &self,
+        grammar: &CompiledGrammar,
         next: &mut State,
         position: usize,
         child: &ChildView<'_>,
@@ -1164,10 +1199,11 @@ impl Production {
             next.remnant_anchor = if remnant.is_some() { None } else { shared };
             return Some(());
         }
-        match (remnant, next.remnant_anchor.or(next.remnant)) {
-            (Some(elided), Some(head)) if elided != head => None,
-            (Some(_), None) => None,
-            _ => Some(()),
+        match (remnant, next.remnant_anchor, next.remnant) {
+            (None, ..) => Some(()),
+            (Some(elided), Some(head), _) => elided.recovered_by(grammar, head).then_some(()),
+            (Some(elided), None, Some(first)) => (elided == first).then_some(()),
+            (Some(_), None, None) => None,
         }
     }
 
@@ -1273,7 +1309,11 @@ impl Production {
     /// coordination: Preposition Phrases keep up to two prepositions (*from
     /// black and from red*, *into your hand or onto the battlefield*).
     fn conjoin(next: &mut State, summary: &Summary) {
-        next.conjunct_hosts &= summary.hosts;
+        let (hosts, conjoined) = crate::frames::conjunct_hosts(summary.hosts);
+        next.conjunct_hosts &= hosts;
+        next.conjoined_host |= conjoined;
+        next.plain_hosts =
+            if next.conjoined { next.plain_hosts | summary.hosts } else { summary.hosts };
         // Conjuncts that would take the same Complements leave the
         // coordination extendable by them (*the top or bottom of their
         // library* takes its *of*-phrase as a shared Complement, never as an
@@ -1571,7 +1611,7 @@ impl Production {
         self.track_omitted_complement(grammar, &mut next, position, child)?;
         self.track_ellipsis(&mut next, position, child)?;
         self.track_cluster(grammar, &mut next, position, child)?;
-        self.track_remnant(&mut next, position, child)?;
+        self.track_remnant(grammar, &mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => self.node_value(grammar, position, summary, feature),
@@ -1782,7 +1822,12 @@ impl Production {
                 || state.head_coordination,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
-                _ => state.conjunct_hosts,
+                _ => crate::frames::conjoined_hosts(
+                    state.conjunct_hosts,
+                    state.plain_hosts,
+                    state.conjoined_host,
+                    state.other_preposition.is_none() && !state.mixed_prepositions,
+                ),
             },
             fronted: if !self.fronts() {
                 Fronting::None
@@ -1828,8 +1873,11 @@ impl CompiledGrammar {
     /// prepositions they omit. An omitted Amount is no such Complement
     /// (*number and kind [of counters]*, where *number* also takes one).
     pub(crate) fn like_omissions(&self, a: u16, b: u16) -> bool {
-        let prepositions =
-            |index| self.extension_set(index).iter().filter(|e| matches!(e, Extension::Preposition(_)));
+        let prepositions = |index| {
+            self.extension_set(index)
+                .iter()
+                .filter(|e| matches!(e, Extension::Preposition(_)))
+        };
         a == b || prepositions(a).eq(prepositions(b))
     }
 

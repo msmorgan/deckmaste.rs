@@ -2,6 +2,10 @@
 +VerbPhrase put that card onto the battlefield and the rest into your graveyard => NounPhrase "that card" as Object of put; PrepositionPhrase "onto the battlefield" as Complement of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "into your graveyard" as Complement of put
 +PrepositionPhrase instead of into your graveyard => PrepositionPhrase "into your graveyard"
 +Nominal creature with flying => PrepositionPhrase "with flying" as Modifier of creature
+# A keyword after *with* is a predicate's Adjunct only coordinated with a
+# *with*-phrase that is one on its own.
++ <card=Dralnu's Pet> If this creature was kicked, it enters with flying and with X +1/+1 counters on it, where X is the discarded card's mana value. => PrepositionPhrase "with flying and with X +1/+1 counters on it" as Adjunct of enter
++ <card=Kavu Titan> If this creature was kicked, it enters with three +1/+1 counters on it and with trample. => PrepositionPhrase "with three +1/+1 counters on it and with trample" as Adjunct of enter
 + Return target creature card from your graveyard to your hand. => PrepositionPhrase "from your graveyard" as Adjunct of return; !PrepositionPhrase "from your graveyard" as Complement of return
 +PrepositionPhrase of the chosen type
 +VerbPhrase aren't of the chosen type => PrepositionPhrase "of the chosen type" as PredicativeComplement of be

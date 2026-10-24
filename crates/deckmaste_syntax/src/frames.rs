@@ -320,6 +320,11 @@ pub enum Hosts {
     Nominal,
     Predicate,
     NominalAndPredicate,
+    /// A Nominal's, and a Predicate's only as a conjunct of a coordination
+    /// of Preposition Phrases of its one preposition, beside a conjunct that
+    /// is a Predicate's on its own (*enters with flying and with X +1/+1
+    /// counters on it*, never *enters with flying*).
+    NominalAndConjoinedPredicate,
     /// Only a Supplement to a Clause or line (*, where X is its power*).
     Supplement,
 }
@@ -329,10 +334,12 @@ impl Hosts {
     #[must_use]
     pub(crate) fn mask(self) -> u8 {
         use crate::grammar::HostKind;
+        let conjoined =
+            if self == Self::NominalAndConjoinedPredicate { CONJOINED_PREDICATE } else { 0 };
         [HostKind::Nominal, HostKind::Predicate, HostKind::Supplement]
             .into_iter()
             .filter(|kind| self.admits(*kind))
-            .fold(0, |mask, kind| mask | host_bit(kind))
+            .fold(conjoined, |mask, kind| mask | host_bit(kind))
     }
 
     #[must_use]
@@ -340,12 +347,13 @@ impl Hosts {
         use crate::grammar::HostKind;
         matches!(
             (self, kind),
-            (Self::Nominal | Self::NominalAndPredicate, HostKind::Nominal)
-                | (
-                    Self::Predicate | Self::NominalAndPredicate,
-                    HostKind::Predicate
-                )
-                | (Self::Supplement, HostKind::Supplement)
+            (
+                Self::Nominal | Self::NominalAndPredicate | Self::NominalAndConjoinedPredicate,
+                HostKind::Nominal
+            ) | (
+                Self::Predicate | Self::NominalAndPredicate,
+                HostKind::Predicate
+            ) | (Self::Supplement, HostKind::Supplement)
         )
     }
 }
@@ -354,13 +362,43 @@ impl Hosts {
     /// The Host Categories both admit.
     #[must_use]
     pub(crate) fn meet(self, other: Self) -> Self {
-        match self.mask() & other.mask() {
+        match self.mask() & other.mask() & !CONJOINED_PREDICATE {
             0 => Self::ComplementOnly,
             1 => Self::Nominal,
             2 => Self::Predicate,
             3 => Self::NominalAndPredicate,
             _ => Self::Supplement,
         }
+    }
+}
+
+/// The bit of a set of admitted hosts that admits a Predicate host for a
+/// coordination with a conjunct that admits one on its own
+/// ([`Hosts::NominalAndConjoinedPredicate`]).
+pub(crate) const CONJOINED_PREDICATE: u8 = 8;
+
+/// The hosts a coordination admits: those every conjunct admits (`all`), a
+/// conjunct that admits a Predicate host only as a conjunct counting as one
+/// that does. With such a conjunct (`conjoined`), it admits a Predicate host
+/// only if some conjunct admits it on its own (`plain`) and every conjunct is
+/// a Preposition Phrase of one preposition (`one_preposition`).
+pub(crate) fn conjoined_hosts(all: u8, plain: u8, conjoined: bool, one_preposition: bool) -> u8 {
+    let predicate = host_bit(crate::grammar::HostKind::Predicate);
+    if conjoined && (plain & predicate == 0 || !one_preposition) {
+        all & !predicate
+    } else {
+        all
+    }
+}
+
+/// A conjunct's hosts as a coordination counts them, and whether it admits a
+/// Predicate host only as a conjunct ([`conjoined_hosts`]).
+pub(crate) fn conjunct_hosts(hosts: u8) -> (u8, bool) {
+    let predicate = host_bit(crate::grammar::HostKind::Predicate);
+    if hosts & CONJOINED_PREDICATE == 0 || hosts & predicate != 0 {
+        (hosts, false)
+    } else {
+        (hosts | predicate, true)
     }
 }
 
