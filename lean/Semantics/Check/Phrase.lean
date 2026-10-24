@@ -175,25 +175,22 @@ def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
-/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. A bare move names a deed
-only when it moves to exile, which is exiling [CR#701.13a]; "put" and "return" name none. -/
-def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
+/-- The `Deed` an action names, read from its structure, never guessed from its shape: an Action
+Definition's own Reference Scope header (`Action.ownDeed?`), the one deed it performs, or the
+core deed a dedicated head is (drawing, targeting [CR#121.1,115.1]). A bare move, status change
+or creation names none: a keyword action is written as its Definition, and "put" and "return"
+are ordinary English for a Zone Change [CR#400.7]. -/
+def Action.namedDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
-  | n + 1, .inCaller body => body.inferredDeed n
+  | n + 1, .inCaller body => body.namedDeed n
   | _ + 1, .ownScope (some d) _ => some d
-  | n + 1, .ownScope none body => body.inferredDeed n
-  | _ + 1, .enact verb _ _ _ => some verb
-  | _ + 1, .move _ _ (some (.zone .exile _)) _ _ => some (.action "exile")
-  | _ + 1, .setStatus .tapped _ => some (.action "tap")
-  | _ + 1, .setStatus .untapped _ => some (.action "untap")
+  | n + 1, .ownScope none body => body.namedDeed n
   | _ + 1, .draw _ => some (.core .draw)
   | _ + 1, .trigger => some (.core .trigger)
   | _ + 1, .crew _ => some (.ofAbility (.named "crew"))
   | _ + 1, .saddle _ => some (.ofAbility (.named "saddle"))
   | _ + 1, .fullyUnlock _ => some (.core .fullyUnlock)
-  | _ + 1, .createObject .. => some (.action "create")
-  | _ + 1, .expose .reveal _ => some (.action "reveal")
   | _ + 1, .target _ => some (.core .target)
   | _ + 1, .changeControl .. => some (.core .gainControl)
   | _ + 1, _ => none
@@ -229,7 +226,7 @@ termination_by structural fuel
 /-- What an action is read back by: the deed it names, or, where none does, the Zone Change it
 writes ("returned", "put" [CR#400.7]). -/
 def Action.participialAnchor? (inst : Action) : Option ParticipialAnchor :=
-  match inst.inferredDeed with
+  match inst.namedDeed with
   | some deed => some (.deed deed)
   | none => inst.writtenZoneChange?.map fun (origin, destination) => .zoneChange origin destination
 
@@ -1134,9 +1131,9 @@ def Action.performed (action : Action) : Bool :=
   | .conclude .. | .separateIntoPiles .. | .choose .. | .vote ..
   | .copy .. | .changeLife _ | .addMana .. | .draw _ | .expose ..
   | .search .. | .shuffle _ | .flipCoins .. | .rollDice .. | .rerollStored ..
-  | .createObject .. | .enact .. | .pay .. | .skipPart .. | .addTurnPart ..
+  | .createObject .. | .pay .. | .skipPart .. | .addTurnPart ..
   | .procedure .. | .withContinuation .optional .. => true
-  | _ => false
+  | _ => action.ownDeed?.isSome
 
 def clauseActorKind (action : Action) : Option Kind :=
   match action.scopeBody with
@@ -1155,8 +1152,7 @@ Reference Scope and its deed to the event its expansion performs. -/
 def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
   match fuel, inst with
   | 0, _ => []
-  | n + 1, .inCaller body | n + 1, .ownScope _ body
-  | n + 1, .enact _ body _ _ => body.eventVerbs n
+  | n + 1, .inCaller body | n + 1, .ownScope _ body => body.eventVerbs n
   | _ + 1, .dealDamage .. => [.damageDealt]
   | _ + 1, .markDamage .. => [.damageMarked]
   | _ + 1, .preventDamage .. => [.damagePrevented]
@@ -1220,7 +1216,7 @@ def Action.subjectIsPatient (action : Action) : Bool :=
 classes (`CausedEvent`), done by an Actor of kind `performer` to something of kind `patient`, if
 known. -/
 def Action.causedEvent (inst : Action) (performer patient : Option Kind) : CausedEvent :=
-  { deed := inst.inferredDeed
+  { deed := inst.namedDeed
     zoneChange := inst.writtenZoneChange?.map fun (origin, destination) =>
       ⟨origin, some destination⟩
     verbs := inst.eventVerbs
@@ -1236,7 +1232,6 @@ def Action.eventLayers (action : Action) (fuel : Nat := 8) : List Action :=
   | 0, _ => []
   | n + 1, .inCaller body => body.eventLayers n
   | n + 1, .ownScope deed body => (if deed.isSome then [action] else []) ++ body.eventLayers n
-  | n + 1, .enact _ body _ _ => action :: body.eventLayers n
   | _ + 1, _ => if action.eventHeadOk then [action] else []
 termination_by structural fuel
 
@@ -1253,11 +1248,8 @@ permanent for a deed a permanent performs with no handoff to one ([CR#701.44a]),
 controller, a player [CR#109.5]. -/
 def causedPerformer (drs : DRS) (inst : Action) : Kind :=
   let actor := actorShape? drs
-  match inst.scopeBody with
-  | .enact verb .. =>
-    if verb.permanentActor && actor.all (·.isYou) then .object
-    else actor.elim .player (·.kind)
-  | _ => actor.elim .player (·.kind)
+  if (inst.ownDeed?.any (·.permanentActor)) && actor.all (·.isYou) then .object
+  else actor.elim .player (·.kind)
 
 /-- `after`, what stepping `inst` from `before` produced, with the event `inst` caused recorded
 when it is a resolving or paid action, not a pattern a lookback, trigger or replacement
@@ -1385,23 +1377,10 @@ def DRS.thisWayRecordedOrigin (drs : DRS) (subj : Subject) (action : Action) :
     | _ => none
   | _ => none
 
-/-- The zones a lookback at an enacted deed can name as where it was done, by what the deed's body
-does: a search, any zone it can search [CR#701.23a]; a shuffle, a library [CR#701.24a]; any other
-body, none. -/
-def Action.lookbackLoci (body : Action) : List Zone :=
-  match body.scopeBody with
-  | .search .. => [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command]
-  | .shuffle _ => [.library]
-  | _ => []
-
 def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List Refusal :=
   match c with
   | { subj, action, within, ordinal } =>
     let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
-    let locusErrors := match action.scopeBody with
-      | .enact _ body _ (some zone) =>
-        refuse (zone.sort.any (fun z => body.lookbackLoci.elem z)) .lookbackLocus
-      | _ => []
     -- A subject the move moves ("that creature dies") reads the participants introduced before
     -- the clause as the permanents they were, as a patient written inside the move does.
     -- A grounded "this way" lookback whose move writes no origin reads it from the events the
@@ -1446,7 +1425,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         actionPattern := drs.actionPattern
         historicalReferentIds := drs.historicalReferentIds
         participialAnchorRead := drs.participialAnchorRead },
-      headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
+      headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ groundErrors ++
         eventVoiceChecks drs subj action ++ eventOrdinalRefusals ordinal)
 
 /-- Whether a relative clause's agent is this object, written with "by" ("put onto the
@@ -1722,8 +1701,7 @@ def Subtype.isAttachment (subtype : Subtype) : Bool :=
 enchanted" forbids an Aura's becoming attached. -/
 def Action.attaches (action : Action) (fuel : Nat := 16) : Bool :=
   match fuel, action with
-  | n + 1, .inCaller body | n + 1, .ownScope _ body
-  | n + 1, .enact _ body _ _ => body.attaches n
+  | n + 1, .inCaller body | n + 1, .ownScope _ body => body.attaches n
   | _ + 1, .attachment .attached _ _ => true
   | _, _ => false
 termination_by structural fuel
@@ -1766,7 +1744,7 @@ def StaticSpec.attachmentHost? (spec : StaticSpec) (fuel : Nat := 16) : Option N
   | _ + 1, .characteristicChange subject _ => some subject
   | _ + 1, .cant _ action _ =>
     match action.scopeBody with
-    | .enact _ (.attachment _ _ host) _ _ | .attachment _ _ host => host
+    | .attachment _ _ host => host
     | _ => none
   | _, _ => none
 termination_by structural fuel
@@ -2238,8 +2216,8 @@ def Action.isEntering (action : Action) (fuel : Nat := 8) : Bool :=
   | 0, _ => false
   | _ + 1, .move _ _ to _ _ => to.bind (·.sort) == some .battlefield
   | _ + 1, .createObject _ (.token _ _) _ => true
-  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .instruct _ body
-  | n + 1, .enact _ body _ _ => body.isEntering n
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .instruct _ body =>
+    body.isEntering n
   | _ + 1, _ => false
 termination_by structural fuel
 
@@ -3588,22 +3566,22 @@ def stepOps : Nat → StepOps
           let callerDrs := enterCaller drs
           let (callerDrs', errs) := ops.inst phase patientRole callerDrs body
           (leaveCaller drs callerDrs', errs)
-        | .ownScope deed body =>
-          let innerDrs := enterOwnScope drs
-          let (innerDrs', errs) := ops.inst phase patientRole innerDrs body
-          let outDrs := leaveOwnScope innerDrs'
-          let _ := deed
-          (outDrs, errs)
-        | .enact verb body becomes locus =>
-          let actor := actorShape? drs
+        | .ownScope none body =>
+          let (innerDrs', errs) := ops.inst phase patientRole (enterOwnScope drs) body
+          (leaveOwnScope innerDrs', errs)
+        | .ownScope (some verb) body =>
+          -- The header's deed is the action's one deed (`Action.ownDeed?`): the head gates read
+          -- it, and a resolving or paid step stamps it on what the body acts on.
+          let innerDrs := enterOwnScope drs (some verb)
+          let actor := actorShape? innerDrs
           let defaultsToSource := verb.permanentActor && actor.all (·.isYou)
           let (inner, selves, sourceErrors) := if defaultsToSource then
-            let (out, ids, errors) := ops.np drs .subj true (.headed .permanent .this)
+            let (out, ids, errors) := ops.np innerDrs .subj true (.headed .permanent .this)
             let shape : ActorShape := {
               kind := .object, isYou := false, ascribable := true, refIds := ids }
             let (out, selves) := performerInView out ids
             (out.pushPerformer shape, selves, errors)
-            else (drs, [], [])
+            else (innerDrs, [], [])
           let priorMentions := inner.pendingRoles.length
           let (drs1, e1) := ops.inst phase patientRole inner body
           let bodyMentions := if drs1.currentClause == inner.currentClause then
@@ -3615,11 +3593,9 @@ def stepOps : Nat → StepOps
           -- devouring is sacrificing [CR#702.82b] (`Stamp.deeds`).
           let drs1 := if phase != .postEvent then drs1 else
             applyInPlaceStamp drs1 actedIds (some verb)
-          let (drs2, e2) := match becomes with | some p => ops.pred drs1 p | none => (drs1, [])
-          let (drs3, e3) := match locus with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
-          let out := if defaultsToSource then performerOutOfView (dropActorFrame drs3) selves
-            else drs3
-          (out, sourceErrors ++ e1 ++ e2 ++ e3)
+          let out := if defaultsToSource then performerOutOfView (dropActorFrame drs1) selves
+            else drs1
+          (leaveOwnScope out, sourceErrors ++ e1)
         | .instruct subj body =>
           let tracked := { drs with
             outerReferentIds := (drs.referents.map (·.id)) :: drs.outerReferentIds }
@@ -3719,10 +3695,15 @@ def stepOps : Nat → StepOps
         | .turnFaceDown subj _ =>
           let (out, ids, errs) := ops.np drs patientRole true subj
           (out, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)))
-        | .clearDamage subj | .turnOver subj =>
+        | .clearDamage subj | .turnOver subj none =>
           let (out, ids, errors) := ops.np drs patientRole true subj
           let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
           (out, errors ++ kindCheck .object (some kind))
+        | .turnOver subj (some into) =>
+          let (out, ids, errors) := ops.np drs patientRole true subj
+          let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
+          let (out, intoErrors) := ops.pred out into
+          (out, errors ++ kindCheck .object (some kind) ++ intoErrors)
         | .changeControl subj from_ =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let (drs2, e2) : DRS × List Refusal := match from_ with
@@ -3732,12 +3713,12 @@ def stepOps : Nat → StepOps
             | none => (drs1, [])
           -- The patient is stamped as `controlGrant`'s is, so one Participial Description reads
           -- both.
-          let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed
+          let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.namedDeed
             else drs2
           (drs3, e1 ++ e2 ++ refuse drs.actionPattern .controlChangePattern)
         | .target subj | .chooseNewTargets subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
-          let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
+          let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.namedDeed else drs1
           (drs2, e1)
         | .trigger => (drs, triggerActorRefusals drs)
         | .crew host | .saddle host | .fullyUnlock host =>
@@ -3745,7 +3726,7 @@ def stepOps : Nat → StepOps
           let actorErrors := actionActorRefusals drs expected
           let (out, ids, errors) := ops.np drs patientRole true host
           let typeErrors := kindCheck .object ((ids.head?.bind out.findById?).map (·.kind))
-          let out := if phase == .postEvent then applyInPlaceStamp out ids inst.inferredDeed else out
+          let out := if phase == .postEvent then applyInPlaceStamp out ids inst.namedDeed else out
           (out, actorErrors ++ errors ++ typeErrors)
         | .tapForMana perm optType =>
           let (drs1, _, e1) := ops.np drs patientRole true perm
@@ -3761,12 +3742,12 @@ def stepOps : Nat → StepOps
           let e1 := e1 ++ refuse (designation.scope == .heldBy kind) (.designationScope designation) ++
             refuse (designationHolderOk designation) (.designationHolder designation kind)
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
-          let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed else drs2
+          let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.namedDeed else drs2
           (drs3, e1 ++ e2)
         | .setStatus _ subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let kind := (refIds.head?.bind drs1.findById?).map (·.kind) |>.getD (subj.kindIn drs1 .object)
-          let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
+          let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.namedDeed else drs1
           (drs2, e1 ++ kindCheck .object (some kind))
         | .combat subj upd =>
           let (drs1, _, e1) := ops.np drs patientRole true subj
@@ -3903,7 +3884,7 @@ def stepOps : Nat → StepOps
           let (drs5, e5) := stepMoveRiderListWith ops drs3 riders
           let destZone := to.bind (·.sort)
           let drs6 := if phase == .postEvent then
-            let moved := applyZoneMove drs5 refIds inst.inferredDeed destZone
+            let moved := applyZoneMove drs5 refIds drs.scopeDeed destZone
             match subj.restContext? drs with
             | some (kind, plurality, source) =>
               if theRestFits kind plurality source then moved.consumeRest source kind
@@ -3961,7 +3942,7 @@ def stepOps : Nat → StepOps
           match exposed with
           | .cards np =>
             let (drs1, refIds, e1) := ops.np drs patientRole true np
-            let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
+            let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.namedDeed else drs1
             (drs2, e1)
           | .zone z => stepLocationWith ops drs z
           | .choice _ => (drs, [])
@@ -3973,7 +3954,7 @@ def stepOps : Nat → StepOps
         | .shuffle pile =>
           let (drs1, e1) := stepLocationWith ops drs pile
           let drs2 := if phase == .postEvent then afterShuffle drs1 else drs1
-          (drs2, e1)
+          (drs2, e1 ++ refuse (pile.sort.all (· == .library)) .shuffleZone)
         | .flipCoins count _ _ =>
           let (drs1, e1) := stepFlipScopeWith ops drs count
           let drs2 := drs1.push (outcomeB .coinFlipped) .other false

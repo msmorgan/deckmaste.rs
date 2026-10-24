@@ -23,7 +23,7 @@ private def context : DRS := {
   causedEvents :=
     [ deathLookback.action.causedEvent (some .player) (some .object),
       (Action.ownScope (some (.action "destroy"))
-        (.enact (.action "destroy") deathLookback.action none none)).causedEvent (some .player)
+        (.ownScope (some (.action "destroy")) deathLookback.action)).causedEvent (some .player)
         none ] }
 
 /-- A death lookback reads the departed participant's battlefield type without moving it again. -/

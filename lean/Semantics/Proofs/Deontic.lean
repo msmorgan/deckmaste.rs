@@ -409,7 +409,7 @@ theorem goadedAttacksOther :
 
 /-- "as you scry": a concurrent window with no printed card on the bench. -/
 theorem whileScrying :
-    Timing.check (DRS.ofList []) (.whileDoing (.does (.actor .you) (.enact (.action "scry") (scry .anyAmount) none none)))
+    Timing.check (DRS.ofList []) (.whileDoing (.does (.actor .you) (scry .anyAmount)))
       = [] := by
   decide
 

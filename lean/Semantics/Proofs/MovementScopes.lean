@@ -135,9 +135,9 @@ theorem kindLoopPreservesFreshSuccessorOfOuterReferent :
         some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem consumingActionChecksThePreMoveZone :
-    let destruction := Action.enact (.action "destroy")
-      (.move (.laterMention "subject" .any) .anyLocation
-        (some (.zone .graveyard none)) .departure []) none none
+    let destruction := .ownScope (some (.action "destroy"))
+      (.move (.firstMention "destroy.subject" (.inCaller (.laterMention "subject" .any)))
+        .anyLocation (some (.zone .graveyard none)) .departure [])
     let result := stepAction 64 .postEvent .obj original destruction
     result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 

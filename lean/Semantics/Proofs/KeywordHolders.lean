@@ -41,8 +41,8 @@ theorem protectionTargetingReadsItsHolder :
 
 /-- The host of a forbidden Aura attachment, if the clause is one. -/
 def auraHost? : StaticSpec → Option NounPhrase
-  | .cant _ (.ownScope _ (.enact _ (.attachment .attached _
-      (some (.firstMention _ (.inCaller host)))) _ _)) _ => some host
+  | .cant _ (.ownScope _ (.attachment .attached _
+      (some (.firstMention _ (.inCaller host))))) _ => some host
   | _ => none
 
 /-- The recipient of a damage-prevention clause, if the clause is one. -/
@@ -80,8 +80,8 @@ theorem okPlayerHasProtection :
 
 /-- The duration a keyword action's own scope establishes, if its deed's body is one. -/
 def establishedDuration? : Action → Option Duration
-  | .ownScope _ (.enact _ (.establish _ duration) _ _) => duration
-  | .ownScope _ (.enact _ (.gainDesignation _ _ duration) _ _) => duration
+  | .ownScope _ (.establish _ duration) => duration
+  | .ownScope _ (.gainDesignation _ _ duration) => duration
   | _ => none
 
 /-- Detain and goad last until "your next turn", the next turn of the controller of the spell or

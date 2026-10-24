@@ -94,12 +94,12 @@ theorem okSupport : Action.check (DRS.ofList []) (support 2) = [] := by decide
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as
 actions. -/
 theorem okCastProcedure :
-    Action.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [isInstantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
+    Action.check (DRS.ofList []) (.ownScope (some (.action "cast")) (.procedure .cast (target (.and [isInstantOrSorcery, .isCard])) .itsOwnCost none none none)) = [] := by
   decide
 theorem okPlayProcedure :
-    Action.check (DRS.ofList []) (.enact (.action "play") (.procedure .play (target (.and [isLand, .isCard])) .withoutPaying none none none) none none) = [] := by decide
+    Action.check (DRS.ofList []) (.ownScope (some (.action "play")) (.procedure .play (target (.and [isLand, .isCard])) .withoutPaying none none none)) = [] := by decide
 theorem okActivateProcedure :
-    Action.check (DRS.ofList []) (.enact (.action "activate") (.procedure .activate (target (.abilityHead .anyActivated)) .itsOwnCost none none none) none none) = [] := by
+    Action.check (DRS.ofList []) (.ownScope (some (.action "activate")) (.procedure .activate (target (.abilityHead .anyActivated)) .itsOwnCost none none none)) = [] := by
   decide
 
 /-- A procedure is carried out on an object: a player is not cast. -/

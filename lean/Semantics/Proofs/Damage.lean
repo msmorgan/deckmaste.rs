@@ -20,9 +20,9 @@ theorem okFightCreatures :
     Action.check (DRS.ofList []) (instruct (target isCreature) (fight (target isCreature))) = [] := by decide
 
 private def fightParticipantPairs : Action → List (BindingId × BindingId)
-  | .ownScope _ (.enact _ (.doIf _ (.simultaneously [
+  | .ownScope _ (.doIf _ (.simultaneously [
       .dealDamage (.statOf _ (.laterMention source _)) (.laterMention recipient (.inCaller _)) _,
-      .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none _) _ _) =>
+      .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none _) =>
     [(source, recipient), (reverseSource, reverseRecipient)]
   | _ => []
 
@@ -38,7 +38,7 @@ theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
         [("fight.source", "fight.other"), ("fight.other", "fight.source")] := by decide
 
 private def fightGuard : Action → Option Condition
-  | .ownScope _ (.enact _ (.doIf guard _ none _) _ _) => some guard
+  | .ownScope _ (.doIf guard _ none _) => some guard
   | _ => none
 
 /-- Fight's guard tests both participants as creatures, a present-tense guard that reads them as
@@ -69,7 +69,7 @@ theorem fightEachOtherGuardTestsBothCreaturesNow :
 deed, and a lookback or a trigger reads it as it reads the other form. -/
 theorem fightEachOtherIsAFight :
     fightEachOther.deed = fight.deed ∧
-      (fightEachOther (those creature)).inferredDeed = some fight.deed ∧
+      (fightEachOther (those creature)).namedDeed = some fight.deed ∧
       (fightEachOther (those creature)).participialAnchor? =
         (fight (a isCreature)).participialAnchor? := by decide
 

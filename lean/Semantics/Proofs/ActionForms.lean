@@ -7,17 +7,15 @@ namespace Semantics.Proofs.ActionForms
 theorem exileOmittedAgent :
     exile thisPermanent =
       Action.ownScope (some (.action "exile"))
-        (.enact (.action "exile")
-          (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
-            .anyLocation (some exileZone) .arrival []) none none) := by rfl
+        (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
+          .anyLocation (some exileZone) .arrival []) := by rfl
 
 theorem exileNamedAgent :
     instruct .you (exile thisPermanent) =
       Action.instruct .you
         (Action.ownScope (some (.action "exile"))
-        (.enact (.action "exile")
           (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
-            .anyLocation (some exileZone) .arrival []) none none)) := by rfl
+            .anyLocation (some exileZone) .arrival [])) := by rfl
 
 theorem chooseOmittedAgent :
     choose (a isCreature) = Action.choose none (a isCreature) .openly none := by rfl
@@ -36,8 +34,7 @@ theorem millNamedAgent :
     instruct .you (mill 3) =
       Action.instruct .you
         (Action.ownScope (some (.action "mill"))
-          (.enact (.action "mill")
-            (.move (.slice .top (.inCaller 3) (libraryOf .actor))
-              (.zone .library none) (some graveyard) .arrival []) none none)) := by rfl
+          (.move (.slice .top (.inCaller 3) (libraryOf .actor))
+            (.zone .library none) (some graveyard) .arrival [])) := by rfl
 
 end Semantics.Proofs.ActionForms

@@ -42,7 +42,7 @@ private def graveyardZone : Location :=
 /-- Representative multi-step definition 1: `explore` [CR#701.44a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
 def exploreDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "explore" true)) <|
+  .ownScope (some (.action "explore")) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .sequentially [
         .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
@@ -59,7 +59,7 @@ theorem explore_def_sound :
 /-- Representative multi-step definition 2: `connive` [CR#701.50a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` + `doIf`). -/
 def conniveDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "connive" true)) <|
+  .ownScope (some (.action "connive")) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [
@@ -177,9 +177,7 @@ theorem kalitas_replacement_sound :
 `"Sacrifice a creature: Draw cards equal to its power."` -/
 def sacrificeDrawActivated : Ability :=
   .activated
-    (.perform (.enact (.action "sacrifice")
-      (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure [])
-      none none))
+    (.perform (.ownScope (some (.action "sacrifice")) (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure [])))
     (.draw (.exactlyOf (.statOf (.stat .power) (.pro .bare .one))))
     none none none none
 

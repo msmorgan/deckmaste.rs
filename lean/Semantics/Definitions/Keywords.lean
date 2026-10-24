@@ -509,8 +509,9 @@ semantic_definition devoid : Ability :=
 verb devour defines for itself [CR#702.82b]. It is done by sacrificing, so the sacrifice stands
 too ("each creature sacrificed this way" and "creatures it devoured" both read it). Named in its
 sort, as `devour` is the keyword ability. -/
-semantic_template Action.devour (subject : NounPhrase) : Action :=
-  enact (.ofAbility (.named "devour")) (sacrifice subject)
+semantic_definition Action.devour (subject : NounPhrase) : Action :=
+  .ownScope (some (.ofAbility (.named "devour")))
+    (sacrifice (.firstMention "devour.subject" (.inCaller subject)))
 /-- Devour's definition over the permanents `quality` describes, counted by the variant's head
 noun `head`: "As this object enters, you may sacrifice any number of [quality] permanents. This
 permanent enters with N +1/+1 counters on it for each [head] sacrificed this way." Devour counts
@@ -1065,7 +1066,8 @@ semantic_definition madness (cost : Cost) : Ability :=
     [ static
         (replace (would (a isPlayer) (discard thisCard))
           (instead
-            (enact (.action "discard") (.move thisCard hand exileZone .arrival [])))),
+            (.ownScope (some discard.deed)
+              (.move (.inCaller thisCard) hand exileZone .arrival [])))),
       when
         (.causes (.event (does any (discard thisCard)))
           (does any (.move thisCard hand exileZone .arrival [])))
@@ -1366,7 +1368,8 @@ semantic_definition reconfigure (cost : Cost) : Ability :=
         (attachTo thisPermanent (target (and [isCreature, isOther, youControl])))
         asSorcery,
       .activated (.inCaller cost)
-        (enact (.action "attach") (.attachment .unattached thisPermanent none))
+        (.ownScope (some attachTo.deed)
+          (.attachment .unattached (.inCaller thisPermanent) none))
         asSorcery none
         (is thisPermanent (.attachment .attachment none (some (a isCreature))))
         none ]

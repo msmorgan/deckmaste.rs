@@ -121,21 +121,12 @@ theorem castCanCarryExcludedOrigins :
           .itsOwnCost none (some (.not (.zone .hand (some .you)))) none
         within := some withinThisTurn } = [] := by decide
 
-theorem namedActionCanCarryItsLocus :
-    relativeCheckAfter (search yourLibrary) .player
-      { subj := .actor .which
-        action := .enact search (.search (.zone .library (some .you)) .any) none
-          (some (.zone .library (some .you)))
-        within := some .thisWay } = [] := by decide
-
-/-- The locus a lookback names is read from what the enacted body does: a shuffle is of a library
-[CR#701.24a], so "shuffled your graveyard" names no shuffle. -/
-theorem locusIsReadFromTheEnactedBody :
+/-- A shuffle is of a library [CR#701.24a], so "shuffled your graveyard" names no shuffle. -/
+theorem shuffledGraveyardNamesNoShuffle :
     relativeCheckAfter shuffle .player
       { subj := .actor .which
-        action := .enact shuffle (.shuffle (.zone .library (some .you)))
-          none (some (.zone .graveyard (some .you)))
-        within := some .thisWay } = [.lookbackLocus] := by decide
+        action := .ownScope (some shuffle) (.shuffle (.zone .graveyard (some .you)))
+        within := some .thisWay } = [.shuffleZone] := by decide
 
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :
     (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder ∧
@@ -946,10 +937,13 @@ theorem activateRecordsActivateNotCast :
       [.thisWayUngrounded] := by
   decide
 
-/-- A resolution moves nothing itself: the resolving spell is stamped by no deed and is read as
-cast by no lookback, while the resolution is recorded as the event it is [CR#608.1]. -/
+/-- A resolution moves nothing itself: the resolving spell is stamped with the resolution's deed
+and no Zone Change, and is read as cast by no lookback, while the resolution is recorded as the
+event it is [CR#608.1]. -/
 theorem resolveRecordsNoStackMove :
-    (stepped (resolve (target isSpell))).referents.map (·.payload.prov) = [none] ∧
+    (stepped (resolve (target isSpell))).referents.map
+        (·.payload.prov.map fun stamp => (stamp.deeds, stamp.zoneChange)) =
+      [some ([.action "resolve"], none)] ∧
     (stepped (resolve (target isSpell))).causedEvents.map (·.deed) =
       [some (.action "resolve"), none] ∧
     Action.check (DRS.ofList [])

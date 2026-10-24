@@ -259,9 +259,8 @@ theorem forwardedBareThisRetainsDefinitionZoneExemption :
     (destroy (forwardedSubject .this)).check (DRS.ofList []) = [] := by decide
 
 theorem forwardedLibraryOwnerRetainsOpponentClassification :
-    (Action.enact (.action "fateseal")
-      (lookAndSortSlice (.slice .top 2 (libraryOf (forwardedSubject anOpponent))) onBottom
-        [(.inOrder .anyOrder)]) none none).check
+    (Action.ownScope (some (.action "fateseal")) (lookAndSortSlice (.slice .top 2 (libraryOf (forwardedSubject anOpponent))) onBottom
+        [(.inOrder .anyOrder)])).check
       (DRS.ofList []) = [] := by decide
 
 theorem librarySlicePreservesExplicitOwnerUpdate :
@@ -440,8 +439,8 @@ theorem targetGroupsRemainCountableThroughTemplate :
     (Amount.countOf (forwardedSubject (.described (.target (exactly 2)) isCreature))).check
       (DRS.ofList []) = [] := by decide
 
-theorem templateBareThisRetainsEnactedZoneExemption :
-    (Action.enact (.action "destroy") (moveSubject .this) none none).check (DRS.ofList []) =
+theorem templateBareThisRetainsScopedZoneExemption :
+    (Action.ownScope (some (.action "destroy")) (moveSubject .this)).check (DRS.ofList []) =
       [] := by decide
 
 /-- "Draw a card. If it's a creature, tap it instead.": the replacement's action is a new clause

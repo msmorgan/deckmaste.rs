@@ -69,7 +69,25 @@ theorem movedParameterCannotBeReused :
         [.bindingIdentity "exile.subject"] := by decide
 
 theorem atomicDefinitionLaw :
-    (tap (target isCreature)).checkDefinition (DRS.ofList []) = [] := by decide
+    (tap (target isCreature)).check (DRS.ofList []) = [] := by decide
+
+/-- An Action Definition's own Reference Scope header is its one deed: the head gate admits the
+action by it, its caused event names it, and stepping it stamps what the body acts on, with no
+second deed-carrying node (`Action.ownDeed?`). `cast` writes no other node at all. -/
+theorem headerDeedIsReadByTheGateAndTheStepper :
+    let spell := cast (target (and [isInstantOrSorcery, .isCard]))
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) spell).1
+    spell.eventHeadOk = true ∧ spell.deonticHeadOk = true ∧
+      spell.namedDeed = some (.action "cast") ∧
+      after.referents.map (·.payload.prov.map (·.deeds)) = [some [.action "cast"]] := by decide
+
+/-- No deed is guessed from a body's shape: a bare move to exile, a bare status change and a bare
+creation name none; each is a keyword action only as its Definition [CR#701.13a,701.26a,701.7a]. -/
+theorem bareShapesNameNoDeed :
+    (Action.move (target isCreature) .anyLocation (some exileZone) .arrival []).namedDeed = none ∧
+      (Action.setStatus .tapped (target isCreature)).namedDeed = none ∧
+      (exile (target isCreature)).namedDeed = some (.action "exile") ∧
+      (tap (target isCreature)).namedDeed = some (.action "tap") := by decide
 
 theorem revealUpdatesActionStamp :
     (Action.sequentially [tap (target isCreature), reveal it,

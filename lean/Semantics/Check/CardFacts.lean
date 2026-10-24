@@ -9,6 +9,15 @@ def Action.scopeBody (i : Action) (fuel : Nat := 64) : Action :=
   | _, b => b
 termination_by structural fuel
 
+/-- The one deed `i` performs: the header of its own Reference Scope (`Action.ownScope`,
+`semantics-v3.md` §1.4), read through caller scopes. -/
+def Action.ownDeed? (i : Action) (fuel : Nat := 64) : Option Deed :=
+  match fuel, i with
+  | n + 1, .inCaller b | n + 1, .ownScope none b => b.ownDeed? n
+  | _ + 1, .ownScope (some deed) _ => some deed
+  | _, _ => none
+termination_by structural fuel
+
 def StaticSpec.scopeBody (s : StaticSpec) (fuel : Nat := 64) : StaticSpec :=
   match fuel, s with
   | n + 1, .inCaller b => b.scopeBody n
@@ -19,7 +28,7 @@ def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPh
   match fuel, action with
   | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
   | _ + 1, .move subject .. | _ + 1, .setStatus _ subject
-  | _ + 1, .turnOver subject | _ + 1, .clearDamage subject
+  | _ + 1, .turnOver subject _ | _ + 1, .clearDamage subject
   | _ + 1, .target subject | _ + 1, .block subject => some subject
   | _, _ => none
 termination_by structural fuel
@@ -28,7 +37,7 @@ mutual
   def Action.namesThisDoor (i : Action) (fuel : Nat := 64) : Bool :=
     match fuel, i with
     | n + 1, .inCaller b | n + 1, .ownScope _ b
-    | n + 1, .enact _ b _ _ | n + 1, .instruct _ b | n + 1, .limited b _
+    | n + 1, .instruct _ b | n + 1, .limited b _
     | n + 1, .doForEach _ b | n + 1, .doForEachKind _ _ _ b => b.namesThisDoor n
     | _ + 1, .unlock .thisDoor => true
     | n + 1, .withContinuation _ b yes no =>

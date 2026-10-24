@@ -130,13 +130,14 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
 def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
   match fuel, action with
   | 0, _ => .notOneAction
-  | n + 1, .inCaller body | n + 1, .ownScope _ body => body.reflexEncloseUse n
+  | n + 1, .inCaller body | n + 1, .ownScope none body => body.reflexEncloseUse n
+  | _ + 1, .ownScope (some _) _ => .reflexive
   | _ + 1, .skipPart .. | _ + 1, .addTurnPart .turn .. => .notYetTaken
   | _ + 1, .establish spec _ =>
     match spec.scopeBody with
     | .controlGrant .. => .reflexive
     | _ => .agentless
-  | _ + 1, .pay .. | _ + 1, .enact .. | _ + 1, .separateIntoPiles ..
+  | _ + 1, .pay .. | _ + 1, .separateIntoPiles ..
   | _ + 1, .chooseNewTargets .. | _ + 1, .createObject .. | _ + 1, .putCounters ..
   | _ + 1, .removeCounters ..
   | _ + 1, .move .. | _ + 1, .turnFaceDown .. | _ + 1, .expose .. | _ + 1, .addMana ..

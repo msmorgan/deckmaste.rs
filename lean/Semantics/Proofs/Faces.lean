@@ -557,7 +557,7 @@ theorem badCoinsShowingWithoutFlip :
   decide
 
 /-- "Transform target creature." -/
-theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target isCreature)) = [] := by decide
+theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target isCreature) none) = [] := by decide
 
 /-- "Room" -/
 def room : Predicate := .hasSubtype Semantics.Definitions.room
@@ -609,15 +609,14 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Templates.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (libraryOf .actor)) none none),
+        [ Templates.instruct (each (.isOpponentOf .you)) (.ownScope (some (.action "shuffle")) (.shuffle (libraryOf .actor))),
           Templates.instruct (those .player) (.changeLife (.down 1)) ]) = [] := by
   decide
 
 theorem redundantSameClauseShuffleHandoffIsRefused :
     Action.check (DRS.ofList [])
       (Templates.instruct (each (.isOpponentOf .you))
-        (.enact (.action "shuffle")
-          (Templates.instruct they (.shuffle (libraryOf .actor))) none none)) =
+        (Templates.instruct they (.shuffle (libraryOf .actor)))) =
       [.anaphor (.word .player) .one 0] := by
   decide
 

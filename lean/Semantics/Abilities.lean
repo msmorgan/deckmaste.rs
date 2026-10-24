@@ -1190,8 +1190,11 @@ mutual
   inductive Action where
     | inCaller (body : Action)
     /-- A `Definition` body read in its own Reference Scope (`enterOwnScope` / `leaveOwnScope`),
-    carrying its optional `Deed` identity (`some (.action name)`) for `does`/`would`/`did`/`cant`
-    and composite action lowering [CR#701.22b]. -/
+    carrying its optional `Deed` identity (`some (.action name)`), the one deed of the action: a
+    resolving or paid step stamps it on what the body acts on, the event and deontic head gates
+    admit it, and `does`/`would`/`did`/`cant` and composite action lowering read it
+    [CR#701.22b]. A deed a permanent performs, written with no Handoff to a Permanent, is
+    performed by the source permanent [CR#701.14a,701.44a]. -/
     | ownScope (deed : Option Deed) (body : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
     clause's subject or performer); `kind` is `none` for unqualified "damage". In a replacement's
@@ -1219,7 +1222,9 @@ mutual
     /-- Remove all damage marked on the permanent [CR#120.6]. -/
     | clearDamage (subject : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
-    | turnOver (subject : NounPhrase)
+    /-- Turn `subject` over to its other face; `into`, if written, is a characteristic the
+    object has immediately after, as "transforms into" watches [CR#701.27e]. -/
+    | turnOver (subject : NounPhrase) (into : Option Predicate)
     | combat (subject : NounPhrase) (update : CombatUpdate)
     /-- Declare as an attacker [CR#508.1]. -/
     | attack (defender : Option NounPhrase)
@@ -1322,11 +1327,6 @@ mutual
     last" is `theLast` [CR#702.62a,310.12b]. -/
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase)
-    /-- A named deed done by the performer in context: the deed's own facts row gates that
-    performer, the patient and the zones the sentence may name, whichever of the three sources
-    defines it. -/
-    | enact (verb : Deed) (action : Action) (becomes : Option Predicate)
-        (locus : Option Location)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)
         (whose : Option NounPhrase) (keyword : Option KeywordLabel)
     /-- 3rd-person imperative handoff: `subj`, a player or a permanent, performs `action`
@@ -1491,7 +1491,7 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.NounPhrase.firstMention Semantics.NounPhrase.laterMention
   Semantics.Quantity.inCaller Semantics.Location.inCaller Semantics.Condition.inCaller
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
-  Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
+  Semantics.Predicate.inCaller Semantics.Action.inCaller
   Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
   Semantics.Replacement.inCaller Semantics.Ability.inCaller Semantics.TokenSpec.inCaller
   Semantics.MoveRider.inCaller

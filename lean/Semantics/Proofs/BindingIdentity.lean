@@ -178,7 +178,7 @@ theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Loc
   rfl
 
 private def scryBy (amount : Amount) : Action :=
-  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (libraryOf .actor)) onBottom [(.inOrder .anyOrder)]) none none
+  .ownScope (some (.action "scry")) (lookAndSortSlice (.slice .top amount (libraryOf .actor)) onBottom [(.inOrder .anyOrder)])
 
 /-- "Scry 1." -/
 theorem okScryOne : Action.check (DRS.ofList []) (scryBy 1) = [] := by decide
@@ -199,14 +199,14 @@ theorem scryTwoReadsThoseCards :
 /-- "Surveil 2." [CR#701.25a] -/
 theorem okSurveilTwo :
     Action.check (DRS.ofList [])
-      (.enact (.action "surveil") (lookAndSortSlice (.slice .top 2 (libraryOf .actor)) graveyard []) none none)
+      (.ownScope (some (.action "surveil")) (lookAndSortSlice (.slice .top 2 (libraryOf .actor)) graveyard []))
       = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
     Action.check (DRS.ofList [])
-      (.enact (.action "fateseal") (lookAndSortSlice (.slice .top 2 (libraryOf (a (.isOpponentOf .you)))) onBottom
-          [(.inOrder .anyOrder)]) none none)
+      (.ownScope (some (.action "fateseal")) (lookAndSortSlice (.slice .top 2 (libraryOf (a (.isOpponentOf .you)))) onBottom
+          [(.inOrder .anyOrder)]))
       = [] := by decide
 
 /-! ## Connive
@@ -223,8 +223,8 @@ private def conniveDiscards (discarded : NounPhrase) : Action :=
         (.putCounters 1 (.printed p1p1Counter) (that .permanent)) ]
 
 private def conniveBy (amount : Amount) : Action :=
-  .enact connive (instruct (controllerOf .actor)
-    (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)])) none none
+  .ownScope (some connive) (instruct (controllerOf .actor)
+    (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)]))
 
 /-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
 theorem okConniveOne : Action.check (DRS.ofList []) (conniveBy 1) = [] := by decide

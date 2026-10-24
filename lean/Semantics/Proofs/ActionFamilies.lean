@@ -216,12 +216,11 @@ theorem counterPreservesTheAbilityCategory :
       (counter (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
-theorem counterIsSingleEnactedMove (subject : NounPhrase) :
+theorem counterIsOneScopedMove (subject : NounPhrase) :
     counter subject =
       .ownScope (some (.action "counter"))
-        (.enact (.action "counter")
-          (.move (.firstMention "counter.subject" (.inCaller subject))
-            (.zone .stack none) (some graveyard) .arrival []) none none) := by rfl
+        (.move (.firstMention "counter.subject" (.inCaller subject))
+          (.zone .stack none) (some graveyard) .arrival []) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (actionResult (DRS.ofList [])

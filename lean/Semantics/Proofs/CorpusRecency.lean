@@ -207,12 +207,12 @@ theorem vampiricCountersUseEnchantedCreature :
 
 private def cycledContext : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
-    (.enact (.ofAbility (.named "cycling")) (discard (a .isCard)) none none)).1
+    (.ownScope (some (.ofAbility (.named "cycling"))) (discard (a .isCard)))).1
 private def cycloneFinalCard : NounPhrase :=
   a (.and [.isCard, .in_ yourLibrary,
     .shares .cardType .share
       (the (.and [.did { subj := .any
-                         action := .enact (.ofAbility (.named "cycling")) (discard .which) none none
+                         action := .ownScope (some (.ofAbility (.named "cycling"))) (discard (.inCaller .which))
                          within := none },
         .isCard]))])
 private def cycloneExile : Action :=

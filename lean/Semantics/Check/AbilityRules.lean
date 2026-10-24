@@ -22,9 +22,8 @@ def Ability.checkText (drs : DRS) (abilities : List Ability) : List Refusal :=
 
 private def additionalTapGroupCost : Cost :=
   .perform (.ownScope (some (.action "tap"))
-    (.enact (.action "tap")
-      (.setStatus .tapped (.described (.count (.range (some 0) none) none)
-        (.and [.hasType .creature, .in_ (.zone .battlefield none)]))) none none))
+    (.setStatus .tapped (.described (.count (.range (some 0) none) none)
+      (.and [.hasType .creature, .in_ (.zone .battlefield none)]))))
 
 private def additionalTapGroup : Ability :=
   .static (.addedCost additionalTapGroupCost false .once)

@@ -526,7 +526,7 @@ def elabKeywordName : TermElab := fun stx expectedType? => do
 
 open Lean Elab Term Meta in
 /-- An Action Definition names its keyword action wherever a `Deed` is expected:
-`enact explore …`, `.deed exile`. The identifier elaborates as the authored deed constant the
+`.deed exile`. The identifier elaborates as the authored deed constant the
 Definition generates (`exile.deed`, `Authoring.deedConstant`), so a card never spells the internal
 `Deed.action` and a misspelled action is no identifier at all. Any other identifier, or an
 expected type other than `Deed`, is left to the ordinary elaborator. -/
@@ -1522,8 +1522,6 @@ semantic_template doOnlyIf (action : Action) (condition : Condition)
   .doIf condition action otherwise (postposed := true)
 /-- "the game is a draw" [CR#104.4c] -/
 semantic_template drawGame : Action := .conclude .drawGame none
-semantic_template enact (verb : Deed) (action : Action) : Action :=
-  .enact verb action none none
 semantic_template establish (spec : StaticSpec) (duration : Option Duration := none) : Action :=
   .establish spec duration
 semantic_template expose (verb : ExposeVerb) (exposed : Exposed) : Action := .expose verb exposed
@@ -1608,7 +1606,7 @@ semantic_template triggerThisWay (body : Action) (event : GameEvent) (triggerBod
   .triggerReflexively body event triggerBody
 semantic_template turnFaceDown (subject : NounPhrase) (spec : FaceDown) : Action :=
   .turnFaceDown subject spec
-semantic_template turnOver (subject : NounPhrase) : Action := .turnOver subject
+semantic_template turnOver (subject : NounPhrase) : Action := .turnOver subject none
 semantic_template unlock (door : Door) : Action := .unlock door
 semantic_template withContinuation (policy : ContinuationPolicy) (body : Action)
     (ifDid : Option Action := none) (ifNot : Option Action := none) : Action :=
@@ -1655,10 +1653,6 @@ semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound :
 
 /-- "<subj> <action>s": an action event, in the voice `subj` carries. -/
 semantic_template does (subj : Subject) (action : Action) : GameEvent := .does subj action
-/-- "<subject> transforms into <name>": the transform deed whose result is the named face, done by
-anyone [CR#701.27a,701.27e]. -/
-semantic_template transformsInto (subject : NounPhrase) (name : NameSource) : GameEvent :=
-  .does .any (.enact (.action "transform") (.turnOver subject) (some (named name)) none)
 /-- "if <subj> would <action>": the event a replacement watches [CR#614.1]. -/
 semantic_template would (subj : Subject) (action : Action) : WouldClause := .would subj action
 /-- "if <clause> or <clause> would happen": any of several events [CR#614.1]. -/

@@ -325,12 +325,12 @@ sacrifice a creature, if it died …"), and is refused `triggeringUngrounded` ot
 `GameEvent.facts` supplies the magnitude property directly from the event
 constructor; which events a replacement, a trigger multiplier, a duration or a
 "while" clause may watch is not checked (`lean-checker-sweep-timing`). Source sets and
-exclusions use `Location.not`; an enacted deed's optional locus is checked against the
-deed's declared loci (`lookbackLocus`). A cast may leave its spell unspecified, which
-introduces no spell reference.
+exclusions use `Location.not`; a shuffle names a library or a face-down pile [CR#701.24a], so
+"if you shuffled your graveyard this way" is refused (`shuffleZone`). A cast may leave its spell
+unspecified, which introduces no spell reference.
 
 `Proofs/Lookback.lean` checks participant isolation, retained references, source and
-locus validation, and event-fact preservation through modifiers. These are
+shuffle-zone validation, and event-fact preservation through modifiers. These are
 checker guarantees; no engine history-query implementation is claimed.
 
 ## Reference resolution
@@ -497,9 +497,9 @@ turn's taker (`semantics-v2-chooser-and-taker-fields`). A choice is judged as th
 performer's: its chosen phrase must be `agentChoosable` (`choiceClause`). An added
 turn is taken by the performer, which must be a player [CR#500.7]; an added phase or
 step is added to the current turn [CR#500.8,500.9]. A deed reads the performer from
-the frame. `enact` does not check it against the deed: crewing, saddling, fully unlocking
-and triggering check the frame's kind (`eventAgent`), and a deed's own body reads its
-performer like any other reference. A deed whose row says a permanent performs it
+the frame. A Definition's deed (its `ownScope` header) does not check it: crewing, saddling,
+fully unlocking and triggering check the frame's kind (`eventAgent`), and a deed's own body reads
+its performer like any other reference. A deed whose row says a permanent performs it
 (`ActFacts.permanentActor`: fight, explore, adapt, connive, endure, harness and
 monstrosity [CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]) written with no
 handoff to a permanent
@@ -654,9 +654,8 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `doIf` (`doIf` / `doOnlyIf` templates) | `doIf` first announces the then-branch's targets, chosen as the spell or ability is put on the stack [CR#601.2c]; the condition reads them, wherever it is printed (`doOnlyIf`, "counter target spell if …"), but nothing else the branch would choose or create. It then steps the then-branch in a new clause after the condition, under the ids it announced its targets with, so a later line reads the target the condition read; the condition's referents take ids past those reserved for the branch, and should the branch, in the condition's context, need more ids than reserved, it takes fresh ones instead, so no two referents share an id (`conditionalBranchIdsNeverCollideWithTheCondition`); with no else-branch its output continues, what it introduced included ("Create a token if you control a creature. Put a counter on it.", `conditionalArmAntecedentIsTheToken`; owner ruling 2026-10-24), and only an existential condition's domain is closed after it. The else-branch is stepped from the context before the `doIf`, plus the announced targets and the amounts the then-branch names ("otherwise, each opponent loses that much life"); an indefinite participant the then-branch would choose as it resolves is not in it (`badOtherwiseReadsIndefiniteThenArm`). With an else-branch, only the then-branch's targets and the referents in scope before the `doIf`, as either branch left them (the then-branch's version first; one a branch moved under the id its move gave it [CR#400.7], and under its earlier id too where the other branch left it in place), and the events either branch caused, escape; what the condition or either branch introduced is closed (`otherwiseKeepsWhatEitherBranchDidToAnOuterReferent`, `semantics-v3.md` §1.3, box 2). |
 | Deontic rules (`cant`, `can`, `must`, `gatedBy`) | Each closes its box on exit (`closeModalBox`, `semantics-v3.md` §1.3, box 3; owner ruling 2026-10-24): targets, definite mentions, attachment hosts and universal domains its clause names stand for the text after it (*Nowhere to Run*'s "those creatures"); the indefinite, counted and partitive participants its clause introduces are closed (`permissionClosesItsBox`, `requirementClosesItsBoxButPublishesItsTarget`, `gatedProhibitionClosesItsBoxButPublishesItsTarget`). A universal published with `det .each` ("each creature") is singular, as an action's "each" subject is, so a later "it" reads it, as it does after "Tap each creature. Untap it." (`publishedEachDomainIsSingular`); one with `det .all` is plural. The events a permission or requirement writes and the resolution bookkeeping are kept. |
 | `doForEach`, `doForEachKind` | Push one singular loop referent (or one quality) at the header clause and step the body in the next clause; on exit keep only outer referents, with their updates, and publish the loop's choice history, explicit target results and created results as plural aggregates (`publishLoopTargetResults`, `publishLoopCreatedResults`); `doForEachKind` also publishes each outcome sort its body published, once and as a group (`publishLoopOutcomes`), so doubling each kind of counter puts counters. |
-| `enact` | The performer in context (`actorShape?`) is checked at the deed's agent kind; a deed performed by a permanent with no handoff to one pushes the source permanent as its performer. Post-event, the body's patients receive the deed's stamp (`applyInPlaceStamp`), beside the deeds already on them since they last changed zones (`Stamp.deeds`), so "Exile target creature. Reveal it. Return the exiled card …" still reads the exiled card (`deedsAccumulateOnAReferent`). |
 | `instruct` (handoff) | See "The performer and the handoff" above. |
-| `ownScope`, `inCaller` | See "Binding identity and a keyword body's own scope" above. |
+| `ownScope`, `inCaller` | See "Binding identity and a keyword body's own scope" above. An `ownScope` header's deed is the action's one deed (`Action.ownDeed?`), which the head gates, the caused event and the stepper all read: a deed performed by a permanent with no handoff to one pushes the source permanent as its performer; post-event, the body's patients receive the deed's stamp (`applyInPlaceStamp`), and what the body moves carries it too (`DRS.scopeDeed`), beside the deeds already on them since they last changed zones (`Stamp.deeds`), so "Exile target creature. Reveal it. Return the exiled card …" still reads the exiled card (`deedsAccumulateOnAReferent`). |
 | `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`, its `triggering` lookbacks reading the delayed event or what the reflexive ability's "when you do" names; nothing the inner body introduces or causes escapes (only `nextId` advances). A resolving `delay` records the delayed triggered ability it creates, an ability in no zone, in `DRS.delayedTriggers` under the Binding Identity `delay.trigger`: no text mentions it, so no pronoun, word, group or count reads it, and only a later mention of that identity does, as the special action that establishes that it can't trigger (`cant (.actor …) trigger`, `delayUnlessPaid`, [CR#116.2c]; `cantTriggerReadsTheDelayedTriggerByIdentity`, `pronounAfterDelayReadsTheCreature`, `badPronounAfterDelayedDraw`). |
 | `replace`, `holdUntil` | `replace` steps the replaced action as a pre-event pattern and the replacement after it in a new clause; `holdUntil` steps the held action, then its event. The static `replace` steps its `would` clause, then the replacement in a new clause, and publishes only the letters the clause and the replacement introduce, so a later "where X is" defines them [CR#107.3i]. A replacement steps what it makes of the event: `instead` and `alongside` step their action; `before` steps its action, then its body, if one is written, in a new clause after it, so the body reads what the action did; `withRiders` steps its riders, refused (`riddenEntering`) unless the replaced event is an entering, a move to the battlefield or a token's creation, and (`entryRidersOnly`) for a Pile Placement among them [CR#614.1c,614.12]; `onlyIf` steps its condition, then its body in a new clause after it, as `doIf` steps its then-branch. A caller's replacement steps in one caller frame, its condition and action together. The static `replace` also publishes the choices its `before` and `alongside` actions make to later lines, as "As this enters, choose a color" [CR#614.1c]. |
 | `revealedAsCast` | Steps the spell the card is revealed as cast onto, then what it grants in a new clause, reading that spell; nothing either introduces escapes (only `nextId` advances). |
@@ -848,7 +847,7 @@ expected child kinds in the incoming `DRS`.
 | `IgnoredOutcomes` | `stepIgnoredOutcomesWith` steps it. |
 | `Ballot` | `stepBallotWith` steps it (`Ballot.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
 | `CostSubject` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a cost change's subject is not required to be on the stack. |
-| `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's enacted move checks no source zone. |
+| `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's move checks no source zone. |
 | `Condition` | `stepCondition` (`Condition.check`) steps it. |
 | `MarkingOk` | Retired with `CondMarking.unless_` (`lean-v3-authoring-impl-14-ast-and-authoring-cleanup`): "unless C" is `onlyUnless`, the condition `not C` under `ifSo`, so there is no marking to agree with its condition. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event (`tokenPhrase`). |
@@ -857,7 +856,7 @@ expected child kinds in the incoming `DRS`.
 | `DamageRecipient` | The `dealDamage` action case checks the recipient's kind alone (an object or a player, `kindLte`). Which objects can be dealt damage [CR#120.1a] and where they are are not checked (`lean-checker-sweep-zone`). |
 | `StatusHolder` | The `setStatus` action case requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
-| `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The authoring boundary above excludes arbitrary authored tag/body combinations. |
+| `DiscardOk` | Discard is a move in the discard Definition's own scope. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The authoring boundary above excludes arbitrary authored tag/body combinations. |
 | `Movable` | `Action.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
 
 ### Triggers
@@ -915,7 +914,7 @@ expected child kinds in the incoming `DRS`.
 - Other erased implicit binders on functions, templates and definitions refer to these same
   datatype duties; erasing the binder does not remove the obligation at the
   resulting term's consumer. In particular, templates and definitions are not an independent
-  certificate for arbitrary enacted bodies; the authoring boundary above establishes their trusted origin.
+  certificate for arbitrary Definition bodies; the authoring boundary above establishes their trusted origin.
 
 
 ### Retention
@@ -1159,13 +1158,14 @@ return with the same subject, origin, destination and riders are one tree
 Observation Point, as described below for `putInto`
 (`graveyardToHandObservedOnDeparture`). Every move stamps what it moved with
 its Zone Change (`Stamp.zoneChange`: the zone it left, if known, and the zone it
-entered), whether or not a deed names the move; of the bare moves, only a move
-to exile is also stamped by a deed, exiling [CR#701.13a].
+entered), whether or not a deed names the move; a bare move names none, and a move
+in a Definition's body carries that Definition's deed (`DRS.scopeDeed`): an exile's move is
+exiling [CR#701.13a].
 
-User ruling (2026-09-06): Counter is one enactment of the Counter label around
+User ruling (2026-09-06): Counter is one Counter deed around
 stack-to-graveyard movement, uniformly for its spell or ability subject. This
 supersedes the prior optional-destination design and its ability-specific branch.
-The enacted movement no longer checks its stack source (`lean-checker-sweep-zone`). The rule defining
+The movement no longer checks its stack source (`lean-checker-sweep-zone`). The rule defining
 Counter supplies stack removal and a spell's graveyard destination [CR#701.6a];
 this uniform expansion is the workbench's chosen representation, not an added
 runtime lifetime model.
@@ -1174,7 +1174,7 @@ Owner ruling (2026-10-22): the 2026-09-06 ruling stands, and Counter is not spli
 by subject. An ability on the stack behaves as a token does: it stops existing
 once it leaves its home zone, however that zone change happens [CR#608.2n,704.5d].
 That an ability countered to the graveyard then ceases is the engine's lifetime
-rule, so one stack-to-graveyard enactment serves a spell and an ability alike, and
+rule, so one stack-to-graveyard move serves a spell and an ability alike, and
 engine consistency outweighs a subject-dependent special case for [CR#701.6a]'s
 "A countered spell is put into its owner's graveyard". This answers the
 question `lean-v3-countered-ability-ceases` put: its split is not made.
@@ -1293,7 +1293,7 @@ destroy the creature (it is indestructible) still works [CR#701.19c]
 when the destroy happens is the engine's.
 
 The `counter` Definition expands to one labeled stack-to-graveyard move in its
-own scope, `ownScope (enact counter (move subject stack graveyard …))`.
+own scope, `ownScope (some counter) (move subject stack graveyard …)`.
 It reads the subject once and needs no ability/spell branch.
 The movement pre-state remains available to postposed conditions such as
 Ertai's Trickery.

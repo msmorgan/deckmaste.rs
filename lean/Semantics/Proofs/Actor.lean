@@ -126,10 +126,10 @@ theorem okLiteralAmassHandedOff : Action.check (DRS.ofList []) (instruct (target
 A keyword action body is read in its own Reference Scope: it sees the performer, its parameters
 and what it introduces, never the calling text's other mentions (`docs/decisions/semantics-v2.md`
 §7, ruling 2026-10-06). A keyword action's Definition writes the scope (`Action.ownScope`) with the action's
-`enact` wrapper and each parameter `inCaller`, read in the caller's view. -/
+deed as its header and each parameter `inCaller`, read in the caller's view. -/
 
-/-- The literal amass body inside its `enact` wrapper. -/
-private def scopedAmass : Action := .enact (.action "amass") (.ownScope none literalAmass) none none
+/-- The literal amass body in its own scope, under the amass deed. -/
+private def scopedAmass : Action := .ownScope (some (.action "amass")) literalAmass
 
 /-- "Amass Orcs 2" in its scope checks on its own, as the bare body does. -/
 theorem okScopedAmass : Action.check (DRS.ofList []) scopedAmass = [] := by decide
@@ -157,7 +157,7 @@ theorem okScopedAmassAfterDestroy :
 /-- The amass body with its amount a parameter, as the loader writes it: read in the caller's
 view (`inCaller`). -/
 private def scopedAmassOf (amount : Amount) : Action :=
-  .enact (.action "amass") (.ownScope none (.sequentially
+  .ownScope (some (.action "amass")) (.sequentially
     [ .doIf (.not (exists_ army))
         (create 1 (.written (creatureToken 0 0 [.black] [goblin, Subtype.army])))
         none,
@@ -166,7 +166,7 @@ private def scopedAmassOf (amount : Amount) : Action :=
       .doIf (.not (.matches it (.hasSubtype (goblin))))
         (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [goblin] } } none)) none)
-        none ])) none none
+        none ])
 
 /-- Azog's shape with X: "Its controller amasses Goblins X, where X is its power." The amount
 is a parameter, so it reads the destroyed creature in the caller's view while the body's own
@@ -184,9 +184,9 @@ outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
     let caller : DRS :=
       (DRS.ofList [{ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    ((Action.check caller (.enact (.action "destroy") (.ownScope none (destroy it)) none none)).contains
+    ((Action.check caller (.ownScope (some (.action "destroy")) (destroy it))).contains
         (.anaphor .bare .one 0),
-     Action.check caller (.enact (.action "destroy") (destroy it) none none)) = (true, []) := by
+     Action.check caller (destroy it)) = (true, []) := by
   decide
 
 /-- A keyword ability's body is read in its own scope too: the card's mentions are not in view
@@ -523,12 +523,12 @@ theorem okHandedCastPermission :
 
 /-! ## Named actions carry their performer -/
 
-/-- "That player discards that card." as `enact (.action "discard") …` under the handoff, the
+/-- "That player discards that card." as `ownScope (some (.action "discard")) …` under the handoff, the
 deed performed by the actor in context [CR#701.9a]. -/
 theorem okDiscardWrapperCarriesActor :
     Action.check onePlayer
       (instruct they
-        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some theActor))) (some graveyard) .arrival []) none none))
+        (.ownScope (some (.action "discard")) (.move (a .isCard) ((.zone .hand (some theActor))) (some graveyard) .arrival [])))
       = [] := by
   decide
 
@@ -536,7 +536,7 @@ theorem okDiscardWrapperCarriesActor :
 that player. -/
 theorem okDiscardWrapperWithAgent :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival []) none none))
+      (instruct (target .anyPlayer) (.ownScope (some (.action "discard")) (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival [])))
       = [] := by
   decide
 
@@ -680,16 +680,15 @@ private def exploreBody (perm : NounPhrase) : Action :=
 
 /-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
 private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
-  .enact explore (exploreBody perm) none none
+  .ownScope (some explore) (exploreBody perm)
 
 /-- `endure N` as defined [CR#701.63a]: the enduring permanent's controller chooses between
 the counters on "that permanent" and the Spirit token. -/
 private def literalEndure (n : Nat) : Action :=
-  .enact endure
-    (instruct (controllerOf theActor)
+  .ownScope (some endure) (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
-          (none, none, create 1 (.written (creatureToken n n [.white] [spirit]))) ])) none none
+          (none, none, create 1 (.written (creatureToken n n [.white] [spirit]))) ]))
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/
 theorem okExploreHandedToTargetCreature :

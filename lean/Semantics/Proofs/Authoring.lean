@@ -51,28 +51,28 @@ example : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (instruct .you (draw 1))] } }
 
-/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.exactlyOf 1)) none none)] } }
+      text := [Primitives.Ability.spell none (.ownScope (some (.action "destroy")) (.draw (.exactlyOf 1)))] } }
 
-/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none
-        (.enact (.action "destroy") (.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []) none none)] } }
+        (.ownScope (some (.action "destroy")) (.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []))] } }
 
-/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (Primitives.Action.sequentially
-        [.enact (.action "destroy") (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []]) none none])] } }
+        [.ownScope (some (.action "destroy")) (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []])])] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Replacement.instead] -/
 #guard_msgs in
@@ -275,32 +275,11 @@ example : Spelled := spelled <| .singleFaced
       power := stat 1, toughness := stat 1, text := [keywordCosting ward [generic 2]] } }
 
 -- A keyword action's `Deed` is a catalog item the same way: each Action Definition generates its
--- authored deed constant (`exile.deed`), which a card writes by the Definition's name
--- (`enact exile …`), and `Deed.action` is an internal expansion. So a card names only a declared
--- keyword action: a raw label is refused and a misspelled one is no identifier.
+-- authored deed constant (`exile.deed`) from its own Reference Scope's header, the one deed the
+-- action performs, and `Deed.action` is an internal expansion.
 
 theorem deedIsGenerated : exile.deed = .action "exile" ∧ searchZonesOf.deed = search.deed ∧
     explore.deed = .action "explore" true := by decide
-
-private def withEnactedDeed : Spelled := spelled <|
-  instantWith (enact destroy (destroy (target isCreature)))
-
-theorem enactedDeedRecordsDefinitionAuthorship : withEnactedDeed.authoring.onlyAuthored = true :=
-  withEnactedDeed.onlyAuthored
-
-/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Deed.action] -/
-#guard_msgs in
-example : Spelled := spelled <|
-  instantWith (enact (.action "descry") (destroy (target isCreature)))
-
-/--
-error: Unknown identifier `destory`
----
-error: Definition sorryAx has no authoring evidence
--/
-#guard_msgs in
-example : Spelled := spelled <|
-  instantWith (enact destory (destroy (target isCreature)))
 
 /-! ## Coercions and the card envelope
 

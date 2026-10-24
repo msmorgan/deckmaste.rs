@@ -367,10 +367,10 @@ private def afterEarlier (earlier : Action) : DRS :=
   nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) earlier).1
 
 /-- "Shuffle your library. … if you shuffled your library this way" -/
-theorem okShuffleLocusAtLibrary :
+theorem okShuffledYourLibraryThisWay :
     Condition.check (afterEarlier shuffle)
       (.did { subj := (.actor .you)
-              action := (.enact shuffle (.shuffle (.zone .library (some .you))) none (some yourLibrary))
+              action := (.ownScope (some shuffle) (.shuffle (.zone .library (some .you))))
               within := some .thisWay })
       = [] := by
   decide
@@ -385,13 +385,12 @@ theorem searchLookbackCarriesItsScope :
       = [] := by decide
 
 /-- "Shuffle your library. … if you shuffled your graveyard this way" -/
-theorem badShuffleLocusAtGraveyard :
+theorem badShuffledYourGraveyardThisWay :
     Condition.check (afterEarlier shuffle)
       (.did { subj := (.actor .you)
-              action := (.enact shuffle (.shuffle (.zone .library (some .you))) none (some (graveyardOf
-                .you)))
+              action := (.ownScope (some shuffle) (.shuffle (graveyardOf .you)))
               within := some .thisWay })
-      = [.lookbackLocus] := by
+      = [.shuffleZone] := by
   decide
 
 /-- "target creature spell, once it resolves" -/
@@ -799,12 +798,13 @@ theorem scryPatternAllowsUnspecifiedActor :
 /-- "Whenever a creature transforms into a Phyrexian, …" -/
 theorem okIntransitiveBecomes :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.enact (.action "transform") (.turnOver (a isCreature)) (some (.hasSubtype (phyrexian))) none)) = [] := by
+      (.does .any (.ownScope (some (.action "transform"))
+        (.turnOver (a isCreature) (some (.hasSubtype (phyrexian)))))) = [] := by
   decide
 
 /-- "Whenever you discard a card, …" -/
 theorem okDiscardFromHand :
-    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.enact (.action "discard") (discard (a (.and [.isCard, .in_ hand]))) none none))
+    GameEvent.check (DRS.ofList []) (.does (.actor .you) (.ownScope (some (.action "discard")) (discard (a (.and [.isCard, .in_ hand])))))
       = [] := by
   decide
 

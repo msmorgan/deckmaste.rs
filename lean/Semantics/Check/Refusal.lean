@@ -123,7 +123,9 @@ inductive Refusal where
   | amtNonZero
   | tallyOk
   | lookbackSubject
-  | lookbackLocus
+  /-- A shuffle names a zone other than a library: what is shuffled is a library or a face-down
+  pile [CR#701.24a]. -/
+  | shuffleZone
   | durationPossessor
   | quantLiteral
   | modesFit

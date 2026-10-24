@@ -303,7 +303,7 @@ theorem badThemCounterRecipient :
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
     Action.check (DRS.ofList [])
-      (.enact (.action "exile") (.move (target isCreature) .anyLocation (some exileZone) .arrival [(.withCounters 1 p11 .fresh)]) none none) =
+      (.ownScope (some (.action "exile")) (.move (target isCreature) .anyLocation (some exileZone) .arrival [(.withCounters 1 p11 .fresh)])) =
             [] := by
   decide
 

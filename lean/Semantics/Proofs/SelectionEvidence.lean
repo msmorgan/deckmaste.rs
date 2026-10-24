@@ -112,10 +112,9 @@ theorem targetLoopPublishesAFreshPluralResult :
 theorem playersCanSacrificeTheCollectedTargets :
     Action.check (DRS.ofList []) (.sequentially [targetForEachPlayer,
       .instruct (.pro (.word .player) .many)
-        (.enact (.action "sacrifice")
-          (.move (.pro (.word .permanent) .many)
+        (.ownScope (some (.action "sacrifice")) (.move (.inCaller (.pro (.word .permanent) .many))
             (.zone .battlefield none) (some (.zone .graveyard none))
-            .departure []) none none)]) = [] := by decide
+            .departure []))]) = [] := by decide
 
 private def afterPlayerLoop (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
@@ -217,14 +216,11 @@ theorem postposedTollSeesItsAttachmentPatient :
 theorem linkedProhibitionStartsANewClauseAfterItsAction :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .enact (.action "destroy")
-            (.move (.described .all (.hasType .creature))
+        [ .ownScope (some (.action "destroy")) (.move (.described .all (.hasType .creature))
               (.zone .battlefield none) (some (.zone .graveyard none))
-              .departure []) none none,
+              .departure []),
           .establish (.cant .any
-            (.ownScope (some (.action "regenerate"))
-              (.enact (.action "regenerate") (.clearDamage (.inCaller (.pro .bare .many)))
-                none none)) {})
+            (.ownScope (some (.action "regenerate")) (.clearDamage (.inCaller (.pro .bare .many)))) {})
             (some (.between none (some (.endOf .turn none .current)))) ]) = [] := by decide
 
 theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :

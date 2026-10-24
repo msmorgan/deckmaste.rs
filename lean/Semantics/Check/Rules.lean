@@ -9,14 +9,6 @@ Scope and registry-definition checking for rules-as-data.
 
 namespace Semantics
 
-def Action.checkDefinition (drs : DRS) (body : Action) : List Refusal :=
-  match body with
-  | .ownScope (some deed) (.enact inner action becomes locus) =>
-    if deed == inner && action.eventHeadOk then
-      (Action.enact inner action becomes locus).check drs
-    else body.check drs
-  | _ => body.check drs
-
 def SbaRule.check (r : SbaRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let (drs2, e2) := stepCondition 64 drs1 r.when

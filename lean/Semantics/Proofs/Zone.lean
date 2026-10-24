@@ -104,15 +104,15 @@ theorem okDiscardHand : Action.check (DRS.ofList []) (discard (a (.and [.isCard,
     decide
 
 /-- "Destroy a creature." -/
-theorem okEnactedKeywordAction :
-    Action.check (DRS.ofList []) (.enact destroy (.move (a isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []) none none)
+theorem okScopedKeywordAction :
+    Action.check (DRS.ofList []) (.ownScope (some destroy) (.move (a isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []))
       = [] := by
   decide
 
 /-- "You exile a card from your hand." -/
 theorem okAgentedKeywordAction :
     Action.check (DRS.ofList [])
-      (.enact exile (.move (a (.and [.isCard, .in_ hand])) .anyLocation (some exileZone) .arrival []) none none)
+      (.ownScope (some exile) (.move (a (.and [.isCard, .in_ hand])) .anyLocation (some exileZone) .arrival []))
       = [] := by
   decide
 
@@ -120,7 +120,7 @@ theorem okAgentedKeywordAction :
 four lands", Burning of Xinye), so its facts row's agent role names a player. -/
 theorem okAgentedDestroy :
     Action.check (DRS.ofList [])
-      (.enact (.action "destroy") (.move (target isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []) none none)
+      (.ownScope (some (.action "destroy")) (.move (target isCreature) ((.zone .battlefield none)) (some graveyard) .arrival []))
       = [] := by
   decide
 
@@ -130,10 +130,10 @@ that read; the printed sentence hands it the first fighting creature,
 `instruct(<first>, fight(<second>))`. -/
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
-      (instruct (target (.isOpponentOf .you)) (.enact fight (.simultaneously [
+      (instruct (target (.isOpponentOf .you)) (.ownScope (some fight) (.simultaneously [
         instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.other" (target isCreature))),
         instruct (.laterMention "fight.other" (target isCreature))
-          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor)]) none none))
+          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor)])))
       = [.kindMismatch .object .player] := by
   decide
 

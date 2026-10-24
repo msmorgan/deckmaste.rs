@@ -28,7 +28,6 @@ def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | n + 1, .inCaller body => body.eventHeadOk n
   | _ + 1, .ownScope (some _) _ => true
   | n + 1, .ownScope none body => body.eventHeadOk n
-  | _ + 1, .enact .. => true
   | _ + 1, .dealDamage .. | _ + 1, .markDamage .. | _ + 1, .clearDamage ..
   | _ + 1, .preventDamage .. | _ + 1, .redirectDamage ..
   | _ + 1, .setStatus .. | _ + 1, .turnOver .. | _ + 1, .turnFaceDown ..
@@ -70,8 +69,7 @@ can sum (`semantics-v3.md` §3.8). -/
 def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
-  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .enact _ body _ _ =>
-      body.eventHasMagnitude n
+  | n + 1, .inCaller body | n + 1, .ownScope _ body => body.eventHasMagnitude n
   | _ + 1, .dealDamage .. | _ + 1, .markDamage ..
   | _ + 1, .changeLife (.up _) | _ + 1, .changeLife (.down _)
   | _ + 1, .pay .. | _ + 1, .draw .. | _ + 1, .putCounters .. | _ + 1, .removeCounters ..

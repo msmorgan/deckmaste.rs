@@ -33,7 +33,7 @@ end
 so it and a "can't untap" pattern constrain the same Deed. -/
 theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) (whose : Option NounPhrase) :
     doesntUntap subject whose = duringUntapStep whose (cant any (untap subject)) ∧
-      (untap subject).inferredDeed = some (.action "untap") :=
+      (untap subject).namedDeed = some (.action "untap") :=
   ⟨rfl, rfl⟩
 
 /-- The stun counter's replacement effect [CR#122.1d]: "If a permanent with a stun counter on it
@@ -49,8 +49,8 @@ stun replacement can't apply to it [CR#614.17c], and the stun counter stays; as 
 it would instead be ordered against the stun counter's [CR#616.1]. -/
 theorem doesntUntapIsNoStunReplacement :
     doesntUntap thisPermanent none = duringUntapStep none (cant any (untap thisPermanent)) ∧
-      (untap thisPermanent).inferredDeed =
-        (untap (a (and [isPermanent, hasCounter (some stunCounter)]))).inferredDeed ∧
+      (untap thisPermanent).namedDeed =
+        (untap (a (and [isPermanent, hasCounter (some stunCounter)]))).namedDeed ∧
       Ability.check (DRS.ofList []) stunReplacement = [] :=
   ⟨rfl, rfl, by decide⟩
 

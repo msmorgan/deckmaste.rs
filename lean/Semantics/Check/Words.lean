@@ -446,6 +446,9 @@ structure OwnScopeFrame where
   /-- The caller's Source type evidence (`DRS.sourceTypes`), which the caller's arguments read
   and leaving the body restores. -/
   callerSourceTypes : List CardType := []
+  /-- The deed the Definition's header names (`Action.ownScope`), the one deed its body performs:
+  what the body moves carries it (`DRS.scopeDeed`). -/
+  deed : Option Deed := none
   deriving DecidableEq, Repr
 
 /-- What a bare "another"/"other" contrasts with, as the checker resolved it (`semantics-v3.md`
@@ -1462,7 +1465,7 @@ def leaveMeasure (before after : DRS) : DRS :=
 
 /-- Open a keyword action body's own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4):
 pushes an `OwnScopeFrame` masking all pre-entry referents except the active performer. -/
-def enterOwnScope (drs : DRS) : DRS :=
+def enterOwnScope (drs : DRS) (deed : Option Deed := none) : DRS :=
   let preIds := drs.referents.map (·.id)
   let actorIds := (actorShape? drs).elim [] (·.refIds)
   let masked := drs.referents.filterMap fun r =>
@@ -1476,6 +1479,7 @@ def enterOwnScope (drs : DRS) : DRS :=
     callerPending := drs.pendingRoles
     entryPending  := drs.pendingRoles
     callerSourceTypes := drs.sourceTypes
+    deed
   }
   -- A Definition is written for any Source, so its Source's Card Types are unknown.
   { (enterSelectionScope drs) with
@@ -1483,6 +1487,11 @@ def enterOwnScope (drs : DRS) : DRS :=
     pendingRoles  := []
     currentClause := drs.currentClause + 1
     sourceTypes   := [] }
+
+/-- The deed of the innermost Definition being stepped (`OwnScopeFrame.deed`), which an object
+its body moves carries: "the exiled card" reads every card an exile moved [CR#701.13a]. -/
+def DRS.scopeDeed (drs : DRS) : Option Deed :=
+  drs.scopeStack.head?.bind (·.deed)
 
 /-- Temporarily pop the top `OwnScopeFrame` to evaluate an `inCaller` argument in the immediate
 caller's visibility (`semantics-v3.md` §1.4). -/

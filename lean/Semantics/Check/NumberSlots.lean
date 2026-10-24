@@ -143,7 +143,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   -- A prevention's or redirection's own slot is its cut; the additional effect a prevention
   -- runs declares its own.
   | _n + 1, .preventDamage cut _ _ | _n + 1, .redirectDamage cut _ _ => cut.numberSlots
-  | _n + 1, .setStatus _ _ | _n + 1, .turnOver _ | _n + 1, .combat _ _ => []
+  | _n + 1, .setStatus _ _ | _n + 1, .turnOver _ _ | _n + 1, .combat _ _ => []
   | _n + 1, .attack _ | _n + 1, .attackUnblocked _ | _n + 1, .attackWith _ _ | _n + 1, .block _ | _n + 1, .target _ | _n + 1, .changeControl _ _
   | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger
   | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
@@ -184,7 +184,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .putCounters amount _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]
   | _n + 1, .removeCounters _ _ _ => []
-  | _n + 1, .enact _ _ _ _ | _n + 1, .pay _ _ _ _ _ => []
+  | _n + 1, .pay _ _ _ _ _ => []
   | _n + 1, .withContinuation _ _ _ _ | _n + 1, .doIf .. | _n + 1, .limited _ _ => []
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []
   | _n + 1, .repeat_ repetition => repetition.numberSlots
