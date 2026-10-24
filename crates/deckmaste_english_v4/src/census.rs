@@ -10,6 +10,11 @@
 //! up to [`judgment::READING_LIMIT`]. A unit is known-wrong-only when it has a
 //! judgment none of its Readings satisfies.
 //!
+//! A line of a cleave face with square brackets is read as its two texts
+//! ([`crate::cleave`]), each judged as a unit of its own: it is read when
+//! both are, and otherwise has the first verdict of the two that is not read.
+//! Its counts are its Uncleaved Text's.
+//!
 //! A unit the tracked deferral list ([`crate::DEFERRED`]) names, by card and
 //! text, is deferred while it is not read: counted apart and never a
 //! regression. A law failure is a defect and is never deferred. A deferral
@@ -19,11 +24,14 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
+use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::CompiledGrammar;
 
+use crate::cleave::CleaveText;
 use crate::corpus::Corpus;
 use crate::corpus::UnitKind;
+use crate::corpus::split_lines;
 use crate::judgment;
 use crate::judgment::Judge;
 use crate::judgment::Judgment;
@@ -175,6 +183,15 @@ pub fn run(
             map.entry(e.text.as_str()).or_insert_with(Vec::new).push(e);
             map
         });
+    let cleave_faces: Vec<bool> = corpus
+        .faces
+        .iter()
+        .map(|face| {
+            face.oracle_text
+                .as_deref()
+                .is_some_and(|text| crate::cleave::has_cleave(&split_lines(text)))
+        })
+        .collect();
     let threads = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let chunk = corpus.units.len().div_ceil(threads).max(1);
     let units: Vec<UnitResult> = std::thread::scope(|scope| {
@@ -184,6 +201,7 @@ pub fn run(
             .map(|units| {
                 let grammar = grammar.as_ref().ok();
                 let by_text = &by_text;
+                let cleave_faces = &cleave_faces;
                 scope.spawn(move || {
                     let profiler = Profiler::new(env);
                     units
@@ -194,27 +212,48 @@ pub fn run(
                                 env.lexicon
                                     .analyze_source_scoped(&unit.text, None, &face.scope);
                             let profile = profiler.profile(unit.kind, &analyzed);
-                            let entries: Vec<&Judgment> = by_text
-                                .get(unit.text.as_str())
-                                .into_iter()
-                                .flatten()
-                                .filter(|e| {
-                                    e.card
-                                        .as_ref()
-                                        .is_none_or(|c| *c == face.card || *c == face.name)
-                                })
-                                .copied()
-                                .collect();
+                            let entries = |text: &str| -> Vec<&Judgment> {
+                                by_text
+                                    .get(text)
+                                    .into_iter()
+                                    .flatten()
+                                    .filter(|e| {
+                                        e.card
+                                            .as_ref()
+                                            .is_none_or(|c| *c == face.card || *c == face.name)
+                                    })
+                                    .copied()
+                                    .collect()
+                            };
+                            let cleave = cleave_faces[unit.face]
+                                .then(|| CleaveText::split(&unit.text))
+                                .flatten();
                             let (verdict, derivations, segments, cheapest_tier) = match grammar {
                                 None => (Verdict::Unread(Unread::Unbound), 0, None, 0),
-                                Some((grammar, frame)) => judge_unit(
-                                    grammar,
-                                    frame,
-                                    env,
-                                    &analyzed,
-                                    &face.scope,
-                                    &entries,
-                                ),
+                                Some((grammar, frame)) => {
+                                    let judge = |text: &str, analyzed: &AnalyzedText| {
+                                        let entries = entries(text);
+                                        judge_unit(
+                                            grammar,
+                                            frame,
+                                            env,
+                                            analyzed,
+                                            &face.scope,
+                                            &entries,
+                                        )
+                                    };
+                                    match cleave {
+                                        None => judge(&unit.text, &analyzed),
+                                        Some(cleave) => judge_cleave(&cleave, |text| {
+                                            let analyzed = env.lexicon.analyze_source_scoped(
+                                                text,
+                                                None,
+                                                &face.scope,
+                                            );
+                                            judge(text, &analyzed)
+                                        }),
+                                    }
+                                }
                             };
                             let surplus = segments
                                 .as_ref()
@@ -243,6 +282,21 @@ pub fn run(
             .collect()
     });
     summarize(corpus.faces.len(), bind_error, baseline, units)
+}
+
+/// Judges a bracketed line of a cleave face as its Uncleaved Text, then, if
+/// that is read, its Cleaved Text: the line keeps the Uncleaved Text's counts
+/// and the first verdict that is not read.
+fn judge_cleave(
+    cleave: &CleaveText,
+    judge: impl Fn(&str) -> (Verdict, u128, Option<Segmentation>, u128),
+) -> (Verdict, u128, Option<Segmentation>, u128) {
+    let (verdict, derivations, segments, cheapest_tier) = judge(&cleave.uncleaved);
+    let verdict = match verdict {
+        Verdict::Read => judge(&cleave.cleaved).0,
+        unread => unread,
+    };
+    (verdict, derivations, segments, cheapest_tier)
 }
 
 fn judge_unit(

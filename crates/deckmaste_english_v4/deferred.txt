@@ -76,6 +76,3 @@ Pyxis of Pandemonium | {7}, {T}, Sacrifice this artifact: Each player turns face
 Tragic Arrogance | For each player, you choose from among the permanents that player controls an artifact, a creature, an enchantment, and a planeswalker. Then each player sacrifices all other nonland permanents they control.
 Cataclysm | Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest.
 Guided Passage | Reveal the cards in your library. An opponent chooses from among them a creature card, a land card, and a noncreature, nonland card. You put the chosen cards into your hand. Then shuffle.
-
-# english-v4-s7-cleave-transparent-brackets
-Dig Up | Search your library for a [basic land] card, [reveal it,] put it into your hand, then shuffle.

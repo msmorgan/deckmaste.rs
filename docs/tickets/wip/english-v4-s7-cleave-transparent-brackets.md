@@ -44,6 +44,12 @@ That cannot read Dig Up, *Search your library for a [basic land] card, [reveal i
 - [CR#702.148a].
 - `docs/oracle-style-guide.md` §3, "Bullets, vertical bars, and square brackets".
 
+## Investigation: the cleaved text without a second parse
+
+- **Deleting the bracketed tokens from the uncleaved chart** fails. A chart item spans contiguous input, so the Cleaved Text needs items the uncleaved parse never builds. On Dig Up, *a card* needs *a* and *card* adjacent, and *Search your library for a card,* then needs a conjunct predicted at *put*; in the uncleaved chart only *reveal* follows *card,*. Building those items is parsing.
+- **Deriving the cleaved tree from the uncleaved one** fails as a shortcut. Dropping an unselected dependent is local (*[attacking]*, *[with flying]*), but Dig Up's *[reveal it,]* is a conjunct plus the comma that delimits it, so the four-clause coordination has to be rebuilt as a three-clause one, not pruned. The rebuilt tree would still need Admission (agreement, *a*/*an*, comma licensing), and that check is the parser's own. Lantern Flare's current Oracle text has no *[creature or]*: its brackets hold a whole sentence.
+- **Outcome**: the census parses the Cleaved Text as a second text, only for the 12 bracketed cleave lines (`deckmaste_english_v4::cleave`). The engine's bracket twins and `BracketedSentence` are deleted.
+
 ## Landing note
 
 Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with the change id they were measured on:
@@ -55,3 +61,8 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 - Both no-second-parse options likely fail. Deleting tokens breaks chart span adjacency: on Dig Up, *card,* and *put* were never adjacent in the uncleaved chart. Deriving the cleaved tree needs tree surgery wherever brackets cross a constituent: Dig Up's *[reveal it,]*, and Lantern Flare's *[creature or]* (a conjunct plus its coordinator).
 - Likely outcome: parse the cleaved token stream on the 12 cleave faces, at negligible cost.
+
+Chart saving from dropping the twins (`ktrqkuqw`, every corpus unit parsed once, single-threaded debug build): 400,852,900 → 313,289,996 chart items (−21.8%), parse time 401 s → 341 s (−15%).
+
+Census delta (measured on `ktrqkuqw`): faces read 32,769 → 32,770 (Dig Up, 0 → 1 Reading); total Readings 337,348 → 337,354 and Surplus 141,589 → 141,594 (Wash Away 2 → 6 and Lunar Rejection 1 → 2: the plain text's own Readings, as on any face; the bracketed twin had read fewer); the 11 other cleave faces still read, and no other unit changed. Lost faces: none.
+Judgment set (`ktrqkuqw`): 3,548 enforced and 3 pending, all enforced holding; `cleave_bracketed_text.txt` rewritten as 24 entries, each witness's Uncleaved and Cleaved Texts.

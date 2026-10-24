@@ -120,6 +120,47 @@ fn an_unbound_grammar_leaves_every_unit_unread() {
     );
 }
 
+/// A bracketed line of a cleave face is read as its Uncleaved Text and its
+/// Cleaved Text [CR#702.148a], each judged as a text of its own; on any other
+/// face a square bracket is only punctuation.
+#[test]
+fn a_cleave_line_is_read_without_its_brackets_and_without_their_text() {
+    let env = LexicalEnvironment {
+        lexicon: seed::lexicon(),
+        frames: seed::frames(),
+    };
+    let mut corpus = Corpus::default();
+    let line = "Destroy target creature. [Search your library for a card.]";
+    corpus.push(face("a", &format!("Cleave {{2}}\n{line}")));
+    corpus.push(face(
+        "b",
+        "Cleave {2}\n[Destroy target creature.] Search your library for a card.",
+    ));
+    corpus.push(face("c", line));
+    // The judgment makes every Reading of b's Cleaved Text wrong.
+    let judgments = deckmaste_english_v4::judgment::parse_file(
+        "test",
+        r#"+ Search your library for a card. => PrepositionPhrase "for a card" as Modifier of library"#,
+    )
+    .unwrap();
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &judgments, None);
+    let verdict = |face: &str| {
+        &report
+            .units
+            .iter()
+            .find(|u| u.face == face && u.text.contains('['))
+            .unwrap()
+            .verdict
+    };
+    assert_eq!(verdict("a"), &Verdict::Read);
+    assert_eq!(verdict("b"), &Verdict::KnownWrongOnly);
+    assert!(
+        matches!(verdict("c"), Verdict::Unread(_)),
+        "{:?}",
+        verdict("c")
+    );
+}
+
 /// A face's units are parsed and counted one by one: its count is the sum of
 /// its units' Derivations, never their product, and a quotation spanning a
 /// line break stays in one unit.

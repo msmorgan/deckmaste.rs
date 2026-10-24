@@ -40,10 +40,12 @@ single inside a double one, and the period or comma after it is written inside
 its closing mark, where its own final period is not written
 (`docs/oracle-style-guide.md` §3, Periods; Quotation marks and apostrophes).
 The square brackets of Bracketed text, which a cleave spell removes
-[CR#702.148a], are derived the same way: an unselected dependent or a whole
-sentence may be Bracketed, with the analysis it has without them
+[CR#702.148a], are no Constituent and are not parsed at all: a line of a
+cleave face is read as its Uncleaved Text, without the brackets, which are
+kept beside the text and written back from there, and as its Cleaved Text,
+without the Bracketed text, each by the ordinary grammar
 (`docs/oracle-style-guide.md` §3, Bullets, vertical bars, and square
-brackets).
+brackets). The grammar's only square brackets are loyalty costs.
 
 **Facts about the input.** The supported corpus is the Vintage-playable cards
 (legal or restricted), excluding Scryfall `set_type: funny`. Balanced

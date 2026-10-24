@@ -128,9 +128,7 @@ pub struct CategoryDecl {
 /// - `adjunct`, `modifier`: unselected dependents, counted for Right
 ///   Association and the preposed-dependent Attachment Class (`reading.rs`).
 ///   `adjunct` also marks the post-verbal Adjunct host that an auxiliary Verb
-///   Phrase never is (`step.rs`, `post_adjunct_host`). Either may be Bracketed,
-///   set in square brackets: binding derives the Production's twin with it
-///   bracketed (`compile.rs`, `Binder::add`).
+///   Phrase never is (`step.rs`, `post_adjunct_host`).
 /// - `supplement`: reversed Right Association (`reading.rs`).
 /// - `object`, `shared`: the Reading functions of postposed Modifiers
 ///   (`object`) and of Right Node Raising (`shared`) (`reading.rs`, `locate`).
