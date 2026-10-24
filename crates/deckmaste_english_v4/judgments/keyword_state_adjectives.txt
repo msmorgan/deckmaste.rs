@@ -5,7 +5,8 @@
 + You may look at those cards for as long as they remain exiled. => AdjectivePhrase "exiled" as PredicativeComplement of remain
 + Whenever this Vehicle becomes crewed, up to one other target Vehicle you control becomes an artifact creature until end of turn. => AdjectivePhrase "crewed" as PredicativeComplement of become; NounPhrase "an artifact creature" as PredicativeComplement of become
 +VerbPhrase is exiled => AdjectivePhrase "exiled" as PredicativeComplement of be || VerbPhrase "exiled" as Complement of be; readings 2
-+VerbPhrase is crewed => AdjectivePhrase "crewed" as PredicativeComplement of be || VerbPhrase "crewed" as Complement of be; readings 2
+# from: Mighty Servant of Leuk-o
++VerbPhrase was crewed => AdjectivePhrase "crewed" as PredicativeComplement of be || VerbPhrase "crewed" as Complement of be; readings 2
 +VerbPhrase is saddled => AdjectivePhrase "saddled" as PredicativeComplement of be || VerbPhrase "saddled" as Complement of be; readings 2
 +NounPhrase the exiled card => VerbPhrase "exiled" as Modifier of card
 +NounPhrase exiled cards => VerbPhrase "exiled" as Modifier of card

@@ -13,10 +13,7 @@
 +Clause to cast this spell => readings 1
 +VerbPhrase spent to cast this spell =>
 +Clause only to cast spells => readings 1
-+ You have a card.
-+ This creature is a Dragon.
 + This creature remains on the battlefield.
 # from: Ribbons of Night
 + If {R} was spent to cast this spell, draw a card. => VerbPhrase "spent to cast this spell"; Clause "to cast this spell" as Adjunct of spend
 +VerbPhrase was spent to cast this spell => Clause "to cast this spell" as Adjunct of spend
-+ You have sacrificed a creature to cast this spell. => Clause "to cast this spell" as Adjunct of sacrifice

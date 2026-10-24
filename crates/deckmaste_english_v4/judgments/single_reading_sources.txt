@@ -8,7 +8,7 @@
 + Create a 3/3 green Elephant creature token. => AdjectivePhrase "green"; readings 1
 # from: Spine of Ish Sah
 + Return it to its owner's hand. => readings 1
+# from: Ozox, the Clattering King
 + <card=Ozox, the Clattering King> Ozox, the Clattering King can't block. => NounPhrase "Ozox, the Clattering King" as Subject of can; readings 1
-+ <card=Ozox, the Clattering King> Ozox, the Clattering King entered the battlefield this turn. => NounPhrase "Ozox, the Clattering King" as Subject of enter; readings 1
 + <card=The Fantastic Four> The Fantastic Four deal 3 damage to each opponent. => NounPhrase "The Fantastic Four" as Subject of deal
 * It were tapped.

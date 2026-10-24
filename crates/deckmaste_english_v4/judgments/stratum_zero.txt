@@ -1,4 +1,5 @@
 # Card-frame syntax, keyword parameter frames, and outer spines over seed payloads.
++ Planeswalkers you control have "[0]: Proliferate" and "[−12]: Take an extra turn after this one."
 + Legendary Artifact Creature — Golem => TypeLine "Legendary Artifact Creature — Golem"
 + Basic Snow Land — Island => TypeLine "Basic Snow Land — Island"
 + Flying, vigilance, trample => KeywordParameters "Flying"; KeywordParameters "vigilance"; KeywordParameters "trample"
@@ -17,25 +18,19 @@
 + Basic landcycling {1}{W} => KeywordParameters "Basic landcycling {1}{W}"; Quality "Basic land"; !Quality "Basic landcycling {1}{W}"
 # from: Twinstrike
 + Hellbent — Destroy those creatures instead if you have no cards in hand. => NounPhrase "those creatures" as Object of destroy
-+ Uncharted Marvel — Destroy a creature. => NounPhrase "a creature" as Object of destroy
 # from: Altar of Shadows
 + {7}, {T}: Destroy target creature. => Cost "{7}, {T}"; NounPhrase "target creature" as Object of destroy
 # from: Puresight Merrow
 + {W/U}, {Q}: Look at the top card of your library. You may exile that card. => Cost "{W/U}, {Q}"
-+ [+2]: Destroy a creature. => ActivationCost "[+2]"
-+ [−2]: Destroy a creature. => ActivationCost "[−2]"
-+ [0]: Destroy a creature. => ActivationCost "[0]"
 + Choose one — => NounPhrase "one" as Object of choose
 + Choose one or both — => NounPhrase "one or both" as Object of choose
 # from: Piety Charm
 + • Destroy target Aura attached to a creature. => NounPhrase "target Aura attached to a creature" as Object of destroy
 # from: Unfortunate Accident
 + + {2}{B} — Destroy target creature. => Cost "{2}{B}"; NounPhrase "target creature" as Object of destroy
-+ • Thunder — {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
++ <card=Thunder Magic> • Thunder — {0} — Thunder Magic deals 2 damage to target creature. => Cost "{0}"
 # from: Season of Gathering
 + {P}{P} — Choose artifact or enchantment. Destroy all permanents of the chosen type. => NounPhrase "all permanents of the chosen type" as Object of destroy
-+ I, II — Flying => KeywordParameters "Flying"
-+ III — Uncharted Marvel — Flying => KeywordParameters "Flying"
 + Artifact landcycling {2} => KeywordParameters "Artifact landcycling {2}"
 + I, II — Choose one — => NounPhrase "one" as Object of choose
 + LEVEL 1-3
@@ -46,10 +41,9 @@
 + −3: Destroy target creature. => ActivationCost "−3"
 # from: Nicol Bolas, Planeswalker
 + +3: Destroy target noncreature permanent. => ActivationCost "+3"
-+ 0: Destroy a creature. => ActivationCost "0"
++ 0: Draw three cards, then put two cards from your hand on top of your library in any order. => ActivationCost "0"
 + Choose one or more — => NounPhrase "one or more" as Object of choose
 * Enchant two creature
-+ Enchant two creatures
 + {1}{G}, {T}: Choose one — => NounPhrase "one" as Object of choose
 # from: Glimpse of Freedom
 + Escape—{2}{U}, Exile five other cards from your graveyard.

@@ -8,10 +8,9 @@
 # from: Temple of Cyclical Time
 + Remove a counter from this land. => PrepositionPhrase "from this land" as Complement of remove; !PrepositionPhrase "from this land" as Adjunct of remove
 + Remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
-+ Draw a card during combat. => PrepositionPhrase "during combat" as Adjunct of draw
++ If you would draw a card during your draw step, instead you may skip that draw. => PrepositionPhrase "during your draw step" as Adjunct of draw
 + Remove all counters from target permanent. => PrepositionPhrase "from target permanent" as Complement of remove
-+ Remove it from the game. => PrepositionPhrase "from the game" as Complement of remove
-+ A counter was removed from this land. => PrepositionPhrase "from this land" as Complement of remove
++ Activate only if an oil counter was removed from a permanent you controlled this turn or a permanent with an oil counter on it was put into a graveyard this turn. => PrepositionPhrase "from a permanent you controlled this turn" as Complement of remove
 +VerbPhrase removed
 + Remove any number of +1/+1 counters from among creatures you control. => PrepositionPhrase "from among creatures you control" as Complement of remove; RelativeClause "you control" gap "creatures"
 + Remove a +1/+1 counter from this creature for each card in target opponent's hand. => PrepositionPhrase "from this creature" as Complement of remove; PrepositionPhrase "for each card in target opponent's hand" as Adjunct of remove; !PrepositionPhrase "for each card in target opponent's hand" as Modifier of counter

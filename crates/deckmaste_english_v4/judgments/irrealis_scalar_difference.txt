@@ -7,4 +7,3 @@
 # from: Master of Predicaments
 + That player guesses whether the card's mana value is greater than 4. => AdjectivePhrase "greater than 4" as PredicativeComplement of be; PrepositionPhrase "than 4" as Complement of great
 + Destroy target creature with power 4 or greater. => PrepositionPhrase "with power 4 or greater" as Modifier of creature
-+ Its power is 2 greater. => AdjectivePhrase "2 greater" as PredicativeComplement of be

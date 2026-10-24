@@ -7,7 +7,6 @@
 +NounPhrase the number of creatures on the battlefield plus the number of artifacts on the battlefield => NounPhrase "the number of creatures on the battlefield"; NounPhrase "the number of artifacts on the battlefield"
 +NounPhrase that much damage plus 2 => NounPhrase "that much damage"; DeterminerPhrase "that much" as Determiner of damage; Nominal "damage"
 # a chain of two operators keeps both bracketings
-+NounPhrase 1 plus the exiled creature's mana value minus 4 => readings 2
 # a scalar complement of be
 +Clause <card=Banefire> X is 5 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 5 or more"; Predicative "5 or more" as PredicativeComplement of be
 +Clause <card=Finale of Glory> X is 10 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 10 or more"; Predicative "10 or more" as PredicativeComplement of be

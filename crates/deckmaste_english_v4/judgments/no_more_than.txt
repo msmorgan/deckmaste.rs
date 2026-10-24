@@ -2,11 +2,6 @@
 +DeterminerPhrase no more than one => PrepositionPhrase "than one"
 +DeterminerPhrase no more than two => PrepositionPhrase "than two"
 +NounPhrase no more than one creature => DeterminerPhrase "no more than one" as Determiner of creature; PrepositionPhrase "than one"; Nominal "creature"
-+DeterminerPhrase any more than two
-+DeterminerPhrase many more than two
-+DeterminerPhrase much more than two
-+DeterminerPhrase some more than two
-+DeterminerPhrase no fewer than two
 +AdverbPhrase more than twice => PrepositionPhrase "than twice"
 +AdverbPhrase no more than twice => PrepositionPhrase "than twice"
 + Activate no more than twice each turn. => AdverbPhrase "twice" as Complement of than || AdverbPhrase "twice each turn" as Complement of than

@@ -17,7 +17,5 @@
 +PrepositionPhrase At the beginning
 +PrepositionPhrase in a graveyard
 + Draw a card.
-+ Draw the card.
 + Flying, trample
 + Creatures have flying.
-+ Creatures have "flying."

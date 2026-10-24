@@ -21,5 +21,6 @@
 + <card=Flow State> If there is an instant card and a sorcery card in your graveyard, instead put two of them into your hand and the rest on the bottom of your library in any order. => NounPhrase "there" as Subject of be; NounPhrase "an instant card and a sorcery card"; PrepositionPhrase "in your graveyard" as Complement of be; !NounPhrase "a sorcery card in your graveyard"
 # from: Flow State
 +Clause there is an instant card and a sorcery card in your graveyard => NounPhrase "an instant card and a sorcery card"; PrepositionPhrase "in your graveyard" as Complement of be; readings 1
+# kept: no card prints it; sole judgment covering production ProximateExistentialBe
 +Clause there is an instant card, a land card, and two sorcery cards => NounPhrase "an instant card, a land card, and two sorcery cards"; readings 1
 *Clause there is two instant cards and a sorcery card in your graveyard

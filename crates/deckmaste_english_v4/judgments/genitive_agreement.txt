@@ -1,6 +1,4 @@
 # Independent genitives agree with the possessed referent, not its owner.
-+Clause yours attacks => NounPhrase "yours" as Subject of attack
-+Clause yours attack => NounPhrase "yours" as Subject of attack
 # from: Flunk
 +NounPhrase enchanted creature's controller's hand => NounPhrase "enchanted creature's controller's" as Determiner of hand
 # from: Flunk
@@ -10,20 +8,15 @@
 +NounPhrase an additional two creatures => AdjectivePhrase "additional"; Nominal "two creatures"
 # from: Kaervek's Hex
 +NounPhrase an additional 2 damage => AdjectivePhrase "additional"; Nominal "2 damage"
+# kept: no card prints it; sole judgment covering production SingularOrQuantifiedDetermination
 +NounPhrase another two creatures
-+NounPhrase every two turns => Nominal "two turns"
-+NounPhrase each two turns => Nominal "two turns"
-+NounPhrase every two creatures => Nominal "two creatures"
 *NounPhrase much one
 
 *NounPhrase a two creatures
 *NounPhrase much two creatures
 *NounPhrase much two turns
-+Clause every two turns is a turn => NounPhrase "every two turns" as Subject of be
 *Clause every two turns are turns
-+Clause each two turns is a turn => NounPhrase "each two turns" as Subject of be
 *Clause each two turns are turns
-+Clause another two creatures attack => NounPhrase "another two creatures" as Subject of attack
 *Clause another two creatures attacks
 
 *NounPhrase those one creature

@@ -1,17 +1,24 @@
 # Contracted auxiliaries and copulas ('s, 're, 've) analysed as their full forms: predicative complements, relative-clause subjects, perfect and progressive complements, and clitics needing a complement and a pronoun host
 + If it's a land card, you may put it onto the battlefield tapped. => NounPhrase "a land card" as PredicativeComplement of be
+# from: Mobile Homestead (uncontracted pair)
 + If it is a land card, you may put it onto the battlefield tapped. => NounPhrase "a land card" as PredicativeComplement of be
 + If it's tapped, put a stun counter on it. => AdjectivePhrase "tapped" as PredicativeComplement of be || VerbPhrase "tapped" as Complement of be
+# from: Shackle Slinger (uncontracted pair)
 + If it is tapped, put a stun counter on it. => AdjectivePhrase "tapped" as PredicativeComplement of be || VerbPhrase "tapped" as Complement of be
 +Clause it's tapped => AdjectivePhrase "tapped" as PredicativeComplement of be || VerbPhrase "tapped" as Complement of be
+# from: Shackle Slinger (uncontracted pair)
 +Clause it is tapped => AdjectivePhrase "tapped" as PredicativeComplement of be || VerbPhrase "tapped" as Complement of be
 + {4}{C}, {T}, Sacrifice this land: Create a token that's a copy of target creature you control. => RelativeClause "that's a copy of target creature you control" gap "token"; NounPhrase "a copy of target creature you control" as PredicativeComplement of be
+# from: Mirrorpool (uncontracted pair)
 + {4}{C}, {T}, Sacrifice this land: Create a token that is a copy of target creature you control. => RelativeClause "that is a copy of target creature you control" gap "token"; NounPhrase "a copy of target creature you control" as PredicativeComplement of be
 + {T}, Sacrifice this creature: Destroy target legendary permanent that's an artifact, creature, or enchantment. => RelativeClause "that's an artifact, creature, or enchantment"; NounPhrase "an artifact, creature, or enchantment" as PredicativeComplement of be
+# from: Bounty Agent (uncontracted pair)
 + {T}, Sacrifice this creature: Destroy target legendary permanent that is an artifact, creature, or enchantment. => RelativeClause "that is an artifact, creature, or enchantment"; NounPhrase "an artifact, creature, or enchantment" as PredicativeComplement of be
 + This creature can't attack unless you've cast a creature spell this turn. => PrepositionPhrase "unless you've cast a creature spell this turn" as Adjunct of attack; VerbPhrase "cast a creature spell this turn" as Complement of have
+# from: Mogg Conscripts (uncontracted pair)
 + This creature can't attack unless you have cast a creature spell this turn. => PrepositionPhrase "unless you have cast a creature spell this turn" as Adjunct of attack; VerbPhrase "cast a creature spell this turn" as Complement of have
 + While you're searching your library, you may cast this card from your library. => PrepositionPhrase "While you're searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
+# from: Panglacial Wurm (uncontracted pair)
 + While you are searching your library, you may cast this card from your library. => PrepositionPhrase "While you are searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
 +Clause it's been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
 # from: Dragon Whelp

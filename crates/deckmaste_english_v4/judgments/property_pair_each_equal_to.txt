@@ -15,5 +15,3 @@
 # from: Porcelain Gallery
 + Creatures you control have base power and toughness each equal to the number of creatures you control. => NounPhrase "base power and toughness each equal to the number of creatures you control"; AdjectivePhrase "equal to the number of creatures you control"
 +NounPhrase power and toughness each equal to its mana value
-# from: Karn's Touch
-+NounPhrase power and toughness each equal to its mana value

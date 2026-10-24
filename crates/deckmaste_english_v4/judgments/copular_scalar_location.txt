@@ -8,6 +8,6 @@
 # from: Disrupting Shoal
 +Clause that spell's mana value is X => NounPhrase "that spell's mana value" as Subject of be; Predicative "X" as PredicativeComplement of be
 +Clause X is 2 => NounPhrase "X" as Subject of be; VerbPhrase "is 2"; Predicative "2" as PredicativeComplement of be
-+ The number of cards in your hand is three. => NounPhrase "The number of cards in your hand" as Subject of be
++ Activate only if the number of other Caves you control plus the number of Cave cards in your graveyard is three or greater. => NounPhrase "the number of other Caves you control plus the number of Cave cards in your graveyard" as Subject of be
 *Clause The number of cards in your hand are three.
 *Clause its power are 2

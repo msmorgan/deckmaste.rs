@@ -4,14 +4,11 @@
 + Activate only during your upkeep. => PrepositionPhrase "only during your upkeep" as Adjunct of activate; PrepositionPhrase "during your upkeep"
 + Activate only if this permanent is a creature. => PrepositionPhrase "only if this permanent is a creature" as Adjunct of activate; Clause "this permanent is a creature"
 +PrepositionPhrase as a sorcery
-# from: Volrath's Gardens
-+ Activate only as a sorcery. => PrepositionPhrase "only as a sorcery" as Adjunct of activate
 + Counter target spell. Search its controller's graveyard, hand, and library for all cards with the same name as that spell and exile them. Then that player shuffles. => Nominal "same name as that spell"; !PrepositionPhrase "as that spell" as Adjunct of exile
 + You may have this creature enter as a copy of any creature on the battlefield. => PrepositionPhrase "as a copy of any creature on the battlefield" as Adjunct of enter; !PrepositionPhrase "as a copy of any creature on the battlefield" as Complement of enter; !PrepositionPhrase "as a copy of any creature" as Complement of enter
 +Clause This ability triggers only if Quakebringer is on the battlefield or if Quakebringer is in your graveyard and you control a Giant => PrepositionPhrase "only if Quakebringer is on the battlefield or if Quakebringer is in your graveyard and you control a Giant" as Adjunct of trigger; Clause "Quakebringer is on the battlefield"
 + Cast this spell only during the declare attackers step and only if you've been attacked this step. => PrepositionPhrase "only during the declare attackers step and only if you've been attacked this step" as Adjunct of cast; PrepositionPhrase "only during the declare attackers step"; PrepositionPhrase "only if you've been attacked this step"
-+ Destroy only target creature. => NounPhrase "only target creature" as Object of destroy
-+ Only creatures attack. => NounPhrase "Only creatures" as Subject of attack
++ <card=Bumi, Unleashed> Only land creatures can attack during that combat phase. => NounPhrase "Only land creatures" as Subject of can
 + Activate only before attackers are declared. => PrepositionPhrase "only before attackers are declared" as Adjunct of activate
 + Activate only once each turn. => AdverbPhrase "only once"; NounPhrase "each turn" as Adjunct of activate
 # from: Crown of Doom

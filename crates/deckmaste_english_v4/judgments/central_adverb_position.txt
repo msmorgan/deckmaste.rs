@@ -4,7 +4,7 @@
 + <card=Verdant Touch> Target land becomes a 2/2 creature that's still a land. => AdverbPhrase "still" as Adjunct of be
 + <card=Aven Warcraft> Creatures you control also gain protection from the chosen color until end of turn. => AdverbPhrase "also" as Adjunct of gain
 + <card=Might of the Meek> It also gets +1/+0 until end of turn if you control a Mouse. => AdverbPhrase "also" as Adjunct of get
-+VerbPhrase is still a land => AdverbPhrase "still" as Adjunct of be; NounPhrase "a land" as PredicativeComplement of be
++ Enchanted land is a 5/6 green Treefolk creature that's still a land. => AdverbPhrase "still" as Adjunct of be; NounPhrase "a land" as PredicativeComplement of be
 +Clause <card=Parnesse, the Subtle Brush> up to one target opponent may also copy that spell => AdverbPhrase "also" as Adjunct of copy; NounPhrase "that spell" as Object of copy
 +Clause <card=Dark Dabbling> also regenerate each other creature you control => AdverbPhrase "also" as Adjunct of regenerate; NounPhrase "each other creature you control" as Object of regenerate
 + <card=Deadly Complication> • Put a +1/+1 counter on target suspected creature you control. You may have it become no longer suspected. => AdverbPhrase "no longer" as Adjunct of become; AdjectivePhrase "suspected" as PredicativeComplement of become

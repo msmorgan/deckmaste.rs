@@ -6,6 +6,7 @@
 + <card=Denry Klin, Editor in Chief> Denry Klin enters with your choice of a +1/+1, first strike, or vigilance counter on it. => NounPhrase "a +1/+1, first strike, or vigilance counter" as Complement of of; Measure "+1/+1"; KeywordPhrase "first strike"; Nominal "vigilance counter" head "vigilance counter"
 # A slash measure first base is the Word-Part Coordination's, never a fused measure noun coordinated with the counter (one tree per analysis).
 +NounPhrase a +2/+0, +1/+1, or +0/+2 counter => Nominal "+2/+0, +1/+1, or +0/+2 counter"; Measure "+2/+0"; Measure "+1/+1"; Nominal "+0/+2 counter" head "+0/+2 counter"; readings 1
+# kept: no card prints it; sole judgment covering production CompoundCoordination#Coordinator/binary
 +NounPhrase a +1/+1 or flying counter => Measure "+1/+1"; Nominal "flying counter" head "flying counter"; readings 1
 # A lone counter compound is one word: no base stands apart without a coordination.
 +NounPhrase a first strike counter => Nominal "first strike counter" head "first strike counter"; !KeywordPhrase "first strike"; readings 1

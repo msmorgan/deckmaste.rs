@@ -9,11 +9,9 @@
 + At the beginning of your upkeep, surveil 1. Then if there are seven or more cards in your graveyard, sacrifice this artifact, it deals 2 damage to each opponent, and you gain 2 life. => Clause "sacrifice this artifact, it deals 2 damage to each opponent, and you gain 2 life"
 # The same with a then-linked declarative last (a Linked Coordination).
 + <card=Kaboom!> For each of them, reveal cards from the top of your library until you reveal a nonland card, Kaboom! deals damage equal to that card's mana value to that player or planeswalker, then you put the revealed cards on the bottom of your library in any order. => Clause "reveal cards from the top of your library until you reveal a nonland card"; Clause "Kaboom! deals damage equal to that card's mana value to that player or planeswalker"; Clause "then you put the revealed cards on the bottom of your library"
-+Clause reveal a card, it deals damage, then you draw a card => Clause "reveal a card"; Clause "it deals damage"; Clause "then you draw a card"; readings 1
-+Clause reveal a card, draw a card, then you draw a card => Clause "reveal a card"; Clause "draw a card"; Clause "then you draw a card"; readings 1
-+Clause you reveal a card, it deals damage, then you draw a card => readings 1
++Clause Scry 2, then you get {E}{E} => Clause "Scry 2"; Clause "then you get {E}{E}"; readings 1
 # Like-mood Clauses coordinate in their own schema: one tree.
-+Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => readings 1
++Clause another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard
 # A declarative and then an imperative opening with a fronted dependent, the
 # comma between the clauses omitted (CGEL, Ch. 20 §3.2.1, p. 1739).
 + Scorching Lava deals 2 damage to any target. If this spell was kicked, that creature can't be regenerated this turn and if it would die this turn, exile it instead. => Clause "that creature can't be regenerated this turn"; Clause "if it would die this turn, exile it instead"

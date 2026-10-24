@@ -1,7 +1,9 @@
 # Correlative coordination of adjectives (both...and, either...or, neither...nor), predicative
-+Clause it is both red and green => AdjectivePhrase "both red and green" as PredicativeComplement of be
+# kept: no card prints it; sole judgment covering production AdjectivePhrase#Coordinator/binary-coord:or (+2)
 +Clause it is either red or green => AdjectivePhrase "either red or green" as PredicativeComplement of be
+# kept: no card prints it; sole judgment covering production AdjectivePhrase#Coordinator/binary-coord:nor
 +Clause it is neither red nor green => AdjectivePhrase "neither red nor green" as PredicativeComplement of be
+# kept: no card prints it; sole judgment covering production AdjectivePhrase#Coordinator/serial-coord:or
 +AdjectivePhrase either red, green, or blue
+# kept: no card prints it; sole judgment covering production AdjectivePhrase#Coordinator/serial-coord:nor
 +AdjectivePhrase neither red, green, nor blue
-+AdjectivePhrase either red, green, black, or blue

@@ -2,8 +2,6 @@
 +PrepositionPhrase of creatures => NounPhrase "creatures" as Complement of of
 # from: Peer Pressure
 +Nominal creatures of that type => PrepositionPhrase "of that type" as Modifier of creature
-+ Draw cards from them.
-+ Until you draw cards, draw cards.
 + Your maximum hand size is increased by two. => PrepositionPhrase "by two" as Complement of increase
 + You gain X plus 3 life.
 +Clause this creature remains on the battlefield => PrepositionPhrase "on the battlefield" as Complement of remain

@@ -18,6 +18,7 @@
 + Put any number of them on the bottom of that library in any order and the rest on top of the library in any order. => ComplementCluster "any number of them on the bottom of that library in any order"; ComplementCluster "the rest on top of the library in any order"
 # A single Object forms a Cluster only with its Adjunct: alone it coordinates
 # as itself.
+# from: Haunted Cloak
 + Equipped creature has lifelink, deathtouch, and flying. => !ComplementCluster "lifelink"; !ComplementCluster "deathtouch"
 # The Clusters of one coordination have the shape of the head's frame: an
 # Object and an Adjunct do not coordinate with an Object and a selected

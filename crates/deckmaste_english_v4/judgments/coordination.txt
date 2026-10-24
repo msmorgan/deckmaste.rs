@@ -1,7 +1,6 @@
 # Coordination: its level, resolved agreement, clause sequences and the scope of a preposed adjunct
 +NounPhrase target artifact or enchantment => Nominal "artifact or enchantment"; readings 1
 + Target creature or Vehicle gets +2/+0 until end of turn. => Nominal "creature or Vehicle"
-+Clause target creature and target player are dealt 2 damage => NounPhrase "target creature and target player" as Subject of be
 *Clause target creature and target player is dealt 2 damage
 + Each opponent loses 1 life and you gain 1 life. => Clause "Each opponent loses 1 life"; Clause "you gain 1 life"; readings 1
 + Draw two cards and create two Treasure tokens. => Clause "Draw two cards"; Clause "create two Treasure tokens"; readings 1
@@ -26,7 +25,7 @@
 + Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card. => VerbPhrase "control but don't own"
 + Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature" as Complement of to; NounPhrase "enchanted creature" as Complement of by
 +NounPhrase its power and toughness => Nominal "power and toughness"; readings 1
-+NounPhrase base power and base toughness 4/4 => Nominal "base power and base toughness"; readings 1
++NounPhrase base power and base toughness each equal to its mana value => Nominal "base power and base toughness"
 +NounPhrase target creature with power or toughness 4 or greater => Nominal "power or toughness 4 or greater"; Amount "4 or greater"
 # from: Great Divide Guide
 + Each land and Ally you control has "{T}: Add one mana of any color." => NounPhrase "Each land and Ally you control" as Subject of have
@@ -35,6 +34,7 @@
 + Return it to the battlefield tapped and attacking. => AdjectivePhrase "tapped"; VerbPhrase "attacking"
 + Look at the top three cards of your library. Put one of them into your hand and the rest into your graveyard. => NounPhrase "one of them" as Object of put; NounPhrase "the rest" as Object of put
 + Arc Trail deals 2 damage to any target and 1 damage to any other target. => NounPhrase "2 damage" as Object of deal; NounPhrase "1 damage" as Object of deal
+# from: Sphere of Annihilation
 +NounPhrase creatures with mana value less than or equal to the number of void counters on it => NounPhrase "the number of void counters on it" as Complement of than; PrepositionPhrase "on it" as Modifier of "void counter"
 # from: Subterranean Tremors
 + If X is 5 or more, create a 4/4 green Elephant creature token. => NounPhrase "5 or more" as PredicativeComplement of be; DeterminerPhrase "5 or more"; !NounPhrase "5"; readings 1
@@ -42,10 +42,10 @@
 +NounPhrase three or more creatures => !NounPhrase "three"; readings 1
 * Each attacking creature and each blocking creature don't untap during its controller's next untap step.
 +Clause target creature and each other creature that shares a color with it get +1/+1 until end of turn => NounPhrase "target creature and each other creature that shares a color with it" as Subject of get
-+Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => Clause "another creature dies"; Clause "a creature card leaves your graveyard"; Clause "a creature card is put into a graveyard"; readings 1
++Clause another creature dies, or a creature card is put into a graveyard from anywhere other than the battlefield, or a creature card leaves your graveyard => Clause "another creature dies"; Clause "a creature card is put into a graveyard from anywhere other than the battlefield"; Clause "a creature card leaves your graveyard"
 +NounPhrase the top or bottom of their library => Nominal "top or bottom"; PrepositionPhrase "of their library" as Complement of top; PrepositionPhrase "of their library" as Complement of bottom; readings 1
 +NounPhrase the same number and kind of counters => PrepositionPhrase "of counters" as Complement of number; PrepositionPhrase "of counters" as Complement of kind; Nominal "same number and kind of counters"; Nominal "number and kind of counters"
-+ Target artifact or creature's owner puts it on the top of their library. => Nominal "artifact or creature"; readings 1
++ Target artifact or creature's owner puts it on their choice of the top or bottom of their library. => Nominal "artifact or creature"
 + Put target creature into its owner's library second from the top. => AdjectivePhrase "second from the top" as Adjunct of put
 + The owner of target nonland permanent puts it into their library second from the top or on the bottom. => AdjectivePhrase "second from the top"; PrepositionPhrase "on the bottom"; !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
 + The owner of target creature an opponent controls puts it into their library second from the top or on the bottom. Then up to one target creature you control connives. => !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
@@ -55,7 +55,6 @@
 + You choose which creatures block this turn and how those creatures block. => Clause "which creatures block this turn"; Clause "how those creatures block"
 +NounPhrase X tokens that are copies of it and that are tapped and attacking => RelativeClause "that are copies of it"; RelativeClause "that are tapped and attacking"; readings 1
 +Clause you and/or at least one permanent you control becomes the target of a spell => NounPhrase "you and/or at least one permanent you control" as Subject of become; readings 1
-+Clause creatures and/or planeswalkers you control get +1/+1 => NounPhrase "creatures and/or planeswalkers you control" as Subject of get
 *Clause creatures and/or planeswalkers you control gets +1/+1
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
 +NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
@@ -63,14 +62,9 @@
 +Clause it doesn't untap, and at the beginning of each of your draw steps, put a counter on it => Clause "it doesn't untap"; Clause "at the beginning of each of your draw steps, put a counter on it"
 +NounPhrase up to one target artifact or creature => DeterminerPhrase "up to one target"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
 +NounPhrase up to two target artifacts and/or enchantments => DeterminerPhrase "up to two target"; Nominal "artifacts and/or enchantments"
-+NounPhrase each other target creature => DeterminerPhrase "each other target" as Determiner of creature; DeterminerPhrase "other target" head det:target; readings 1
 + As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have
-+Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
-+ Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1
 # from: Glimmer Lens
 +Clause equipped creature and at least one other creature attack => NounPhrase "equipped creature and at least one other creature" as Subject of attack; readings 1
-+ Exile them and all other creatures. => NounPhrase "them and all other creatures" as Object of exile; readings 1
-+Clause you, they, and creatures attack => NounPhrase "you, they, and creatures" as Subject of attack; readings 1
 # from: Wiitigo
 +Clause it has blocked or been blocked since your last upkeep => VerbPhrase "blocked or been blocked since your last upkeep" as Complement of have
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1

@@ -7,6 +7,4 @@
 +VerbPhrase starting with you => PrepositionPhrase "with you" as Complement of start
 +Nominal starting life total => AdjectivePhrase "starting" as Modifier of "life total"; readings 1
 +Nominal starting deck => AdjectivePhrase "starting" as Modifier of deck; readings 1
-+ During your turn, each player may pay any amount of mana. => PrepositionPhrase "During your turn" as Adjunct of may
-+ As this creature enters, each player may pay any amount of mana. => PrepositionPhrase "As this creature enters" as Adjunct of may
 +PrepositionPhrase with you => NounPhrase "you" as Complement of with

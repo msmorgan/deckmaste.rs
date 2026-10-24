@@ -7,7 +7,6 @@
 +NounPhrase two target creature cards
 +NounPhrase target nonartifact creature
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
-+NounPhrase other target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 # from: Aerial Volley
 +NounPhrase two target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase target player's graveyard => NounPhrase "target player's" as Determiner of graveyard
@@ -30,5 +29,4 @@
 +NounPhrase the only creature you control => AdjectivePhrase "only" head adj:only as Modifier of creature; DeterminerPhrase "the" as Determiner of creature; !DeterminerPhrase "only"; readings 1
 # The Targeting Marker determines its nominal above every postmodifier; no postmodifier attaches above it.
 +NounPhrase target creature you control => Nominal "creature you control"; DeterminerPhrase "target" as Determiner of creature; !Nominal "target creature"; readings 1
-+NounPhrase target creature you control or planeswalker an opponent controls => Nominal "creature you control or planeswalker an opponent controls"; !Nominal "target creature you control or planeswalker"; !Nominal "target creature you control"
 +NounPhrase up to one target artifact or enchantment that player controls => Nominal "artifact or enchantment that player controls"; !Nominal "target artifact or enchantment"
