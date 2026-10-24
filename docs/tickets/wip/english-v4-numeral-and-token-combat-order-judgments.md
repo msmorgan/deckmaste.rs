@@ -53,5 +53,5 @@ outside a named token.
   endorsed, fix the grammar rather than pinning a count that includes it.
 - If any entry fails, fix the grammar or catalog. Do not weaken the entry.
 
-Census delta: not yet measured (faces read and total Readings before → after; lost faces).
-Judgment set: not yet run.
+Census delta: none; judgments only, no grammar or catalog change, no face lost.
+Judgment set: all hold (`cargo test -p deckmaste_english_v4 --test judgments`). Added 5 numeral entries and 6 postposed token-combat entries; the prenominal order was already pinned. Vexing Puzzlebox pins `from this artifact` as Complement of remove with no count, like the sibling remove entries: the Modifier-of-counters derivation is a grammatical PP attachment ranked second, so no grammar change.

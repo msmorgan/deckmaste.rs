@@ -13,3 +13,9 @@
 + Return up to two target creature cards from your graveyard to your hand. => DeterminerPhrase "up to two target" as Determiner of card; Nominal "creature cards"
 *NounPhrase up to one target creatures
 *NounPhrase up to two target creature
+# Count nouns at one hundred and above: Oracle prints the spelled form and the digit form, and each card keeps its printed form
++ <card=Baldin, Century Herdmaster> Whenever Baldin attacks, up to one hundred target creatures each get +0/+X until end of turn, where X is the number of cards in your hand. => DeterminerPhrase "up to one hundred target" as Determiner of creature; PrepositionPhrase "up to one hundred" as Determiner of target; NounPhrase "one hundred"
++ <card=Helix Pinnacle> At the beginning of your upkeep, if there are 100 or more tower counters on this enchantment, you win the game. => NounPhrase "100 or more tower counters"; DeterminerPhrase "100 or more" as Determiner of "tower counter"
++ <card=Battle of Wits> At the beginning of your upkeep, if you have 200 or more cards in your library, you win the game. => NounPhrase "200 or more cards"; DeterminerPhrase "200 or more" as Determiner of card
++ <card=The Millennium Calendar> When there are 1,000 or more time counters on The Millennium Calendar, sacrifice it and each opponent loses 1,000 life. => NounPhrase "1,000 or more time counters"; DeterminerPhrase "1,000 or more" as Determiner of "time counter"
++ <card=Vexing Puzzlebox> {T}, Remove 100 charge counters from this artifact: Search your library for an artifact card, put that card onto the battlefield, then shuffle. => NounPhrase "100 charge counters" as Object of remove; DeterminerPhrase "100" as Determiner of "charge counter"; PrepositionPhrase "from this artifact" as Complement of remove

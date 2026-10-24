@@ -22,3 +22,7 @@
 + <card=Metzali, Tower of Triumph> {2}{W}, {T}: Choose a creature at random that attacked this turn. Destroy that creature. => NounPhrase "a creature" as Object of choose; RelativeClause "that attacked this turn" gap "creature"
 + Discard a card at random. => PrepositionPhrase "at random" as Adjunct of discard; readings 1
 + <card=Clay Champion> This creature enters with three +1/+1 counters on it for each {G}{G} spent to cast it. => NounPhrase "each {G}{G} spent to cast it" as Complement of for; Nominal "{G}{G} spent to cast it"; VerbPhrase "spent to cast it"
+# A token that is attacking or blocking, without tapped: the combat clause is a relative clause modifying the token NounPhrase
++ <card=Brimaz, King of Oreskos> Whenever Brimaz attacks, create a 1/1 white Cat Soldier creature token with vigilance that's attacking. => RelativeClause "that's attacking" as Modifier of token
++ <card=Brimaz, King of Oreskos> Whenever Brimaz blocks a creature, create a 1/1 white Cat Soldier creature token with vigilance that's blocking that creature. => RelativeClause "that's blocking that creature" as Modifier of token
++ <card=Flash Foliage> Create a 1/1 green Saproling creature token that's blocking target creature attacking you. => RelativeClause "that's blocking target creature attacking you" as Modifier of token
