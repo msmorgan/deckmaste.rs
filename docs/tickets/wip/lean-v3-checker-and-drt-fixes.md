@@ -155,6 +155,11 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   anywhere in the `doIf` (its condition included) and caller-owned arguments survive.
   The `CONTRACTS.md` no-else sentence ("its output continues when there is no else-branch") is
   unchanged until this is ruled.
+  **Owner ruling 2026-10-24: option (a).** The impl-14 ruling stands: a no-else `doIf`/`doOnlyIf`
+  branch's output continues; a two-armed `doIf` closes branch-local non-target introductions (as
+  vunkvywv does). ADR §1.3 box 2 and the `CONTRACTS.md` no-else sentence are narrowed to match.
+  **Done 2026-10-24: qyupknzq, vunkvywv, suvlwolo** (suvlwolo narrows the ADR and the
+  `CONTRACTS.md` `doIf` row's no-else sentence; no code changes for the no-else case).
 - **Foreground non-argument possessor re-mentions in `DRS.recordMention`:** When
   an existing referent is re-mentioned in a non-argument slot (`inArgSlot = false`,
   e.g. `"that creature's owner"`), update `r.clause := drs.currentClause` and
