@@ -6,3 +6,7 @@
 + <card=Legion Angel> When this creature enters, you may reveal a card you own named Legion Angel from outside the game and put it into your hand. => NounPhrase "outside the game" as Complement of from
 # The preposition, where the noun has no place: a Nominal's Modifier.
 + <card=Spawnsire of Ulamog> {20}: Cast any number of Eldrazi spells from among cards you own outside the game without paying their mana costs. => PrepositionPhrase "outside the game" head outside; !NounPhrase "outside the game"
+# A predicative is no fixed frame for the noun, which stands bare only after
+# *from* (CGEL, Ch. 5 §8.5(b), pp. 409–410): *if it's outside the game* has the
+# preposition alone.
++PrepositionPhrase if it's outside the game => PrepositionPhrase "outside the game" head outside; !NounPhrase "outside the game"; readings 1

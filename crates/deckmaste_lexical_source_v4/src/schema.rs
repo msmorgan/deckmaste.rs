@@ -112,6 +112,10 @@ pub enum FillSpec {
     /// Wall*): a metalinguistic Noun Phrase (CGEL, Ch. 5 §8.2, p. 401), only
     /// where a head's frame selects one.
     Mention,
+    /// A bare Noun Phrase in a preposition's fixed frame, its noun one that
+    /// frame alone admits bare (*from outside the game*; CGEL, Ch. 5
+    /// §8.5(b), pp. 409–410).
+    FixedFrameNP,
     Nominal,
     Amount,
     Cost,
@@ -845,4 +849,10 @@ pub enum NounDistribution {
     /// such noun: *times* heads every bounding frequency Noun Phrase and
     /// cardinal multiplier (Ch. 8 §9, p. 715).
     Serial,
+    /// A singular count noun that stands bare only in a preposition's fixed
+    /// frame, a [`FillSpec::FixedFrameNP`] Complement: the nouns that
+    /// permit it "are severely restricted" (CGEL, Ch. 5 §8.5(b),
+    /// pp. 409–410), and elsewhere it takes a determiner as any count noun
+    /// does.
+    FixedFrame,
 }

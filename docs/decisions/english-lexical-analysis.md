@@ -211,7 +211,18 @@ Settled analyses:
   *Outside the game* [CR#400.11] is a noun after *from* and as a conjunct
   beside zone nouns (*from outside the game*; *your library and/or outside
   the game*), and *outside* is the preposition where the noun has no place
-  (*cards you own [outside the game]*).
+  (*cards you own [outside the game]*, *if it's [outside the game]*). The
+  noun is count and stands bare only in *from*'s Fixed Frame (CGEL, Ch. 5
+  §8.5(b), pp. 409–410), never as a bare Noun Phrase elsewhere.
+- A colour word after a copula is the adjective (*becomes [green]*; CGEL,
+  Ch. 6, p. 538, [29i]) and also the noun converted from it (Ch. 19 §3,
+  p. 1642). These are two analyses, not one tree twice: the lexemes differ
+  (homonymy, Ch. 6 §2.4.1, pp. 536–537), and the noun's Predicative is a bare
+  non-count Noun Phrase, ascriptive or, after *be*, specifying (Ch. 4 §5.5,
+  pp. 266, 271: *the chosen color is [green]* identifies a value). Semantics
+  chooses. Bare non-count predicatives are English (*That's utter nonsense*,
+  p. 536; *The sheet is cotton*, p. 538), so no gate excludes them; one
+  would lose 76 faces that need them.
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
 - *Then* after a comma marks a Linked Coordination (Oracle English glossary):
   it is an Adjunct of its Linked Conjunct, never a Coordinator, and the

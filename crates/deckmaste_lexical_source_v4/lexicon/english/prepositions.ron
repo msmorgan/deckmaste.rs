@@ -113,9 +113,11 @@
         (complement: Mention, hosts: ComplementOnly, named_only: true),
     ]),
     // *cast spells ... from the top of your library*; *a card you own from
-    // outside the game* (a noun, `nouns.ron`); *from among them*
+    // outside the game*, a noun bare in this fixed frame (`nouns.ron`);
+    // *from among them*
     (lemma: "from", frames: [
         (complement: NP, hosts: NominalAndPredicate),
+        (complement: FixedFrameNP, hosts: NominalAndPredicate),
         (complement: PP(["among"]), hosts: NominalAndPredicate),
     ]),
     // *If you do, ...*; *attacks each combat if able*

@@ -32,3 +32,7 @@ an open `Nominal` frame on *from*. That doubled 26 units (*from combat*,
   judgments, and no face is lost.
 
 Standard constraints apply.
+
+1. **Census delta** (`onmrzunv`): faces read 32,825 → 32,825 of 32,828;
+   Readings 340,496 → 340,496; no unit changed; lost faces: none.
+2. **Judgment set**: all 3345 hold (0 pending)

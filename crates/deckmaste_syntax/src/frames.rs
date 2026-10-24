@@ -104,6 +104,10 @@ pub enum SlotFill {
     /// right*: a metalinguistic Noun Phrase (CGEL, Ch. 5 §8.2, p. 401),
     /// taken only where a head selects one.
     Mention,
+    /// A bare Noun Phrase in a preposition's fixed frame, its noun one that
+    /// frame alone admits bare (*from outside the game*; CGEL, Ch. 5
+    /// §8.5(b), pp. 409–410).
+    FixedFrameNP,
     Nominal,
     /// A numeral or variable naming how many, as in *scry 2* or *scry X*.
     Amount,
@@ -150,6 +154,7 @@ pub enum SlotKind {
     KeywordPhrase,
     QuotedAbility,
     Mention,
+    FixedFrameNP,
     Nominal,
     Amount,
     Cost,
@@ -182,6 +187,7 @@ impl SlotFill {
             Self::KeywordPhrase => SlotKind::KeywordPhrase,
             Self::QuotedAbility => SlotKind::QuotedAbility,
             Self::Mention => SlotKind::Mention,
+            Self::FixedFrameNP => SlotKind::FixedFrameNP,
             Self::Nominal => SlotKind::Nominal,
             Self::Amount => SlotKind::Amount,
             Self::Cost => SlotKind::Cost,

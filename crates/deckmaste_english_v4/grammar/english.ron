@@ -62,7 +62,7 @@
         // term Measure Noun Phrase; *get* selects it as its Object by frame),
         // and a quoted ability is the granted ability of [CR#113.1a],
         // which only a Nominal-hosted *with* takes, beside *has* and *gain*.
-        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Cost", "Intransitive", "AmountOrNP"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "FixedFrameNP", "Cost", "Intransitive", "AmountOrNP"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
         "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "ExpandableClause", "SetOffClause", "VerblessClause", "AbsoluteClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Mention", "Cost", "Intransitive", "AmountOrNP"],
         // `Quantity` has one holder, *number*: the number-transparent
@@ -74,7 +74,7 @@
         // bounding frequency Noun Phrase has *times* as its head (*three
         // times*; CGEL, Ch. 8 §9, p. 715), and so does a cardinal multiplier
         // (*three times X*; Ch. 5 §12, p. 434).
-        "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial"],
+        "NounDistribution": ["Ordinary", "Quantity", "DirectMeasure", "HeadOnly", "Serial", "FixedFrame"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // `Manner` has one holder, *way*, the only Oracle noun that is a
         // Manner Adjunct without a governing preposition (*do it this way*;
@@ -258,6 +258,9 @@
         // A compound locative determinative, which a Preposition Phrase may
         // postmodify (*anywhere else*).
         "LocativeHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        // A bare Noun Phrase in a preposition's fixed frame (*from outside
+        // the game*), its noun one the frame alone admits bare.
+        "FixedFrameNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A Noun Phrase's DeterminativeDistribution is its determiner's: an
         // *and*-coordination of distributive ones is singular (*each dog and
         // each cat has*; CGEL, Ch. 5 §18.4, p. 508).
@@ -647,6 +650,7 @@
         AdjP: "AdjectivePhrase",
         AdvP: "Adverbial",
         LocativeNP: "LocativeHead",
+        FixedFrameNP: "FixedFrameNounPhrase",
         Position: "PositionPhrase",
         MeasureNP: "MeasureNounPhrase",
         KeywordPhrase: "KeywordPhrase",
@@ -1820,6 +1824,13 @@
         (name: "SuperlativeQuantifierFusedHead", lhs: "BareNominalComplement", rhs: [Class("head", "CountSuperlativeQuantifier")]),
         (name: "SuperlativeFusedHead", lhs: "BareNominalComplement", rhs: [Cat("modifier", "AdjectivePhrase")], equations: [Carry("modifier.Grade", "Superlative"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         // Noun phrases.
+        // A singular count noun stands bare in a fixed frame only when the
+        // noun is one that frame admits; the nouns that do "are severely
+        // restricted" (CGEL, Ch. 5 §8.5(b), pp. 409–410), so the frame, not
+        // the noun, licenses the missing determiner: *from outside the game*,
+        // never *if it's [outside the game]* with the noun.
+        (name: "FixedFrameBareNoun", lhs: "FixedFrameNounPhrase", rhs: [Cat("head", "Nominal")],
+            equations: [Require("head.NounDistribution", "FixedFrame"), Require("head.Number", "Singular"), Require("head.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third")],
             transparent: ["head"]),

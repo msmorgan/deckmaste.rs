@@ -707,6 +707,11 @@ below the level of Determiner selection.
 A Noun Phrase formed from a Nominal without a Determiner (CGEL, Ch. 5 §4,
 p. 355).
 
+**Fixed Frame**:
+A Preposition with which a singular count noun stands bare, though elsewhere
+the noun takes a Determiner (*to hand*; *from outside the game*). The nouns a
+frame admits are few and listed (CGEL, Ch. 5 §8.5(b), pp. 409–410).
+
 **Compound Noun**:
 A noun Lexeme formed from two or more bases, as in *charge counter*, whose
 constituents form a lexical unit (CGEL, Ch. 5 §14.4, pp. 448–451).

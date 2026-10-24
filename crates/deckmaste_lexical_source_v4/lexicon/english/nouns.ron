@@ -185,12 +185,13 @@
     // A zone name [CR#408.1]; `command` occurs in no other sense.
     "command zone",
     "life total",
-    // Where an object in none of the game's zones is [CR#400.11]: a noun as
-    // the Complement of *from*, a bare mass Noun Phrase (*from outside the
-    // game*), and as a count conjunct beside zone nouns under their
-    // determiner (*your library and/or outside the game*). Elsewhere
-    // *outside* is the preposition (*cards you own outside the game*).
-    (lemma: "outside the game", countability: [Count, Mass]),
+    // Where an object in none of the game's zones is [CR#400.11]: a noun
+    // bare only in *from*'s fixed frame (*from outside the game*; CGEL,
+    // Ch. 5 §8.5(b), pp. 409–410), and a count conjunct beside zone nouns
+    // under their determiner (*your library and/or outside the game*).
+    // Elsewhere *outside* is the preposition (*cards you own outside the
+    // game*, *if it's outside the game*).
+    (lemma: "outside the game", distribution: FixedFrame),
     (lemma: "mana cost", countability: [Count, Mass], frames: [Complement(PP(["for", "of"])), Complement(Cost)]),
     (lemma: "mana value", countability: [Count, Mass], frames: [Complement(Amount)]),
     // [CR#103.6]; `opening` occurs in no other sense.
