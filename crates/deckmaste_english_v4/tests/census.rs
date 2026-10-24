@@ -245,3 +245,26 @@ fn a_unit_counts_its_segments_and_their_surplus() {
         report.units.iter().map(|u| u.surplus).sum::<u128>()
     );
 }
+
+#[test]
+fn a_declined_unit_is_counted_as_declined_not_unread() {
+    let env = LexicalEnvironment {
+        lexicon: seed::lexicon(),
+        frames: seed::frames(),
+    };
+    let (name, text) = *deckmaste_english_v4::census::declined()
+        .iter()
+        .find(|(name, _)| *name == "Soul Echo")
+        .expect("Soul Echo is declined");
+    let mut corpus = Corpus::default();
+    let mut declined_face = face("soul", text);
+    declined_face.name = name.to_owned();
+    declined_face.type_line = None;
+    corpus.push(declined_face);
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let rows = |f: fn(&deckmaste_english_v4::census::StratumRow) -> usize| -> usize {
+        report.strata.iter().map(f).sum()
+    };
+    assert_eq!(rows(|r| r.declined), 1);
+    assert_eq!(rows(|r| r.unread), 0);
+}

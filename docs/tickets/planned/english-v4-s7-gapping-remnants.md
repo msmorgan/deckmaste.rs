@@ -28,6 +28,7 @@ face below needs a construction beyond those, or a ruling.
   ..., ...*): Clusters whose later Objects elide the keyword head *protection*
   and keep its parameter (the same note 65 analysis, the elided element a
   keyword head).
+  Note: Complement Clusters (change `yltzvnpt`, recursive clusters that may end in an Adjunct) are sequences of a *verb's* Complements; today clusters share a verb, not a noun's complement frame. The likely route is to extend them so the clusters [from COLOR] [if you control a LAND] share the noun *protection* (or *gain protection*). Check whether a cluster can share a noun's frame before choosing. Dominaria's Judgment stays deferred and in scope; it is not declined.
 - **Akroma, Vision of Ixidor; Selective Adaptation**: the idiomatic coordinate
   *and so on* (CGEL, Ch. 17 §7.7.3(e), p. 1540), here with a *for*-phrase
   naming the rest (*and so on for double strike, ..., and partner*); *so on*
@@ -43,7 +44,7 @@ face below needs a construction beyond those, or a ruling.
   the game*): an Object and a locative Adjunct coordinated. CGEL, Ch. 15 §3.1,
   p. 1323, [4i] rules out coordinating an Object with an Adjunct (*He left
   this morning and the room*); this face needs a ruling before any
-  construction.
+  construction. Note: treat *outside the game* ([CR#400.11]) as a compound zone noun in the lexicon. Then *search your library, graveyard, and/or outside the game* is a plain noun-phrase coordination, and *from outside the game* is *from* + noun phrase. The compound must replace the current preposition analysis of *outside*, not add a second tree beside it.
 - **Aang, Master of Elements** (*you gain 4 life, draw four cards, put four
   +1/+1 counters on him, and he deals 4 damage to each opponent*): coordination
   at unlike levels, two Verb Phrases between Clauses, the medial coordinates
