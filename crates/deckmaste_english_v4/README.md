@@ -346,7 +346,12 @@ Complement Clusters end in an optional Adjunct, and any number coordinate
 after their shared verb, parallel by frame shape (*has lifelink if you control
 a Cleric, deathtouch if you control a Rogue, ..., and flying if you control a
 Wizard*; *has trample as long as ..., and "{B}: Regenerate this creature" as
-long as ...*). A main Clause may take a qualifying added element after *but*
+long as ...*). A later Cluster may elide the keyword that heads the initial
+Cluster's Object and keep its parameters (*gain protection from white if you
+control a Plains, from blue if you control an Island, ...*). A declarative
+and an imperative that opens with a fronted dependent coordinate without a
+comma (*that creature can't be regenerated this turn and if it would die this
+turn, exile it instead*). A main Clause may take a qualifying added element after *but*
 or *and*, a fragment of Adjuncts focused by *only* or *not* (*Any player may
 activate this ability but only as a sorcery*). *But* joins a Noun Phrase or a
 Preposition Phrase to a *not*-modified one (*life equal to the damage dealt,

@@ -12,8 +12,7 @@ Crabomination | When this creature enters, target opponent exiles the top card o
 Teferi's Realm | At the beginning of each player's upkeep, that player chooses artifact, creature, land, or non-Aura enchantment. All nontoken permanents of that type phase out.
 Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blue Camarid, black Thrull, red Goblin, or green Saproling.
 
-# english-v4-s7-gapping-remnants
-Dominaria's Judgment | Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest.
+# english-v4-s7-gapping-remnants-rest
 Akroma, Vision of Ixidor | At the beginning of each combat, until end of turn, each other creature you control gets +1/+1 if it has flying, +1/+1 if it has first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, vigilance, and partner.
 Selective Adaptation | Reveal the top seven cards of your library. Choose from among them a card with flying, a card with first strike, and so on for double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, reach, trample, and vigilance. Put one of the chosen cards onto the battlefield, the other chosen cards into your hand, and the rest into your graveyard.
 Hearth Elemental | This spell costs {X} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure.
@@ -23,7 +22,6 @@ Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/
 Invasion of Arcavios | When this Siege enters, search your library, graveyard, and/or outside the game for an instant or sorcery card you own, reveal it, and put it into your hand. If you search your library this way, shuffle.
 Kosei, Penitent Warlord | As long as Kosei is enchanted, equipped, and has a counter on it, Kosei has "Whenever Kosei deals combat damage to an opponent, you draw that many cards and Kosei deals that much damage to each other opponent."
 Aang, Master of Elements | At the beginning of each upkeep, you may transform Aang, Master of Elements. If you do, you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage to each opponent.
-Scorching Lava | Scorching Lava deals 2 damage to any target. If this spell was kicked, that creature can't be regenerated this turn and if it would die this turn, exile it instead.
 
 # english-v4-s7-long-tail-edge-cases
 Collective Voyage | Join forces — Starting with you, each player may pay any amount of mana. Each player searches their library for up to X basic land cards, where X is the total amount of mana paid this way, puts them onto the battlefield tapped, then shuffles.

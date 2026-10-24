@@ -74,3 +74,22 @@ Per `docs/tickets/README.md`, end the ticket with the two landing lines.
 - Invasion of Arcavios: the *outside the game* compound noun is right.
 - Dominaria's Judgment: extend clusters under *gain protection* narrowly.
 - Dralnu's Pet: coordinate *with* + KeywordPhrase with *with* + NP only when explicitly coordinated, never as a general Predicate host (+400 units otherwise).
+
+## Outcome
+
+Landed: Complement Cluster remnants. A Cluster after the initial one may fill
+its first Slot with a phrase whose head is elided, the head of the initial
+Cluster's first Slot (CGEL, Ch. 15 §4.3, p. 1343, note 65); a keyword's
+parameter pattern that begins with its head derives such a remnant
+(`ParameterRemnant`), so Dominaria's Judgment reads *gain [protection from
+white if ...], [from blue if ...], ..., and [from green if ...]*. The engine
+matches the elided head against the initial Cluster's (*hexproof from ...*
+takes the same parameters and is not recovered), and an initial Cluster is
+never a remnant. A declarative and an imperative carrying a fronted dependent
+coordinate without a comma (Scorching Lava; CGEL, Ch. 20 §3.2.1, p. 1739).
+The rest moved to `english-v4-s7-gapping-remnants-rest`, with their analyses
+re-triaged: the *outside the game* compound-noun note does not survive the
+corpus (*outside* is a preposition in every other use).
+
+1. **Census delta** (measured on `znmzqpzo`): faces read 32,787 → 32,789 (+2: Dominaria's Judgment, Scorching Lava); total Readings (derivation product) 337,096 → 338,000 (+0.27%), Surplus 141,713 → 142,615; lost faces: none.
+2. **Judgment set**: `tests/judgments.rs` passes (6 of 6); the two new entries hold, and the census reports 0 known-wrong-only.
