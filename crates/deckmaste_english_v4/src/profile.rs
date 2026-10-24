@@ -187,6 +187,10 @@ struct Alt<'e> {
     frames: &'e [Frame],
     /// Its declared Complement frames, for a preposition.
     preposition_frames: &'e [PrepositionFrame],
+    /// A verb whose lemma the lexicon also declares as an auxiliary
+    /// (`VerbKind: Auxiliary`): the auxiliaries themselves, and main-verb
+    /// *do*, which this stratum reads with the auxiliary *do* of *don't*.
+    auxiliary: bool,
 }
 
 /// One token of a unit.
@@ -331,12 +335,26 @@ pub struct Profile {
 /// Profiles units against one lexical environment.
 pub struct Profiler<'e> {
     env: &'e LexicalEnvironment,
+    /// The lemmas of the lexicon's auxiliary verbs.
+    auxiliaries: BTreeSet<&'e str>,
 }
 
 impl<'e> Profiler<'e> {
     #[must_use]
     pub fn new(env: &'e LexicalEnvironment) -> Self {
-        Self { env }
+        let verb_kind = Ident::new("VerbKind");
+        let auxiliary = Ident::new("Auxiliary");
+        let auxiliaries = env
+            .lexicon
+            .lexemes()
+            .values()
+            .filter(|l| {
+                l.category == Category::Verb
+                    && l.properties.features.get(&verb_kind) == Some(&auxiliary)
+            })
+            .map(|l| l.lemma.as_str())
+            .collect();
+        Self { env, auxiliaries }
     }
 
     /// The Profile of one unit, given its lexical analysis.
@@ -414,9 +432,14 @@ impl<'e> Profiler<'e> {
                             LexicalReading::Word(v) => Some(&v.lexeme),
                             _ => None,
                         };
+                        let lexeme = id.and_then(|id| lexemes.get(id));
                         Alt {
                             class: Class::of(&m.reading),
-                            lexeme: id.and_then(|id| lexemes.get(id)),
+                            lexeme,
+                            auxiliary: lexeme.is_some_and(|l| {
+                                l.category == Category::Verb
+                                    && self.auxiliaries.contains(l.lemma.as_str())
+                            }),
                             frames: id
                                 .and_then(|id| catalog.frames.get(id))
                                 .map_or(&[], Vec::as_slice),
@@ -810,15 +833,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         if t.has(Category::Clitic) && !contraction {
             continue;
         }
-        let auxiliary = t.alts().iter().any(|a| {
-            a.class == Class::Core
-                && a.lexeme.is_some_and(|l| {
-                    l.category == Category::Verb
-                        // Main-verb *do* is lexical (verbs.ron), but this stratum
-                        // reads it with the auxiliaries.
-                        && (l.source.path.ends_with("closed_class.ron") || l.lemma == "do")
-                })
-        });
+        let auxiliary = t.alts().iter().any(|a| a.class == Class::Core && a.auxiliary);
         let bare_verb = |n: &Tok<'_>, form: WordForm| {
             n.verb_form(&[form]) && !n.has(Category::Noun) && !n.has(Category::Adjective)
         };
