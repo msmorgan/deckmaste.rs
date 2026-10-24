@@ -23,3 +23,7 @@
 # Object and an Adjunct do not coordinate with an Object and a selected
 # Complement (CGEL, Ch. 15 §4.3, p. 1341, [17ii]).
 + Put one of them into your hand and the rest into your graveyard. => ComplementCluster "one of them into your hand"; ComplementCluster "the rest into your graveyard"; NounPhrase "the rest" as Object of put; PrepositionPhrase "into your graveyard" as Complement of put; readings 1
+# A later Cluster's Object may be a remnant, its keyword head elided and
+# recovered from the initial Cluster's Object (CGEL, Ch. 15 §4.3, p. 1343,
+# note 65: *We'll be in Paris for a week and Bonn for three days*).
++ Until end of turn, creatures you control gain protection from white if you control a Plains, from blue if you control an Island, from black if you control a Swamp, from red if you control a Mountain, and from green if you control a Forest. => ComplementCluster "protection from white if you control a Plains"; ComplementCluster "from blue if you control an Island"; ComplementCluster "from green if you control a Forest"; KeywordPhrase "protection from white" as Object of gain; ParameterRemnant "from blue" as Object of gain; PredicateAdjunct "if you control an Island" as Adjunct of gain; ParameterRemnant "from green" as Object of gain

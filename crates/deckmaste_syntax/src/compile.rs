@@ -20,6 +20,7 @@ use crate::frames::PrepositionFrame;
 use crate::frames::SlotFill;
 use crate::frames::SlotKind;
 use crate::frames::SlotRelation;
+use crate::grammar::ClustersDecl;
 use crate::grammar::Equation;
 use crate::grammar::Grammar;
 use crate::grammar::HostKind;
@@ -307,6 +308,8 @@ struct Draft {
     /// The child that must be a coordination of Complement Clusters of this
     /// frame (`Production::clusters`).
     clusters: Option<(usize, usize)>,
+    /// Its part in Complement Cluster remnants (`Production::remnant`).
+    remnant: crate::step::RemnantRole,
 }
 
 /// What a Valence schema declares its derived phrases carry, beyond their
@@ -388,6 +391,7 @@ impl Draft {
             link: None,
             cluster: None,
             clusters: None,
+            remnant: crate::step::RemnantRole::None,
         }
     }
 
@@ -993,7 +997,12 @@ impl<'a> Binder<'a> {
 
     /// Closes child `name` of Production `id` to a trailing Adjunct of each of
     /// `categories`, through its edge line.
-    fn unadjoined(&mut self, id: Ident, name: &Ident, categories: &[Ident]) -> Result<(), LoadError> {
+    fn unadjoined(
+        &mut self,
+        id: Ident,
+        name: &Ident,
+        categories: &[Ident],
+    ) -> Result<(), LoadError> {
         let context = |e: &str| invalid(format!("production `{id}`: unadjoined `{name}` {e}"));
         let index = *self
             .out
@@ -1014,7 +1023,9 @@ impl<'a> Binder<'a> {
                 .map_err(|_| context("names a Category past the index range"))?;
             closed.push(category);
         }
-        self.out.unadjoined_categories.extend(closed.iter().copied());
+        self.out
+            .unadjoined_categories
+            .extend(closed.iter().copied());
         self.out.productions[index].unadjoined = Some((at, closed));
         Ok(())
     }
@@ -1729,6 +1740,7 @@ impl<'a> Binder<'a> {
         production.clusters = draft
             .clusters
             .map(|(at, frame)| (at, u16::try_from(frame).expect("frame index fits")));
+        production.remnant = draft.remnant;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -1830,7 +1842,14 @@ impl<'a> Binder<'a> {
                 phrase,
                 binding,
                 coordinators,
-            } => self.parameters(*head, phrase, *binding, coordinators.as_deref()),
+                remnant,
+            } => self.parameters(
+                *head,
+                phrase,
+                *binding,
+                coordinators.as_deref(),
+                remnant.as_deref(),
+            ),
             SchemaDecl::Valence {
                 head,
                 phrase,
@@ -1860,15 +1879,7 @@ impl<'a> Binder<'a> {
                 self.slot_agreement(phrase, &mut drafts, agree)?;
                 let mut clustered = Vec::new();
                 if let Some(decl) = clusters {
-                    let categories = ClusterCategories {
-                        cluster: self.category(&decl.cluster)?,
-                        coordination: self.category(&decl.coordination)?,
-                        adjunct: decl
-                            .adjunct
-                            .as_deref()
-                            .map(|a| self.category(a))
-                            .transpose()?,
-                    };
+                    let categories = self.cluster_categories(decl)?;
                     for draft in &drafts {
                         clustered.extend(complement_clusters(draft, &categories));
                     }
@@ -2126,16 +2137,36 @@ impl<'a> Binder<'a> {
         category
     }
 
+    /// The Categories a `clusters` declaration names.
+    fn cluster_categories(&self, decl: &ClustersDecl) -> Result<ClusterCategories, LoadError> {
+        Ok(ClusterCategories {
+            cluster: self.category(&decl.cluster)?,
+            coordination: self.category(&decl.coordination)?,
+            adjunct: decl
+                .adjunct
+                .as_deref()
+                .map(|a| self.category(a))
+                .transpose()?,
+            remnants: decl
+                .remnants
+                .iter()
+                .map(|(kind, remnant)| Ok((self.slot_category(*kind)?, self.category(remnant)?)))
+                .collect::<Result<_, LoadError>>()?,
+        })
+    }
+
     fn parameters(
         &mut self,
         head: LexicalCategory,
         phrase: &str,
         binding: Option<Binding>,
         coordinators: Option<&str>,
+        remnant: Option<&str>,
     ) -> Result<Vec<Draft>, LoadError> {
         use crate::frames::ParameterPart;
         let coordinator = coordinators.map(|c| self.coordinator_test(c)).transpose()?;
         let lhs = self.category(phrase)?;
+        let remnant = remnant.map(|r| self.category(r)).transpose()?;
         let mut drafts = Vec::new();
         for (id, patterns) in &self.catalog.parameters {
             let facts =
@@ -2256,6 +2287,21 @@ impl<'a> Binder<'a> {
                     .iter()
                     .filter(|part| !matches!(part, ParameterPart::Feature(..)))
                     .collect();
+                // A pattern that begins with its head and has more after it
+                // also stands without the head, as a Complement Cluster's
+                // remnant (`grammar::ClustersDecl::remnants`).
+                if let Some(remnant) = remnant
+                    && draft.children.len() > 1
+                    && draft.children[0].name == "head"
+                {
+                    let mut elided = Draft::new(format!("{}/remnant", draft.id), remnant, 0);
+                    for child in &draft.children[1..] {
+                        elided.child(child.name.as_ref(), child.symbol.clone(), GapRule::Closed);
+                    }
+                    elided.remnant = crate::step::RemnantRole::Elides(*id);
+                    draft.remnant = crate::step::RemnantRole::SharesHead;
+                    drafts.push(elided);
+                }
                 if let (Some(coordinator), [.., ParameterPart::Word(_), ParameterPart::Slot(_)]) =
                     (&coordinator, structural.as_slice())
                 {
@@ -3748,6 +3794,8 @@ struct ClusterCategories {
     cluster: usize,
     coordination: usize,
     adjunct: Option<usize>,
+    /// (Slot Category, remnant Category) pairs (`ClustersDecl::remnants`).
+    remnants: Vec<(usize, usize)>,
 }
 
 /// An active phrase's Complement Clusters (right nonce-constituent
@@ -3784,26 +3832,59 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
         prepositions: None,
         host: None,
     };
+    // A later Cluster's first Slot may be a remnant, its head elided.
+    let first_slot = match &draft.children[1].symbol {
+        Symbol::Cat { category, .. } => Some(*category),
+        _ => None,
+    };
+    let remnants: Vec<Option<(usize, usize)>> = std::iter::once(None)
+        .chain(
+            categories
+                .remnants
+                .iter()
+                .enumerate()
+                .filter(|(_, (slot, _))| Some(*slot) == first_slot)
+                .map(|(n, &(_, remnant))| Some((n, remnant))),
+        )
+        .collect();
+    // An equation, exclusion or weight on a remnant's Slot stays with the
+    // phrase it stands for.
+    let kept =
+        |remnant: Option<usize>, p: &Path| remnant.is_none() || !matches!(p, Path::Child(1, _));
     let mut out = Vec::new();
     let adjuncts = [Some(None), categories.adjunct.map(Some)];
-    for adjunct in adjuncts.into_iter().flatten() {
+    for (adjunct, remnant) in adjuncts
+        .into_iter()
+        .flatten()
+        .flat_map(|a| remnants.iter().map(move |&r| (a, r)))
+    {
         if adjunct.is_none() && slots < 2 {
             continue;
         }
         let tag = if adjunct.is_some() { "cluster+adjunct" } else { "cluster" };
-        let mut cluster = Draft::new(format!("{}/{tag}", draft.id), categories.cluster, 0);
-        for child in &draft.children[1..] {
-            cluster.child(child.name.as_ref(), child.symbol.clone(), GapRule::Closed);
+        let id = match remnant {
+            Some((0, _)) => format!("{}/{tag}/remnant", draft.id),
+            Some((n, _)) => format!("{}/{tag}/remnant{n}", draft.id),
+            None => format!("{}/{tag}", draft.id),
+        };
+        let remnant = remnant.map(|(_, category)| category);
+        let mut cluster = Draft::new(id, categories.cluster, 0);
+        for (i, child) in draft.children[1..].iter().enumerate() {
+            let symbol = match remnant {
+                Some(category) if i == 0 => symbol(category),
+                _ => child.symbol.clone(),
+            };
+            cluster.child(child.name.as_ref(), symbol, GapRule::Closed);
         }
         if let Some(category) = adjunct {
             cluster.child("adjunct", symbol(category), GapRule::Closed);
         }
         for (path, target) in &draft.equations {
             let target_on_slot = match target {
-                Target::Path(t) => on_slot(t),
+                Target::Path(t) => on_slot(t) && kept(remnant, t),
                 Target::Value(_) => true,
             };
-            if on_slot(path) && target_on_slot {
+            if on_slot(path) && kept(remnant, path) && target_on_slot {
                 let target = match target {
                     Target::Path(t) => Target::Path(into_cluster(*t)),
                     value @ Target::Value(_) => value.clone(),
@@ -3818,7 +3899,7 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
             list.extend(
                 original
                     .iter()
-                    .filter(|(i, ..)| *i > 0)
+                    .filter(|(i, ..)| *i > 0 && (remnant.is_none() || *i > 1))
                     .map(|&(i, f, v)| (i - 1, f, v)),
             );
         }
@@ -3826,7 +3907,7 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
             draft
                 .weights
                 .iter()
-                .filter(|(i, _)| *i > 0)
+                .filter(|(i, _)| *i > 0 && (remnant.is_none() || *i > 1))
                 .map(|&(i, w)| (i - 1, w)),
         );
         cluster.cluster = Some(frame);

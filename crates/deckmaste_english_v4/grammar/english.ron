@@ -354,6 +354,12 @@
         // pp. 1341–1343), whose coordination bears no function (p. 1343).
         "ComplementCluster": (),
         "ClusterCoordination": (category: Some("ComplementCluster")),
+        // A keyword's parameters without the keyword: a later Cluster's
+        // remnant, the keyword elided as the initial Cluster's Object head
+        // (*gain protection from white if ..., [from blue] if ...*; CGEL,
+        // Ch. 15 §4.3, p. 1343, note 65: *We'll be in Paris for a week and
+        // Bonn for three days*, *in* elided).
+        "ParameterRemnant": (),
         "ClauseFragment": (),
         "QualifyingFragment": (),
         // Coordinates joined by *but* that contrast as positive and negative,
@@ -2109,7 +2115,7 @@
         Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple],
             equations: [(PastParticiple, [Exclude("head.AdjectivalPassive", "Lexical")])]),
         Parameters(head: Noun, phrase: "IndexedNominal"),
-        Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator")),
+        Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator"), remnant: Some("ParameterRemnant")),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
         // The Internalised Complement is *by* plus a Noun Phrase, the
         // active's Subject (CGEL, Ch. 16 §10.1.1, p. 1428). An amount, a
@@ -2133,7 +2139,7 @@
             adjectival: Some("AdjectivePhrase"),
             adjectival_passive: [Require("head.VerbForm", "PastParticiple"), Require("$.AdjectivePosition", "Predicative"), Require("$.Voice", "Passive"), Exclude("head.AdjectivalPassive", "Lexical"), Exclude("head.VerbKind", "Auxiliary")],
             interleaved: Some("Interleaved"), interleaved_internalised: Some("InternalisedInterleaved"), heavy_shift: true, postposed: Some("PostposedModifier"),
-            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct")))),
+            clusters: Some((cluster: "ComplementCluster", coordination: "ClusterCoordination", adjunct: Some("PredicateAdjunct"), remnants: [(KeywordPhrase, "ParameterRemnant")]))),
         // A non-verbal phrase names its first Complement's Slot Kind, or
         // `Intransitive` without one.
         Valence(head: Preposition, phrase: "PrepositionPhrase", complement_kind: Some("ComplementKind"), agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
@@ -2259,6 +2265,12 @@
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        // The comma between coordinated main clauses may be omitted (CGEL,
+        // Ch. 20 §3.2.1, p. 1739), as older Oracle text omits it before an
+        // imperative that opens with a fronted dependent, which no Verb
+        // Phrase coordinate could hold (*that creature can't be regenerated
+        // this turn and if it would die this turn, exile it instead*).
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm", "FrontPosition"], equations: [Agree("$.FrontPosition", "first.FrontPosition"), Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Carry("last.FrontPosition", "Occupied"), Require("$.VerbForm", "Plain")], serial: Some(false)),
         // *But* coordinates clauses of like or mixed moods as the Coordinator
         // does, a binary coordination (*Discard it, but you may put it on top
         // of your library*; CGEL, Ch. 15 §3.5, pp. 1332–1333).

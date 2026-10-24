@@ -302,6 +302,14 @@ pub struct ClustersDecl {
     /// The Category of the Adjunct that may end a Cluster.
     #[serde(default)]
     pub adjunct: Option<Ident>,
+    /// Remnant Categories by Slot Kind: a Cluster after the first may fill
+    /// its first Slot, of that kind, with a phrase of the Category whose head
+    /// is elided, the head of the first Cluster's first Slot, shared with the
+    /// verb on the left (*We'll be in Paris for a week and Bonn for three
+    /// days*, *in* elided; CGEL, Ch. 15 §4.3, p. 1343, note 65). A schema
+    /// declares the remnant phrases (`SchemaDecl::Parameters::remnant`).
+    #[serde(default)]
+    pub remnants: Vec<(SlotKind, Ident)>,
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
@@ -332,6 +340,11 @@ pub enum SchemaDecl {
         /// with its marker (*protection from black and from red*).
         #[serde(default)]
         coordinators: Option<Ident>,
+        /// The Category of each pattern's phrase without the head it begins
+        /// with: a Complement Cluster's remnant, its head elided
+        /// (`ClustersDecl::remnants`).
+        #[serde(default)]
+        remnant: Option<Ident>,
     },
     /// Frame-driven phrases headed by every lexeme of a lexical Category.
     Valence {

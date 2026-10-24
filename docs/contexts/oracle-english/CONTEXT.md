@@ -1232,7 +1232,10 @@ control a Cleric and deathtouch if you control a Rogue*: right
 nonce-constituent coordination (CGEL, Ch. 15 §4.3, pp. 1341–1343). The
 sequences are parallel in function: each holds the same functions in the same
 order. A single Complement is a Cluster only with its Adjunct. Each dependent
-keeps its own function within its Conjunct.
+keeps its own function within its Conjunct. A Cluster after the first may
+open with a remnant, a Complement whose head is elided, recovered from the
+first Cluster (*gain protection from white if ..., from blue if ...*; CGEL,
+Ch. 15 §4.3, p. 1343, note 65).
 _Avoid_: gapping, which elides the verb from a second Clause
 
 **End-attachment Coordination**:

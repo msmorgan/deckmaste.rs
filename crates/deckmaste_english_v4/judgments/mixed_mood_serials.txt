@@ -14,3 +14,6 @@
 +Clause you reveal a card, it deals damage, then you draw a card => readings 1
 # Like-mood Clauses coordinate in their own schema: one tree.
 +Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => readings 1
+# A declarative and then an imperative opening with a fronted dependent, the
+# comma between the clauses omitted (CGEL, Ch. 20 §3.2.1, p. 1739).
++ Scorching Lava deals 2 damage to any target. If this spell was kicked, that creature can't be regenerated this turn and if it would die this turn, exile it instead. => Clause "that creature can't be regenerated this turn"; Clause "if it would die this turn, exile it instead"

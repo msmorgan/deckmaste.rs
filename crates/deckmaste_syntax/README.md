@@ -164,7 +164,15 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   the head's, and the head declares any other (a keyword phrase and a quoted
   ability are each the Object of *has*). The coordination is the child
   `clusters`, with no function; each dependent in a Cluster bears its own in
-  the verb's phrase too (`Constituent::also`).
+  the verb's phrase too (`Constituent::also`). With `remnants`, a Cluster
+  after the initial one may fill its first Slot with a remnant, a phrase whose
+  head is elided: the head of the initial Cluster's first Slot, shared with
+  the verb on the left (*gain protection from white if ..., [from blue] if
+  ...*; CGEL, Ch. 15 §4.3, p. 1343, note 65). A `Parameters` schema with
+  `remnant` derives each pattern that begins with its head again without it,
+  in that Category; the phrase with the head records it
+  (`Summary::shared_head`) and the remnant the head it elides
+  (`Summary::remnant`), which must be the initial Cluster's.
   A `MeasureNP` slot is a Monotransitive Object filled by the grammar's
   measure Noun Phrase Category, which no `NP` slot accepts (*gets +2/+2*, but
   not *draw 2/2*); like a keyword-phrase Object it derives no passive.

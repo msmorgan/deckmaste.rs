@@ -297,11 +297,25 @@ pub(crate) struct Production {
     /// The child that must be a coordination of Complement Clusters of this
     /// frame, the head's (`grammar::ClustersDecl`).
     pub clusters: Option<(usize, u16)>,
+    /// Its part in Complement Cluster remnants (`grammar::ClustersDecl`).
+    pub remnant: RemnantRole,
     /// The State before any child, its variables bound to their constants.
     start: State,
 }
 
 pub(crate) type Key = (Option<usize>, usize);
+
+/// A Production's part in Complement Cluster remnants
+/// (`grammar::ClustersDecl::remnants`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RemnantRole {
+    None,
+    /// Its lexical head may be elided from a later Cluster's remnant
+    /// (`Summary::shared_head`).
+    SharesHead,
+    /// It is a remnant, this head elided (`Summary::remnant`).
+    Elides(LexemeId),
+}
 
 /// Builds a Production from resolved equations by unifying paths into
 /// variables.
@@ -465,6 +479,7 @@ pub(crate) fn resolve(
         link: None,
         cluster: None,
         clusters: None,
+        remnant: RemnantRole::None,
         id,
         lhs,
         rhs,
@@ -522,6 +537,10 @@ pub(crate) fn resolve(
             headed_link: None,
             cluster: None,
             head_lexeme: None,
+            remnant: None,
+            shared_head: None,
+            remnant_seen: false,
+            remnant_anchor: None,
         },
     })
 }
@@ -672,6 +691,15 @@ pub(crate) struct Summary {
     /// the head must declare it too (*has trample ..., and "{B}: Regenerate
     /// this creature" ...*).
     pub cluster_other: u16,
+    /// The head elided from the Complement Cluster remnant it is or begins
+    /// with, or that every Cluster of a serial tail's remnants elides
+    /// (`grammar::ClustersDecl::remnants`): a Cluster after the first may
+    /// begin with a remnant only of the head of the initial Cluster's first
+    /// Slot (CGEL, Ch. 15 §4.3, p. 1343, note 65).
+    pub remnant: Option<LexemeId>,
+    /// The lexical head of a phrase a later Cluster's remnant may elide,
+    /// through its head line (`RemnantRole::SharesHead`).
+    pub shared_head: Option<LexemeId>,
 }
 
 /// A lexical leaf as a child sees it.
@@ -774,6 +802,16 @@ pub(crate) struct State {
     /// The lexeme of the lexical `head` child of a Production that requires
     /// a coordination of Complement Clusters (`Production::clusters`).
     head_lexeme: Option<LexemeId>,
+    /// The head elided from the remnant it is or begins with
+    /// (`Summary::remnant`).
+    remnant: Option<LexemeId>,
+    /// `Summary::shared_head` so far.
+    shared_head: Option<LexemeId>,
+    /// A coordination's initial conjunct has been taken (`remnant_anchor`).
+    remnant_seen: bool,
+    /// The `Summary::shared_head` of a coordination's initial conjunct that
+    /// is no remnant (`Summary::remnant`).
+    remnant_anchor: Option<LexemeId>,
 }
 
 impl Production {
@@ -1061,6 +1099,60 @@ impl Production {
             });
         }
         Some(())
+    }
+
+    /// The remnant facts of the phrase so far (`Summary::remnant`,
+    /// `Summary::shared_head`), or `None` if the child is a remnant that
+    /// begins a coordination, or elides another head than the initial
+    /// conjunct's.
+    fn track_remnant(
+        &self,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        let (remnant, shared) = match child {
+            ChildView::Node(summary) => (summary.remnant, summary.shared_head),
+            ChildView::Leaf(leaf) => (None, leaf.lexeme),
+            ChildView::Punct => return Some(()),
+        };
+        if self.remnant == RemnantRole::SharesHead && self.head == Some(position) {
+            next.shared_head = shared;
+            return Some(());
+        }
+        if self.cluster.is_some() {
+            if position == 0 {
+                next.remnant = remnant;
+                next.shared_head = shared;
+            }
+            return Some(());
+        }
+        if !self.head_line[position] || matches!(child, ChildView::Leaf(_)) {
+            return Some(());
+        }
+        if self.head_line.iter().filter(|h| **h).count() < 2 {
+            if self.head == Some(position) {
+                next.remnant = remnant;
+                next.shared_head = shared;
+            }
+            return Some(());
+        }
+        if !next.remnant_seen {
+            // A coordination's initial conjunct is no remnant; a serial
+            // tail's first conjunct is a middle one and may be.
+            if remnant.is_some() && !self.tail {
+                return None;
+            }
+            next.remnant_seen = true;
+            next.remnant = remnant;
+            next.remnant_anchor = if remnant.is_some() { None } else { shared };
+            return Some(());
+        }
+        match (remnant, next.remnant_anchor.or(next.remnant)) {
+            (Some(elided), Some(head)) if elided != head => None,
+            (Some(_), None) => None,
+            _ => Some(()),
+        }
     }
 
     /// The Complements omitted by the bare noun phrase the phrase so far ends
@@ -1458,6 +1550,7 @@ impl Production {
         self.track_omitted_complement(grammar, &mut next, position, child)?;
         self.track_ellipsis(&mut next, position, child)?;
         self.track_cluster(grammar, &mut next, position, child)?;
+        self.track_remnant(&mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => self.node_value(grammar, position, summary, feature),
@@ -1659,7 +1752,9 @@ impl Production {
             unlike_mixed: self.tail && state.unlike_mixed,
             extensions: state.extensions,
             coordinator: self.link.or(state.coordinator),
-            coordinated: self.link.is_some() || state.coordinator.is_some() || state.coordinated_head,
+            coordinated: self.link.is_some()
+                || state.coordinator.is_some()
+                || state.coordinated_head,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
@@ -1688,6 +1783,11 @@ impl Production {
             } else {
                 state.cluster.map_or(0, |(_, other)| other)
             },
+            remnant: match self.remnant {
+                RemnantRole::Elides(head) => Some(head),
+                _ => state.remnant,
+            },
+            shared_head: state.shared_head,
         })
     }
 }

@@ -7,7 +7,7 @@ Part of `english-v4-stratum-7-discourse-and-long-tail`. Implement in `crates/dec
 
 ## Scope
 
-Faces that fit no cluster. The coordination faces with existing owners (the unlike-cluster, cleave-transparent-brackets and gapping-remnants tickets) are not repeated here.
+Faces that fit no cluster. The coordination faces with existing owners (the unlike-cluster, cleave-transparent-brackets and gapping-remnants-rest tickets) are not repeated here.
 
 - **Finale of Promise**: *cast [up to one target instant card and/or up to one target sorcery card] [from your graveyard] [each with mana value X or less]*. Hypothesis: floated *each* + postmodifier ordering.
 - **Marvo, Deep Operative**: *cast a spell from your hand with mana value 8 or less without paying its mana cost* (unverified). Second triage: noun *clash* missing (*win a clash*).
