@@ -81,6 +81,12 @@ theorem headerDeedIsReadByTheGateAndTheStepper :
       spell.namedDeed = some (.action "cast") ∧
       after.referents.map (·.payload.prov.map (·.deeds)) = [some [.action "cast"]] := by decide
 
+/-- The event and deontic head gates read a Definition's header the same way, whatever its deed:
+"devour", the verb a keyword ability defines for itself [CR#702.82b], is admitted by both. -/
+theorem headGatesAgreeOnADefinitionHeader :
+    (Action.devour (a isCreature)).eventHeadOk = true ∧
+      (Action.devour (a isCreature)).deonticHeadOk = true := by decide
+
 /-- No deed is guessed from a body's shape: a bare move to exile, a bare status change and a bare
 creation name none; each is a keyword action only as its Definition [CR#701.13a,701.26a,701.7a]. -/
 theorem bareShapesNameNoDeed :

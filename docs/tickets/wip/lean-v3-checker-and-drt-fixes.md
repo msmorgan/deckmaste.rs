@@ -266,6 +266,16 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (`deonticHeadOk` admits only `.move … battlefield` (`:64`)
   and only `ownScope (some (.action _ _))` (`:52`); `eventHeadOk` admits any move and any
   `ownScope (some _)`).
+  **Needs ruling 2026-10-24 (raw non-battlefield moves).** ADR §3.7 ("Closed Deontic
+  Head-Gating") rules that in a deontic clause "a raw `move` must name the battlefield as its
+  destination"; this bullet asks that a move elsewhere (to exile) be admitted there as in an event
+  clause. With deed guessing retired (§3.1 below), a raw move to exile names no deed, so
+  `cant(…, exile …)` (the `exile` Definition, admitted by its header) and `cant(…, move … exile)`
+  are no longer one act written two ways. Options: (a) keep the ADR rule: a deontic clause
+  constrains a Zone Change other than onto the battlefield only through its Definition (`exile`,
+  `destroy`, `sacrifice`, …); (b) admit every raw move in a deontic clause, as the event gate
+  does, and amend ADR §3.7. The `ownScope` half needs no ruling and is done: both gates admit any
+  Definition header through one traversal (`Action.headGate`).
 - **Unify deed stamping and prune dead `CoreDeed` constructors (§§3.1, 3.3):**
   - Eliminate the three competing deed-stamping mechanisms (`ownScope (some (.action ...))`
     header, `.enact`, and `Action.inferredDeed` string-guessing at

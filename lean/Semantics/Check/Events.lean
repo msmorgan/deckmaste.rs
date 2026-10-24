@@ -1,4 +1,5 @@
 import Semantics.Check.Words
+import Semantics.Check.CardFacts
 import Semantics.Abilities
 
 /-!
@@ -18,51 +19,55 @@ def Delta.lifeOutcomes : Delta Amount → List OutcomeSort
   | .down _ => [.lifeLost]
   | .set _ => [.lifeGained, .lifeLost]
 
-/-- Closed event head-gating (`semantics-v3.md` §3.6): `does`, `would`, and `did` only admit
-event-capable `Action` heads (Table 3.6A) plus CR §701 keyword-action definitions wrapped in
-`ownScope (some (.action name))`, refusing compound or control-flow actions (`sequentially`,
-`doIf`, `doForEach`, `chooseModes`, `establish`, etc.). -/
-def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
-  match fuel, e with
-  | 0, _ => false
-  | n + 1, .inCaller body => body.eventHeadOk n
-  | _ + 1, .ownScope (some _) _ => true
-  | n + 1, .ownScope none body => body.eventHeadOk n
-  | _ + 1, .dealDamage .. | _ + 1, .markDamage .. | _ + 1, .clearDamage ..
-  | _ + 1, .preventDamage .. | _ + 1, .redirectDamage ..
-  | _ + 1, .setStatus .. | _ + 1, .turnOver .. | _ + 1, .turnFaceDown ..
-  | _ + 1, .combat .. | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .attackUnblocked .. | _ + 1, .attackWith ..
-  | _ + 1, .target .. | _ + 1, .tapForMana .. | _ + 1, .commitCrime | _ + 1, .attachment .. | _ + 1, .changeControl ..
-  | _ + 1, .trigger | _ + 1, .crew .. | _ + 1, .saddle .. | _ + 1, .fullyUnlock ..
-  | _ + 1, .gainDesignation .. | _ + 1, .gameGains _ | _ + 1, .unlock .. | _ + 1, .conclude ..
-  | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .copy .. | _ + 1, .changeLife .. | _ + 1, .addMana .. | _ + 1, .draw ..
-  | _ + 1, .expose .. | _ + 1, .search .. | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
-  | _ + 1, .createObject .. | _ + 1, .putCounters .. | _ + 1, .distribute .. | _ + 1, .removeCounters ..
-  | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. | _ + 1, .relate .. | _ + 1, .merge ..
-  | _ + 1, .skipUntap .. | _ + 1, .skipPart .. | _ + 1, .addTurnPart .. | _ + 1, .exchange .. => true
-  | _ + 1, _ => false
-termination_by structural fuel
+/-- Whether the head of `e` passes `admits`, the head read through its caller and scope-only
+wrappers (`Action.scopeBody`). An Action Definition's own Reference Scope header names the one
+deed it performs (`Action.ownDeed?`), and every head gate admits it alike, so an event, a lookback
+and a deontic clause read a Definition's deed the same way (`semantics-v3.md` §2.1). -/
+def Action.headGate (admits : Action → Bool) (e : Action) : Bool :=
+  e.ownDeed?.isSome || admits e.scopeBody
 
-/-- The closed action heads which a deontic clause can constrain. -/
-def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
-  match fuel, e with
-  | 0, _ => false
-  | n + 1, .inCaller body => body.deonticHeadOk n
-  | _ + 1, .ownScope (some (.action _ _)) _ => true
-  | n + 1, .ownScope none body => body.deonticHeadOk n
-  | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .target .. | _ + 1, .attachment ..
-  | _ + 1, .procedure .. | _ + 1, .copy .. | _ + 1, .draw .. | _ + 1, .changeLife ..
-  | _ + 1, .dealDamage .. | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
-  | _ + 1, .preventDamage .. | _ + 1, .redirectDamage ..
-  | _ + 1, .search .. | _ + 1, .turnOver .. | _ + 1, .conclude ..
-  | _ + 1, .changeControl .. | _ + 1, .tapForMana .. | _ + 1, .unlock ..
-  | _ + 1, .trigger | _ + 1, .crew .. | _ + 1, .saddle .. | _ + 1, .fullyUnlock ..
-  | _ + 1, .vote .. | _ + 1, .pay .. => true
-  | _ + 1, .setStatus .tapped _ | _ + 1, .setStatus .untapped _
-  | _ + 1, .setStatus .phasedIn _ | _ + 1, .setStatus .phasedOut _ => true
-  | _ + 1, .move _ _ (some (.zone .battlefield _)) _ _ => true
-  | _, _ => false
-termination_by structural fuel
+/-- The event-capable `Action` heads (`semantics-v3.md` §3.6, Table 3.6A), refusing compound or
+control-flow actions (`sequentially`, `doIf`, `doForEach`, `chooseModes`, `establish`, etc.). -/
+def Action.eventHead : Action → Bool
+  | .dealDamage .. | .markDamage .. | .clearDamage ..
+  | .preventDamage .. | .redirectDamage ..
+  | .setStatus .. | .turnOver .. | .turnFaceDown ..
+  | .combat .. | .attack .. | .block .. | .attackUnblocked .. | .attackWith ..
+  | .target .. | .tapForMana .. | .commitCrime | .attachment .. | .changeControl ..
+  | .trigger | .crew .. | .saddle .. | .fullyUnlock ..
+  | .gainDesignation .. | .gameGains _ | .unlock .. | .conclude ..
+  | .choose .. | .vote .. | .copy .. | .changeLife .. | .addMana .. | .draw ..
+  | .expose .. | .search .. | .shuffle .. | .flipCoins .. | .rollDice ..
+  | .createObject .. | .putCounters .. | .distribute .. | .removeCounters ..
+  | .move .. | .pay .. | .procedure .. | .relate .. | .merge ..
+  | .skipUntap .. | .skipPart .. | .addTurnPart .. | .exchange .. => true
+  | _ => false
+
+/-- Closed event head-gating (`semantics-v3.md` §3.6): `does`, `would`, and `did` admit an
+Action Definition by its header and otherwise only an event-capable head (`Action.eventHead`). -/
+def Action.eventHeadOk (e : Action) : Bool := e.headGate Action.eventHead
+
+/-- The closed action heads a deontic clause can constrain (`semantics-v3.md` §3.7): a narrower
+set than the event heads, a status only tapped, untapped or phased, and a raw move only one onto
+the battlefield. -/
+def Action.deonticHead : Action → Bool
+  | .attack .. | .block .. | .target .. | .attachment ..
+  | .procedure .. | .copy .. | .draw .. | .changeLife ..
+  | .dealDamage .. | .putCounters .. | .removeCounters ..
+  | .preventDamage .. | .redirectDamage ..
+  | .search .. | .turnOver .. | .conclude ..
+  | .changeControl .. | .tapForMana .. | .unlock ..
+  | .trigger | .crew .. | .saddle .. | .fullyUnlock ..
+  | .vote .. | .pay .. => true
+  | .setStatus .tapped _ | .setStatus .untapped _
+  | .setStatus .phasedIn _ | .setStatus .phasedOut _ => true
+  | .move _ _ (some (.zone .battlefield _)) _ _ => true
+  | _ => false
+
+/-- Closed deontic head-gating: `cant`, `must`, `can`, `gatedBy` and `asThough` admit an Action
+Definition by its header, as the event gate does, and otherwise only a deontic head
+(`Action.deonticHead`). -/
+def Action.deonticHeadOk (e : Action) : Bool := e.headGate Action.deonticHead
 
 /-- Whether an event-capable action carries a quantity or magnitude that `TallyMode.quantity`
 can sum (`semantics-v3.md` §3.8). -/
