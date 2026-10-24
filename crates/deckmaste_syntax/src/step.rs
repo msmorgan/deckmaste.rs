@@ -218,6 +218,12 @@ pub(crate) struct Production {
     /// The Frame Slot kind of a non-prepositional adjunct, for same-head
     /// complement priority.
     pub adjunct_slot: Option<SlotKind>,
+    /// The (Frame Slot kind, feature, value) conditions under which the
+    /// `host_check` dependent could fill no Frame Slot of that kind, by the
+    /// grammar's `slot_equations`: same-head complement priority does not
+    /// rule it out, since no frame could select it (*attack [with their hands
+    /// revealed]*, whose Absolute Clause no `PP` slot takes).
+    pub adjunct_unfit: Vec<(SlotKind, usize, u16)>,
     /// The predicative Complement child of a frame-headed phrase.
     pub predicative: Option<usize>,
     pub coordinator: Option<usize>,
@@ -426,6 +432,7 @@ pub(crate) fn resolve(
         head_line,
         unextended: None,
         adjunct_slot: None,
+        adjunct_unfit: Vec::new(),
         predicative: None,
         paired_coordinator: None,
         uncoordinated: Vec::new(),
@@ -505,6 +512,26 @@ pub(crate) fn resolve(
     })
 }
 
+/// Whether a phrase begins with a fronted dependent of its head, which is its
+/// last child (`Summary::fronted`). The order of the variants is part of
+/// `Summary`'s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) enum Fronting {
+    /// It does not.
+    None,
+    /// One set off by a comma (*When …, …*, *Until end of turn, …*), or a
+    /// dependent other than a Predicate Adjunct preposed without one. It is
+    /// never the initial conjunct of a coordination undelimited before its
+    /// coordinator: the fronted dependent scopes over the whole coordination.
+    Wide,
+    /// A Predicate Adjunct preposed without a comma (*instead put …*,
+    /// *instead puts …*). Its scope is ambiguous between the initial conjunct
+    /// of a coordination and the whole coordination (*Yesterday Ed was taken
+    /// ill and the lecture's been cancelled*; CGEL, Ch. 15 §1.3.4,
+    /// pp. 1285–1286), so it may be that initial conjunct.
+    Ambiguous,
+}
+
 /// The finite grammatical summary of a completed Constituent: everything a
 /// parent may inspect. Two Constituents with equal summaries are packed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -569,21 +596,11 @@ pub(crate) struct Summary {
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
-    /// It begins with a fronted dependent of its head, which is its last
-    /// child: one set off by a comma (*When …, …*, *Until end of turn, …*)
-    /// or a preposed Adjunct without one (*instead put …*). Such a Clause
+    /// Whether it begins with a fronted dependent of its head, and how that
+    /// dependent scopes over a coordination it would begin. Such a Clause
     /// hosts no comma-set post-dependent, which attaches inside the fronted
-    /// one (`english-lexical-analysis.md` §2). Unless it is a
-    /// `preposed_predicate`, it is never the initial conjunct of a
-    /// coordination undelimited before its coordinator: the fronted
-    /// dependent scopes over the whole coordination.
-    pub fronted: bool,
-    /// Its fronted dependent is a Predicate Adjunct preposed without a comma
-    /// (*instead put …*, *instead puts …*). Its scope is ambiguous between
-    /// the initial conjunct of a coordination and the whole coordination
-    /// (*Yesterday Ed was taken ill and the lecture's been cancelled*; CGEL,
-    /// Ch. 15 §1.3.4, pp. 1285–1286), so it may be that initial conjunct.
-    pub preposed_predicate: bool,
+    /// one (`english-lexical-analysis.md` §2).
+    pub fronted: Fronting,
     /// It contains a delimiting comma that no bracket closes: it is, or has at
     /// any depth, the host of a comma-set post-dependent (*[this creature
     /// dies, if …]*, *[X is half …, rounded down]*). Only a stronger indicator
@@ -605,7 +622,11 @@ pub(crate) struct Summary {
     /// participial Verb Phrase it ends in (`english-lexical-analysis.md` §2).
     pub auxiliary: bool,
     /// It ends in the final period of a quotation, which is not written
-    /// (`chart::quotations`): no other period follows it there.
+    /// (`chart::quotations`): no other period follows it there. A keyword's
+    /// verbal cost ends in its own period (`docs/oracle-style-guide.md` §3,
+    /// Periods), so without this *have "Ward—Pay 2 life."* would also read as
+    /// *Ward—Pay 2 life..*, a cost sentence and a keyword line each ending in
+    /// the one unwritten period.
     pub unwritten_period: bool,
     /// It ends, through its last child, in a phrase opened by a dash that
     /// only its sentence's end closes (`ProductionDecl::unclosed`): nothing
@@ -795,14 +816,37 @@ impl Production {
                 next.host_extensions = summary.extensions;
             }
             if position == adjunct {
-                next.adjunct_extension = summary
-                    .preposition
-                    .as_ref()
-                    .map(|(p, _)| Extension::Preposition(*p))
-                    .or(self.adjunct_slot.map(Extension::Slot));
+                let (extension, kind) = match (summary.preposition, self.adjunct_slot) {
+                    (Some((p, _)), _) => (Some(Extension::Preposition(p)), Some(SlotKind::PP)),
+                    (None, Some(kind)) => (Some(Extension::Slot(kind)), Some(kind)),
+                    (None, None) => (None, None),
+                };
+                next.adjunct_extension = extension.filter(|_| {
+                    !self.adjunct_unfit.iter().any(|&(k, feature, value)| {
+                        Some(k) == kind
+                            && self.node_value(grammar, position, summary, feature) == Some(value)
+                    })
+                });
             }
         }
         Some(())
+    }
+
+    /// A feature's value on child `position`, a Constituent of `summary`.
+    fn node_value(
+        &self,
+        grammar: &CompiledGrammar,
+        position: usize,
+        summary: &Summary,
+        feature: usize,
+    ) -> Option<u16> {
+        let Symbol::Cat { category, .. } = &self.rhs[position] else {
+            return None;
+        };
+        let index = grammar.category_features[*category]
+            .iter()
+            .position(|f| *f == feature)?;
+        summary.values[index].get()
     }
 
     /// Whether the phrase so far ends in its head: the last child is in the
@@ -1213,7 +1257,7 @@ impl Production {
     /// Whether a fronted dependent's scope rules this child out: a fronted
     /// dependent scopes over a comma-set post-dependent of its Clause, never
     /// inside the post-dependent's host, and, unless it is a Predicate
-    /// Adjunct preposed without a comma (`Summary::preposed_predicate`), over
+    /// Adjunct preposed without a comma (`Fronting::Ambiguous`), over
     /// a whole coordination, never its initial conjunct
     /// (`english-lexical-analysis.md` §2). The initial conjunct of a
     /// coordination delimited before its coordinator may have its own (*[If
@@ -1225,9 +1269,11 @@ impl Production {
             && !self.delimits
             && !self.tail
             && self.names[position] == "first";
-        summary.fronted
-            && ((first_conjunct && !summary.preposed_predicate)
-                || (position == 0 && self.hosts_comma_set_dependent()))
+        match summary.fronted {
+            Fronting::None => false,
+            Fronting::Wide => first_conjunct || (position == 0 && self.hosts_comma_set_dependent()),
+            Fronting::Ambiguous => position == 0 && self.hosts_comma_set_dependent(),
+        }
     }
 
     /// Whether the Production hosts a comma-set post-dependent: its head
@@ -1342,16 +1388,7 @@ impl Production {
         self.track_cluster(grammar, &mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
-                ChildView::Node(summary) => {
-                    let category = match &self.rhs[position] {
-                        Symbol::Cat { category, .. } => *category,
-                        _ => return None,
-                    };
-                    let index = grammar.category_features[category]
-                        .iter()
-                        .position(|f| *f == feature)?;
-                    summary.values[index].get()
-                }
+                ChildView::Node(summary) => self.node_value(grammar, position, summary, feature),
                 ChildView::Leaf(leaf) => leaf.features[feature],
                 ChildView::Punct => None,
             }
@@ -1550,13 +1587,15 @@ impl Production {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
             },
-            fronted: self.fronts(),
-            preposed_predicate: self.fronts()
-                && self.host_check.is_some_and(|(host, adjunct, kind)| {
-                    adjunct < host
-                        && kind == HostKind::Predicate
-                        && !self.set_off_before_head(adjunct)
-                }),
+            fronted: if !self.fronts() {
+                Fronting::None
+            } else if self.host_check.is_some_and(|(host, adjunct, kind)| {
+                adjunct < host && kind == HostKind::Predicate && !self.set_off_before_head(adjunct)
+            }) {
+                Fronting::Ambiguous
+            } else {
+                Fronting::Wide
+            },
             internal_comma: state.internal_comma || self.hosts_comma_set_dependent(),
             auxiliary: self.auxiliary.is_some(),
             unwritten_period: state.unwritten_period,
