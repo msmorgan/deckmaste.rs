@@ -11,9 +11,11 @@
 *NounPhrase less lands than you
 +NounPhrase more than two lands => DeterminerPhrase "more than two" as Determiner of land; readings 1
 +NounPhrase a card with the same name as that card
+# from: Sharp-Eyed Rookie
 + Its power is greater than its toughness.
 # A comparative fused head with a determined standard is a predicative Noun Phrase (CGEL, Ch. 13 §4.5(a), p. 1132); a determiner's standard is a bare quantity (Ch. 5 §11(d), p. 432), so neither *more than the total* nor *more than ... white* is a determiner.
 + <card=Nameless Race> As this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards. => NounPhrase "more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards" as PredicativeComplement of be; NounPhrase "the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards" as Complement of than; NounPhrase "the total number of white nontoken permanents your opponents control"; NounPhrase "the total number of white cards in their graveyards"; !DeterminerPhrase "more than the total"; !DeterminerPhrase "more than the total number of white nontoken permanents your opponents control plus the total number of white"
+# from: Nameless Race
 +Clause the amount you pay can't be more than the number of white nontoken permanents your opponents control => NounPhrase "more than the number of white nontoken permanents your opponents control" as PredicativeComplement of be; NounPhrase "the number of white nontoken permanents your opponents control" as Complement of than; !DeterminerPhrase "more than the number"
 # A comparative determinative with a bare standard heads a partitive (CGEL, Ch. 5 §11(d), p. 432): *one of ...* is not its standard.
 + <card=Jegantha, the Wellspring> No card in your starting deck has more than one of the same mana symbol in its mana cost. => NounPhrase "more than one of the same mana symbol"; DeterminerPhrase "more than one"; NounPhrase "the same mana symbol" as Complement of of; !DeterminerPhrase "more than one of the same mana"; !NounPhrase "one of the same mana symbol"

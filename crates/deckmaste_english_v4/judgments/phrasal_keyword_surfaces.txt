@@ -6,6 +6,7 @@
 + Partner—Father & son => KeywordParameters "Partner—Father & son"
 + Partner—Survivors => KeywordParameters "Partner—Survivors"
 + Partner => KeywordParameters "Partner"
+# from: Faceless One
 + Choose a Background. => !KeywordPhrase "Choose a Background"
 +PrepositionPhrase with doctor's companion => KeywordPhrase "doctor's companion" as Complement of with
 + <card=Rose Noble> Whenever you cast a Doctor spell or creature spell with doctor's companion, draw a card. => PrepositionPhrase "with doctor's companion"; KeywordPhrase "doctor's companion" as Complement of with; !PrepositionPhrase "with doctor's companion" as Adjunct of cast

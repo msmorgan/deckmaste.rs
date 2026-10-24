@@ -11,6 +11,7 @@
 +NounPhrase exiled cards => VerbPhrase "exiled" as Modifier of card
 +NounPhrase cards exiled with this creature => VerbPhrase "exiled with this creature" as Modifier of card
 +NounPhrase cards exiled this way => VerbPhrase "exiled this way" as Modifier of card
+# from: Mighty Servant of Leuk-o
 +VerbPhrase was crewed by two creatures => PrepositionPhrase "by two creatures" as Complement of crew
 +Clause this creature saddles Mounts => NounPhrase "Mounts" as Object of saddle
 +Clause this creature saddles a Mount => NounPhrase "a Mount" as Object of saddle

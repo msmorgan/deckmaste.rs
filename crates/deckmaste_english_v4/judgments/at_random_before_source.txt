@@ -7,6 +7,7 @@
 +VerbPhrase return an instant card at random from your graveyard to your hand
 + Return a creature card from your graveyard to your hand.
 + Discard a card at random. => PrepositionPhrase "at random" as Adjunct of discard
+# from: Planeswalker's Favor
 + Target opponent discards a card at random from their hand.
 + Whenever this creature deals combat damage to a player, that player reveals a card at random from their hand.
 + Target player reveals two cards at random from their hand, then discards each nonland card revealed this way.

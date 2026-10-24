@@ -45,6 +45,7 @@
 *NounPhrase much game
 *Clause no mana was spended
 +Nominal amount of {G}
+# from: Soul Burn
 +NounPhrase the amount of {G}
 +NounPhrase amounts of {G}
 +NounPhrase the amount of {G}{G}
@@ -52,6 +53,7 @@
 *NounPhrase much amount of {G}
 +Clause you do
 + Draw two cards.
+# from: Witch's Mark
 + Draw thirteen cards.
 + Draw 1,000 cards.
 + Draw X cards.
@@ -74,21 +76,27 @@
 + X/X
 + +3/+3
 + +X/-X
+# from: Nissa, Worldsoul Speaker
 + -0/+0
 + 0/1
+# from: Inferno Titan
 + 1,000/2
 +NounPhrase X 1/1 tokens => DeterminerPhrase "X" as Determiner of token
 +NounPhrase X X/X tokens => DeterminerPhrase "X" as Determiner of token
 +NounPhrase two +1/-1 creatures => DeterminerPhrase "two" as Determiner of creature
+# from: Jace, the Perfected Mind
 + Target creature gets +3/+3.
 + Creatures get -1/-1.
+# from: Weakstone
 +VerbPhrase get +3/-2
 +AdjectivePhrase equal to 2 => PrepositionPhrase "to 2" as Complement of equal
 +AdjectivePhrase equal
+# from: Clockwork Steed
 +AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of great
 + Flying
 + Flying, vigilance, haste
 + Ward {2}{U}
+# from: Frenzy Sliver
 + Frenzy 2
 + Flying (Draw cards.)
 + {T}: Draw cards.

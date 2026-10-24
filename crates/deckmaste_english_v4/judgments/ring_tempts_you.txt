@@ -2,6 +2,7 @@
 + When this creature enters, the Ring tempts you. => Clause "the Ring tempts you"; NounPhrase "the Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
 + Whenever one or more creatures deal combat damage to you, each opponent sacrifices a creature of their choice that dealt combat damage to you this turn. The Ring tempts you. => Clause "The Ring tempts you"; NounPhrase "The Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
 + I — The Ring tempts you, then each player mills cards equal to your Ring-bearer's power. => NounPhrase "The Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
+# from: Nazgûl
 + Whenever the Ring tempts you, draw a card. => Clause "the Ring tempts you"; NounPhrase "the Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
 +NounPhrase your Ring-bearer
 + Wraiths you control have protection from Ring-bearers. => Nominal "Ring-bearers"

@@ -1,12 +1,15 @@
 # Prepositions with clause Complements: finite (*unless*, *until*, *as long as*), verbless (*if able*), interrogative content clauses after *choose* and *guess*, and a front adverbial
 + Counter target spell unless its controller pays {3}. => PrepositionPhrase "unless its controller pays {3}" as Adjunct of counter; Clause "its controller pays {3}" as Complement of unless; readings 1
+# from: Angel of Condemnation
 + Exile target creature until this creature leaves the battlefield. => PrepositionPhrase "until this creature leaves the battlefield" as Adjunct of exile; Clause "this creature leaves the battlefield" as Complement of until
 + <card=Master Warcraft> You choose which creatures attack this turn. => Clause "which creatures attack this turn" as Complement of choose || Clause "which creatures attack" as Complement of choose
 + You choose which creatures attack this turn. => NounPhrase "which creatures" as Subject of attack
 + The attacking player chooses how each creature blocks each combat. => Clause "how each creature blocks each combat" as Complement of choose || Clause "how each creature blocks" as Complement of choose
 + Target opponent guesses whether a card with that name is in your hand. => Clause "whether a card with that name is in your hand" as Complement of guess; Clause "a card with that name is in your hand"; readings 1
+# from: Cemetery Illuminator
 + Once each turn, you may cast a spell from the top of your library. => AdverbPhrase "Once each turn" as Adjunct of may; NounPhrase "each turn"
 + Nonartifact creatures get +2/+2 as long as they all share a color. => PrepositionPhrase "as long as they all share a color" as Adjunct of get; Clause "they all share a color"
+# from: Johtull Wurm
 + Draw a card for each creature blocking it beyond the first. => NounPhrase "the first" as Complement of beyond
 + This spell was cast using teamwork. => VerbPhrase "using teamwork"; KeywordPhrase "teamwork" as Object of use
 + Tap it to pay for its abilities. => PrepositionPhrase "for its abilities" as Complement of pay
@@ -16,6 +19,7 @@
 + <card=Spider Climb> If you cast it any time a sorcery couldn't have been cast, the controller of the permanent it becomes sacrifices it at the beginning of the next cleanup step. => NounPhrase "the permanent it becomes" as Complement of of; RelativeClause "it becomes" gap "permanent"
 + <card=Dead Ringers> Destroy two target nonblack creatures unless either one is a color the other isn't. => NounPhrase "a color the other isn't" as PredicativeComplement of be; RelativeClause "the other isn't" gap "color"
 +NounPhrase the player it's attacking => RelativeClause "it's attacking" gap "player"; readings 1
+# from: Capricopian
 +NounPhrase the player it is attacking => RelativeClause "it is attacking" gap "player"; readings 1
 + <card=Arid Archway> When this land enters, return a land you control to its owner's hand. If another Desert was returned this way, surveil 1. => NounPhrase "this way" as Adjunct of return
 + <card=Foul Renewal> Return target creature card from your graveyard to your hand. Target creature gets -X/-X until end of turn, where X is the toughness of the card returned this way. => VerbPhrase "returned this way" as Modifier of card
@@ -28,4 +32,5 @@
 +NounPhrase a 20 => readings 1
 + <card=North Star> {4}, {T}: For one spell this turn, you may spend mana as though it were mana of any type to pay that spell's mana cost. => PrepositionPhrase "For one spell" as Adjunct of may; NounPhrase "this turn" as Adjunct of may
 + <card=Overpowering Attack> Untap all creatures you control that attacked this turn. If it's your main phase, there is an additional combat phase after this phase, followed by an additional main phase. => VerbPhrase "followed by an additional main phase"
+# from: The Toymaker's Trap
 + an opponent guesses which number you chose. => Clause "which number you chose" as Complement of guess; readings 1

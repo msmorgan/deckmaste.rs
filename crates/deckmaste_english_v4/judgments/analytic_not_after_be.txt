@@ -5,14 +5,19 @@
 + <card=Arcades Sabboth> Each untapped creature you control gets +0/+2 as long as it's not attacking.
 + <card=Desynchronization> Return each nonland permanent that's not historic to its owner's hand.
 + It's not your turn.
+# from: Tezzeret, Cruel Captain
 + It's not a creature.
 + It's not legendary.
 + They're not legendary.
+# from: Court of Vantress
 + You're not the monarch.
 + It isn't your turn.
+# from: Tawnos's Tinkering
 + It isn't a creature.
 + They aren't legendary.
 + You aren't the monarch.
 + It's your turn.
+# from: Samite Alchemist
 + It doesn't untap.
+# from: Force of Despair
 + It is not your turn.

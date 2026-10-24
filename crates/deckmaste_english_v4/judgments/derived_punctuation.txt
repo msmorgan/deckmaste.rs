@@ -1,5 +1,6 @@
 # Coordinated verb phrases and adjectives, a quoted ability, and keyword phrases with a dash, space or cost parameter
 +Clause Draw a card, then discard a card
+# from: The Locust God
 +AdjectivePhrase red and blue
 + Draw a card.
 + It has "Sacrifice this token: Add {C}."

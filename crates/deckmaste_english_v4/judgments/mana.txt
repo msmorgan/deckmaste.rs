@@ -1,11 +1,13 @@
 # Mana symbols as objects of add and pay; basic mana abilities
 + {W}
+# from: Courier's Briefcase
 + {U}{B}{R}{G}{C}
 + You may pay {B}.
 +VerbPhrase pay {B}
 +VerbPhrase pay {U}{U}
 +VerbPhrase adds {G}
 +VerbPhrase add {G}
+# from: Spell Contortion
 +VerbPhrase pays {G}
 +VerbPhrase pay {G}
 + {T}: Add {W}.

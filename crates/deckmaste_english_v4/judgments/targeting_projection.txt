@@ -8,6 +8,7 @@
 +NounPhrase target nonartifact creature
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase other target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
+# from: Aerial Volley
 +NounPhrase two target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase target player's graveyard => NounPhrase "target player's" as Determiner of graveyard
 +NounPhrase target creature's power and toughness => NounPhrase "target creature's"; Nominal "power and toughness"

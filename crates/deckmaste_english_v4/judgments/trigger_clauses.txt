@@ -8,7 +8,9 @@
 + Landfall — Whenever a land you control enters, choose one — => PrepositionPhrase "Whenever a land you control enters" as Adjunct of choose
 + <card=Wizard Class> When this Class becomes level 2, draw two cards. => NounPhrase "level 2" as PredicativeComplement of become
 + Whenever this creature becomes blocked, you may look at defending player's hand. => NounPhrase "defending player's hand" as Complement of at
+# from: Brood Keeper
 + Whenever an Aura becomes attached to this creature, draw a card. => AdjectivePhrase "attached to this creature" as PredicativeComplement of become; PrepositionPhrase "to this creature" as Complement of attached
+# from: Thran Power Suit
 + Equipped creature gets +1/+1 for each Aura attached to it. => VerbPhrase "attached to it" as Modifier of Aura
 + <card=Infinite Reflection> When this Aura enters attached to a creature, each other nontoken creature you control becomes a copy of that creature. => AdjectivePhrase "attached to a creature" as Adjunct of enter
 + Whenever you tap a creature for mana, add an additional {G}. => NounPhrase "an additional {G}" as Object of add

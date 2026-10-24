@@ -1,7 +1,9 @@
 # Agreement of coordinated subjects with a singular determiner, relative-clause attachment to a coordinated nominal, and loyalty costs
+# from: Kaito, Dancing Shadow
 + −2: Draw a card.
 + +2: Draw a card.
 + 0: Draw a card.
+# from: Graaz, Unstoppable Juggernaut
 + Slivers can't be blocked by Walls. => PrepositionPhrase "by Walls" as Complement of block
 + Slivers can't be blocked except by Slivers.
 * Each creature and planeswalker that are tapped gains flying.

@@ -12,5 +12,6 @@
 + Put a counter of that kind on each other creature you control.
 + Put a counter of each kind on it.
 + Remove a counter of each kind from it.
+# from: Bright-Palm, Soul Awakener
 + Double the number of counters on target creature.
 + Double the number of +1/+1 counters on each creature you control.

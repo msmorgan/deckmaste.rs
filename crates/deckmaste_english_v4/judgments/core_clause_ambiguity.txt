@@ -5,6 +5,7 @@
 +NounPhrase a second target creature => DeterminerPhrase "a second target" as Determiner of creature; DeterminerPhrase "second target" head det:target; !Nominal "target" head noun:target
 +NounPhrase any target => Nominal "target" head noun:target; readings 1
 + Scry 1. => !NounPhrase "1"; readings 1
+# from: Eldrazi Confluence
 + Choose 2. => !NounPhrase "2"; readings 1
 +PrepositionPhrase on X => readings 1
 + Activate only as a sorcery. => PrepositionPhrase "only as a sorcery" as Adjunct of activate; !AdjectivePhrase "only"; !NounPhrase "as a sorcery"; readings 1
@@ -25,9 +26,11 @@
 +PrepositionPhrase in addition to its other types => PrepositionPhrase "to its other types" as Complement of "in addition"; !Nominal "addition to its other types"; readings 1
 +PrepositionPhrase as part of a spell => Nominal "part of a spell" as Complement of as; readings 1
 
+# from: Nissa, Worldsoul Speaker
 +Measure -0/+0 => readings 1
 +PrepositionPhrase in addition to other types => PrepositionPhrase "to other types" as Complement of "in addition"
 
 +Clause X is 1 => NounPhrase "X" as Subject of be; NounPhrase "1"; Predicative "1" as PredicativeComplement of be; readings 1
+# from: The End
 +Clause Your life total is 1 => NounPhrase "1"; Predicative "1" as PredicativeComplement of be; readings 1
 +Clause X is the number => NounPhrase "X" as Subject of be; readings 1
