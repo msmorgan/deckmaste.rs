@@ -24,11 +24,17 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (the Zone Change now rides on its own `Stamp.zoneChange`
   field from [lean-v3-move-deeds-and-verbs](../done/lean-v3-move-deeds-and-verbs.md), but the
   deed itself is still a single overwritten `verb`).
+  **Done 2026-10-24: mmxlylvw** (`Stamp.verb`/`through` are one accumulated `Stamp.deeds`, latest
+  first, reset by a move [CR#400.7]; `applyThroughStamp` folded into `applyInPlaceStamp`; pin
+  `Proofs/Turn.lean` `deedsAccumulateOnAReferent`).
 - **Advance `nextClause` in `Cost.compound` (§2.2):** Update the `Cost.compound`
   fold in `Check/Phrase.lean:4453-4456` to advance `nextClause` between members per
   `lean/CONTRACTS.md` ("Enclosed traversals", `:627`) so cross-cost pronouns
   (`"Sacrifice a creature, Exile it:"`) resolve.
   **Reconciled 2026-10-24: live** (the fold still threads `ops.cost d x` with no `nextClause`).
+  **Done 2026-10-24: qxrvulpl** (pins `okLaterCostMemberReadsAnEarlierOne`, and
+  `badTwoCostMentions` rewritten as `okTwoCostMentionsItReadsTheNearer`: with a clause per member,
+  `D′` reads "it" as the nearer, sacrificed creature).
 - **Close modal boxes across all four deontics (§2.3):** Close the inner DRS box
   on `must`, `can`, and `gatedBy` in `Check/Phrase.lean:4315-4353` just as `cant`
   (`:4302-4314`, via `publishProhibitionSources` at `:1761`)
@@ -36,6 +42,20 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   referents from leaking into outer discourse.
   **Reconciled 2026-10-24: live** (`must`/`can` return `drs4` with every inner referent;
   `gatedBy` filters only the payer).
+  **Needs ruling 2026-10-24.** Closing `must`/`can`/`gatedBy` exactly as `cant` does
+  (`publishProhibitionSources`: only targets, definite mentions and attachment hosts escape)
+  breaks *Nowhere to Run* (`Cards/Deontic.lean` `okNowhereToRunWardLine`): "Creatures your
+  opponents control can be the targets … as though they didn't have hexproof. Ward abilities of
+  those creatures don't trigger." reads the permission's universal patient ("creatures your
+  opponents control", det `.all`) by "those creatures"; every other pin passes. The ADR's box 3
+  closes "hypothetical indefinite or universal participants" of a prohibition, and says nothing of
+  a permission's. Options: (a) close all four as `cant` does, and re-express *Nowhere to Run*'s
+  second sentence without the anaphor (against its Oracle wording); (b) close only indefinite
+  participants (det `.a`, `.part`, `.count`) in all four deontics, publishing universal domains
+  (det `.all`/`.each`), and amend ADR §1.3 box 3 for `cant` too; (c) as (b) for `must`/`can`/
+  `gatedBy` only, leaving `cant` as it is. The attempt (a closing helper that also keeps the
+  events a permission writes and the referents' resolution bookkeeping, `resolvedIds` and
+  `contrastAnchors`, which `publishProhibitionSources` drops) did not land.
 - **Produce `Determiner.self` for `"this"` and `"you"` (§2.4):** Fix `.this` and
   `.you` in `Check/Phrase.lean:3158-3164` (`.this`) and `:3135-3140` (`.you`) so they use
   `Determiner.self` (`Check/Words.lean:19`) / reuse their
@@ -44,6 +64,28 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `reachesCharacteristic` (`:1172-1175`), and `countTokenSpecs` (`:1527-1529`)
   and refusing `"Tap this creature. Untap that creature."`).
   **Reconciled 2026-10-24: live** (no checker site produces `det := .self`).
+  **Needs ruling 2026-10-24.** Producing `.self` for "this" and "you" activates `wordNow`'s guard,
+  so no noun word reads the Source or "you"; about 30 pins then fail, in three groups:
+  (1) Definitions written in the CR's own words, where "that permanent"/"that creature" reads the
+  performing permanent, which "this creature" may be: endure, "that permanent's controller …
+  on that permanent" [CR#701.63a]; explore and the owner's spelling pin
+  `Proofs/Actor.lean` `okExploreReadsThatCreature` ("The owner's spelling 'that creature' reaches
+  the permanent too, handed to … 'this creature'"); haste's "that creature"; riot, connive,
+  enchant, crew, and the cards built on them (*Akki Lavarunner*, *Chittering Host*, *Revoke
+  Privileges*, …); (2) "they"/"that player" (`.pro (.word .player)`) reading "you"
+  (`Proofs/Actor.lean:457` handoff, `Proofs/Static.lean:349` `duringNextTurnOf (that player)`);
+  (3) state pins on the Source's determiner (`Proofs/Actor.lean:821`, `Proofs/ActionFamilies.lean
+  :133`, `Cards/Anaphora.lean:594` `thisAurasController`). (1) contradicts an owner spelling, so it
+  is not settled here. Options: (a) `.self` excluded from every noun word, as `wordNow` says, and
+  the Definitions re-spelled with `this`/`actor` (against [CR#701.63a]'s and the owner's
+  wording); (b) inside a handoff to "this …" the performer is put in view as an ordinary
+  referent (`det := .the`), so a Definition's "that permanent" reads it, while outside one the
+  Source and "you" are `.self`; (c) `.self` excluded only from demonstratives over an object
+  ("that creature"), "they"/"that player" still reading "you". Reuse of one referent per "you"
+  mention (`mentionYou`) was clean in the attempt; "this" was kept one referent per mention, since
+  each mention may name the Source in another zone. Also needed whatever is chosen:
+  `publishProhibitionSources` and `Condition.matches`'s `subjectOk` must treat `.self` as definite.
+  No change landed.
 - **Wire `DRS.performer : Option ReferentId` and retire fake `Payload.actor`
   referents (§2.5):** Track the performer in `DRS.performer` per
   `docs/decisions/semantics-v3.md` §1.2/§1.4 instead of pushing `Payload.actor`
@@ -54,6 +96,18 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   site assigns it; `Payload.actor` (`Check/Words.lean:251`, 11 constructors at `:235-252`) frames
   are still pushed at `Check/Phrase.lean:854,3458,3497` and `Check/AbilityRules.lean:163`, and
   `isActorFrame` (`Check/Words.lean:386`) is filtered at 21 `Check/` sites).
+  **Needs ruling 2026-10-24.** The ADR's `performer : Option ReferentId` cannot hold what an
+  actor frame carries: a performer of a kind with no referent (`ActorShape.refIds = []`, stepped
+  as `kindBinding shape.kind`), a group performer (several `refIds`), and `isYou`/`ascribable`;
+  and frames nest (one per handoff, dropped by `dropActorFrame`). "Reconcile `Payload`'s 11
+  constructors with the ADR" also needs a decision: `.difference`, `.ability`, `.pile` and `.join`
+  are all live. Options: (a) `DRS.performers : List ActorShape` (innermost first) outside
+  `referents`, and amend ADR §1.2's field to it; (b) `performer : Option ReferentId` as the ADR
+  says, with a referent always pushed for a kind-only performer and a group referent for a group,
+  `isYou`/`ascribable` derived from it; and for `Payload`, amend the ADR's list to the live
+  constructors, or fold `.difference` into `OutcomeSort` and keep `.ability`/`.pile`/`.join`.
+  Removing the frames renumbers every referent after a handoff, so the `Proofs/ControllerSacrifice`
+  structural proofs and many id pins move with either. No change landed.
 - **Consistent disjunction, conditional, and negation scoping (§2.6):** Fix
   `NounPhrase.or` (`stepNounAlternativesWith` in `Check/Phrase.lean:1532-1553`),
   `Timing.or`/`.and` (`Check/Phrase.lean:965-968`), `Location.or` (now
@@ -74,6 +128,33 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   outer mutations).
   This ticket owns the `lean/CONTRACTS.md:640` `doIf` row and rewrites it in the same landing as
   the `doIf` fix (cross-noted 2026-10-24 in `lean-v3-proofs-and-docs-alignment` §3).
+  **Partly done 2026-10-24: qyupknzq, vunkvywv.** qyupknzq: `NounPhrase.or`, `Timing.or` and
+  `Location.coord .or` step each alternative from the enclosing context and keep what every
+  alternative introduces (`commonHeaderContext`, as `Condition.or` does), with no joined head
+  referent (one over "you or a white creature you control" is read by "that creature" as a join's
+  creature half, which is *Mangara's Equity*'s wrong reading); `Location.not` closes as
+  `Timing.not` does; `Timing.and` and `Location.coord .and`/`.andOr` still thread in order, as
+  `Condition.and` does (dynamic conjunction, not a branching); pins in `Proofs/Composition.lean`,
+  and `mangarasEquityRawDemonstrativeSelectsWrongCreature` rewritten as
+  `mangarasEquityRawDemonstrativeSelectsTheDamageSource` (§3's *Mangara's Equity* bullet keeps the
+  explicit-selector deletion). vunkvywv: a `doIf` with an else-branch keeps the outer referents and
+  announced targets as either branch left them and closes what the condition or a branch
+  introduced (`Proofs/Description.lean` `otherwiseKeepsWhatEitherBranchDidToAnOuterReferent`);
+  the `CONTRACTS.md` `doIf` row's else sentence is rewritten.
+  **Needs ruling 2026-10-24 (no-else `doIf`).** Closing a no-else branch's non-target
+  introductions contradicts the landed ruling in
+  [lean-v3-authoring-impl-14-ast-and-authoring-cleanup](../done/lean-v3-authoring-impl-14-ast-and-authoring-cleanup.md)
+  ("the branch's output continues as `doIf`'s always did … in 'Create a token if you control a
+  creature. Put a counter on it.' 'it' is the token … retired on purpose;
+  `conditionalArmAntecedentIsTheToken` pins it"), and breaks `noElseConditionExportsItsOpponent`,
+  *Kalitas*'s `kalitasSelectsTokenThenDestroyedCreature`, and the fight Definition's guard, whose
+  targets are introduced in its condition (`Proofs/Damage.lean`, `Proofs/CallerScope.lean`,
+  `Proofs/BindingIdentity.lean`). Options: (a) keep the impl-14 ruling: a no-else branch's
+  output continues, and the ADR's box 2 sentence is narrowed to the else case; (b) close a no-else
+  branch's non-target introductions per box 2, retiring the impl-14 pin, while targets announced
+  anywhere in the `doIf` (its condition included) and caller-owned arguments survive.
+  The `CONTRACTS.md` no-else sentence ("its output continues when there is no else-branch") is
+  unchanged until this is ruled.
 - **Foreground non-argument possessor re-mentions in `DRS.recordMention`:** When
   an existing referent is re-mentioned in a non-argument slot (`inArgSlot = false`,
   e.g. `"that creature's owner"`), update `r.clause := drs.currentClause` and
@@ -84,6 +165,11 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (`DRS.recordMention` at `Check/Words.lean:664-671` updates
   neither `clause` nor `role`; `weepingAngelRawPronounCurrentlySelectsTheDamageSource` at
   `Proofs/DrtCards.lean:284-289` still pins the raw `it` reading the source).
+  **Done 2026-10-24: vwqxxutk** (in `DRS.recordMention`, keyed on the characteristic read a
+  possessor, a stat read or a copy source sets, since a nested modifier mention such as "Auras
+  attached to those artifacts" must not foreground, as *Guardian Beast* shows; pin rewritten as
+  `weepingAngelRawPronounSelectsTheDamagedCreature`, and
+  `weepingAngelOwnerCanShuffleItsCreatureIntoTheirLibrary` also checks the raw "it").
 
 ### 2. Shared Action-Clause Spine, Head Gates & Deed Identity (Opus §§2.7–2.8, §3.1–3.3)
 
