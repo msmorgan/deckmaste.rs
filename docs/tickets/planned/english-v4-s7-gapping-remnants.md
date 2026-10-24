@@ -49,6 +49,11 @@ face below needs a construction beyond those, or a ruling.
   reads widely, has a questioning mind and he's very mature for his years*).
   Not a mixed-mood serial: `english-v4-s7-serial-coordination-generalizations`
   keeps that one imperative-initial, so *draw four cards* is no imperative.
+- **Frantic Firebolt** shares the *are instant cards, sorcery cards, and/or have an Adventure* analysis of Hearth Elemental above.
+- **Kosei, Penitent Warlord** (*As long as Kosei is enchanted, equipped, and has a counter on it*): predicative conjuncts and a VP sharing the subject and copula.
+- **Scorching Lava** (*that creature can't be regenerated this turn and if it would die this turn, exile it instead*): a declarative and an imperative with a fronted *if*, joined by *and* with no comma. The `english.ron` rule for Finite+Plain coordinations requires `delimited`.
+
+Triage hypotheses for the faces added here (Kosei, Scorching Lava) and the existing ones; confirm each against the code and a parse before changing anything.
 
 ## Constraints
 

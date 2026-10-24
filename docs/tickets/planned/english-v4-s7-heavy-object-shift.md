@@ -17,14 +17,26 @@ A first attempt added a grammar Production postposing any multi-leaf Object past
 
 Postposing is driven by weight (CGEL, Ch. 16 §4, pp. 1382–1384): the postposed Object must be heavy relative to what it crosses. The construction needs a weight condition that excludes the light shifts above. That condition might be relative weight, or a postmodified or coordinated Object. Alternatively, a *from*-PP frame for *choose* could let the existing `heavy_shift` apply, provided that frame is justified. Measure either option (principle 5).
 
+## Further faces (triage of the unread faces, hypotheses to confirm against the code and a parse)
+
+- **Tragic Arrogance, Guided Passage, Global Ruin**: the same *chooses [from among …] [an artifact, a creature, …]* shift as Cataclysm, over a *from among* PP.
+- **Pyxis of Pandemonium**: *turns face up all cards they own exiled with this artifact*. The heavy Object shifts past the particle *face up* rather than a PP, so the weight condition must also cover a particle.
+- The *Choose from among them a card with flying, …* face listed in `english-v4-s7-gapping-remnants` shows the same shift; its card is carried by `english-v4-s7-gapping-remnants`, and a fix here should be checked against it.
+
+Each diagnosis is a hypothesis: confirm it against the code and a parse before changing anything.
+
 ## Witness cards
 
 - Distended Mindbender
 - Cataclysm
+- Tragic Arrogance
+- Guided Passage
+- Global Ruin
+- Pyxis of Pandemonium
 
 ## Estimated faces
 
-About 2 faces: Distended Mindbender and Cataclysm.
+About 6 faces.
 
 ## Landing note
 

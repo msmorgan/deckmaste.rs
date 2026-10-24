@@ -43,3 +43,8 @@ card: Spellshift
 oracle: Then the player shuffles.
 corrected: Then that player shuffles.
 evidence: Botched template update. The printed card (PLC 47, Scryfall image f5c897a6-5835-42ac-8cc7-e8d9fc1e7c77) reads "Then he or she shuffles his or her library", whose pronoun refers back to "That player". Oracle's gender-neutral update replaced it with "the player" rather than the current template "that player shuffles", which supported Oracle texts use in 54 places.
+
+card: Kutzil, Malamet Exemplar
+oracle: power greater than its base power deals combat damage
+corrected: power greater than its base power deal combat damage
+evidence: Oracle errata of subject-verb agreement. The subject "one or more creatures you control each with power greater than its base power" is plural and takes "deal". The printed card (LCI 232) carries the same "deals" as Oracle, so this is not a printed-card disagreement; the correction restores the agreement every other "one or more creatures ... deal combat damage" trigger keeps.
