@@ -82,4 +82,5 @@ constraints apply.
 
 ## Landing note
 
-Per `docs/tickets/README.md`, end the ticket with the two landing lines.
+1. **Census delta** (`nxxvoyzw`): faces read 32,806 → 32,811 (+5: Aang, Master of Elements; Dralnu's Pet; Frantic Firebolt; Hearth Elemental; Kosei, Penitent Warlord); total Readings 338,087 → 338,162; lost faces: none.
+2. **Judgment set**: `cargo test -p deckmaste_english_v4` passes; the entries in `judgments/medial_remnants.txt` and `judgments/preposition_function_licences.txt` hold.
