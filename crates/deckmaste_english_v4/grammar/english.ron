@@ -162,6 +162,9 @@
         // and never also a central Adjunct of its Verb Phrase: one tree per
         // analysis (`english-lexical-analysis.md` §2).
         "CentralPosition": ["Occupied"],
+        // A fused-head adjective that names a Quality with no noun of its own
+        // (*protection from multicolored*), as the lexicon declares it.
+        "QualityHead": ["Fused"],
         // A Conjunct of a Word-Part Coordination: a Compound Noun's first
         // base alone, sharing the head word of the last Conjunct, the
         // `Whole` Compound Noun (CGEL, Ch. 15 §3.1(g), p. 1325).
@@ -351,7 +354,7 @@
         "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability", "DeterminativeDistribution"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
-        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Polarity"], gap: true),
+        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade", "Polarity", "QualityHead"], gap: true),
         "AdverbPhrase": (features: ["AdjunctPosition"]),
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
@@ -874,12 +877,14 @@
         // their Noun Phrase.
         (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "NominalPhraseQuality", lhs: "Quality", rhs: [Cat("head", "NounPhrase")]),
-        // An adjective is a Quality only as a fused head (*protection from
-        // multicolored*). A fused head is the marked construction: where a
-        // noun heads the same Quality, as a colour word's conversion does
-        // (*protection from red*; CGEL, Ch. 19 §3.3, p. 1642; Ch. 5 §9.3,
-        // p. 417), the adjective ranks behind it.
-        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], cost: 1),
+        // An adjective is a Quality only as a fused head, and only one the
+        // lexicon declares a Quality head (*protection from multicolored*,
+        // *protection from snow* [CR#205.4a]; CGEL, Ch. 5 §9.3, p. 417). A colour word is not: its
+        // conversion to a noun is the Quality (*protection from red*; Ch. 19
+        // §3.3, p. 1642), so the fused-head adjective of the same word would
+        // be a second tree for it (`docs/decisions/english-lexical-analysis.md`
+        // §2).
+        (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")], equations: [Carry("head.QualityHead", "Fused")], cost: 1),
         // Another card's full name costs one more than the face's own name,
         // so the face's own Shortened Name [CR#201.5c] ranks first where the
         // two are spelled alike (*Nicol Bolas* on Nicol Bolas, the Ravager).

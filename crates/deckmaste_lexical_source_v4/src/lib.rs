@@ -476,6 +476,12 @@ impl Sources {
         for lexeme in &mut builder.lexemes {
             if lexeme.id.as_str().starts_with("supertype:") {
                 lexeme.properties.classes.insert("Supertype".into());
+                // A supertype word names a Quality as a fused head
+                // ([CR#205.4a]; *protection from snow*).
+                lexeme
+                    .properties
+                    .features
+                    .insert("QualityHead".into(), Ident::new("Fused"));
             }
         }
         let mut subtypes =

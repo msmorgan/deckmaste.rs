@@ -108,16 +108,16 @@
     "unspent",
     // "faces a villainous choice" [CR#701.55a]; the verb `face` is the keyword action.
     "villainous",
-    "worthy",
+    (lemma: "worthy", fused_quality: true),
     "wrong",
 
     // Color Words [CR#105.1,105.2a..105.2c].
     "black",
     "blue",
-    "colorless",
+    (lemma: "colorless", fused_quality: true),
     "green",
-    "monocolored",
-    "multicolored",
+    (lemma: "monocolored", fused_quality: true),
+    (lemma: "multicolored", fused_quality: true),
     "red",
     "white",
 

@@ -357,6 +357,12 @@ impl Builder {
             if entry.follows_sum {
                 lexeme.properties.classes.insert("SumAdjective".into());
             }
+            if entry.fused_quality {
+                lexeme
+                    .properties
+                    .features
+                    .insert("QualityHead".into(), Ident::new("Fused"));
+            }
             if let Some(determination) = entry.fused_head {
                 let class = match determination {
                     FusedHeadDetermination::Ordinary => "FusedHeadAdjective",

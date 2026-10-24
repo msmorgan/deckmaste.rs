@@ -222,7 +222,15 @@ Settled analyses:
   pp. 266, 271: *the chosen color is [green]* identifies a value). Semantics
   chooses. Bare non-count predicatives are English (*That's utter nonsense*,
   p. 536; *The sheet is cotton*, p. 538), so no gate excludes them; one
-  would lose 76 faces that need them.
+  would lose 76 faces that need them. In a Quality (*protection from red*) the two are one
+  analysis, not two: nothing there tells the lexemes apart (no copula, no
+  specifying role), and a fused-head adjective needs no determiner only as an
+  Oracle idiom for a word with no noun of its own (*protection from
+  multicolored*; CGEL, Ch. 5 §9.3, p. 417). A colour word has one, so its
+  noun (Ch. 19 §3.3, p. 1642) is the Quality and the adjective is not: the
+  lexicon declares which adjectives are Quality adjectives
+  (`fused_quality`), and a supertype word is one [CR#205.4a]. *Protection
+  from red* has one Reading, not two (Dominaria's Judgment, 88 → 5).
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
 - *Then* after a comma marks a Linked Coordination (Oracle English glossary):
   it is an Adjunct of its Linked Conjunct, never a Coordinator, and the

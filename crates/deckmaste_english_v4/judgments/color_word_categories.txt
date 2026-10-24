@@ -1,6 +1,6 @@
-# A colour word names the colour as a noun in a Quality (oracle-style-guide §10, "And, or, and and/or": *protection from black and from red*) and is the adjective after *be* or *become* (§12, "Colors and types"; *His tie is brown*, CGEL, Ch. 19 §3.3, p. 1642); an adjective without a noun conversion is a fused-head Quality (Ch. 5 §9.3, p. 417). The other category's Reading is kept and ranks behind (english-v4 §4.4)
+# A colour word names the colour as a noun in a Quality (oracle-style-guide §10, "And, or, and and/or": *protection from black and from red*) and is the adjective after *be* or *become* (§12, "Colors and types"; *His tie is brown*, CGEL, Ch. 19 §3.3, p. 1642). An adjective without a noun conversion is a fused-head Quality (Ch. 5 §9.3, p. 417), the lexicon's `fused_quality`, and a colour word is not one: its Quality is one analysis, the noun (english-lexical-analysis §2)
 + <card=Chaoslace> Target spell or permanent becomes red. => AdjectivePhrase "red" as PredicativeComplement of become
 + <card=Edge of the Divinity> As long as enchanted creature is white, it gets +1/+2. => AdjectivePhrase "white" as PredicativeComplement of be
 + <card=Darkest Hour> All creatures are black. => AdjectivePhrase "black" as PredicativeComplement of be
-+KeywordPhrase protection from red => NounPhrase "red" head noun:red
++KeywordPhrase protection from red => NounPhrase "red" head noun:red; readings 1
 +KeywordPhrase hexproof from monocolored => AdjectivePhrase "monocolored"; readings 1
