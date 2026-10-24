@@ -1,8 +1,6 @@
 # The universal quantifiers "all" and "both" as predeterminers of a definite or possessive plural noun phrase, with number, definiteness, stacking and agreement constraints
 + This creature gets +2/+0 for every seven cards in your graveyard.
 +NounPhrase all the cards => NounPhrase "the cards"
-# kept: no card prints it; sole judgment covering production PredeterminerMass
-+NounPhrase all the damage => NounPhrase "the damage"
 + <card=Tolarian Winds> Discard all the cards in your hand, then draw that many cards. => NounPhrase "all the cards in your hand" as Object of discard; NounPhrase "the cards in your hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in your hand" as Adjunct of discard
 + <card=Awaken the Erstwhile> Each player discards all the cards in their hand, then creates that many 2/2 black Zombie creature tokens. => NounPhrase "all the cards in their hand" as Object of discard; NounPhrase "the cards in their hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in their hand" as Adjunct of discard
 + <card=Robber Fly> Whenever this creature becomes blocked, defending player discards all the cards in their hand, then draws that many cards. => NounPhrase "all the cards in their hand" as Object of discard; NounPhrase "the cards in their hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in their hand" as Adjunct of discard

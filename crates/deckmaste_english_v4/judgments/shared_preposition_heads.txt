@@ -1,4 +1,2 @@
 # Coordinated prepositions sharing one noun-phrase complement (over or under cards)
-# kept: no card prints it; sole judgment covering production PrepositionPhrase/shared
-+PrepositionPhrase over or under cards
 *PrepositionPhrase over or under they

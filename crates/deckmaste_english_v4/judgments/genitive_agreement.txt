@@ -8,8 +8,6 @@
 +NounPhrase an additional two creatures => AdjectivePhrase "additional"; Nominal "two creatures"
 # from: Kaervek's Hex
 +NounPhrase an additional 2 damage => AdjectivePhrase "additional"; Nominal "2 damage"
-# kept: no card prints it; sole judgment covering production SingularOrQuantifiedDetermination
-+NounPhrase another two creatures
 *NounPhrase much one
 
 *NounPhrase a two creatures
@@ -17,7 +15,6 @@
 *NounPhrase much two turns
 *Clause every two turns are turns
 *Clause each two turns are turns
-*Clause another two creatures attacks
 
 *NounPhrase those one creature
 # from: Invasion of Alara

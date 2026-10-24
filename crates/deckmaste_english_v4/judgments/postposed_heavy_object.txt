@@ -8,8 +8,6 @@
 + At the beginning of each player's upkeep, return to its owner's hand each creature that player controls with power greater than the number of cards in their hand. => NounPhrase "each creature that player controls with power greater than the number of cards in their hand" as Object of return
 + <card=Moira, Urborg Haunt> Whenever Moira deals combat damage to a player, return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn. => NounPhrase "target creature card in your graveyard that was put there from the battlefield this turn" as Object of return
 + Put onto the battlefield under your control all creature cards in all graveyards that were put there from the battlefield this turn. => NounPhrase "all creature cards in all graveyards that were put there from the battlefield this turn" as Object of put
-# kept: no card prints it; sole judgment covering production Valence:VerbPhrase/TransitiveWithPP(NP,PP[prep:into])/shifted-object
-+ Shuffle into your library all creature cards in your graveyard. => NounPhrase "all creature cards in your graveyard" as Object of shuffle
 + Return target creature card from your graveyard to the battlefield. => NounPhrase "target creature card" as Object of return
 + Return this card from your graveyard to your hand. => NounPhrase "this card" as Object of return
 # from: Revivify
@@ -18,8 +16,6 @@
 +VerbPhrase put into a graveyard this turn => NounPhrase "this turn" as Adjunct of put
 # from: Gerrard's Hourglass Pendant
 + Return to the battlefield tapped all permanent cards in your graveyard that were put there from the battlefield this turn. => NounPhrase "all permanent cards in your graveyard that were put there from the battlefield this turn" as Object of return; AdjectivePhrase "tapped" as Adjunct of return
-# kept: no card prints it; sole judgment covering production Valence:VerbPhrase/TransitiveWithPP(NP,PP[prep:to])/shifted-object/prefix1/more
-+ Return at random from your graveyard to your hand all creature cards in your graveyard. => NounPhrase "all creature cards in your graveyard" as Object of return; PrepositionPhrase "at random" as Adjunct of return
 # A heavy Object postposed past an Adjunct or a predicative Complement (CGEL, Ch. 16 §4, p. 1384 [7]): it ends in a dependent or is a coordination
 + You choose from it a nonland card with mana value 3 or less and a card with mana value 4 or greater. => NounPhrase "a nonland card with mana value 3 or less and a card with mana value 4 or greater" as Object of choose; PrepositionPhrase "from it" as Adjunct of choose
 + Each player chooses from among the permanents they control an artifact, a creature, an enchantment, and a land, then sacrifices the rest. => NounPhrase "an artifact, a creature, an enchantment, and a land" as Object of choose; PrepositionPhrase "from among the permanents they control" as Adjunct of choose

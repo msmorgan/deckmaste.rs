@@ -1,7 +1,5 @@
 # Auxiliary stranding: a finite auxiliary heads its Verb Phrase alone before
 # the ellipsis site of its Complement (CGEL, Ch. 17 §7.1, pp. 1519–1520).
-# kept: no card prints it; sole judgment covering production StrandedPerfect
-+ If you haven't, draw a card. => VerbPhrase "haven't" head have
 + If you can't, draw a card. => VerbPhrase "can't" head can
 + If they can't, you draw a card. => VerbPhrase "can't" head can
 # from: Tunnel Vision

@@ -1,56 +1,6 @@
 # Correlative coordination (both...and, either...or, neither...nor) of verb phrases, noun phrases, prepositional phrases, adverbs, to-infinitivals, keywords and mana symbols; serial either/neither with a final coordinator; malformed correlatives
 + Whenever you cast a spell that's both blue and red, this creature has base power and toughness 3/3 until end of turn and can't be blocked this turn.
-# kept: no card prints it; sole judgment covering production Clause#Coordinator/binary-coord:or
-+Clause either attack or block
-# kept: no card prints it; sole judgment covering production VerbPhrase#Coordinator/binary-coord:or
-+VerbPhrase either attack or block
 # from: Sunrise Cavalier
 +NounPhrase neither day nor night
-# kept: no card prints it; sole judgment covering production PrepositionPhrase#Coordinator/binary-coord:and
-+PrepositionPhrase both among cards and among cards
-# kept: no card prints it; sole judgment covering production PrepositionPhrase#Coordinator/binary-coord:or
-+PrepositionPhrase either among cards or among cards
-# kept: no card prints it; sole judgment covering production PrepositionPhrase#Coordinator/binary-coord:nor
-+PrepositionPhrase neither among cards nor among cards
-# kept: no card prints it; sole judgment covering production AdverbPhrase#Coordinator/binary-coord:and
-+AdverbPhrase both again and again
-# kept: no card prints it; sole judgment covering production AdverbPhrase#Coordinator/binary-coord:or
-+AdverbPhrase either again or again
-# kept: no card prints it; sole judgment covering production AdverbPhrase#Coordinator/binary-coord:nor
-+AdverbPhrase neither again nor again
-# kept: no card prints it; sole judgment covering production Clause#Coordinator/binary-coord:and
-+Clause both to attack and to block
-# kept: no card prints it; sole judgment covering production Clause#Coordinator/binary-coord:nor
-+Clause neither to attack nor to block
-# kept: no card prints it; sole judgment covering production KeywordPhrase#Coordinator/binary-coord:and
-+KeywordPhrase both flying and haste
-# kept: no card prints it; sole judgment covering production KeywordPhrase#Coordinator/binary-coord:or
-+KeywordPhrase either flying or haste
-# kept: no card prints it; sole judgment covering production KeywordPhrase#Coordinator/binary-coord:nor
-+KeywordPhrase neither flying nor haste
-# kept: no card prints it; sole judgment covering production Clause#Coordinator/serial-coord:or
-+Clause either attack, block, or attack
-# kept: no card prints it; sole judgment covering production VerbPhrase#Coordinator/serial-coord:or
-+VerbPhrase either attack, block, or attack
-# kept: no card prints it; sole judgment covering production VerbPhrase#Coordinator/serial-coord:nor
-+VerbPhrase neither attack, block, nor attack
-# kept: no card prints it; sole judgment covering production Nominal#Disjunctive/serial-coord:or (+1)
-+NounPhrase either cards, cards, or cards
-# kept: no card prints it; sole judgment covering production Nominal#Disjunctive/serial-coord:nor (+1)
-+NounPhrase neither cards, cards, nor cards
-# kept: no card prints it; sole judgment covering production PrepositionPhrase#Coordinator/serial-coord:or
-+PrepositionPhrase either among cards, among cards, or among cards
-# kept: no card prints it; sole judgment covering production PrepositionPhrase#Coordinator/serial-coord:nor
-+PrepositionPhrase neither among cards, among cards, nor among cards
-# kept: no card prints it; sole judgment covering production AdverbPhrase#Coordinator/serial-coord:or
-+AdverbPhrase either again, again, or again
-# kept: no card prints it; sole judgment covering production AdverbPhrase#Coordinator/serial-coord:nor
-+AdverbPhrase neither again, again, nor again
-# kept: no card prints it; sole judgment covering production Clause#Coordinator/serial-coord:nor
-+Clause neither to attack, to block, nor to attack
-# kept: no card prints it; sole judgment covering production KeywordPhrase#Coordinator/serial-coord:or
-+KeywordPhrase either flying, haste, or flying
-# kept: no card prints it; sole judgment covering production KeywordPhrase#Coordinator/serial-coord:nor
-+KeywordPhrase neither flying, haste, nor flying
 # from: Hanweir Battlements
 +VerbPhrase both own and control this land => NounPhrase "this land" as Object of own; NounPhrase "this land" as Object of control

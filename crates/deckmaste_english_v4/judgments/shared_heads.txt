@@ -1,13 +1,9 @@
 # Coordinated verbs and auxiliaries sharing a following complement (right-node raising), agreement and form mismatches, and ordinary serial coordination
-# kept: no card prints it; sole judgment covering production VerbPhrase/shared-bareinf (+1)
-+VerbPhrase may and can draw cards => NounPhrase "cards" as Object of draw
-# kept: no card prints it; sole judgment covering production VerbPhrase/shared-pred
-+VerbPhrase be and be drawn
+# from: Gilded Drake
++VerbPhrase don't or can't make an exchange => NounPhrase "an exchange" as Object of make
 *VerbPhrase may and can drawing cards
 *VerbPhrase be and may drawn
 *VerbPhrase draw and drawing
 *VerbPhrase draws and discard
 # from: Loxodon Gatekeeper
 +NounPhrase artifacts, creatures, and lands
-# kept: no card prints it; sole judgment covering production VerbPhrase/shared-toinf (+1)
-+VerbPhrase choose and choose to attack => Clause "to attack" as Complement of choose

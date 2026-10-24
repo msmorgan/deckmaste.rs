@@ -97,8 +97,7 @@ under a Category mark), or a simplification of a named card's text that keeps
 the construction under test. A simplification names its source with
 `<card=NAME>` or a `# from: NAME` comment on the line above, and that card's
 text must contain the construction. An entry whose construction no card prints
-gets no entry, except a `*` entry (above) and a `+` entry marked `# kept` as the
-only judgment that exercises a Production.
+gets no entry, except a `*` entry (above).
 
 Punctuation that the construction determines is never stored in a Reading.
 The separator between the keywords of a keyword line is always a comma: Oracle's
@@ -189,9 +188,8 @@ reading of `counter spells`, while rejecting a subjectless finite Clause.
 
 Independent genitives agree with the possessed referent, not the possessor.
 Quantity nominals use general determination, including `an additional two
-creatures`, `another two creatures`, and `every two turns`. Articles select modified quantities; `a two creatures` remains rejected.
-Distributive quantities have singular external agreement, while
-`another two creatures` retains plural agreement. `each two turns` and
+creatures` and `every two turns`. Articles select modified quantities; `a two creatures` remains rejected.
+Distributive quantities have singular external agreement. `each two turns` and
 `every two creatures` now assert the quantity nominal instead of rejection.
 The Targeting Marker is `det:target`, the last word of its Determiner
 (`DeterminerPhrase "target" as Determiner of creature` in `target creature`,

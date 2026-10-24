@@ -996,8 +996,6 @@
         // agree by proximity with a singular first conjunct (*There was a
         // bottle of wine and several glasses on the table*; CGEL, Ch. 4
         // §3.2.2, p. 242, n. 21), as well as with the plural coordination.
-        (name: "ProximateExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase")],
-            equations: [Require("$.Number", "Singular"), Require("displaced_subject.Number", "Plural"), Carry("displaced_subject.FirstConjunctNumber", "Singular"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")], unextended: ["displaced_subject"]),
         (name: "LocatedProximateExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In", "On", "Among", "Under", "Outside", "After"])],
             equations: [Require("$.Number", "Singular"), Require("displaced_subject.Number", "Plural"), Carry("displaced_subject.FirstConjunctNumber", "Singular"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")], unextended: ["displaced_subject"]),
 
@@ -1298,7 +1296,6 @@
         // interval (*[so far] this turn*, *[only once] each turn*).
         (name: "AdverbModifiedAdverbPhrase", lhs: "AdverbPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "AdverbPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")], light: ["head"]),
         (name: "PredeterminerCount", lhs: "NounPhrase", rhs: [Class("determiner", "Predeterminer"), Cat("head", "NounPhrase")], equations: [Require("head.Determination", "Overt"), Require("head.Number", "Plural"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability")]),
-        (name: "PredeterminerMass", lhs: "NounPhrase", rhs: [Class("determiner", "Predeterminer"), Cat("head", "NounPhrase")], equations: [Require("head.Determination", "Overt"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability")]),
         // *All* before a fused cardinal, the head of its Noun Phrase unexpressed
         // (*if you've done all four*; CGEL, Ch. 5 §12, p. 434: before a cardinal
         // *all* is the determiner and the numeral an internal modifier, which
@@ -1391,7 +1388,6 @@
         (name: "CardinalMassPremodifier", lhs: "QuantifiedNominal", rhs: [Numeral("modifier", Cardinal), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
         (name: "ModifiedQuantity", lhs: "ModifiedQuantifiedNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "QuantifiedNominal")], equations: []),
         (name: "DeterminedQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Agree("determiner.Number", "head.QuantityNumber"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
-        (name: "SingularOrQuantifiedDetermination", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Require("determiner.DeterminativeDistribution", "SingularOrQuantified"), Agree("$.Number", "head.QuantityNumber"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         (name: "DistributiveQuantity", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "QuantifiedNominal")], equations: [Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("determiner.DeterminativeDistribution", "Distributive"), Agree("$.Number", "determiner.Number"), Require("determiner.Countability", "Count"), Require("$.Countability", "Count"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt")]),
         // A singular determinative over a quantified plural, which *a* selects
         // only with *further* or *additional* (*an additional two creatures*;
