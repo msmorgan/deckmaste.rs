@@ -42,3 +42,7 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- Well scoped, with no engine changes expected.

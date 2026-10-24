@@ -54,3 +54,9 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- B4TBG!: implementing the terminal-punctuation rule is the natural point to delete `unwritten_period`. The rescan-engine-hygiene ticket may already have deleted it.
+- Sway of the Stars: restrict the shared-determiner shape to a final determined conjunct after bare conjoined nominals, so ordinary NP coordinations do not gain a second bracketing.
+- Marvo, Barroom Brawl, Widespread Brutality and Azlask are lexical or equation gaps.

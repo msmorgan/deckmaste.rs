@@ -28,3 +28,9 @@ Per `docs/tickets/README.md`, end the ticket with these two lines, stamped with 
 
 1. **Census delta**: faces read and total Readings before and after; lost faces by name, or "none".
 2. **Judgment set**: the result of running it.
+
+## Review notes (hypotheses, verify first)
+
+- Crabomination: do not treat it as clusters. Read it as three ordinary NPs.
+- Inside [NP a card at random from their graveyard], *at random* is NP-internal before a source postmodifier, as on Gorex (`selection_idioms.txt:3`). License NP-internal *at random* only when a postmodifier PP follows, so bare *a card at random* stays out (`selection_idioms.txt:23`).
+- Claimed: today the sentence reads only through a wrong *from [NP their graveyard and a card]* attachment.
