@@ -369,6 +369,10 @@ structure Referent where
   /-- Whether its description says "you control" (`some true`) or that an opponent, or not you,
   controls it (`some false`); `none` when it says neither. -/
   controlledByYou : Option Bool := none
+  /-- Whether its description says that an opponent controls it ("target creature an opponent
+  controls"), which "you don't control" does not say: what a definite description that reads it
+  back by "an opponent controls" asks of it (`Referent.admitsConjunct`). -/
+  opponentControls : Bool := false
   /-- The ids this object's referent had before the Zone Changes the checker applied to it,
   latest first: a move is a new object [CR#400.7], read under a fresh id. -/
   movedFrom : List ReferentId := []

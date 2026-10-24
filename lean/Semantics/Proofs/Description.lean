@@ -225,6 +225,77 @@ theorem okDefiniteSuperlative :
 theorem badBareDefinite :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (the isCreature) = [.uniquifying] := by decide
 
+/-! ## A definite description reads back a mention
+
+A `the` description whose predicate does not make it unique reads back the one earlier mention in
+scope whose recorded facts say what its predicate says (owner ruling 2026-10-24): after "Choose
+target creature you control and target creature you don't control", "the creature you control"
+is the first target. The targets were chosen as the spell was cast [CR#601.2c]; the description
+chooses nothing. A predicate that makes the description unique describes afresh. -/
+
+private def creatureYouControl : Predicate := and [isCreature, youControl]
+private def creatureYouDontControl : Predicate := and [isCreature, youDontControl]
+
+private def chosenFightPair : DRS :=
+  actionResult (DRS.ofList [])
+    (choose (both (target creatureYouControl) (target creatureYouDontControl)))
+
+/-- The id of the one target `chosenFightPair` recorded with controller fact `fact`. -/
+private def fightPairTarget (fact : Bool) : List ReferentId :=
+  (chosenFightPair.referents.filter fun ref =>
+    ref.det == .target && ref.controlledByYou == some fact).map (·.id)
+
+/-- "Choose target creature you control and target creature you don't control. The creature you
+control gets +2/+1 until end of turn.": each description reads back the target its restriction
+picks out, and introduces no object ("you control" mentions you, as any description does). -/
+theorem okDefiniteReadsBackChosenTarget :
+    (stepNounPhrase 64 chosenFightPair .other false (the creatureYouControl)).2 =
+        (fightPairTarget true, []) ∧
+      (stepNounPhrase 64 chosenFightPair .other false (the creatureYouDontControl)).2 =
+        (fightPairTarget false, []) ∧
+      fightPairTarget true ≠ fightPairTarget false ∧
+      ((stepNounPhrase 64 chosenFightPair .other false (the creatureYouControl)).1.referents.filter
+        fun ref => ref.id ≥ chosenFightPair.nextId && ref.kind == .object).isEmpty ∧
+      Action.check (DRS.ofList [])
+        (sequentially
+          [ choose (both (target creatureYouControl) (target creatureYouDontControl)),
+            get (the creatureYouControl) (up 2) (up 1) untilEndOfTurn ]) = [] := by
+  decide
+
+/-- "Choose target creature you control. Tap the creature you control.": the readback does not
+depend on coordination. -/
+theorem okDefiniteReadsBackOneTarget :
+    Action.check (DRS.ofList [])
+      (sequentially [choose (target creatureYouControl), tap (the creatureYouControl)]) = [] := by
+  decide
+
+/-- "Tap the creature you control." with no mention in scope, and "the creature an opponent
+controls" after "target creature you don't control", which does not say an opponent controls
+it: no mention matches, and "the" names nothing unique. -/
+theorem badDefiniteNoMatchingMention :
+    Action.check (DRS.ofList []) (tap (the creatureYouControl)) = [.uniquifying] ∧
+      (stepNounPhrase 64 chosenFightPair .other false
+        (the (and [isCreature, anOpponentControls]))).2.2 = [.uniquifying] := by
+  decide
+
+/-- "Choose target creature you control and target creature you control. Tap the creature you
+control.": two mentions match, and "the" names neither. -/
+theorem badDefiniteTwoMatchingMentions :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ choose (both (target creatureYouControl) (target creatureYouControl)),
+          tap (the creatureYouControl) ]) = [.uniquifying] := by
+  decide
+
+/-- "the creature with the greatest power" after "Choose target creature you control and target
+creature you don't control": the superlative makes it unique, so it describes afresh and never
+reads back an earlier creature mention. -/
+theorem okSuperlativeDescribesAfresh :
+    (stepNounPhrase 64 chosenFightPair .other false
+        (the (and [isCreature, superlative .max (.stat .power) isCreature]))).2 =
+      ([chosenFightPair.nextId], []) := by
+  decide
+
 /-- "the monarch draws a card": only one player can be the monarch at a time [CR#725.3]. -/
 theorem okTheMonarch :
     Action.check (DRS.ofList [])

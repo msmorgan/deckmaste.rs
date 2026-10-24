@@ -33,9 +33,9 @@ def fulgentDistraction : Action :=
 theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction = [] := by decide
 
 /-- "Choose target creature you control and target creature you don't control. … those
-creatures": the fight-and-bite opening (Blizzard Brawl, Joust, Tail Swipe). The targets are
-chosen as the spell is cast [CR#601.2c]; "those creatures" reads both. The rest of each card
-waits on `lean-v3-anaphoric-definite-description` and `lean-v3-reciprocal-each-other`. -/
+creatures": the fight-and-bite opening (Blizzard Brawl, Joust, Tail Swipe, Malamet Battle Glyph).
+The targets are chosen as the spell is cast [CR#601.2c]; "those creatures" reads both. "Then those
+creatures fight each other" waits on `lean-v3-reciprocal-each-other`. -/
 def chooseCreatureYouControlAndCreatureYouDont : Action :=
   sequentially
     [ choose (both (target (and [isCreature, youControl]))
@@ -43,6 +43,51 @@ def chooseCreatureYouControlAndCreatureYouDont : Action :=
       tap (those creature) ]
 theorem okChooseCreatureYouControlAndCreatureYouDont :
     Action.check (DRS.ofList []) chooseCreatureYouControlAndCreatureYouDont = [] := by decide
+
+/-- The opening the fight-and-bite cards share: "Choose target creature you control and target
+creature you don't control." -/
+def chooseFightPair : Action :=
+  choose (both (target (and [isCreature, youControl])) (target (and [isCreature, youDontControl])))
+
+/-- Blizzard Brawl, through its second sentence: "Choose target creature you control and target
+creature you don't control. If you control three or more snow permanents, the creature you
+control gets +1/+0 and gains indestructible until end of turn." "The creature you control" reads
+back the first target, which its restriction picks out of the two. "Then those creatures fight
+each other" waits on `lean-v3-reciprocal-each-other`. -/
+def blizzardBrawlOpening : Action :=
+  sequentially
+    [ chooseFightPair,
+      doIf (compareAmt (countOf (and [hasSupertype .snow, isPermanent, youControl])) .atLeast 3)
+        (establishFor (the (and [isCreature, youControl]))
+          [getsPt it (up 1) (up 0), abilityGrant it indestructible] untilEndOfTurn) ]
+theorem okBlizzardBrawlOpening : Action.check (DRS.ofList []) blizzardBrawlOpening = [] := by
+  decide
+
+/-- Tail Swipe, through its second sentence: "Choose target creature you control and target
+creature you don't control. If you cast this spell during your main phase, the creature you
+control gets +1/+1 until end of turn." A step in which a spell can be cast ends only with the
+stack empty [CR#500.2], so the spell resolves in the turn it was cast, and its casting is one this
+turn. "Then those creatures fight each other" waits on
+`lean-v3-reciprocal-each-other`. -/
+def tailSwipeOpening : Action :=
+  sequentially
+    [ chooseFightPair,
+      doIf (did you (cast thisSpell)
+          (within soFarThisTurn (some (.inPart .mainPhase (some you) .current))))
+        (get (the (and [isCreature, youControl])) (up 1) (up 1) untilEndOfTurn) ]
+theorem okTailSwipeOpening : Action.check (DRS.ofList []) tailSwipeOpening = [] := by decide
+
+/-- Malamet Battle Glyph, through its second sentence: "Choose target creature you control and
+target creature you don't control. If the creature you control entered this turn, put a +1/+1
+counter on it." "Then those creatures fight each other" waits on
+`lean-v3-reciprocal-each-other`. -/
+def malametBattleGlyphOpening : Action :=
+  sequentially
+    [ chooseFightPair,
+      doIf (did (the (and [isCreature, youControl])) enter soFarThisTurn)
+        (putCounters 1 p1p1Counter it) ]
+theorem okMalametBattleGlyphOpening :
+    Action.check (DRS.ofList []) malametBattleGlyphOpening = [] := by decide
 
 /-- Stolen Uniform, through its second sentence: "Choose target creature you control and target
 Equipment. Gain control of that Equipment until end of turn." "Attach it to the chosen creature"

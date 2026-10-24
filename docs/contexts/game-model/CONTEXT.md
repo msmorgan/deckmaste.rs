@@ -715,9 +715,14 @@ other) and refusing a remaining tie; a demonstrative noun phrase excludes
 clause-mates and what a bare pronoun in the same clause resolved to, then
 selects the most recent compatible antecedent; a Participial Description
 requires a unique compatible antecedent, and is the only Reference that
-reaches an Object a linked ability acted on. A Definition body establishes its
-own Reference Scope over its bound parameters and active Actor; a historical-event
-predicate binds the entity it describes (`which`) locally.
+reaches an Object a linked ability acted on. A definite description whose
+Predicate does not by itself single out one thing ("the creature you control",
+not "the creature with the greatest power") requires a unique antecedent whose
+earlier mention says everything its Predicate says. It chooses nothing: a
+target it reads back was chosen as the spell was cast ([CR#601.2c]). A
+Definition body establishes its own Reference Scope over its bound parameters
+and active Actor; a historical-event predicate binds the entity it describes
+(`which`) locally.
 _Avoid_: author-chosen numeric stack depth
 
 **Binding Identity** (project term):

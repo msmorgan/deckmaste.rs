@@ -170,6 +170,42 @@ def Predicate.controlFact (predicate : Predicate) (fuel : Nat := 32) : Option Bo
   | _, _ => none
 termination_by structural fuel
 
+/-- Whether a description says that an opponent controls it ("an opponent controls", "your
+opponents control"); "you don't control" does not. -/
+def Predicate.opponentControls (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body => body.opponentControls n
+  | _ + 1, .hasPossessor .controller who => who.namesOpponent
+  | n + 1, .and predicates => predicates.any (·.opponentControls n)
+  | _, _ => false
+termination_by structural fuel
+
+/-- Whether what an earlier mention recorded of `ref` says what `conjunct` says: a Card Type its
+types include, or a controller restriction it states ("an opponent controls" saying "you don't
+control", not the reverse). Any other conjunct is not one a mention records, and admits none. -/
+def Referent.admitsConjunct (ref : Referent) : Predicate → Bool
+  | .hasType t => Kind.lte .object ref.kind && tyIs t ref.ty
+  | .hasPossessor .controller .you => ref.controlledByYou == some true
+  | .hasPossessor .controller who => who.namesOpponent && ref.opponentControls
+  | .not (.hasPossessor .controller .you) => ref.controlledByYou == some false
+  | _ => false
+
+/-- The mentions in `drs`'s Reference Scope a `the` description of one object that `predicate`
+does not make unique reads back: one earlier particular (a target, or an "a" or "the" mention)
+whose recorded facts say every conjunct of `predicate` ("the creature you control" after "target
+creature you control and target creature you don't control"). A moved object is a new object
+[CR#400.7], which the restriction of its earlier mention no longer describes; neither the Source
+or "you", a hypothetical a Condition introduced, nor an object a linked ability published
+(`Referent.linked`) is read. -/
+def DRS.definiteAntecedents (drs : DRS) (predicate : Predicate) : List Referent :=
+  let conjuncts := predicate.flattenOne
+  if conjuncts.isEmpty then [] else
+  drs.visibleReferents.filter fun ref =>
+    !ref.linked && !ref.isActorFrame && !ref.defaultAnchor && !ref.fromCondition &&
+      ref.movedFrom.isEmpty && ref.plur.isOne &&
+      (ref.det == .target || ref.det == .a || ref.det == .the) &&
+      conjuncts.all ref.admitsConjunct
+
 def Predicate.isOther (predicate : Predicate) : Bool :=
   match predicate.scopeBody with | .other | .otherThan _ => true | _ => false
 
