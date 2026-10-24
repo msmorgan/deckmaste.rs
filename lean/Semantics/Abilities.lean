@@ -296,9 +296,6 @@ mutual
     conjunct holds, and conjuncts of different kinds join: "creature or player" denotes either. -/
     | coord (coordinator : Coordinator) (items : List Predicate)
     | not (predicate : Predicate)
-    /-- Rules text printed in square brackets, kept in place so a Text Change can find it
-    [CR#702.148a]: transparent, it means what `predicate` means. -/
-    | bracketed (predicate : Predicate)
     /-- A bare printed "another" or "other" ("another target creature you control", "each other
     player"): other than its Contrast Anchor, which the checker resolves (`semantics-v3.md`
     §0.1). It need not contrast with a target. -/
@@ -607,9 +604,10 @@ mutual
   /-- A Text Change: a specified rewrite of the subject's rules text, applied in layer 3
   [CR#612.1,613.1c]. Each row names the rewrite; the result is not checked again. -/
   inductive TextChange where
-    /-- Removes every `bracketed` term from the subject's rules text, the brackets with their
-    contents; the rest of the text is unchanged (cleave [CR#702.148a]). A text with no
-    brackets is left as it was. -/
+    /-- Removes all text found within square brackets in the subject's rules text, the brackets
+    with their contents; the rest of the text is unchanged (cleave [CR#702.148a,702.148b]). The
+    bracketed text is not marked in Core: lowering reads it from the authoring tree, where the
+    `bracketed` template call survives. A text with no brackets is left as it was. -/
     | removeBracketed
     /-- Replaces every `target` determiner in the subject's rules text with `each`, keeping its
     description; nothing else changes (overload [CR#702.96a,702.96b]). -/
@@ -1168,9 +1166,6 @@ mutual
     carrying its optional `Deed` identity (`some (.action name)`) for `does`/`would`/`did`/`cant`
     and composite action lowering [CR#701.22b]. -/
     | ownScope (deed : Option Deed) (body : Action)
-    /-- Rules text printed in square brackets, kept in place so a Text Change can find it
-    [CR#702.148a]: transparent, it means what `action` means. -/
-    | bracketed (action : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
     clause's subject or performer); `kind` is `none` for unqualified "damage". In a replacement's
     `instead` over a damage event it is that event modified [CR#614.6]: a recipient left

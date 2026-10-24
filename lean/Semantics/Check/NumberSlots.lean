@@ -135,7 +135,7 @@ termination_by structural fuel
 def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
-  | _n + 1, .inCaller body | _n + 1, .ownScope _ body | _n + 1, .bracketed body | _n + 1, .instruct _ body => body.numberSlots _n
+  | _n + 1, .inCaller body | _n + 1, .ownScope _ body | _n + 1, .instruct _ body => body.numberSlots _n
   -- You can't deal negative damage [CR#107.1b].
   | _n + 1, .dealDamage amount _ _ | _n + 1, .markDamage _ amount => [(amount, .clamped)]
   -- A prevention's or redirection's own slot is its cut; the additional effect a prevention

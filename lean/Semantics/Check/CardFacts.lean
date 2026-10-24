@@ -5,7 +5,7 @@ namespace Semantics
 
 def Action.scopeBody (i : Action) (fuel : Nat := 64) : Action :=
   match fuel, i with
-  | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .bracketed b => b.scopeBody n
+  | n + 1, .inCaller b | n + 1, .ownScope _ b => b.scopeBody n
   | _, b => b
 termination_by structural fuel
 
@@ -18,7 +18,6 @@ termination_by structural fuel
 def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPhrase :=
   match fuel, action with
   | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
-  | n + 1, .bracketed body => body.canonicalPatient n
   | _ + 1, .move subject .. | _ + 1, .setStatus _ subject
   | _ + 1, .turnOver subject | _ + 1, .clearDamage subject
   | _ + 1, .target subject | _ + 1, .block subject => some subject
@@ -28,7 +27,7 @@ termination_by structural fuel
 mutual
   def Action.namesThisDoor (i : Action) (fuel : Nat := 64) : Bool :=
     match fuel, i with
-    | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .bracketed b
+    | n + 1, .inCaller b | n + 1, .ownScope _ b
     | n + 1, .enact _ b _ _ | n + 1, .instruct _ b | n + 1, .limited b _
     | n + 1, .doForEach _ b | n + 1, .doForEachKind _ _ _ b => b.namesThisDoor n
     | _ + 1, .unlock .thisDoor => true
@@ -205,7 +204,7 @@ termination_by structural fuel
 
 def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
   match fuel, p with
-  | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
+  | n + 1, .inCaller b | n + 1, .compareOver b _ _ _ =>
     b.writtenTypes n
   | _ + 1, .hasType t => [t]
   | n + 1, .and ps => ps.foldr (fun p ts => mergeTypes (p.writtenTypes n) ts) []
@@ -219,7 +218,7 @@ def combineTypeAlts (left right : List (List CardType)) : List (List CardType) :
 
 def Predicate.headTyAlts (p : Predicate) (fuel : Nat := 64) : List (List CardType) :=
   match fuel, p with
-  | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ => b.headTyAlts n
+  | n + 1, .inCaller b | n + 1, .compareOver b _ _ _ => b.headTyAlts n
   | n + 1, .and ps =>
     ps.foldr (fun p alts => combineTypeAlts (p.headTyAlts n) alts) [[]]
   | n + 1, .or ps | n + 1, .coord .andOr ps => ps.flatMap (fun p => p.headTyAlts n)
