@@ -325,8 +325,9 @@ sacrifice a creature, if it died …"), and is refused `triggeringUngrounded` ot
 `GameEvent.facts` supplies the magnitude property directly from the event
 constructor; which events a replacement, a trigger multiplier, a duration or a
 "while" clause may watch is not checked (`lean-checker-sweep-timing`). Source sets and
-exclusions use `Location.not`; a shuffle names a library or a face-down pile [CR#701.24a], so
-"if you shuffled your graveyard this way" is refused (`shuffleZone`). A cast may leave its spell
+exclusions use `Location.not`; a shuffle names a library or a face-down pile, as exiled cards
+can be [CR#701.24a], so "if you shuffled your graveyard this way" is refused (`shuffleZone`) and
+"shuffle the exiled cards" is not (`exiledPileCanBeShuffled`). A cast may leave its spell
 unspecified, which introduces no spell reference.
 
 `Proofs/Lookback.lean` checks participant isolation, retained references, source and

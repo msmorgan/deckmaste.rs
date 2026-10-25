@@ -3983,7 +3983,9 @@ def stepOps : Nat → StepOps
         | .shuffle pile =>
           let (drs1, e1) := stepLocationWith ops drs pile
           let drs2 := if phase == .postEvent then afterShuffle drs1 else drs1
-          (drs2, e1 ++ refuse (pile.sort.all (· == .library)) .shuffleZone)
+          -- A library, or a face-down pile, which only exiled cards can be: "shuffle the exiled
+          -- cards" (*Jeskai Infiltrator*, *Ghastly Conscription*) [CR#701.24a].
+          (drs2, e1 ++ refuse (pile.sort.all (fun z => z == .library || z == .exile)) .shuffleZone)
         | .flipCoins count _ _ =>
           let (drs1, e1) := stepFlipScopeWith ops drs count
           let drs2 := drs1.push (outcomeB .coinFlipped) .other false

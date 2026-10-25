@@ -128,6 +128,11 @@ theorem shuffledGraveyardNamesNoShuffle :
         action := .ownScope (some shuffle) (.shuffle (.zone .graveyard (some .you)))
         within := some .thisWay } = [.shuffleZone] := by decide
 
+/-- A face-down pile of exiled cards can be shuffled [CR#701.24a]: "Shuffle the exiled cards"
+(*Jeskai Infiltrator*, *Ghastly Conscription*, *Parallel Thoughts*) is no refused shuffle. -/
+theorem exiledPileCanBeShuffled :
+    Action.check (DRS.ofList []) (.shuffle (.zone .exile none)) = [] := by decide
+
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :
     (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder ∧
       (stepPredicate 64 drs (.did clause)).1.relativeUses = drs.relativeUses := by
