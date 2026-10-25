@@ -8,8 +8,8 @@ The keyword abilities `semantics-v2-keyword-ability-census` bodied from vocabula
 existed: saddle and teamwork over a group bounded by its total power (`SliceCount.totalling`, as
 crew's cost is written), awaken as an alternative cost and a spell ability, and indestructible as
 a prohibition over the destroy deed. Each definition is written as its declaration builds it, checks.
-`lean-v3-keyword-bodies-and-catalog-sync` bodied frenzy, freerunning, encore, partner with and
-vigilance the same way; their pins follow the census's.
+`lean-v3-keyword-bodies-and-catalog-sync` bodied frenzy, freerunning, encore, paradigm, partner with
+and vigilance the same way; their pins follow the census's.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -154,5 +154,13 @@ theorem okVigilanceDefinition :
           { cause := some (.event (.does (.actor _) (.attack none))), .. }) => true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) vigilance = [] := by decide
+
+/-- Paradigm is two spell abilities [CR#702.192a], the first creating a delayed triggered ability
+for the rest of the game, and it checks. -/
+theorem okParadigmDefinition :
+    (match paradigm with
+      | .keyword _ _ [.spell none (.doIf _ (.delay _ [] (some _) _) none _), .spell none _] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) paradigm = [] := by decide
 
 end Semantics.Proofs.KeywordAbilityCensus

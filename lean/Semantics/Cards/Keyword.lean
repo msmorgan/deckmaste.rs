@@ -1768,4 +1768,12 @@ def countersculpt : Spelled := spelled <| singleFacedCard
       [ static (addedCost (or [behold jace, [generic 1]]) false),
         spell (sequentially [counter (target isSpell), empowerJace 1]) ] }
 
+/-- Germination Practicum -/
+def germinationPracticum : Spelled := spelled <| singleFacedCard
+  { name := "Germination Practicum", cost := [generic 3, pip .green, pip .green],
+    types := [.sorcery], subtypes := [lesson],
+    text :=
+      [ spell (putCounters 2 p1p1Counter (each (and [isCreature, youControl]))),
+        paradigm ] }
+
 end Semantics.Cards

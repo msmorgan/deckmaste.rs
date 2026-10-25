@@ -1258,7 +1258,25 @@ semantic_definition overload (cost : Cost) : Ability :=
       static
         (onlyWhile (.textChange thisSpell .targetToEach)
           (keywordCostPaid (.named "overload") thisSpell)) ]
-semantic_definition paradigm : Ability := keyword (.named "paradigm")
+/-- "Paradigm" represents two spell abilities [CR#702.192a]: "If this is the first time a spell
+you control with this spell's name has resolved this game, at the beginning of each of your
+precombat main phases for the rest of the game, create a copy of this object in exile. You may
+cast the copy without paying its mana cost" and "Exile this spell." It is the first time when no
+other spell you controlled with this spell's name resolved earlier this game. -/
+semantic_definition paradigm : Ability :=
+  .keyword (.named "paradigm") []
+    [ spell
+        (doIf
+          (not
+            (did any
+              (resolve (a (and [isSpell, isOther, youControl, shares .cardName .share thisSpell])))
+              thisGame))
+          (delayWithin (beginningOfYour .firstMain) restOfGame
+            (sequentially
+              [ .copy .fromCardZone this_ 1 [],
+                may (cast (that .copy) (payment := withoutPaying)) ]))
+          none),
+      spell (exile thisSpell) ]
 semantic_definition partner : Ability := keyword (.named "partner")
 semantic_definition partnerCharacterSelect : Ability := keyword (.named "partnerCharacterSelect")
 semantic_definition partnerFatherAndSon : Ability := keyword (.named "partnerFatherAndSon")
