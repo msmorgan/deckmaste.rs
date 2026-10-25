@@ -519,6 +519,11 @@ mutual
     referents ("their"). Whether the condition held throughout is the engine's (ADR
     `semantics-v3.md` §0.1 item 4). -/
     | heldSince (condition : Condition) (since : GameEvent)
+    /-- `player` could begin to cast `subject` by putting it onto the stack from `from_`, taking
+    into account any effect that would prohibit the cast: suspend's special action
+    [CR#702.62a,702.62c,116.2f]. A fact of the game the engine evaluates; the checker reads only
+    its references. -/
+    | couldBeginToCast (player : NounPhrase) (subject : NounPhrase) (from_ : Location)
     | not (condition : Condition)
     | and (conjuncts : List Condition)
     | or (disjuncts : List Condition)

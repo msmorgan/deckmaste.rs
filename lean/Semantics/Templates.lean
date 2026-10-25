@@ -2170,6 +2170,10 @@ began" [CR#302.6]: the summoning-sickness reading, its controller the present on
 semantic_template controlledSinceTheirTurnBegan (subject : NounPhrase) : Condition :=
   heldSince (.matches subject (controlledBy (controllerOf it)))
     (.beginningOf .turn none (.mostRecent they))
+/-- "if <player> could begin to cast <subject> by putting it onto the stack from <from_>"
+[CR#702.62a,116.2f] -/
+semantic_template couldBeginToCast (player subject : NounPhrase) (from_ : Location) : Condition :=
+  .couldBeginToCast player subject from_
 /-- "if it's <designation>": the game has it [CR#731.1]. -/
 semantic_template gameIs (designation : DesignationLabel) : Condition := .gameHas designation
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=

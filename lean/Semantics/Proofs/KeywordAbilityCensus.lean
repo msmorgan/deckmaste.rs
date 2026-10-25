@@ -257,4 +257,15 @@ theorem okCompleatedDefinition :
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) compleated = [] := by decide
 
+/-- "Suspend 4—{1}{U}" is its special action, gated on the card's being castable from your hand,
+and its two triggered abilities [CR#702.62a,116.2f], and it checks. -/
+theorem okSuspendDefinition :
+    (match suspend 4 [generic 1, pip .blue] with
+      | .keyword _ _
+          [ .static (.specialAction none (some (.onlyIf (.couldBeginToCast .you _ _))) _ _),
+            .triggered .., .triggered (.does .any (.removeCounters (some .theLast) _ _)) .. ] =>
+        true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (suspend 4 [generic 1, pip .blue]) = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

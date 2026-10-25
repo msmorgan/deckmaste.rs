@@ -3549,6 +3549,12 @@ def stepOps : Nat → StepOps
         | .soChooses chooser =>
           let (drs', ids, errs) := ops.np drs .subj true chooser
           (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
+        | .couldBeginToCast player subject from_ =>
+          let (drs1, ids, e1) := ops.np drs .subj true player
+          let (drs2, _, e2) := ops.np drs1 .obj true subject
+          let (drs3, e3) := stepLocationWith ops drs2 from_
+          let playerKind := (ids.head?.bind drs1.findById?).map (fun ref => ref.kind)
+          (drs3, e1 ++ kindCheck .player playerKind ++ e2 ++ e3)
         | .heldSince inner since =>
           let (drs1, e1) := ops.cond drs inner
           let (drs2, e2) := ops.ev drs1 since
