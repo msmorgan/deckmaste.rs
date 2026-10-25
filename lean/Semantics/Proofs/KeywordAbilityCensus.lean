@@ -309,4 +309,18 @@ theorem optionalTextChoiceIsPublished :
           substitute ] = [] ∧
       Ability.checkText (DRS.ofList []) [substitute] ≠ [] := by decide
 
+/-- Assist's optional choice stays inside assist: no printed ability of the card reads "the chosen
+player" from it, though assist's own Mana Substitute does [CR#702.132a,607.2d]. -/
+theorem badAssistChoiceNotPublishedToCard :
+    Ability.checkText (DRS.ofList [])
+      [assist, Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))]
+      = [.choiceRef .theChoice .player 0] := by decide
+
+/-- A card with assist and its own printed player choice: the chosen player is the printed
+choice, not a second one assist's keyword body brings. -/
+theorem okAssistBesidePrintedChoice :
+    Ability.checkText (DRS.ofList [])
+      [assist, Primitives.Ability.spell none (choose anOpponent),
+        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

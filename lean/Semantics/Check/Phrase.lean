@@ -2526,7 +2526,8 @@ def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
 termination_by structural fuel
 
 def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
-  sorts.foldl (fun context sort => context.push sort.binding .other false) drs
+  sorts.foldl (fun context sort =>
+    context.push { sort.binding with announcedChoice := true } .other false) drs
 
 private def costResult (ref : Referent) : Bool :=
   (match ref.payload with
@@ -2756,8 +2757,12 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | _+1, .spell timing action =>
     publishTextChoices (publishSpellTargets ops drs timing action) (actionTextChoices action)
   | _+1, .static spec => staticTextContextWith ops drs spec
+  -- A choice the keyword's body announces stays inside the keyword: its own abilities read it, the
+  -- card's printed abilities do not.
   | n+1, .keyword _ _ body =>
-    body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
+    let out := body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
+    { out with referents := out.referents.filter fun ref =>
+        !(ref.announcedChoice && ref.id ≥ drs.nextId) }
   | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
   | n+1, .inCaller body =>
     Ability.textContextWith ops drs body n
