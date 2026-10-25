@@ -500,22 +500,22 @@ def predicateOfKind (k : Kind) (p : Predicate) : Predicate :=
   | .coord .andOr ps => .coord .andOr (ps.filter (fun p => p.kind?.all (· == k)))
   | p => p
 
-def predicatePayload (k : Kind) (p : Predicate) (fuel : Nat := 64) : Payload :=
-  match fuel, k with
-  | 0, _ => .difference
-  | _ + 1, .object =>
+/-- The payload a referent of kind `k` described by `p` starts with. It recurses on `k` alone,
+structurally, so it takes no fuel and has no default for running out of it. -/
+def predicatePayload (k : Kind) (p : Predicate) : Payload :=
+  match k with
+  | .object =>
     let p := predicateOfKind .object p
     if p.seedsAbility then .ability none (p.explicitZone.orElse (fun _ => some .stack))
     else .object p.seedTy (p.phraseZone .object) none
       (if p.seedsToken then some .token else none) none
-  | _ + 1, .player => .player false
-  | _ + 1, .quality q => .quality q
-  | _ + 1, .letter l => .letter l
-  | _ + 1, .turnRef => .turnRef
-  | _ + 1, .pile => .pile none none none
-  | n + 1, .join l r => .join (predicatePayload l p n) (predicatePayload r p n)
-  | _ + 1, _ => .difference
-termination_by structural fuel
+  | .player => .player false
+  | .quality q => .quality q
+  | .letter l => .letter l
+  | .turnRef => .turnRef
+  | .pile => .pile none none none
+  | .join l r => .join (predicatePayload l p) (predicatePayload r p)
+  | .outcome => .difference
 
 def bindFor (det : Determiner) (plur : Plurality) (k : Kind) (p : Predicate) : Referent :=
   { det, plur, payload := predicatePayload k p,

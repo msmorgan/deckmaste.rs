@@ -487,6 +487,24 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `stepLocationWith` `:996`, at 8) so fuel exhaustion cannot
   silently produce default classifications.
   **Reconciled 2026-10-24: live** (every listed fallback is unchanged).
+  **Partly done 2026-10-24: ktxtwxmq** (`predicatePayload` recursed on `Kind` only, which has a
+  recursor, so its fuel and `.difference` exhaustion default are gone; statements unchanged).
+  **Needs ruling 2026-10-24 (the readers over the AST).** The other readers and helpers recurse on
+  the one mutual block of `Abilities.lean`, which has no `brecOn` (structural recursion on it is
+  refused: "the type Location does not have a `.brecOn` recursor") and no generated `SizeOf`
+  (`sizeOf` is the default instance, 0), so fuel stays; what is open is how running out of it is
+  reported. Of the listed defaults, `NounPhrase.kind?`'s and `NounPhrase.plur`'s (32) are
+  reachable under an accepted term: the stepper's budget is 64 and theirs is 32; `Quantity.plur`'s
+  (16) is shadowed by `stepQuantityWith`'s refusal at 8, when the quantity is stepped. Options:
+  (a) readers return an exhaustion signal (`Option`/`Except`) that the checker turns into
+  `Refusal.recursionLimit`, changing every caller of `kind?`, `plur`, `facts` and the
+  `numberSlots` family; (b) one budget: the stepper's helpers (`stepQuantityWith`,
+  `stepTimingWith`, `stepLocationWith`, at 8) draw on the stepper's own fuel (a `StepOps.fuel`
+  field), every reader's default is at least that budget, and a pin per reader shows the stepper
+  refuses `recursionLimit` before the reader's default is reached; (c) as (b), with the
+  guarantee stated in `CONTRACTS.md` instead of pinned per reader; (d) enable a recursor or
+  `SizeOf` for the mutual block (`brecOn`/`genSizeOf`) and drop fuel from the readers, at a
+  build-time cost not yet measured.
 - **Resolve *Mangara's Equity* and *Noetic Scales* without explicit selectors
   (Astra §2, Opus §6.7):** With `NounPhrase.or` branch-local indefinites closed
   (`stepNounAlternativesWith`), prove that *Mangara's Equity* resolves raw
