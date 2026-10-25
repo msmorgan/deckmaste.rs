@@ -5,7 +5,7 @@ needs: [lean-v3-checker-and-drt-fixes]
 
 Split from [lean-v3-checker-and-drt-fixes](../done/lean-v3-checker-and-drt-fixes.md) (§3, the
 §2.9 fuel item and the rest of the §2.13 item) on 2026-10-24, each with the options recorded
-there, copied word for word. Both await an owner ruling; implement the option ruled. Done
+there, copied word for word. Both were ruled by the owner on 2026-10-25; implement the options ruled. Done
 there already: `predicatePayload` takes no fuel; `librarySearchResult` is gone; `DRS.ofList`
 numbers by position (`DRS.ofNumbered`); `historicalMoveFrom` is split; `.addedAbilities`,
 `NounPhrase.plur`'s slice rule and the `ownScope` mentions are no longer positional; the
@@ -35,6 +35,10 @@ guarantee stated in `CONTRACTS.md` instead of pinned per reader; (d) enable a re
 `SizeOf` for the mutual block (`brecOn`/`genSizeOf`) and drop fuel from the readers, at a
 build-time cost not yet measured.
 
+**Ruled 2026-10-25: (b).** One budget: the stepper's helpers draw on the stepper's own fuel,
+every reader's default budget is at least the stepper's (64), and a pin per reader shows the
+stepper refuses `recursionLimit` first. No recursor or `SizeOf` is enabled on the mutual block.
+
 ## 2. The remaining one-purpose flags and the payment splice (Opus §2.13)
 
 **Needs ruling 2026-10-24 (the remaining flags and the payment splice).**
@@ -57,3 +61,8 @@ from "equipped" hosts of one type. (3) `stepPlayPaymentWith` restores each scope
 (a) give `OwnScopeFrame` an identity and restore by it; (b) step a payment in a mode in which
 mentions are not buffered, so nothing is restored; (c) keep the frame-for-frame restore, drop
 the unequal-length fallback, and pin that stepping a cost leaves the scope stack balanced.
+
+**Ruled 2026-10-25.** (1) (a): keep both flags on `Referent`, documented as the discourse facts
+of what a loop body announced or created. (2) (a): keep `attachmentHost` for `leaveRelative`
+only. (3) (c): keep the frame-for-frame restore, drop the unequal-length fallback, and pin that
+stepping a cost leaves the scope stack's length unchanged.
