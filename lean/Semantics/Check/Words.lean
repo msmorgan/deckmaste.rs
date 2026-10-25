@@ -108,9 +108,16 @@ def atLeastTwo : Nat → Bool
 /-! ## Deeds the checker reads -/
 
 /-- Whether a Permanent performs `v`: written with no Handoff to a Permanent, the source
-Permanent performs it (`Deed.action`'s `permanentActor`) [CR#701.44a,701.63a]. -/
+Permanent performs it (`DeedPermanent.performs`) [CR#701.44a,701.63a]. -/
 def Deed.permanentActor : Deed → Bool
-  | .action _ permanentActor => permanentActor
+  | .action _ .performs => true
+  | _ => false
+
+/-- Whether `v` is an instruction about "this permanent" that the ability's controller follows
+(`DeedPermanent.isAbout`): the permanent is what the deed is done to, not its performer
+[CR#701.46a,608.2c]. -/
+def Deed.aboutAPermanent : Deed → Bool
+  | .action _ .isAbout => true
   | _ => false
 
 /-- The deed a search (`Action.search`) stamps on what it finds [CR#701.23a]: a card found by

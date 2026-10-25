@@ -187,7 +187,7 @@ semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Act
       (.inCaller for_))
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
 semantic_definition fight (other : NounPhrase) : Action :=
-  .ownScope (some (.action "fight" true))
+  .ownScope (some (.action "fight" .performs))
     (doIf (and [
       is (.firstMention "fight.other" (.inCaller other)) isCreature,
       is (.firstMention "fight.source" .actor) isCreature])
@@ -207,7 +207,7 @@ member's counterpart in the group of two (`DRS.distributivePair?`). That group h
 per mention, so if both target slots name one creature, each slot deals its power to the other
 slot and the creature takes twice its power [CR#701.14c]; no separate case is written. -/
 semantic_definition fightEachOther (pair : NounPhrase) : Action :=
-  .ownScope (some (.action "fight" true))
+  .ownScope (some (.action "fight" .performs))
     (doIf (is (.firstMention "fightEachOther.pair" (.inCaller pair)) isCreature)
       (instruct (eachOf (.laterMention "fightEachOther.pair" (.inCaller pair)))
         (.dealDamage (powerOf it) (theOther .object)))
@@ -272,14 +272,15 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
       doIf (not (is it (.hasSubtype subtype)))
         (become it { characteristics := { subtypes := [subtype] } })
         none ])
-/-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]): "this permanent" is the
-Source, and the ability's controller follows the instruction [CR#608.2c,701.37c]. -/
+/-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]): an instruction about
+"this permanent" (`DeedPermanent.isAbout`), the Source unless a handoff names another, that the
+ability's controller follows [CR#608.2c,701.37c]; the body reads that permanent as `.actor`. -/
 semantic_definition monstrosity (amount : Amount) : Action :=
-  .ownScope (some (.action "monstrosity"))
-    (doIf (not (is this_ (hasDesignation monstrous)))
+  .ownScope (some (.action "monstrosity" .isAbout))
+    (doIf (not (is .actor (hasDesignation monstrous)))
       (sequentially
-        [ putCounters (.inCaller amount) p1p1Counter this_,
-          gainDesignation this_ monstrous ])
+        [ putCounters (.inCaller amount) p1p1Counter .actor,
+          gainDesignation .actor monstrous ])
       none)
 /-- "double the number of each kind of counter on <on>" (`Definition`, [CR#701.10e]): for each
 kind of counter on it, put as many of that kind on it as it already has. -/
@@ -405,7 +406,7 @@ semantic_definition support (amount : Amount) : Action :=
 
 /-- "<performer> explores" (`Definition`, [CR#701.44a]). -/
 semantic_definition explore : Action :=
-  .ownScope (some (.action "explore" true))
+  .ownScope (some (.action "explore" .performs))
     (instruct (controllerOf (.firstMention "explore.permanent" .actor))
       (sequentially
         [ reveal (.slice .top 1 (libraryOf .actor)),
@@ -419,7 +420,7 @@ semantic_definition explore : Action :=
 `"each nonland card discarded this way"`
 (`allOf(and([not(land), card, did(any, discard(which), thisWay)]))`). -/
 semantic_definition connive (amount : Amount := 1) : Action :=
-  .ownScope (some (.action "connive" true))
+  .ownScope (some (.action "connive" .performs))
     (instruct (controllerOf (.firstMention "connive.permanent" .actor))
       (sequentially
         [ draw (.inCaller amount),
@@ -598,12 +599,14 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
 
 /-! ## Keyword actions -/
 
-/-- "adapt N" with its reminder text (`Definition`, [CR#701.46a]): "this permanent" is the
-Source, and the ability's controller follows the instruction [CR#608.2c]. -/
+/-- "adapt N" with its reminder text (`Definition`, [CR#701.46a]): an instruction about "this
+permanent" (`DeedPermanent.isAbout`), the Source unless a handoff names another ("target creature
+adapts"), that the ability's controller follows [CR#608.2c]; the body reads that permanent as
+`.actor`. -/
 semantic_definition adapt (amount : Amount) : Action :=
-  .ownScope (some (.action "adapt"))
-    (doIf (not (is this_ (.hasCounters p1p1Counter)))
-      (putCounters (.inCaller amount) p1p1Counter this_)
+  .ownScope (some (.action "adapt" .isAbout))
+    (doIf (not (is .actor (.hasCounters p1p1Counter)))
+      (putCounters (.inCaller amount) p1p1Counter .actor)
       none)
 semantic_definition behold (quality : Predicate) : Action :=
   .ownScope (some (.action "behold"))
@@ -664,7 +667,7 @@ semantic_definition earthbend (amount : Amount) : Action :=
           (returnTo (that land) battlefield [.entersAs .tapped, .under .actor])
           [does .any (.move (that land) battlefield exileZone .departure [])] ])
 semantic_definition endure (amount : Amount) : Action :=
-  .ownScope (some (.action "endure" true))
+  .ownScope (some (.action "endure" .performs))
     (instruct (controllerOf .actor)
       (chooseOne (putCounters (.inCaller amount) p1p1Counter (that .permanent))
         (createToken (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit]))))

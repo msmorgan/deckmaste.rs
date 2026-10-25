@@ -444,6 +444,22 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `badPlayersCantExploreButCanBeForbiddenToAdapt` (a player follows adapt and monstrosity
   [CR#608.2c], and is instructed "to 'monstrosity X'" [CR#701.37c], so neither is a refusal). Retired: `okAdaptHandedToAPermanent`, which asserted that the
   body reads a handed permanent; it now reads the Source, and no card hands adapt to a permanent).
+  **Review fix 2026-10-24 (H1): quxzownm.** Dropping the flag lost the adapting permanent:
+  *Biomancer's Familiar*'s "target creature adapts" stamped the Source and described a player's
+  event. `Deed.action`'s flag is now `DeedPermanent` (`none`, `performs`, `isAbout`); adapt and
+  monstrosity are `isAbout`: the body reads the permanent the instruction is about as `.actor` (the
+  Source with no handoff, or the permanent a handoff or an event subject names), the deed's
+  patient is that permanent (`causedPatient`; `Action.subjectIsPatient` for patterns), and its
+  performer, and each body step's, is the controller (`causedPerformer`) [CR#701.46a,608.2c].
+  Monstrosity took the same fix, since it was the same edit. Pins added:
+  `Counters.biomancersFamiliar` (spelled; "the next time" is ticketed as
+  `lean-v3-single-use-as-though`), `Counters.biomancersFamiliarWatchesTheCreatureThatAdapts`;
+  `Actor.okAdaptHandedToAPermanent` restored, asserting that the counters and the stamp go on the
+  target and that the controller performs. Rewritten back to refusals: `adaptHandedToAPlayerReadsTheSource`
+  → `badAdaptHandedToOpponent`, `monstrosityHandedToAPlayerReadsTheSource` →
+  `badMonstrosityHandedToOpponent`, `badPlayersCantExploreButCanBeForbiddenToAdapt` →
+  `badPlayersCantExploreOrAdapt` (a player is no permanent for the adapt to be about);
+  `Tables.permanentPerformedActions` also reads `aboutAPermanent`.
 - **One constructor per refusal obligation (§2.12):** Stop reusing
   `.anaphor (.word .permanent)` for failed reflexive/`which`, `.lookbackSubject`
   for unused `which`, and `kindMismatch (.quality .color)` for non-replaceable

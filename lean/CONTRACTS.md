@@ -512,8 +512,13 @@ permanent". Inside a handoff to another player there is no such default, and the
 its performer are refused on the player: explore, connive and endure hand their steps to the
 performer's controller (`possessorKind`), and fight reads its power (`kindMismatch`). Adapt,
 harness and monstrosity are instructions about "this permanent" [CR#701.46a,701.64a,701.37a]
-that the ability's controller follows [CR#608.2c,701.37c]: their bodies name the Source, and a
-player performs them. `Proofs/Actor.lean` pins each. An event's performer is written in
+that the ability's controller follows [CR#608.2c,701.37c], so a player performs them. Adapt and
+monstrosity are `DeedPermanent.isAbout`: their bodies read the permanent they are about as
+`.actor`, the Source with no handoff, or the permanent a handoff or an event's subject names
+("target creature adapts", *Biomancer's Familiar*), which the deed acts on (its patient, as
+`Action.subjectIsPatient` reads "this creature enters"), and a player handed one is refused as
+an explore is. Their body's steps are the controller's too (`causedPerformer`).
+`Proofs/Actor.lean` pins each. An event's performer is written in
 the same kind: "whenever a creature you control explores". Who pays a cost (the
 retired `payAgrees`, `costPaidByYou` and `keywordCostPaidByYou`) is not checked
 (`lean-checker-sweep-costs`); a cost may hand its action to another player.

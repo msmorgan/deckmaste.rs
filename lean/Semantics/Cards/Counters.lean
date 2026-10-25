@@ -370,6 +370,38 @@ theorem docSamsonWatchesAdaptsCounters :
     watched ≠ [] ∧ watched.all adapted.contains = true := by
   decide
 
+/-- *Biomancer's Familiar*. "Target creature adapts" is the adapt whose "this permanent" is that
+creature [CR#701.46a], which its controller performs [CR#608.2c]: "it just lets the creature
+adapt despite already having +1/+1 counters on it" (Gatherer). The single use, "the next time",
+has no form for an as-though statement yet (`lean-v3-single-use-as-though`), so the line is
+spelled for every adapt this turn. -/
+def biomancersFamiliar : Spelled := spelled <| singleFacedCard
+  { name := "Biomancer's Familiar", cost := [pip .green, pip .blue], types := [.creature],
+    subtypes := [mutant],
+    text :=
+      [ static (costShift (allOf (and [abilityHead .anyActivated, abilityOf (allOf
+          (and [isCreature, youControl]))]))
+          (less 2 (some 1))),
+        activated tapSymbol
+          (establishThroughout (asThough (actor (target isCreature)) (adapt anyAmount)
+            (holds (not (is it (hasCounter p1p1Counter))))) thisTurn) ],
+    power := stat 2, toughness := stat 2 }
+
+/-- "Target creature adapts", as *Biomancer's Familiar* writes it, describes the adapt the
+creature undergoes, done by a player, as a resolving "target creature adapts 2" causes it: the
+creature is what the adapt acts on and carries its stamp, not the Source [CR#701.46a,608.2c]. -/
+theorem biomancersFamiliarWatchesTheCreatureThatAdapts :
+    let described := (adapt anyAmount).describedEvents (some .object)
+    let adapted := (stepGameEvent 64 (DRS.ofList []) (.does (.actor (target isCreature)) (adapt 2))).1
+    let resolved := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (instruct (target isCreature) (adapt 2))).1.causedEvents
+    described.map (fun e => (e.deed, e.performer, e.patient)) =
+        [(some adapt.deed, none, some .object)] ∧
+      (adapted.referents.filter (·.stampedBy adapt.deed)).map (·.det) = [.target] ∧
+      resolved.any (fun e => e.deed == some adapt.deed && e.performer == some .player &&
+        e.subjectFits (some .object) true) = true := by
+  decide
+
 /-- Winding Constrictor -/
 def windingConstrictor : Spelled := spelled <| singleFacedCard
   { name := "Winding Constrictor", cost := [pip .black, pip .green], types := [.creature],

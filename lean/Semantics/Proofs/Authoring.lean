@@ -279,7 +279,7 @@ example : Spelled := spelled <| .singleFaced
 -- action performs, and `Deed.action` is an internal expansion.
 
 theorem deedIsGenerated : exile.deed = .action "exile" ∧ searchZonesOf.deed = search.deed ∧
-    explore.deed = .action "explore" true := by decide
+    explore.deed = .action "explore" .performs := by decide
 
 /-- A Definition's name stands for its deed wherever a `Deed` is expected (`elabDeedName`). -/
 example : (exile : Deed) = exile.deed := rfl

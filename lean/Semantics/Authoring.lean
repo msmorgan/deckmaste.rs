@@ -247,10 +247,10 @@ def actionDefinitionDeed? (name : Name) : MetaM (Option Expr) := do
     let deed ← whnf deed
     unless deed.isAppOfArity `Semantics.Deed.action 2 do return none
     let label ← whnf deed.appFn!.appArg!
-    let permanentActor ← whnf deed.appArg!
-    unless label.isStringLit && !permanentActor.hasFVar && !permanentActor.hasMVar do
+    let permanent ← whnf deed.appArg!
+    unless label.isStringLit && !permanent.hasFVar && !permanent.hasMVar do
       return none
-    return some (mkApp2 (mkConst `Semantics.Deed.action) label permanentActor)
+    return some (mkApp2 (mkConst `Semantics.Deed.action) label permanent)
 
 /-- The authored `Deed` an Action Definition generates: `exile.deed` is the keyword action
 `exile` performs. A card names a deed through it (`elabDeedName`), never by the internal

@@ -328,16 +328,27 @@ inductive StateBasedCause where
   | nonpositiveLife
   deriving DecidableEq, Repr
 
+/-- What a keyword action says of a permanent. -/
+inductive DeedPermanent where
+  /-- Nothing: a player performs it. -/
+  | none
+  /-- A permanent is instructed to perform it [CR#701.14a,701.44a,701.50a,701.63a]. -/
+  | performs
+  /-- It is an instruction about "this permanent" that the ability's controller follows
+  [CR#701.46a,701.37a,608.2c]: "target creature adapts" is the adapt whose "this permanent" is the
+  creature. -/
+  | isAbout
+  deriving DecidableEq, Repr
+
 /-- A deed: something a card's text says is done. Three sources define one, and only the middle
 one is open: the core rules [CR#115.1,121.1,709.5i], the keyword actions the Action Definitions
 declare [CR#701.1], and the verb a keyword ability defines for itself
 [CR#702.122b,702.171a,702.26a]. -/
 inductive Deed where
   | core (deed : CoreDeed)
-  /-- A keyword action, written by its Action Definition. `permanentActor`: a permanent is
-  instructed to perform it, so written with no Handoff to a Permanent, the source Permanent
-  performs it [CR#701.14a,701.44a,701.50a,701.63a]. -/
-  | action (label : KeywordActionLabel) (permanentActor : Bool := false)
+  /-- A keyword action, written by its Action Definition. `permanent`: what it says of a
+  permanent; written with no Handoff to a Permanent, that permanent is the Source. -/
+  | action (label : KeywordActionLabel) (permanent : DeedPermanent := .none)
   | ofAbility (keyword : KeywordLabel)
   deriving DecidableEq, Repr
 
