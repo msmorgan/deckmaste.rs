@@ -60,8 +60,12 @@ needs: [lean-v3-rules-and-card-fidelity]
   *Eyetwitch*, *Countersculpt*.
   **Decided after review, 2026-10-25** (from ADR `semantics-v3.md` §0.1 items 4 and 5: rules are
   DSL data, encode the CR's structure, compose first). Done as decided:
-  - `assist`: a Mana Substitute the chosen player pays, the choice written as gift's (`ktuzrlmv`,
-    `okAssistDefinition`, *Out of Bounds*).
+  - `assist`: a Mana Substitute the chosen player pays (`ktuzrlmv`, *Out of Bounds*). Its
+    choice is no cost [CR#702.132a], so it is written
+    `asEvent (does you (cast thisSpell)) (may (choose …))`, not as gift's additional cost.
+    Where it falls among the steps of casting is the engine's. The checker publishes an
+    optional text choice (`actionTextChoices` recurses into `withContinuation`). Pinned by
+    `okAssistDefinition` and `optionalTextChoiceIsPublished`.
   - `paradigm`'s copy is created in exile, `CopySort.inZone` (`qukkvxmy`).
   - Cumulative upkeep and echo pay a labelled keyword cost, `doUnlessKeywordCost`: `whose` this
     permanent, `keyword` the keyword (`ntppnnoz`, `cumulativeUpkeepPaymentIsLabelled` against

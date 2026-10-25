@@ -2488,6 +2488,9 @@ def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
   | 0, _ => []
   | n+1, .inCaller body | n+1, .ownScope _ body
   | n+1, .instruct _ body | n+1, .limited body _ => actionTextChoices body n
+  -- An optional choice ("you may choose another player") is published as a made one is: the
+  -- text names the choice either way, and whether it is made is the engine's.
+  | n+1, .withContinuation _ body _ _ => actionTextChoices body n
   | _+1, .choose _ (.described (.a _) predicate) _ _ =>
     (predicate.kind?.bind choiceSortAtKind).toList
   | n+1, .sequentially steps => steps.flatMap (fun step => actionTextChoices step n)

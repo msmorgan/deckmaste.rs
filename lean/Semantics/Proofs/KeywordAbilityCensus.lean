@@ -191,11 +191,11 @@ theorem intentionallyBodiless :
       partnerFatherAndSon, partnerFriendsForever, partnerSurvivors, chooseABackground,
       doctorsCompanion ].all bodiless = true := by decide
 
-/-- "Assist": the chosen player pays generic mana for the spell, one generic mana each
-[CR#702.132a], and it checks. -/
+/-- "Assist": the optional choice made as you cast the spell, no cost, and the chosen player
+paying generic mana for it, one generic mana each [CR#702.132a], and it checks. -/
 theorem okAssistDefinition :
     (match assist with
-      | .keyword _ _ [.static (.addedCost _ true .once),
+      | .keyword _ _ [.static (.asEvent _ (.withContinuation .optional (.choose ..) none none)),
           .static (.paySubstitute _ ⟨.instruct _ _, [.generic]⟩)] => true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) assist = [] := by decide
@@ -293,5 +293,17 @@ theorem okCompanionDefinition :
       | .keyword _ _ [.static (.specialAction none (some _) _ (.limited _ ⟨1, .game⟩))] => true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) (companion (deckSizeOverMinimum 20)) = [] := by decide
+
+/-- An optional choice in an Off-Stack Static is published to the text's later abilities as a
+made one is: assist's substitute reads "the chosen player" [CR#702.132a]. Without the choice it
+has none. -/
+theorem optionalTextChoiceIsPublished :
+    let substitute : Ability :=
+      static (.paySubstitute thisSpell
+        ⟨ instruct (the isChosenPlayer) (pay (.mana [generic 1]) .once), [.generic] ⟩)
+    Ability.checkText (DRS.ofList [])
+        [ static (asEvent (does you (cast thisSpell)) (may (choose (a (and [isPlayer, isOther]))))),
+          substitute ] = [] ∧
+      Ability.checkText (DRS.ofList []) [substitute] ≠ [] := by decide
 
 end Semantics.Proofs.KeywordAbilityCensus
