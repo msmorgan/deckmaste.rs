@@ -1795,4 +1795,24 @@ def mourningPatrol : Spelled := spelled <| .transforming
           static (replace (would any (putInto thisCreature graveyard)) (instead (exile it))) ],
       power := stat 2, toughness := stat 1 } }
 
+/-- Nissa, Ascended Animist -/
+def nissaAscendedAnimist : Spelled := spelled <| singleFacedCard
+  { name := "Nissa, Ascended Animist",
+    cost := [generic 3, pip .green, pip .green, phyrexianPip .green, phyrexianPip .green],
+    supertypes := [.legendary], types := [.planeswalker], subtypes := [nissa],
+    text :=
+      [ compleated,
+        activated (loyaltySymbol (up 1))
+          (createToken
+            (creatureTokenOf (statOf (.stat .loyalty) thisPlaneswalker)
+              (statOf (.stat .loyalty) thisPlaneswalker) [.green] [phyrexian, horror])),
+        activated (loyaltySymbol (down 1)) (destroy (target (or [isArtifact, isEnchantment]))),
+        activated (loyaltySymbol (down 7))
+          (sequentially
+            [ get (allOf (and [isCreature, youControl]))
+                (up (forEach 1 (and [forest, youControl]))) (up (forEach 1 (and [forest, youControl])))
+                untilEndOfTurn,
+              gain (allOf (and [isCreature, youControl])) trample untilEndOfTurn ]) ],
+    loyalty := stat 7 }
+
 end Semantics.Cards

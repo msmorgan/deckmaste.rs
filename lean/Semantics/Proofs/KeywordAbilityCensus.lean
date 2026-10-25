@@ -209,20 +209,23 @@ private def echoParts? : Ability → Option (Condition × Option NounPhrase × O
   | _ => none
 
 /-- The keyword cost a replacement of a payment watches. -/
-private def replacedPayment? : Ability → Option KeywordLabel
-  | .static (.replace (.would _ (.pay _ _ _ _ keyword)) _ _ _ _) => keyword
+private def replacedPayment? : Ability → Option (Option NounPhrase × Option KeywordLabel)
+  | .static (.replace (.would _ (.pay _ _ _ whose keyword)) _ _ _ _) => some (whose, keyword)
   | _ => none
 
 /-- "Echo {2}{W}" [CR#702.30a]: it triggers only if this permanent hasn't been under your control
 continuously since the beginning of your previous upkeep, and its payment is of this permanent's
-echo cost, the payment *Thick-Skinned Goblin*'s replacement watches. -/
+echo cost, the payment *Thick-Skinned Goblin*'s replacement watches: the echo cost of "permanents
+you control", which this permanent, a permanent its upkeep's player controls, is one of. -/
 theorem okEchoDefinition :
     echoParts? (echo [generic 2, pip .white]) =
         some
           (not (heldSince (is thisPermanent youControl)
               (.beginningOf .upkeep (some .you) (.previous (some .you)))),
             some thisPermanent, some (.named "echo")) ∧
-      replacedPayment? Cards.thickSkinnedGoblinEchoPayment = some (.named "echo") := ⟨rfl, rfl⟩
+      replacedPayment? Cards.thickSkinnedGoblinEchoPayment =
+        some (some (allOf (and [isPermanent, youControl])), some (.named "echo")) ∧
+      thisPermanent = .headed .permanent .this := ⟨rfl, rfl, rfl⟩
 
 theorem okEchoChecks : Ability.check (DRS.ofList []) (echo [generic 2, pip .white]) = [] := by
   decide

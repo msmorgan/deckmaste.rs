@@ -1728,7 +1728,7 @@ its mana cost if able. If you don't, it remains exiled. If you cast a creature s
 gains haste until you lose control of the spell or the permanent it becomes." A suspended card is
 in exile, has suspend and has a time counter on it [CR#702.62b]; whether the card could be cast
 is the engine's to evaluate, prohibitions included [CR#702.62c]. Haste lasts for as long as you
-control the spell or the permanent it becomes. -/
+control the spell or the permanent it becomes, which ends when you lose control of either. -/
 semantic_definition suspend (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "suspend") [.number (.inCaller amount), .cost (.inCaller cost)]
     [ static
@@ -1743,7 +1743,9 @@ semantic_definition suspend (amount : Amount) (cost : Cost) : Ability :=
         (sequentially
           [ may (play thisCard (payment := withoutPaying)),
             doIf (did you (cast (a (and [isCreature, isSpell]))) thisWay)
-              (gain (that .spell) haste (some (forAsLongAs (is it youControl))))
+              (gain (that .spell) haste
+                (some (forAsLongAs
+                  (or [is (that .spell) youControl, is (becomes (that .spell)) youControl]))))
               none ]) ]
 semantic_definition teamwork (amount : Amount) : Ability :=
   .keyword (.named "teamwork") [.number (.inCaller amount)]
