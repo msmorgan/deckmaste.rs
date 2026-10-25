@@ -140,10 +140,16 @@ theorem okEncoreDefinition :
       Ability.check (DRS.ofList []) (encore [generic 3, pip .black]) = [] := by decide
 
 /-- "Partner with Blaring Recruiter": the one ability of the game partner with represents, the
-entering trigger [CR#702.124j], and it checks. -/
+entering trigger, in which target player may search their library for the named card
+[CR#702.124j], and it checks. -/
 theorem okPartnerWithDefinition :
     (match partnerWith (named "Blaring Recruiter") with
-      | .keyword _ _ [.triggered ..] => true
+      | .keyword _ _
+          [.triggered _ [] none [] none none none
+            (.instruct (.described (.target _) _)
+              (.withContinuation .optional
+                (.sequentially [.ownScope (some (.action "search")) _, _, _, _]) none none))] =>
+        true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) (partnerWith (named "Blaring Recruiter")) = [] := by decide
 
