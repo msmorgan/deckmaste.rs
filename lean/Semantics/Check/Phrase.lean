@@ -976,11 +976,11 @@ private def turnOwnerKindRefusals (noun : NounPhrase) : List Refusal :=
 
 def stepTurnRefWith (ops : StepOps) (drs : DRS) (turn : TurnRef) : DRS × List Refusal :=
   match turn with
-  | .next (some owner) | .each (some owner) | .mostRecent owner =>
+  | .next (some owner) | .each (some owner) | .previous (some owner) | .mostRecent owner =>
     let (out, _, errors) := ops.np drs .other false owner
     (out, errors ++ turnOwnerKindRefusals owner)
   | .that => (drs, refuse (countTurns drs == 1) (.turnAntecedent (countTurns drs)))
-  | .current | .previous | .later | .next none | .each none => (drs, [])
+  | .current | .previous none | .later | .next none | .each none => (drs, [])
 
 def stepDurationWith (ops : StepOps) (drs : DRS) (d : Duration) : DRS × List Refusal :=
   match d with

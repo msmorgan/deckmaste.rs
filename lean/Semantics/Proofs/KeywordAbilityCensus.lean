@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Keyword
 
 /-!
 # Semantics.Proofs.KeywordAbilityCensus
@@ -192,5 +193,32 @@ theorem okAssistDefinition :
           .static (.paySubstitute _ ⟨.instruct _ _, [.generic]⟩)] => true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) assist = [] := by decide
+
+/-- The intervening condition and the payment of echo's upkeep trigger. -/
+private def echoParts? : Ability → Option (Condition × Option NounPhrase × Option KeywordLabel)
+  | .keyword _ _
+      [.triggered _ _ _ _ _ _ (some condition)
+        (.withContinuation .optional (.pay _ _ _ whose keyword) none _)] =>
+    some (condition, whose, keyword)
+  | _ => none
+
+/-- The keyword cost a replacement of a payment watches. -/
+private def replacedPayment? : Ability → Option KeywordLabel
+  | .static (.replace (.would _ (.pay _ _ _ _ keyword)) _ _ _ _) => keyword
+  | _ => none
+
+/-- "Echo {2}{W}" [CR#702.30a]: it triggers only if this permanent hasn't been under your control
+continuously since the beginning of your previous upkeep, and its payment is of this permanent's
+echo cost, the payment *Thick-Skinned Goblin*'s replacement watches. -/
+theorem okEchoDefinition :
+    echoParts? (echo [generic 2, pip .white]) =
+        some
+          (not (heldSince (is thisPermanent youControl)
+              (.beginningOf .upkeep (some .you) (.previous (some .you)))),
+            some thisPermanent, some (.named "echo")) ∧
+      replacedPayment? Cards.thickSkinnedGoblinEchoPayment = some (.named "echo") := ⟨rfl, rfl⟩
+
+theorem okEchoChecks : Ability.check (DRS.ofList []) (echo [generic 2, pip .white]) = [] := by
+  decide
 
 end Semantics.Proofs.KeywordAbilityCensus

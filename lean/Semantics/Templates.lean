@@ -852,7 +852,8 @@ semantic_template thisCombat : Duration :=
   .between (some (.beginningOf .combat none .current)) (some .now)
 /-- "last turn" -/
 semantic_template lastTurn : Duration :=
-  .between (some (.beginningOf .turn none .previous)) (some (.endOf .turn none .previous))
+  .between (some (.beginningOf .turn none (.previous none)))
+    (some (.endOf .turn none (.previous none)))
 /-- "this game" -/
 semantic_template thisGame : Duration := .between none (some .now)
 /-! ## Timings -/

@@ -160,7 +160,9 @@ mutual
   named ("that turn"); there is no "this", which names an object. -/
   inductive TurnRef where
     | current
-    | previous
+    /-- The previous turn, or the most recent of `player`'s turns before the current one ("your
+    last upkeep" [CR#702.30a]). -/
+    | previous (player : Option NounPhrase)
     /-- The next turn, or the next of `player`'s turns. -/
     | next (player : Option NounPhrase)
     /-- Each turn, or each of `player`'s turns. -/

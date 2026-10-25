@@ -562,7 +562,17 @@ semantic_definition dredge (amount : Amount) : Ability :=
             (instead
               (may (sequentially [mill (.inCaller amount), returnToHand this_ yourGraveyard]))))
           (.compareAmt (countOf (cardIn yourLibrary)) .atLeast (.inCaller amount))) ]
-semantic_definition echo (cost : Cost) : Ability := keywordCosting (.named "echo") (.inCaller cost)
+/-- "Echo [cost]": "At the beginning of your upkeep, if this permanent came under your control
+since the beginning of your last upkeep, sacrifice it unless you pay [cost]." [CR#702.30a] It came
+under your control since then unless you have controlled it continuously since then. The payment
+is of this permanent's echo cost, which a replacement or a trigger on paying it reads. -/
+semantic_definition echo (cost : Cost) : Ability :=
+  .keyword (.named "echo") [.cost (.inCaller cost)]
+    [ at_ (beginningOfYour .upkeep)
+        (if_ := some (not (heldSince (is thisPermanent youControl)
+          (.beginningOf .upkeep (some .you) (.previous (some .you))))))
+        (doUnlessKeywordCost (sacrifice thisPermanent) (.inCaller cost) thisPermanent
+          (.named "echo")) ]
 semantic_definition embalm (cost : Cost) : Ability :=
   .keyword (.named "embalm") [.cost (.inCaller cost)]
     [ activatedOnlyDuring
