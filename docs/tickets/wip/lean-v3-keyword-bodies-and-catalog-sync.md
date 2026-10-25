@@ -57,13 +57,40 @@ needs: [lean-v3-rules-and-card-fidelity]
   *Germination Practicum*. `learn` and `empowerJace` declared in `Definitions/Actions.lean` in
   `kqmwntuv` (learn's Lesson is `outsideTheGame`, the complement of the seven zones
   [CR#400.11]), pinned `okLearn`, `okEmpowerJace` (`Proofs/KeywordActionResidues.lean`) and
-  *Eyetwitch*, *Countersculpt*. `prototype` records its printed parameters and the linter option
-  is gone (`rokqwlum`). Audit result: `reach`, `assist`, `banding`, `bandsWithOther`, `phasing`,
-  `startYourEngines`, `toxic`, the partner variants, `chooseABackground` and `doctorsCompanion`
-  are intentionally bodiless (next item). Still bodiless, each a STOP awaiting a decision:
-  `echo`, `suspend`, `miracle`, `prototype`, `disturb`, `moreThanMeetsTheEye`, `fuse`,
-  `compleated`, `craft`, `enlist`, `companion`, `ventureIntoTheDungeon` and the initiative's two
-  venture triggers.
+  *Eyetwitch*, *Countersculpt*.
+  **Decided after review, 2026-10-25** (from ADR `semantics-v3.md` §0.1 items 4 and 5: rules are
+  DSL data, encode the CR's structure, compose first). Done as decided:
+  - `assist`: a Mana Substitute the chosen player pays, the choice written as gift's (`ktuzrlmv`,
+    `okAssistDefinition`, *Out of Bounds*).
+  - `paradigm`'s copy is created in exile, `CopySort.inZone` (`qukkvxmy`).
+  - Cumulative upkeep and echo pay a labelled keyword cost, `doUnlessKeywordCost`: `whose` this
+    permanent, `keyword` the keyword (`ntppnnoz`, `cumulativeUpkeepPaymentIsLabelled` against
+    *Hibernation's End* and *Adarkar Unicorn*).
+  - `echo`: `TurnRef.previous` takes a player, no default (`qnttzwwx`, `okEchoDefinition`
+    against *Thick-Skinned Goblin*, `okEchoChecks`).
+  - `prototype`, `disturb`, `moreThanMeetsTheEye` and `fuse`: sibling `PlayPayment` cast modes
+    `prototyped`, `transformed` and `fused`, following `faceDown`. Prototype takes no
+    parameters, since `Card.prototype`'s frame is the authority, so the linter option is gone
+    (`ssvxrmrk`, `castModeDefinitions`, *Mourning Patrol*, the prototype frame cards).
+  - `compleated`: `LinkedFacet.phyrexianPaidWithLife` and the would-enter-with-counters
+    replacement (`vpxqzzzy`, `okCompleatedDefinition`).
+  - `suspend`: the Condition atom `couldBeginToCast`, which the engine evaluates, and all three
+    abilities (`prsnowln`, `okSuspendDefinition`).
+  - `miracle`: an `asEvent` over the first draw each turn, card identity
+    `.not (.otherThan thisCard)`, and a reflexive reveal-then-cast `payingInstead` (`orumzszv`,
+    `okMiracleDefinition`, `badDrawnCardWithoutADraw`).
+  - `companion`: the in-game special action, once per game, from outside the game (`wusksqoq`,
+    `okCompanionDefinition`). The pregame reveal [CR#103.2b] is `lean-v3-companion-pregame-rule`.
+  - `partnerWith`'s pin reads the target player's may-search (`slwkmpnu`).
+
+  Ticketed instead:
+  - `ventureIntoTheDungeon` and the initiative's venture triggers: `lean-v3-venture-dungeon`
+    (`mnkwmyls`), which needs a dungeon card frame with rooms and the venture marker read
+    through a Condition atom.
+  - `craft`: `lean-v3-craft-materials`. Its materials take every noun-phrase shape, and the
+    body has no way to restrict them to its domain.
+  - `enlist`: `lean-v3-enlist-optional-attack-cost`. The decided `offered` gate needs predicates
+    for "didn't choose to attack with" and "under your control since this turn began".
 - Note: `lifelink`, `wither`, `infect`, and `toxic` were landed by
   [`lean-v3-damage-composition`](../done/lean-v3-damage-composition.md) (Q89 ruled
   2026-10-22: toxic is one rules-table result reading the total toxic value); do not
@@ -76,9 +103,16 @@ needs: [lean-v3-rules-and-card-fidelity]
   bodiless/intrinsic/firstStrike/trample); the bodiless definitions are `firstStrike`
   (`Keywords.lean:726`), `doubleStrike` (`:540`), `trample` (`:1618`), `vigilance` (`:1709`),
   `deathtouch` (`:471`), `reach` (`:85`) and the rest listed above.
-  **Done, 2026-10-25** (`rokqwlum`): `lean/CONTRACTS.md` "Keyword abilities with no body" lists
-  the set and where each keyword's rule is, pinned `intentionallyBodiless`
-  (`Proofs/KeywordAbilityCensus.lean`).
+  **Done, 2026-10-25** (`rokqwlum`, revised in `tpqkzlrl`): `lean/CONTRACTS.md` "Keyword
+  abilities with no body" lists the set and the rule each keyword's meaning is, pinned
+  `intentionallyBodiless` (`Proofs/KeywordAbilityCensus.lean`). Decided after review: a bodiless
+  keyword's rule is a rules-table row, not engine procedure. Deathtouch's state-based action
+  [CR#704.5h] and phasing's turn-based action [CR#703.4a] are written (`deathtouchDestruction`,
+  `phasingTurnBased`, `Proofs/Rules.lean`). The rows for the combat damage keywords are
+  `lean-v3-combat-damage-rule-rows`, start your engines! is `lean-v3-player-speed-rules`, and
+  phasing's "the active player controlled when they phased out" is
+  `lean-v3-active-player-term`. Only the deck-construction keywords are bodiless with no row.
+  Vigilance keeps its body.
 
 ### 2. Retire Unread Registry Columns & Cross-Pin Catalog Authorities (Astra §4, Opus §§5.3, 6.9)
 

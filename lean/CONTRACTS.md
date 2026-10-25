@@ -631,6 +631,8 @@ is stated about its own object has a body even where it modifies a game procedur
 "attacking doesn't cause creatures with vigilance to tap" [CR#702.20b] is a cause-qualified
 prohibition of that tap [CR#508.1f], so `vigilance`'s body states it.
 `Proofs/KeywordAbilityCensus.lean` pins each of these bodiless (`intentionallyBodiless`).
+`craft` and `enlist` are bodiless too, but not by design: each waits on vocabulary its ticket
+names (`lean-v3-craft-materials`, `lean-v3-enlist-optional-attack-cost`).
 
 ## Scheduling fields
 
@@ -885,7 +887,7 @@ expected child kinds in the incoming `DRS`.
 | `Ballot` | `stepBallotWith` steps it (`Ballot.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
 | `CostSubject` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a cost change's subject is not required to be on the stack. |
 | `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's move checks no source zone. |
-| `Condition` | `stepCondition` (`Condition.check`) steps it. |
+| `Condition` | `stepCondition` (`Condition.check`) steps it. `couldBeginToCast` steps its player, which must be a player, its subject and its origin; whether the cast could begin, prohibitions included, is the engine's [CR#702.62c]. |
 | `MarkingOk` | Retired with `CondMarking.unless_` (`lean-v3-authoring-impl-14-ast-and-authoring-cleanup`): "unless C" is `onlyUnless`, the condition `not C` under `ifSo`, so there is no marking to agree with its condition. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event (`tokenPhrase`). |
 | `Exposed` | The `expose` action case steps it. |
