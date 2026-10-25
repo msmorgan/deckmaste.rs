@@ -79,7 +79,8 @@ needs: [lean-v3-rules-and-card-fidelity]
   - `compleated`: `LinkedFacet.phyrexianPaidWithLife` and the would-enter-with-counters
     replacement (`vpxqzzzy`, `okCompleatedDefinition`).
   - `suspend`: the Condition atom `couldBeginToCast`, which the engine evaluates, and all three
-    abilities (`prsnowln`, `okSuspendDefinition`).
+    abilities (`prsnowln`, `okSuspendDefinition`). Haste lasts for as long as you control the
+    spell or the permanent it becomes (`vrklxqyu`).
   - `miracle`: an `asEvent` over the first draw each turn, card identity
     `.not (.otherThan thisCard)`, and a reflexive reveal-then-cast `payingInstead` (`orumzszv`,
     `okMiracleDefinition`, `badDrawnCardWithoutADraw`).
@@ -115,7 +116,9 @@ needs: [lean-v3-rules-and-card-fidelity]
   `phasingTurnBased`, `Proofs/Rules.lean`). The rows for the combat damage keywords are
   `lean-v3-combat-damage-rule-rows`, start your engines! is `lean-v3-player-speed-rules`, and
   phasing's "the active player controlled when they phased out" is
-  `lean-v3-active-player-term`. Only the deck-construction keywords are bodiless with no row.
+  `lean-v3-active-player-term`. The phasing row leaves an attachment phased out with its
+  phased-out host to phase in with that host [CR#702.26g] (`rprturmu`); telling a direct phase-out
+  from an indirect one exactly is `lean-v3-phasing-direct-phase-out`. Only the deck-construction keywords are bodiless with no row.
   Vigilance keeps its body.
 
 ### 2. Retire Unread Registry Columns & Cross-Pin Catalog Authorities (Astra §4, Opus §§5.3, 6.9)
