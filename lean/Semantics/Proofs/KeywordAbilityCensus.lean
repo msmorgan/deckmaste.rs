@@ -227,4 +227,23 @@ theorem okEchoDefinition :
 theorem okEchoChecks : Ability.check (DRS.ofList []) (echo [generic 2, pip .white]) = [] := by
   decide
 
+/-- The payment of the cast a keyword's one permission grants. -/
+private def castPayment? : Ability → Option PlayPayment
+  | .keyword _ _ [.static (.can _ (.ownScope _ (.procedure .cast _ payment _ _ _)) _)] =>
+    some payment
+  | _ => none
+
+/-- Prototype, disturb, more than meets the eye and fuse each permit a cast in their mode:
+prototyped [CR#718.3], transformed [CR#702.146a,712.8c], converted [CR#702.162a] and fused
+[CR#702.102a]. Each checks. -/
+theorem castModeDefinitions :
+    (match castPayment? prototype, castPayment? (disturb [generic 3, pip .white]),
+        castPayment? (moreThanMeetsTheEye [pip .white, pip .blue]), castPayment? fuse with
+      | some .prototyped, some (.transformed _), some (.transformed _), some .fused => true
+      | _, _, _, _ => false) = true ∧
+      Ability.check (DRS.ofList []) prototype = [] ∧
+      Ability.check (DRS.ofList []) (disturb [generic 3, pip .white]) = [] ∧
+      Ability.check (DRS.ofList []) (moreThanMeetsTheEye [pip .white, pip .blue]) = [] ∧
+      Ability.check (DRS.ofList []) fuse = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

@@ -664,7 +664,8 @@ def arcaneProxy : Spelled := spelled <| .prototype
     { name := "Arcane Proxy", cost := [generic 7], types := [.artifact, .creature],
       subtypes := [wizard],
       text :=
-        [ when (does thisCreature enter) (if_ := is it (did you (cast which) thisObject))
+        [ prototype,
+          when (does thisCreature enter) (if_ := is it (did you (cast which) thisObject))
             (sequentially
               [ exile
                   (target (and [ isInstantOrSorcery, isCard,
@@ -679,7 +680,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
 def blitzAutomaton : Spelled := spelled <| .prototype
   { characteristics :=
     { name := "Blitz Automaton", cost := [generic 7], types := [.artifact, .creature],
-      subtypes := [construct], text := [haste],
+      subtypes := [construct], text := [prototype, haste],
       power := stat 6, toughness := stat 4 } }
   (prototypeAlt [generic 2, pip .red] 3 2)
 
@@ -687,7 +688,7 @@ def blitzAutomaton : Spelled := spelled <| .prototype
 def goringWarplow : Spelled := spelled <| .prototype
   { characteristics :=
     { name := "Goring Warplow", cost := [generic 6], types := [.artifact, .creature],
-      subtypes := [construct], text := [deathtouch],
+      subtypes := [construct], text := [prototype, deathtouch],
       power := stat 5, toughness := stat 4 } }
   (prototypeAlt [generic 1, pip .black] 1 1)
 

@@ -550,8 +550,14 @@ semantic_definition disguise (cost : Cost) : Ability :=
     [ static
         (can you (cast thisCard (payment := .faceDown faceDownWardedCreature (mana [generic 3])))),
       static (.specialAction none none (.inCaller cost) (turnFaceUp this_)) ]
+/-- "Disturb [cost]": "You may cast this card transformed from your graveyard by paying [cost]
+rather than its mana cost." [CR#702.146a] Cast transformed, the spell has its back face up
+[CR#712.8c], and the permanent it becomes enters with its back face up [CR#702.146b]. -/
 semantic_definition disturb (cost : Cost) : Ability :=
-  keywordCosting (.named "disturb") (.inCaller cost)
+  .keyword (.named "disturb") [.cost (.inCaller cost)]
+    [ static
+        (can you
+          (cast this_ (from_ := yourGraveyard) (payment := transformedPaying (.inCaller cost)))) ]
 semantic_definition doctorsCompanion : Ability := keyword (.named "doctorsCompanion")
 semantic_definition doubleStrike : Ability := keyword (.named "doubleStrike")
 semantic_definition dredge (amount : Amount) : Ability :=
@@ -855,7 +861,11 @@ semantic_definition frenzy (amount : Amount) : Ability :=
   .keyword (.named "frenzy") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.attackUnblocked none))
         (get thisCreature (.up (.inCaller amount)) (.up 0) untilEndOfTurn) ]
-semantic_definition fuse : Ability := keyword (.named "fuse")
+/-- "Fuse": a player who casts this split card from their hand may cast both of its halves, as
+one fused split spell [CR#702.102a], whose total cost includes each half's mana cost
+[CR#702.102c]. -/
+semantic_definition fuse : Ability :=
+  .keyword (.named "fuse") [] [static (can you (cast thisCard (from_ := yourHand) (payment := fused)))]
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
@@ -1178,8 +1188,11 @@ semantic_definition mobilize (amount : Amount) : Ability :=
           [ createTappedAttacking (.inCaller amount) (creatureToken 1 1 [.red] [warrior]),
             atNext .endStep
               (sacrifice thoseTokens) ]) ]
+/-- "More Than Meets the Eye [cost]": "You may cast this card converted by paying [cost] rather
+than its mana cost." [CR#702.162a] A converted spell has its back face up [CR#712.8c]. -/
 semantic_definition moreThanMeetsTheEye (cost : Cost) : Ability :=
-  keywordCosting (.named "moreThanMeetsTheEye") (.inCaller cost)
+  .keyword (.named "moreThanMeetsTheEye") [.cost (.inCaller cost)]
+    [static (can you (cast thisCard (payment := convertedPaying (.inCaller cost))))]
 semantic_definition morph (cost : Cost) : Ability :=
   .keyword (.named "morph") [.cost (.inCaller cost)]
     [ static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
@@ -1369,11 +1382,11 @@ semantic_definition protection (quality : Predicate) : Ability :=
           (would (by_ (allOf (and [.isSource, .inCaller quality]))) (dealDamage anyAmount this_))
           (instead (preventDamage allDamage))),
       static (cant (.by (allOf (and [isCreature, .inCaller quality]))) (.block thisCreature)) ]
-/-- "Prototype [cost] — [power]/[toughness]": the printed parameters of the inset frame's second
-set [CR#702.160a,718.1]. -/
-semantic_definition prototype (cost : Cost) (power toughness : Amount) : Ability :=
-  .keyword (.named "prototype")
-    [.cost (.inCaller cost), .number (.inCaller power), .number (.inCaller toughness)] []
+/-- "Prototype": its player may cast this card prototyped [CR#702.160a,718.3], with the inset
+frame's mana cost, power and toughness. The frame holds that set (`Card.prototype`
+[CR#718.1]), so the keyword carries no parameters of its own. -/
+semantic_definition prototype : Ability :=
+  .keyword (.named "prototype") [] [static (can you (cast thisCard (payment := prototyped)))]
 semantic_definition provoke : Ability :=
   .keyword (.named "provoke") []
     [ whenever (does thisCreature (.attack none))

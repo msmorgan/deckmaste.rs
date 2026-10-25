@@ -1105,6 +1105,16 @@ mutual
     /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
     disguise [CR#702.37a,702.168a,708.4]. -/
     | faceDown (spec : FaceDown) (cost : Cost)
+    /-- Cast prototyped: the spell has its prototype frame's alternative mana cost, power and
+    toughness, and pays that mana cost [CR#718.3,718.3b]. -/
+    | prototyped
+    /-- Cast "transformed" or "converted", paying `cost` rather than the mana cost: the spell is
+    put on the stack with its back face up and has only that face's characteristics
+    [CR#712.8c,712.11a] (disturb, more than meets the eye [CR#702.146a,702.162a]). -/
+    | transformed (cost : Cost)
+    /-- Cast both halves of a split card as one fused split spell, its total cost including each
+    half's mana cost [CR#702.102a,702.102c]. -/
+    | fused
     /-- "Using its <keyword> ability": the cast takes the alternative cost the keyword ability
     `label` names [CR#601.2b,601.2f], so that keyword's cost is paid, and its abilities that ask
     whether it was apply ("You may cast this card from your graveyard using its blitz ability"

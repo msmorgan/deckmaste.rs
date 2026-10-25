@@ -2048,6 +2048,16 @@ semantic_template plusAdditional (cost : Cost) : PlayPayment := .plusAdditional 
 /-- "using its <keyword> ability": the alternative cost that keyword ability offers
 [CR#601.2b,601.2f]. -/
 semantic_template usingKeyword (label : KeywordLabel) : PlayPayment := .byKeyword label
+/-- "prototyped": with its prototype frame's mana cost, power and toughness [CR#718.3]. -/
+semantic_template prototyped : PlayPayment := .prototyped
+/-- "transformed by paying <cost> rather than its mana cost" [CR#712.8c,702.146a]. -/
+semantic_template transformedPaying (cost : Cost) : PlayPayment := .transformed cost
+/-- "converted by paying <cost> rather than its mana cost": converting is transforming written
+with another verb [CR#701.28a], and a converted spell is cast as a transformed one is
+[CR#712.8c,702.162a]. -/
+semantic_template convertedPaying (cost : Cost) : PlayPayment := .transformed cost
+/-- "both halves": a fused split spell [CR#702.102a]. -/
+semantic_template fused : PlayPayment := .fused
 semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticSpec :=
   .letterDefinition letter amount
 semantic_template loyaltySymbol (change : Delta Amount) : Cost := .loyaltySymbol change

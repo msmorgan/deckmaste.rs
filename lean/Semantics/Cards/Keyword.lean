@@ -1781,4 +1781,18 @@ def outOfBounds : Spelled := spelled <| singleFacedCard
   { name := "Out of Bounds", cost := [generic 3, pip .blue], types := [.instant],
     text := [assist, spell (counter (target isSpell))] }
 
+/-- Mourning Patrol // Morning Apparition -/
+def mourningPatrol : Spelled := spelled <| .transforming
+  { characteristics :=
+    { name := "Mourning Patrol", cost := [generic 2, pip .white], types := [.creature],
+      subtypes := [human, soldier], text := [vigilance, disturb [generic 3, pip .white]],
+      power := stat 2, toughness := stat 3 } }
+  { characteristics :=
+    { name := "Morning Apparition", colors := [.white], types := [.creature],
+      subtypes := [spirit, soldier],
+      text :=
+        [ flying, vigilance,
+          static (replace (would any (putInto thisCreature graveyard)) (instead (exile it))) ],
+      power := stat 2, toughness := stat 1 } }
+
 end Semantics.Cards

@@ -65,6 +65,7 @@ def PlayPayment.inCaller : PlayPayment → PlayPayment
   | .payingInstead cost => .payingInstead (.inCaller cost)
   | .plusAdditional cost => .plusAdditional (.inCaller cost)
   | .faceDown spec cost => .faceDown spec (.inCaller cost)
+  | .transformed cost => .transformed (.inCaller cost)
   | payment => payment
 
 end Semantics

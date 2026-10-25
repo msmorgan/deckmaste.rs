@@ -2456,8 +2456,8 @@ clause), so they never stand as patients of the deed, as the land card retrace d
 [CR#702.81a]. -/
 def stepPlayPaymentWith (ops : StepOps) (drs : DRS) (pay : PlayPayment) : DRS × List Refusal :=
   match pay with
-  | .itsOwnCost | .withoutPaying | .byKeyword _ => (drs, [])
-  | .payingInstead c | .plusAdditional c | .faceDown _ c =>
+  | .itsOwnCost | .withoutPaying | .byKeyword _ | .prototyped | .fused => (drs, [])
+  | .payingInstead c | .plusAdditional c | .faceDown _ c | .transformed c =>
     let (paid, errs) := ops.cost drs c
     let pending := if paid.currentClause == drs.currentClause then drs.pendingRoles else []
     let frames := if paid.scopeStack.length == drs.scopeStack.length then
@@ -2691,7 +2691,8 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, .addedCost cost _ _ | _+1, .altCost _ (some cost) => costTextContextWith ops drs cost
   | _+1, .can _ action _ =>
     match action.scopeBody with
-    | .procedure .cast _ (.payingInstead cost) .. | .procedure .cast _ (.plusAdditional cost) .. =>
+    | .procedure .cast _ (.payingInstead cost) .. | .procedure .cast _ (.plusAdditional cost) ..
+    | .procedure .cast _ (.transformed cost) .. =>
       costTextContextWith ops drs cost
     | _ => drs
   | _+1, .addsTarget _ description => addedTargetContextWith ops drs description
