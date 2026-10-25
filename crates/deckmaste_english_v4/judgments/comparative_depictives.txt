@@ -1,0 +1,2 @@
+# A number bounded by a comparative (*10 or greater*) is never a depictive: a number is none (*She left 10*), and a coordination fills only a function its conjuncts could each fill (CGEL, Ch. 15 §3.1, pp. 1323–1324, rule [1])
++ <card=Mayael's Aria> Then you gain 10 life if you control a creature with power 10 or greater. => Amount "10 or greater" as Complement of power; !Depictive "10 or greater"; !PredicateAdjunct "10 or greater"; !AdjectivePhrase "10 or greater" as Adjunct of control; !AdjectivePhrase "10 or greater" as Adjunct of gain

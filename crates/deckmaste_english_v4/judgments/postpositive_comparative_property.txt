@@ -6,7 +6,7 @@
 + You may cast a spell with mana value less than X from among them without paying its mana cost. => AdjectivePhrase "less than X"
 +NounPhrase power less than or equal to the number of treasure counters on this enchantment => AdjectivePhrase "less than or equal to the number of treasure counters on this enchantment" as Modifier of power; NounPhrase "the number of treasure counters on this enchantment"
 +AdjectivePhrase equal to its toughness => NounPhrase "its toughness"
-+ Destroy target creature with power 3 or less. => PrepositionPhrase "with power 3 or less" as Modifier of creature || PrepositionPhrase "with power 3 or less" as Adjunct of destroy; readings 2
++ Destroy target creature with power 3 or less. => PrepositionPhrase "with power 3 or less" as Modifier of creature || PrepositionPhrase "with power 3 or less" as Adjunct of destroy
 + When this creature enters, if your life total is less than 7, your life total becomes 7. => readings 1
 +NounPhrase mana value less than X
 +AdjectivePhrase less than X

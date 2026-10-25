@@ -27,3 +27,23 @@ needs the coordination and bounded-amount growth handled structurally first
 (see F5: ComparativeBoundedAlternative and ComparativeBoundedAmount).
 
 Standard constraints apply. No face lost; no unit over 4,096 Readings.
+
+Resolved: comparative depictives are English. Both Comparative excludes are
+gone. The bounded-amount growth is closed structurally: an `Amount`
+ComplementKind Exclude on AdjectivalDepictive, DepictiveAdjunct and
+DepictiveAdjective keeps *10 or greater* from every depictive (CGEL, Ch. 15
+§3.1, pp. 1323–1324, rule [1]); without it, +16,477 Readings, Mayael's Aria
+4,608, Whiskervale Forerunner 4,750. The remaining +9,975 Readings on 886
+units are grammatical comparative depictives, accepted as such: (D1) a
+comparative depictive coordinated with a PP Adjunct (*control a creature [with
+power 10] or [greater]*, the bulk), (D2) a depictive with a *than* phrase
+(*with mana value [less than X]*), (D3) a bare comparative after a measure
+(*costs {4} [less]*). Rejected: excluding AdjP conjuncts from
+AdjunctCoordination, which loses 9 faces (Deem Inferior, Happy Hogan,
+Bodyguard, Lost Days, Missy, Noble's Purse, Sphere of the Suns, Temporal
+Cleansing, Trickster's Stratagem, Wan Shi Tong, All-Knowing: *enters tapped
+and with three charge counters on it*) and which CGEL does not support
+(Ch. 15 §3.2, p. 1328: unlike categories coordinate freely in Adjunct function).
+
+Census delta (measured on `oymrszup` → `qkzqzuoq`): faces read 32,825 → 32,825; total Readings 316,930 → 326,905; Surplus 134,519 → 138,504; lost faces: none.
+Judgment set (`qkzqzuoq`): holds; 3,382 enforced, 0 pending; `comparative_depictives.txt` added (*10 or greater* is never a depictive; fails without the guard); `postpositive_comparative_property.txt:9` loses its `readings 2`, since the accepted D1 reading is a third grammatical one.

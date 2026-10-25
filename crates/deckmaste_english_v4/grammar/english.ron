@@ -1231,14 +1231,14 @@
         // Coordinated depictives interleave too (*onto the battlefield tapped
         // and attacking and the rest on the bottom*).
         (name: "InterleavedCoordinatedDepictive", lhs: "Interleaved", rhs: [Cat("head", "DepictiveCoordination")], cost: 0),
-        (name: "AdjectivalDepictive", lhs: "Depictive", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
+        (name: "AdjectivalDepictive", lhs: "Depictive", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.ComplementKind", "Amount"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "GerundDepictive", lhs: "Depictive", rhs: [Cat("filler", "Gerund")], equations: [Require("$.ComplementKind", "Gerund")]),
         // Unlike categories coordinated as a predicative Complement too
         // (*a token that's tapped and attacking*).
         (name: "CoordinatedPredicative", lhs: "Predicative", rhs: [Cat("head", "DepictiveCoordination")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
-        (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
+        (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.ComplementKind", "Amount"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         // A temporal Noun Phrase Adjunct as an unlike conjunct (*flip a coin
         // [that many times] or [until you lose a flip]*; CGEL, Ch. 15 §3.2,
         // pp. 1326–1329).
@@ -1255,7 +1255,7 @@
         (name: "TemporalNounAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "TemporalNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
-        (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Grade", "Comparative"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
+        (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.ComplementKind", "Amount"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
 
         (name: "PhrasalAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "PhrasalAdverb")], equations: [Require("$.AdjunctPosition", "Phrasal")]),
         (name: "MultiplyingAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "MultiplyingAdverb")], equations: [Require("$.AdjunctPosition", "Multiplying")]),
@@ -1489,7 +1489,13 @@
             equations: [Require("modifier.ComplementKind", "ToInf"), Exclude("modifier.AdjectivePosition", "Attributive"), Exclude("modifier.Voice", "Passive")], heavy: ["modifier"]),
         // A number or a comparative adjective with that number its
         // understood standard (*power 3 or greater*, *X is 2 or less*,
-        // *five or greater*).
+        // *five or greater*). Its `Amount` ComplementKind keeps it out of
+        // every depictive (AdjectivalDepictive, DepictiveAdjunct,
+        // DepictiveAdjective): a number is no depictive (*\*She left 10*), and
+        // a coordination fills only a function its conjuncts could each fill
+        // (CGEL, Ch. 15 §3.1, pp. 1323–1324, rule [1]), so never *[with
+        // power] [10 or greater]*. A comparative alone may be one (*She left
+        // richer than she arrived*).
         (name: "ComparativeBoundedAlternative", lhs: "AdjectivePhrase", rhs: [Cat("first", "DeterminerPhrase"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
             equations: [Require("first.DeterminativeDistribution", "Numerical"), Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "Amount"), Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive")]),
         // A postpositive comparative quantity (*for each card fewer than
