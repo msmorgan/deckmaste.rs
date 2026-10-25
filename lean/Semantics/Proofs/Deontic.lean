@@ -680,4 +680,13 @@ theorem drawRefusesANonPlayerOnceInEveryClause :
         [.kindMismatch .player .object] := by
   decide
 
+/-- A deontic clause constrains any Zone Change, as an event clause watches one (owner ruling
+2026-10-24): "can't be returned to its owner's hand" and "can't be put into exile" are admitted,
+as "can't enter" is. -/
+theorem prohibitionAdmitsAnyZoneChange :
+    StaticSpec.check (DRS.ofList []) (.cant .any (returnToHand thisCreature) {}) = [] ∧
+      StaticSpec.check (DRS.ofList []) (.cant .any (putInto thisCreature exileZone) {}) = [] ∧
+      (returnToHand thisCreature).deonticHeadOk = (returnToHand thisCreature).eventHeadOk := by
+  decide
+
 end Semantics.Proofs.Deontic
