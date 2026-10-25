@@ -508,6 +508,30 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   kvtozrzo: `NounPhrase.plur` reads a slice as its count from each owner's pile
   (`outputPlur` of the count and the owner), for any owned zone, not a library-or-graveyard case
   list; existing pins unchanged.
+  usutpxun: `Referent.attachmentHost` is read only where it decides, `leaveRelative`'s
+  projection of a presupposed host out of a relative clause; the four other reads
+  (`forwardParticipants`, `closeModalBox`, `replacementStart`'s filter, `leaveMeasure`) were
+  implied by the host's `.the` determiner and are gone; pins unchanged.
+  **Needs ruling 2026-10-24 (the remaining flags and the payment splice).**
+  (1) `announcedTargetResult` and `createdResult` record stepping history the suggested
+  derivations do not: deriving the loop's target group from `det == .target` publishes the targets
+  of "reveal target creature" and of an optional ("you may") target per player, which
+  `SelectionEvidence.ordinaryLocalsAndOptionalTargetsRemainClosed` keeps closed (the flag is set
+  only by a resolving `choose`); deriving creations from `Origin.token` and a create stamp loses a
+  created token once it moves, since a move resets its stamp [CR#400.7], against
+  `DrtCards.creationResultsKeepTheirActualDestinationAfterAMove` and
+  `movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult`, and a token merely mentioned has
+  `Origin.token` too (`aTokenMentionIsNotACreationResult`). Options: (a) keep both flags as the
+  discourse facts they are, documented as such; (b) derive them and retire or rewrite those pins;
+  (c) move them off `Referent` into one DRS-level record of what each loop body published.
+  (2) `attachmentHost`'s projection: (a) keep the flag for `leaveRelative` only (as now); (b) step
+  `.attachHost` as a presupposition that reuses a host already in view and is accommodated in the
+  outermost box, which needs the host's attachment recorded on the referent to tell "enchanted"
+  from "equipped" hosts of one type. (3) `stepPlayPaymentWith` restores each scope frame's
+  `callerPending` frame-for-frame by `zipWith`, keeping the paid stack when the lengths differ:
+  (a) give `OwnScopeFrame` an identity and restore by it; (b) step a payment in a mode in which
+  mentions are not buffered, so nothing is restored; (c) keep the frame-for-frame restore, drop
+  the unequal-length fallback, and pin that stepping a cost leaves the scope stack balanced.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,

@@ -341,6 +341,9 @@ structure Referent where
   clause          : Nat := 0
   role            : GramRole := .other
   pronounResolved : Bool := false
+  /-- An attachment host ("the enchanted creature"): a definite whose existence is presupposed,
+  so it projects out of the relative clause it is written in (`leaveRelative`). Its determiner
+  (`.the`) decides every other read. -/
   attachmentHost  : Bool := false
   announcedTargetResult : Bool := false
   /-- An object a "choose" announced or named as a target: what "the chosen creature" and "the
@@ -1470,7 +1473,7 @@ or ability is put on the stack [CR#601.2c,115.1], so "the number of cards in tar
 def leaveMeasure (before after : DRS) : DRS :=
   let closed := leaveRelative before after
   let targets := after.referents.filter fun r =>
-    r.det == .target && r.id ≥ before.nextId && !r.attachmentHost
+    r.det == .target && r.id ≥ before.nextId
   { closed with referents := targets ++ closed.referents }
 
 /-- Open a keyword action body's own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4):

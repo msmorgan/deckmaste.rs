@@ -911,7 +911,7 @@ it") are never among them. -/
 def forwardParticipants (before after : DRS) : List Referent :=
   (after.referents.filter fun r =>
     r.id ≥ before.nextId &&
-      (r.det == .target || r.det == .the || r.attachmentHost)).reverse
+      (r.det == .target || r.det == .the)).reverse
 
 /-- Step a clause's agent with the participants the clause's rest (`rest`) introduces in view,
 when the agent prints a bare "another"/"other". -/
@@ -1861,7 +1861,7 @@ def closeModalBox (before after : DRS) : DRS :=
   let published := fun (ref : Referent) => ref.id < before.nextId ||
     (!ref.isDifference &&
       Kind.lte ref.kind (.join .object .player) &&
-      (ref.attachmentHost || !(ref.det == .a || ref.det == .count || ref.det == .part)))
+      !(ref.det == .a || ref.det == .count || ref.det == .part))
   let ids := (after.referents.filter published).map (·.id)
   { after with
     referents := after.referents.filter published
@@ -2326,7 +2326,7 @@ def replacementStart (before replaced : DRS) : DRS :=
     prospectiveTokenTypes :=
       replaced.prospectiveTokenTypes.drop before.prospectiveTokenTypes.length
     referents := replaced.referents.filter fun ref =>
-      before.referents.any (·.id == ref.id) || (ref.det == .target && !ref.attachmentHost) }
+      before.referents.any (·.id == ref.id) || ref.det == .target }
 
 /-- `conditioned`, the state after stepping a replacement's condition from `before`, with the
 existential domain that condition published marked `Referent.replacementDomain`: it ranks below
