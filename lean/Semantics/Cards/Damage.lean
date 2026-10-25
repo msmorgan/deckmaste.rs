@@ -42,8 +42,8 @@ def immersturmSkullcairn : Ability :=
     (compound [[generic 1, pip .black, pip .red, pip .red], tapSymbol,
       (sacrifice thisLand)])
     (sequentially
-      [ instruct this_ (dealDamage 3 (target isPlayer)), discard (a (cardIn (handOf (that
-          .player)))) ])
+      [ instruct this_ (dealDamage 3 (target isPlayer)),
+        instruct (that .player) (discard (a (cardIn hand))) ])
     asSorcery
 theorem okImmersturmSkullcairn : Ability.check (DRS.ofList []) immersturmSkullcairn = [] := by decide
 def pyriteSpellbomb : Ability :=
@@ -891,8 +891,7 @@ def sonicShrieker : Spelled := spelled <| singleFacedCard
             [ instruct it (dealDamage 2 (target isAnyTarget)),
               gainLife 2,
               doIf (was (dealDamage anyAmount (a isPlayer)) thisWay)
-                (discard (a (cardIn (handOf they))))
-                  ]) ],
+                (instruct they (discard (a (cardIn hand)))) ]) ],
     power := stat 4, toughness := stat 4 }
 
 def grievousWoundLifeLock : Spelled := spelled <| singleFacedCard

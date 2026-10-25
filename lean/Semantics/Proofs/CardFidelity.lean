@@ -52,4 +52,37 @@ theorem madnessCastsDuringTheTriggersResolution :
       some (cast thisCard (from_ := exileZone)
         (payment := .payingInstead (.inCaller (.mana [generic 1])))) := rfl
 
+/-- "That player discards a card" and "each player discards a card": `discard` moves a card from
+its performer's own hand [CR#701.9a], so the instruction is handed to the player who discards,
+not performed by the ability's controller. -/
+theorem discardIsHandedToTheDiscardingPlayer :
+    Cards.hypnoticSpecterDiscard = instruct they (discard (aAtRandom (cardIn hand))) ∧
+      Cards.syphonMind =
+        sequentially
+          [ instruct (each isOtherPlayer) (discard (a (cardIn hand))),
+            doForEach (each (and [isCard, was (discard which) thisWay])) (draw 1) ] ∧
+      Cards.braidsFrightfulReturn =
+        may (sacrifice (a isCreature)) (some (instruct eachOpponent (discard (a (cardIn hand))))) ∧
+      (match Cards.immersturmSkullcairn with
+        | .activated _ (.sequentially [_, discarding]) _ _ _ _ => some discarding
+        | _ => none) = some (instruct (that .player) (discard (a (cardIn hand)))) :=
+  ⟨rfl, rfl, rfl, rfl⟩
+
+/-- "Counter target spell unless its controller pays {3}": the spell's controller is offered the
+payment, and if they don't pay, the counterspell's controller counters it [CR#118.12a,608.2c],
+handed back to `you`. -/
+theorem unlessPaysCountersByTheCounterspellsController :
+    (faceText Cards.manaLeak.card).filterMap spellEffect =
+      [ instruct (controllerOf (target isSpell))
+          (doUnless (instruct you (counter it)) [generic 3]) ] := rfl
+
+/-- Killing Wave's "sacrifices it unless they pay X life" and Heat Wave's "unless their controller
+pays 1 life for each blocking creature they control" pay life as a cost (`payLife`, [CR#119.4]),
+not a life loss handed to the payer. -/
+theorem lifePaymentsArePayLife :
+    Cards.killingWave =
+      doForEach (each isCreature)
+        (instruct (controllerOf it) (doUnless (instruct they (sacrifice it)) (payLife (letter .x)))) :=
+  rfl
+
 end Semantics.Proofs.CardFidelity

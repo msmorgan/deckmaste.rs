@@ -634,11 +634,10 @@ def heatWave : Spelled := spelled <| singleFacedCard
         static
             (cant (allOf (and [isCreature, hasColor .blue]))
                (block (allOf (and [isCreature, youControl])))),
-        static (gatedBy (instruct they (loseLife
-            (forEach 1 (and [isCreature, isBlocking, controlledBy they])))) (actor
-                                                                                       (allOf
-                                                                                          (and
-                                                                                             [isCreature, non (hasColor .blue)]))) (block (allOf (and [isCreature, youControl])))) ] }
+        static
+          (gatedBy (payLife (forEach 1 (and [isCreature, isBlocking, controlledBy they])))
+            (actor (allOf (and [isCreature, non (hasColor .blue)])))
+            (block (allOf (and [isCreature, youControl])))) ] }
 
 /-- Awesome Presence -/
 def awesomePresence : Spelled := spelled <| singleFacedCard

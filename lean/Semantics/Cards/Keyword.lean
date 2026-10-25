@@ -1046,7 +1046,7 @@ def rafterDemon : Spelled := spelled <| singleFacedCard
       [ spectacle [generic 3, pip .black, pip .red],
         when (does thisCreature enter)
           (if_ := keywordCostPaid spectacle thisCreature)
-          (sequentially [instruct eachOpponent (choose (a (cardIn hand))), discard them]) ],
+          (instruct eachOpponent (discard (a (cardIn hand)))) ],
     power := stat 4, toughness := stat 2 }
 
 /-- Tourach, Dread Cantor -/

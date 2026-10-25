@@ -743,7 +743,7 @@ def oonasBlackguard : Spelled := spelled <| singleFacedCard
         whenever
           (does (a (and [isCreature, youControl, hasCounter p1p1Counter]))
              (dealDamage (to := a isPlayer) (kind := some .combat)))
-          (discard (a (cardIn (handOf (that player))))) ],
+          (instruct (that player) (discard (a (cardIn hand)))) ],
     power := stat 1, toughness := stat 1 }
 
 def crumblingAshes : Spelled := spelled <| singleFacedCard
@@ -1201,7 +1201,7 @@ def neurokTransmuter : Action :=
 theorem okNeurokTransmuter : Action.check (DRS.ofList []) neurokTransmuter = [] := by decide
 def syphonMind : Action :=
   sequentially
-    [ sequentially [instruct (each isOtherPlayer) (choose (a (cardIn hand))), discard them],
+    [ instruct (each isOtherPlayer) (discard (a (cardIn hand))),
       doForEach (each (and [isCard, was (discard which) thisWay])) (draw 1) ]
 theorem okSyphonMind : Action.check (DRS.ofList []) syphonMind = [] := by decide
 def peek : Action := sequentially [lookAtHandOf (target isPlayer), draw 1]

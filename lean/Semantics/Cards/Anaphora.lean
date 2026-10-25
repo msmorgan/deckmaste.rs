@@ -215,7 +215,7 @@ def manaLeak : Spelled := spelled <| singleFacedCard
   { name := "Mana Leak", cost := [generic 1, pip .blue], types := [.instant],
     text :=
       [ spell (instruct (controllerOf (target isSpell)) (doUnless
-          (counter it)
+          (instruct you (counter it))
           [generic 3])) ] }
 
 /-- Oust {W} — Sorcery. "Put target creature into its owner's library second from the top.
@@ -312,7 +312,7 @@ def contrabandLivestock : Action :=
 theorem okContrabandLivestock : Action.check (DRS.ofList []) contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
-def hypnoticSpecterDiscard : Action := discard (aAtRandom (cardIn (handOf they)))
+def hypnoticSpecterDiscard : Action := instruct they (discard (aAtRandom (cardIn hand)))
 theorem okHypnoticSpecterDiscard :
     Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .player false }]) hypnoticSpecterDiscard = [] := by decide
 

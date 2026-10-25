@@ -239,9 +239,7 @@ theorem okPhantomBlade : Ability.check (DRS.ofList []) phantomBlade = [] := by d
 /-- Braids's Frightful Return -/
 def braidsFrightfulReturn : Action :=
   may (sacrifice (a isCreature)) (some
-                                    (sequentially
-                                       [instruct eachOpponent (choose (a (cardIn hand))), discard
-                                          them]))
+                                    (instruct eachOpponent (discard (a (cardIn hand)))))
 theorem okBraidsFrightfulReturn : Action.check (DRS.ofList []) braidsFrightfulReturn = [] := by decide
 /-- Daretti, Ingenious Iconoclast -/
 def darettisMinusOne : Action :=
@@ -303,7 +301,7 @@ def wildShape : Spelled := spelled <| singleFacedCard
 
 def rankleMasterOfPranks : Action :=
   chooseModes anyNumber
-    [ sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them],
+    [ instruct eachPlayer (discard (a (cardIn hand))),
       sequentially [instruct eachPlayer (loseLife 1), instruct (those player)
                       (draw 1)],
       instruct eachPlayer (sacrifice (aTheirChoice isCreature)) ]
@@ -465,7 +463,7 @@ def eagerConstruct : Spelled := spelled <| singleFacedCard
 def runeSnag : Spelled := spelled <| singleFacedCard
   { name := "Rune Snag", cost := [generic 1, pip .blue], types := [.instant],
     text :=
-      [ spell (instruct (controllerOf (target isSpell)) (doUnless (counter it)
+      [ spell (instruct (controllerOf (target isSpell)) (doUnless (instruct you (counter it))
           (compound
             [ [generic 2],
               scaledGenericMana
@@ -1029,13 +1027,13 @@ def helmOfPossession : Spelled := spelled <| singleFacedCard
 def override : Spelled := spelled <| singleFacedCard
   { name := "Override", cost := [generic 2, pip .blue], types := [.instant],
     text :=
-      [ spell (instruct (controllerOf (target isSpell)) (doUnless (counter it)
+      [ spell (instruct (controllerOf (target isSpell)) (doUnless (instruct you (counter it))
           (scaledGenericMana (forEach 1 (and [isArtifact, youControl]))))) ] }
 
 def rakshasasDisdain : Spelled := spelled <| singleFacedCard
   { name := "Rakshasa's Disdain", cost := [generic 2, pip .blue], types := [.instant],
     text :=
-      [ spell (instruct (controllerOf (target isSpell)) (doUnless (counter it)
+      [ spell (instruct (controllerOf (target isSpell)) (doUnless (instruct you (counter it))
           (scaledGenericMana (forEach 1 (cardIn yourGraveyard))))) ] }
 
 def megatherium : Spelled := spelled <| singleFacedCard
@@ -1050,7 +1048,7 @@ def megatherium : Spelled := spelled <| singleFacedCard
 
 def killingWave : Action :=
   doForEach (each isCreature)
-    (instruct (controllerOf it) (doUnless (instruct they (sacrifice it)) (instruct they (loseLife (letter .x)))))
+    (instruct (controllerOf it) (doUnless (instruct they (sacrifice it)) (payLife (letter .x))))
 theorem okKillingWave : Action.check (DRS.ofList []) killingWave = [] := by decide
 def fadeAway : Action :=
   doForEach (each isCreature)
@@ -1062,10 +1060,10 @@ def tidalFlats : Spelled := spelled <| singleFacedCard
     text :=
       [ activated [pip .blue, pip .blue]
           (doForEach (each (and [isCreature, isAttacking, not (hasKeyword flying)]))
-            (instruct (controllerOf it) (doUnless (gain
+            (instruct (controllerOf it) (doUnless (instruct you (gain
                 (allOf (and [ isCreature, youControl,
                                inCombat .blockerOf (that creature) ]))
-                firstStrike untilEndOfTurn) [generic 1]))) ] }
+                firstStrike untilEndOfTurn)) [generic 1]))) ] }
 
 def primalSurge : Spelled := spelled <| singleFacedCard
   { name := "Primal Surge", cost := [generic 8, pip .green, pip .green], types := [.sorcery],

@@ -187,7 +187,7 @@ def lilianaOfTheVeil : Spelled := spelled <| singleFacedCard
     subtypes := [liliana],
     text :=
       [ activated (loyaltySymbol (up 1))
-          (sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them]),
+          (instruct eachPlayer (discard (a (cardIn hand)))),
         activated (loyaltySymbol (down 2)) (instruct (target isPlayer) (sacrifice (a isCreature))),
         activated (loyaltySymbol (down 6))
           (sequentially

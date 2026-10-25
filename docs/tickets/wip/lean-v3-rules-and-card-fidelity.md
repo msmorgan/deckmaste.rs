@@ -240,7 +240,9 @@ were re-located against the Lean source on 2026-10-24.
     (`Cards/Damage.lean:892`), *Rankle* and *Braids's Frightful Return*
     (`Cards/Choice.lean:159,96-97`), *Liliana of the Veil* (`Cards/Piles.lean:190`),
     *Syphon Mind* (`Cards/Counters.lean:1167`), and *Rafter Demon* (`Cards/Keyword.lean:1009`).
-    **Reconciled 2026-10-24: live**
+    **Done** (`moukpvun`): each writes `instruct <player> (discard (… (cardIn hand)))`; the "each
+    player/opponent" sites drop their `choose … , discard them` pair for `instruct each… (discard
+    (a (cardIn hand)))`. Pin `discardIsHandedToTheDiscardingPlayer` (`Proofs/CardFidelity.lean`).
   - Fix `"unless its controller pays"` on *Mana Leak* (`Cards/Anaphora.lean:220-222`),
     *Override*, *Rakshasa's Disdain*, *Rune Snag* (`Cards/Choice.lean:886,892,322`),
     and *Tidal Flats* (`:917-922`) so the spell/ability's controller — not the
@@ -253,6 +255,9 @@ were re-located against the Lean source on 2026-10-24.
     still `instruct (controllerOf …) (doUnless (counter it) …)`; *Killing Wave*
     (`Cards/Choice.lean:904-906`) and *Heat Wave* (`Cards/Deontic.lean:637-638`) still write
     `loseLife`.)
+    **Done** (`moukpvun`): the five sites hand the counter (Tidal Flats: the first-strike grant) back
+    with `doUnless (instruct you …) cost`; *Killing Wave* and *Heat Wave* pay `payLife`. Pins
+    `unlessPaysCountersByTheCounterspellsController`, `lifePaymentsArePayLife`.
   - Standardizing damage-source performer handoffs moved to
     [lean-v3-spell-damage-dealer](../done/lean-v3-spell-damage-dealer.md) (owner ruling 2026-10-21:
     "<this> deals" is a Handoff to the source on spells as on permanents).
