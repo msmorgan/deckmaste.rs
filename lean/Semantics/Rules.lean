@@ -112,7 +112,7 @@ inductive Definition where
   /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not itself
   an ability. The label is the declaration's own name, or a member's where the declaration lists
   several (`day` and `night` [CR#731.1]), which carries who holds it; the registry supplies it,
-  never the author. `effectful` is whether an action may confer it directly.
+  never the author.
 
   The conferrals are the designation's inherent abilities, the monarch's two and the
   initiative's three triggered abilities [CR#725.2,726.2]: no object has them, so they have no
@@ -121,7 +121,7 @@ inductive Definition where
   counter row's once-per-counter reading is, so an `ability` conferral here is the same
   `Ability` a card prints; the checker reads the row's conferrals with no source to name
   (`DRS.sourceless`), and refuses "this" in them. -/
-  | designation (label : DesignationLabel) (effectful : Bool) (confers : List Conferral)
+  | designation (label : DesignationLabel) (confers : List Conferral)
   /-- A card type [CR#205.2a] and what it confers on every object of that type; whether it is a
   permanent type [CR#110.4] is a field of the value, as its stats are. A quality the type gives
   its objects — a creature is a Combatant [CR#508.1a], a land card may be played [CR#305.1], an

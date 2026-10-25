@@ -35,7 +35,7 @@ def monarchSteal : Conferral :=
 card at the beginning of their end step and loses the designation to the controller of a
 creature that deals them combat damage. -/
 def monarchDefinition : Definition :=
-  .designation monarch true [monarchDraw, monarchSteal]
+  .designation monarch [monarchDraw, monarchSteal]
 
 /-! ## The initiative
 
@@ -56,7 +56,7 @@ def initiativeSteal : Conferral :=
 /-- [CR#726.1,726.2] The initiative: an effect makes a player take it, and the controller of
 creatures that deal combat damage to the player who has it takes it. -/
 def initiativeDefinition : Definition :=
-  .designation initiative true [initiativeSteal]
+  .designation initiative [initiativeSteal]
 
 /-- Every designation row with inherent abilities, in declaration order. -/
 def designationDefinitions : List Definition := [initiativeDefinition, monarchDefinition]

@@ -199,7 +199,7 @@ and each rule a row confers is pinned on the row: it is one of the row's conferr
 
 /-- The conferrals a registry definition carries. -/
 def confersOf : Definition → List Conferral
-  | .counter _ confers | .subtype _ confers | .cardType _ confers | .designation _ _ confers =>
+  | .counter _ confers | .subtype _ confers | .cardType _ confers | .designation _ confers =>
     confers
   | .relation _ => []
 
@@ -447,8 +447,8 @@ source, and controlled by the player who held the designation when each triggere
 row: it is one of the row's conferrals, and it checks in the row's context. -/
 
 /-- [CR#725.1,725.2] "The monarch is a designation a player can have. There is no monarch in a
-game until an effect instructs a player to become the monarch", so the designation is
-effectful; its two inherent triggered abilities check. -/
+game until an effect instructs a player to become the monarch"; its two inherent triggered
+abilities check. -/
 theorem okMonarchDefinition : Definition.check monarchDefinition = [] := by decide
 
 /-- [CR#725.2] "At the beginning of the monarch's end step, that player draws a card." -/
@@ -464,7 +464,7 @@ theorem okMonarchSteal :
       monarchSteal.checkIn monarchDefinition.conferralContext = [] :=
   ⟨by simp [confersOf, monarchDefinition], by decide⟩
 
-/-- [CR#726.1,726.2] The initiative is effectful, and the one of its inherent triggered
+/-- [CR#726.1,726.2] The one of the initiative's inherent triggered
 abilities the grammar can write checks; the two that venture into Undercity [CR#701.49d] wait on
 a venture action. -/
 theorem okInitiativeDefinition : Definition.check initiativeDefinition = [] := by decide
@@ -488,7 +488,7 @@ theorem designationControllerReading :
 names nothing, and is refused. -/
 theorem badSourceInDesignationAbility :
     Definition.check
-      (.designation monarch true
+      (.designation monarch
         [.ability (at_ (beginningOfPossessed .endStep theMonarch) (sacrifice this_))])
       = [.noSource] := by decide
 
@@ -502,7 +502,7 @@ theorem okSourceInPrintedAbility :
 "this creature" in it names that creature. -/
 theorem okSourceInGrantedAbility :
     Definition.check
-      (.designation monarch true
+      (.designation monarch
         [.ability
           (at_ (beginningOfPossessed .endStep theMonarch)
             (gain (target isCreature)
@@ -517,13 +517,13 @@ theorem designationRowsAreDeclared :
 /-- [CR#709.5c] "'Left half unlocked' and 'right half unlocked' are designations that a
 permanent on the battlefield can have." -/
 def leftHalfUnlocked : Definition :=
-  .designation (.named "leftHalfUnlocked" (.heldBy .object)) true []
+  .designation (.named "leftHalfUnlocked" (.heldBy .object)) []
 theorem okLeftHalfUnlocked : Definition.check leftHalfUnlocked = [] := by decide
 
 /-- Goaded is one named designation [CR#701.15b]. This registry uses nonempty designation
 names as lookup keys. -/
 theorem badNamelessDesignation :
-    Definition.check (.designation (.named "" (.heldBy .player)) true [])
+    Definition.check (.designation (.named "" (.heldBy .player)) [])
       = [.definitionNamed] := by
   decide
 

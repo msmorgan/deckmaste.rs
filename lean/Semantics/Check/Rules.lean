@@ -48,7 +48,7 @@ def Definition.check : Definition → List Refusal
     hErr ++ refuse (!kind.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
   | .subtype sub rules =>
     refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
-  | d@(.designation label _ confers) =>
+  | d@(.designation label confers) =>
     refuse (!label.name.isEmpty) .definitionNamed ++ confers.flatMap (·.checkIn d.conferralContext)
   | .cardType type confers =>
     refuse (!type.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
