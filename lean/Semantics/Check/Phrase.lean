@@ -2525,9 +2525,11 @@ def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
   | _+1, .instead _ | _+1, .withRiders _ => []
 termination_by structural fuel
 
+/-- Publish the choices a line announces. Each is `linked`: only "the chosen player" (`countChoice`)
+reads it in a later ability, never `they`, "that player" or "another player" [CR#607.2d]. -/
 def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
   sorts.foldl (fun context sort =>
-    context.push { sort.binding with announcedChoice := true } .other false) drs
+    context.push { sort.binding with announcedChoice := true, linked := true } .other false) drs
 
 private def costResult (ref : Referent) : Bool :=
   (match ref.payload with

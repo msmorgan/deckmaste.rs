@@ -323,4 +323,12 @@ theorem okAssistBesidePrintedChoice :
       [assist, Primitives.Ability.spell none (choose anOpponent),
         Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
 
+/-- A player choice an earlier ability announced is read by a later one only as "the chosen
+player" [CR#607.2d]: a bare "they" is not it, whether or not the choice is optional. -/
+theorem badTheyDoesNotReadEarlierChoice :
+    Ability.checkText (DRS.ofList [])
+      [Primitives.Ability.spell none (may (choose anOpponent)),
+        Primitives.Ability.spell none (instruct they (draw 1))]
+      = [.anaphor (.word .player) .one 0] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus
