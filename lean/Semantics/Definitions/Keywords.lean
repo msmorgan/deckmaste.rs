@@ -343,7 +343,7 @@ semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (doIf (did anOpponent (.dealDamage .anyAmount .which) soFarThisTurn)
+          (doIf (Condition.was (dealDamage anyAmount anOpponent) soFarThisTurn)
             (withRiders [.withCounters (.inCaller amount) p1p1Counter .fresh]))) ]
 semantic_definition boast (ability : Ability) : Ability :=
   .keyword (.named "boast") [.ability (.inCaller ability)]

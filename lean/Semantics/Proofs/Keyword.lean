@@ -493,4 +493,13 @@ theorem okEntwineEscalateSpreeTieredWantModes :
 /-- A keyword whose Definition writes no Mode Change wants none, a cost-bearing one included. -/
 theorem kickerWantsNoModes : (kicker (.mana [generic 2])).keywordWantsModes = false := by decide
 
+/-- Bloodthirst asks whether an opponent was dealt damage this turn [CR#702.54a]: the opponent is
+the damage's recipient, and the agentless passive leaves the source that dealt it [CR#120.1]
+unnamed. -/
+theorem bloodthirstReadsTheOpponentAsTheDamagedPlayer :
+    (match bloodthirst 1 with
+      | .keyword _ _ [.static (.replace _ (.onlyIf c _) _ _ _)] => some c
+      | _ => none) =
+      some (Condition.was (dealDamage anyAmount anOpponent) soFarThisTurn) := rfl
+
 end Semantics.Proofs.Keyword

@@ -73,7 +73,8 @@ were re-located against the Lean source on 2026-10-24.
   (dealDamage anyAmount anOpponent) soFarThisTurn`, the shape *Furious Spinesplitter* uses
   (`Cards/Counters.lean:136-140`). The checker cannot catch an agent/patient swap, so add a pin
   on the tree. The RON mirror (`bloodthirst.ron`) is already right.
-  **Reconciled 2026-10-24: live**
+  **Done** (`nrkylvmw`): `Condition.was (dealDamage anyAmount anOpponent) soFarThisTurn`; pin
+  `bloodthirstReadsTheOpponentAsTheDamagedPlayer` (`Proofs/Keyword.lean`).
 - **`reconfigure` (`[CR#702.151a,701.3d]`, §1.7):** Fix `Keywords.lean:1364-1365`
   to use `unattach` (`Templates.lean:76`) instead of stamping unattach as `enact (.action
   "attach")`.
