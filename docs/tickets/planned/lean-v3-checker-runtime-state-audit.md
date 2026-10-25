@@ -11,7 +11,12 @@ runtime state: hidden-zone visibility, the availability of last known informatio
 [CR#608.2h], timing, and the order in which state-based actions and replacement effects apply
 [CR#704.3,616.1].
 
-**This is an inventory to confirm, not a ruling.** It was taken read-only against the current
+**Ruling (owner, 2026-10-24).** K1 to K7: confirmed Keep (decidable from the text). U1:
+confirmed Keep [CR#701.24a,701.24b], and keep the 5 shuffle pins. U2: remove the current-zone
+restriction on "spell" for characteristic and possessor reads [CR#608.2h]; see U2 below. The
+remaining sections are the inventory as taken.
+
+**Inventory origin.** It was taken read-only against the current
 code on 2026-10-22, from `lean/Semantics/Check/*.lean`, including `Check/Refusal.lean`, and from
 a sweep of `Check/Phrase.lean` and `Check/Words.lean` for zone and visibility checks. Each row
 gives the proposed class: **keep** (text-decidable), **remove** (runtime) or **unsure**. The owner
@@ -44,29 +49,36 @@ generic reference refusals (`anaphor`, `participialDescription`, `groupSizeInSco
 R1 to R3 landed with the ninjutsu ticket: `publicCostResult` is now `costResult`, and the pin is
 rewritten as `additionalCostPublishesAGroupPutIntoALibrary`.
 
-## Unsure
+## Unsure (resolved 2026-10-24)
 
-- **U1. Shuffling forgets library referents** (`survivesShuffle`, `Check/Words.lean:1128-1133`;
-  `afterShuffle`, `:1458-1464`; called at `Check/Phrase.lean:3242`). After a shuffle, every
-  object referent in a library is dropped from discourse unless a library search found it. A
-  shuffle only randomizes order [CR#701.24a] and moves nothing, so the object keeps its identity
-  [CR#400.7]. Dropping it is hidden-zone tracking, which points to runtime. The other view is
-  that "that card" after an unrelated shuffle has no antecedent Oracle writes, and that
-  [CR#701.24b] singles out found cards. Pins that depend on it: `shuffleForgetsMaskedLibraryIdentity`,
+- **U1. Shuffling forgets library referents: KEEP (owner, 2026-10-24).**
+  (`survivesShuffle`, `Check/Words.lean:1208-1213`; `afterShuffle`, `:1573-1579`; called at
+  `Check/Phrase.lean:3922`). After a shuffle, every object referent in a library is dropped from
+  discourse unless a library search found it. A shuffle only randomizes the cards so that no
+  player knows their order [CR#701.24a], and the found cards are singled out
+  [CR#701.24b]. The rule is text meaning: "that card" after an unrelated shuffle has no antecedent
+  Oracle writes. Keep the 5 pins: `shuffleForgetsMaskedLibraryIdentity`,
   `revealedSearchResultSurvivesShuffleWithSameIdentity` (`Proofs/MovementScopes.lean:79,178`),
   `conditionalShuffleForgetsPrivateOperand` (`Proofs/ActionFamilies.lean:275`),
-  `badReadsShuffledIntoLibraryCard` (`Proofs/Description.lean:330`) and
-  `badReadsShuffledLibraryCard` (`Proofs/Anaphora.lean:660`).
-- **U2. Characteristic reads through "card" and "spell" read only the current zone**
-  (`stampedWordOk`, `Check/Words.lean:1104-1113`, via `reachesCharacteristic`, `:1145-1150`). A
-  Card Type or "permanent" word may read a departed permanent by its last known information, but
-  "spell" requires the stack now. By reading, "that spell's mana value" after the spell is
-  countered (*Mana Drain*) finds no referent; confirm with a probe. The carrier word's zone is
-  text meaning [CR#109.2b], but whether the countered spell's information is still available is
-  last-known-information availability [CR#608.2h]. The owner decides which applies to a
-  characteristic read.
+  `badReadsShuffledIntoLibraryCard` (`Proofs/Description.lean:417`) and
+  `badReadsShuffledLibraryCard` (`Proofs/Anaphora.lean:786`). Line numbers re-located 2026-10-24.
+- **U2. "spell" in characteristic and possessor reads: REMOVE the current-zone restriction
+  (owner, 2026-10-24).** Today `stampedWordOk` (`Check/Words.lean:1184-1192`, via
+  `reachesCharacteristic`, `:1226-1232`) lets a Card Type or "permanent" word read a departed
+  permanent by its last known information, but `.spell` (and `.subtype (.spell _)`) requires
+  `onStackZone zn`. The ruling: "that spell's mana value" or "that spell's controller" after the
+  spell is countered (*Mana Drain*, *Spell Swindle*, *Essence Backlash*) reads the departed spell
+  by last known information [CR#608.2h]: the spell was in the public zone it was expected to be
+  in, and it has left it. Admit a departed stamped spell in `stampedWordOk` the way
+  `wasField || leftField` admits a departed permanent (a stack analogue of the stamp's field
+  flags). **Action slots still require the object to be on the stack** (K1,
+  `slotZoneOk .spell`, `Check/Words.lean:1062-1065`): "counter that spell" of an already-countered
+  spell stays refused. Pins: *Mana Drain*, *Spell Swindle* and *Essence Backlash* spelled in full;
+  a refusal pin that an action slot on the departed spell is still refused; rewrite or retire by
+  name any existing pin that asserts the old "spell requires the stack now" read for a
+  characteristic.
 
-## Keep (text-decidable)
+## Keep (text-decidable; confirmed by the owner, 2026-10-24)
 
 - **K1. Carrier-word and action-slot zone reach** (`slotZoneOk`, `Check/Words.lean:986-989`;
   `wordReaches`, `:1030`; ADR §1.5 `J1` items 3 and 4). A noun word denotes objects in a zone
@@ -96,7 +108,7 @@ Not runtime, and not on this ticket's axis: the keyword card-class gates (`keywo
 `Check/Card.lean:29-31`, over `Check/Facts.lean`) are corpus observations.
 `lean-v3-checker-rules-scope-refusals` §5 removes them.
 
-Tally: 3 remove (all owned by the ninjutsu ticket), 2 unsure, 7 keep.
+Tally (after the owner ruling): 3 removed (owned by the ninjutsu ticket), 1 remove (U2), 1 keep (U1), 7 keep (K1 to K7).
 
 ## Wave-C tickets against the boundary
 
@@ -135,8 +147,8 @@ Tally: 3 remove (all owned by the ninjutsu ticket), 2 unsure, 7 keep.
 
 ## Work
 
-1. The owner confirms or reclasses U1, U2 and the keep rows.
-2. Remove each row confirmed as runtime, rewriting or retiring its pins by name, and mark
+1. ~~The owner confirms or reclasses U1, U2 and the keep rows.~~ Done 2026-10-24 (see the ruling above).
+2. Remove each row confirmed as runtime (U2 only), rewriting or retiring its pins by name, and mark
    superseded in `docs/decisions/semantics-v3.md` and `lean/CONTRACTS.md` the text that
    describes it.
 3. Move the out-of-scope pins named in the triage to engine tickets, and leave the denotation

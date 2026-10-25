@@ -293,9 +293,12 @@ against the Lean source and the Oracle text in `data/derived/cards.jsonl`; re-lo
     `putOntoBattlefieldAttachedTo` (`:1151-1153`) already have.
   - Not in scope: restrictions that are the noun phrase's own modifier ("creature cards in your
     graveyard", as *Continue?*, *Faith's Reward*, *Death or Glory*) are not move origins.
-  - Proposed, not ruled: keep the `in_` restriction on a target where it is what makes the
-    target legal, and add the origin beside it. If the checker refuses the pair as redundant,
-    that is a checker question for an owner ruling, not a reason to drop either.
+  - **Ruling (owner, 2026-10-24): approved.** On "Return/put target [card] from your/a graveyard
+    to …", keep `in_ <graveyard>` in the target's predicate, where it governs target legality
+    [CR#115.1], and pass `from_ := some <graveyard>` on the move, where it governs the move's
+    origin and departure observation point [CR#603.6c,603.10a]. The checker must accept both
+    together; if it refuses the pair as redundant, that is a checker defect to fix, with a pin
+    that the pair is accepted.
   **Reconciled 2026-10-24: live**
 
 Tests to add (in `Proofs/` beside the existing move pins): for each rider site, a pin that the

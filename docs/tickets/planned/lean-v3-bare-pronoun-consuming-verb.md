@@ -30,13 +30,23 @@ Each `it` resolves to an object in a hand or a graveyard, which tap and sacrific
 (a text-decidable zone, not runtime visibility, so it stays on the checker's side of the engine
 boundary).
 
+## Ruling (owner, 2026-10-24)
+
+Enforce J1 item 4 in the action stepper, not in templates. Authors write a bare `it`. When the
+stepper steps a patient slot that requires a specific zone, J1 item 4 filters out referents whose
+known current zone contradicts that slot. The slots are `.battlefield` for `setStatus`,
+`turnOver`, `combat`, `clearDamage` and `markDamage`, and an `Action.move` whose written `from_`
+is the battlefield. This refuses "Destroy target creature. Tap it." and "Return a creature to its
+owner's hand: Tap/Sacrifice it." The earlier choice between template-layer slots and stepper
+narrowing (the A1 ruling of `docs/tickets/done/workbench-anaphora-a-bare-it.md`) is settled for
+the stepper; no STOP is needed.
+
 ## Work
 
-- Decide where the slot comes from. The ruling in
-  `docs/tickets/done/workbench-anaphora-a-bare-it.md` ("Settled design", A1) selects
-  sort/zone-scoped reads at the template (macro) layer. Either the templates for verbs that act
-  on permanents (`tap`, `untap`, `sacrifice`, `destroy`, counters onto a permanent, …) pass
-  their patient slot to a bare pronoun, or the action stepper narrows `.bare` to its slot's
-  carrier. This choice may need an owner ruling. STOP if so.
-- Pin the three rows above as refused, and give `badHiddenCost` (`Proofs/Turn.lean`) back its
-  bare `it`.
+- In the action stepper, where a patient slot with a required zone resolves `.bare`, narrow it
+  to the slot's carrier (`Reach.atSlot`, `slotZoneOk`, `Check/Words.lean:1062`; `reaches`, `:1215`).
+  Referents whose known current zone contradicts the slot are filtered out; a referent of unknown
+  zone is kept (runtime visibility stays the engine's).
+- Pin the three rows above as refused, add an accepted pin for a bare `it` whose referent is on
+  the battlefield (a permanent the text put or left there), and give `badHiddenCost`
+  (`Proofs/Turn.lean:60`) back its bare `it`.

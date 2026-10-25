@@ -378,13 +378,18 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 
 #### 4.1 Retire 3p-Singular `GameEvent` Wrappers in Favor of `does <subj> <action>`
 **Reconciled 2026-10-24: done** by [lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md): `does` at `Templates.lean:1647`; none of the listed 3p-singular wrappers remains (`zoneChange` survives only as a private move helper, `Templates.lean:1063`).
-- Added 2026-10-24, **needs ruling:** a family of non-`does` `GameEvent` wrapper Templates
-  survives outside this section's list (`Templates.lean:1650` `transformsInto`, and
-  `Templates.lean:1687-1716`: `bareCountersPut`, `bareCountersRemoved`, `lastCounterRemovedBy`,
-  `manyCountersPutByEffect`, `manyBareCountersPutBy`, `tokenCreationEvent`, `tokensCreated`,
-  `tokensCreatedByEffectUnder`, `lastCounterRemoved`). Each expands to `.does …`, but callers
-  write the 3p-singular wrapper rather than `does <subj> <action>`. Rule whether they retire in
-  favour of `does` or stay as named event Templates. **Reconciled 2026-10-24: live.**
+- **Ruling (owner, 2026-10-24): retire.** The non-`does` `GameEvent` wrapper Templates retire in
+  favour of `does <subj> <action>` (and `causes .anEffect (does …)`). Both forms existing creates
+  two representations of the same trigger text. Verified range, `Templates.lean:1660`
+  (`transformsInto`) and `Templates.lean:1688-1724`: `countersPut`, `countersRemoved`,
+  `bareCountersPut`, `bareCountersRemoved`, `lastCounterRemovedBy`, `manyCountersPutByEffect`,
+  `manyBareCountersPutBy`, `tokenCreationEvent`, `tokensCreated`, `tokensCreatedByEffectUnder`,
+  `lastCounterRemoved`. `transformsInto` has **not** moved to `Definitions/Actions.lean`: it is
+  still a `GameEvent` Template at `Templates.lean:1660` (its one caller is `Cards/Faces.lean:330`),
+  so it is in this family. Each expands to `.does …` or `.causes .anEffect (.does …)`; rewrite every
+  caller to `does <subj> <action>` with the matching `Action` template (for `transformsInto`, the
+  transform deed over `turnOver` with the named face), delete the wrappers, and update pins that
+  name them. **Reconciled 2026-10-24: live.**
 - Retire all ~35 `v2`-port 3rd-person singular `GameEvent` wrapper templates in
   `Primitives.lean`, `Macros.lean`, and `Declared.lean` (`dies`, `enters`,
   `leaves`, `leavesZone`, `attacks`, `attacksPlayer`, `attacksWith`, `blocks`,

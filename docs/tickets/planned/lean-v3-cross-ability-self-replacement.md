@@ -39,20 +39,28 @@ targets ("that creature", "that spell"). What is missing is the replacement itse
 - *Bring the Ending*: "Counter target spell unless its controller pays {2}. / Corrupted — Counter
   that spell instead if its controller has three or more poison counters."
 
-## Design (proposed)
+## Ruling (owner, 2026-10-24)
 
-- Add a way for a spell ability to be a self-replacement of the effect of the spell abilities
-  before it in the same spell [CR#614.15]. A sketch: a spell ability whose body is a
-  `Replacement`, applied to the effect of the earlier spell abilities, as `Action.replace` applies
-  its replacement to its `replaced` action.
-- The checker steps the replacement the way the `.replace` arm of `ops.inst` does. That means
-  from the state the replaced action read, per `lean-v3-self-replacement-remainder`, plus the
-  targets the earlier spell abilities published.
-- Decide which earlier effect is replaced when there is more than one earlier spell ability. For
-  every witness there is exactly one.
+Approved. Per [CR#113.2c,614.15], a self-replacement printed as its own paragraph (typically
+after an ability word) is a separate spell ability whose body is a `Replacement`.
+
+## Change
+
+- Add `Ability.spellReplacement (replacement : Replacement)` with template `spellReplacement`
+  (beside `spell`, `Templates.lean:2101`). It replaces the effect of the immediately preceding
+  spell ability of the same spell.
+- The checker steps it as the `.replace` arm of `ops.inst` does (`Check/Phrase.lean`, the
+  `stepReplacementWith` path): from the state the replaced spell ability read, per
+  `lean-v3-self-replacement-remainder`, plus the targets that earlier spell abilities of the same
+  spell published.
+- It refuses a `spellReplacement` that has no preceding spell ability to replace. "Preceding" is
+  immediate, so a witness's later paragraph replaces exactly the paragraph before it.
 
 ## Tests
 
 - Each witness spelled in full, with the later paragraph's "instead" as a self-replacement of the
   earlier paragraph's effect.
-- A pin that a replacement spell ability with no earlier spell ability to replace is refused.
+- A refusal pin: a `spellReplacement` with no preceding spell ability to replace (first ability of
+  the card, or preceded only by a non-spell ability).
+- A pin that the replacement reads the earlier paragraph's published targets ("that creature",
+  "that spell").

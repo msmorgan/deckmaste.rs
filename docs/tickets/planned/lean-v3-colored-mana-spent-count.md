@@ -25,14 +25,23 @@ spell". The checker has no amount for how much mana of one color was spent. `Lin
 - *Unexplained Vision* {4}{U}: "Draw three cards. / Adamant — If at least three blue mana was spent
   to cast this spell, scry 3."
 
-## Design (proposed)
+## Ruling (owner, 2026-10-24)
 
-- Add a `LinkedFacet` for the amount of mana of a given color spent to cast the object, and a
-  template beside `colorsSpentToCast` (for example `manaOfColorSpentToCast`). Adamant then reads
+Use `ManaTypeTerm` [CR#106.1b] (`Abilities.lean:347-350`: `.colorless | .ofColor (color :
+ColorTerm)`, verified).
+
+## Change
+
+- Add `LinkedFacet.manaSpent (type : ManaTypeTerm)` (`Abilities.lean:207`), the amount of mana of
+  that type spent to cast the object. Templates beside `colorsSpentToCast` (`Templates.lean:1230`):
+  `manaOfColorSpentToCast` and `colorlessManaSpentToCast`. Adamant then reads
   `compareAmt (manaOfColorSpentToCast .red thisSpell) .atLeast 3`.
-- Decide whether the same facet covers "colorless mana" (*Desecrate Reality*) and "three mana of
-  the same color" (*Clockwork Servant*, *Henge Walker*), or whether those are separate tickets.
+- The same facet covers *Desecrate Reality*'s "three colorless mana".
+- "Three mana of the same color" (*Clockwork Servant*, *Henge Walker*) is not covered; if it
+  needs quantification over colors it is the separate ticket
+  [lean-v3-same-color-mana-spent-count](lean-v3-same-color-mana-spent-count.md) (proposed).
 
 ## Tests
 
 - Each witness spelled in full under `adamant`.
+- *Desecrate Reality*'s "three colorless mana" via `colorlessManaSpentToCast`.

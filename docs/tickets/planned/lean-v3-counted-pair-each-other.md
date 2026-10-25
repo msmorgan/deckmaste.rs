@@ -12,8 +12,26 @@ plural referent with no recorded count (`Payload.size` is `none`), so
 `sequentially [choose (targets (exactly 2) isCreature), fightEachOther (those creature)]` is
 refused `theRestFits .object`.
 
-Change: record the exact count on a counted selection's referent (or otherwise let
-`distributivePair?` see that a counted group has exactly two members), then spell *Rivals' Duel*
-(its "share no creature types" is `agree (.subtype .creature) .differ …`). Two targets of one
-"target" word are distinct objects [CR#115.3], so no self-fight [CR#701.14c] arises here.
-Check what the count does to other readers of `Payload.size` (`countedGroupSize`, `theOtherOk`).
+## Ruling (owner, 2026-10-24)
+
+Approved.
+
+## Change
+
+- Record `size := some 2`, or the exact count `n` when the `Quantity` is `range (some n) (some n)`
+  (`Abilities.lean:449`), on the plural referent introduced by `DetPhrase.target` /
+  `DetPhrase.count` (`stepDetPhraseWith`, `Check/Phrase.lean:821-830`).
+- That way `targets (exactly 2) isCreature` is recognized by `distributivePair?`
+  (`Check/Words.lean:876`) and `theOtherOk` (`:891`) for `fightEachOther`
+  (`Definitions/Actions.lean:222`).
+- Then spell *Rivals' Duel* (its "share no creature types" is `agree (.subtype .creature) .differ
+  …`). Two targets of one "target" word are distinct objects [CR#115.3], so no self-fight
+  [CR#701.14c] arises here.
+- Check what the count does to other readers of `Payload.size` (`countedGroupSize`,
+  `Check/Words.lean:865`, `theOtherOk`).
+
+## Tests
+
+- *Rivals' Duel* spelled in full, checking clean.
+- Pin that `targets (exactly 2) isCreature` followed by `fightEachOther (those creature)` is
+  accepted, and that a count other than two (`exactly 3`) is still refused for the pair.

@@ -17,6 +17,18 @@ creature you control, unattach it."
 Other Vintage-legal cards in `data/derived/cards.jsonl` that print "lose control of": *Duplicity*,
 *Khârn the Betrayer*, *Krovikan Vampire*, *Ogre Geargrabber*, *Ray of Command*, *Seraph*.
 
+## Ruling (owner, 2026-10-24)
+
+Approved.
+
+## Change
+
+Either extend `Action.changeControl` (`Abilities.lean:1251`, currently the gaining side only) with
+a direction, or add `Action.loseControl (subject : NounPhrase)` with template `loseControl`. The
+owner leaves the choice between the two to the implementer; record the choice and why in the
+landing. Admit it in event and lookback patterns alongside `gainControlOf`
+(`Templates.lean:1444`).
+
 ## Tests
 
 - Extend `stolenUniformOpening` (`Cards/Choice.lean`) to the whole card.

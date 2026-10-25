@@ -17,13 +17,23 @@ one spell ability place its action before an action of an earlier one. Spelling 
 sequence with the pump first erases the ability boundary; spelling it in written order makes the
 pump come after the fight, which changes the outcome.
 
+## Ruling (owner, 2026-10-24)
+
+Kept separate from `lean-v3-cross-ability-self-replacement`; one design does not serve both.
+
 ## Change
 
-Decide the Core form for "<action> before <earlier action of this spell>": a temporal qualifier on
-the later ability's action naming the earlier action, or the spell-level ordering the engine
-applies when one spell ability says "before". Related: `lean-v3-cross-ability-self-replacement`
-(a later ability's "instead" replacing an earlier one's effect [CR#614.15]); one design may serve
-both. The design is proposed, not ruled.
+- Add `Action.beforeEvent (action : Action) (event : GameEvent)` with template `beforeEvent`.
+- Step it like `holdUntil` (`Action.holdUntil`, `Abilities.lean:1370`; checker arm
+  `Check/Phrase.lean:4307`, which steps `inst` then `ev` in the output DRS): `action` first, then
+  `event` in `action`'s output DRS [CR#608.2c]. The event is the earlier action the pump precedes.
+- *Savage Punch*'s second paragraph is
+  `italicHead ferocious (spell (doOnlyIf (beforeEvent (get …) (does it (fight any))) (exists_ …)))`
+  (`doOnlyIf`, `Templates.lean:1520`; `italicHead`, `:2018`; `spell`, `:2101`).
+- "It" reads back "the creature you control" through the landed
+  [lean-v3-spell-abilities-share-targets](../done/lean-v3-spell-abilities-share-targets.md) and
+  [lean-v3-anaphoric-definite-description](../done/lean-v3-anaphoric-definite-description.md)
+  work.
 
 ## Tests
 
