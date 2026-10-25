@@ -135,14 +135,23 @@ the other: one phased out this way is not phased in again by the same action. Th
 is read as the controller whose turn it is [CR#102.1]. The phase-in half reads the phased-out
 permanent's present controller, which phasing does not change [CR#702.26d]; it differs from the
 one it phased out under only if a control effect ended while it was phased out [CR#702.26f], and
-reading that one needs a term for the active player (`lean-v3-active-player-term`). That every
-permanent changes at once is the engine's. -/
+reading that one needs a term for the active player (`lean-v3-active-player-term`). An Aura,
+Equipment or Fortification that phased out indirectly, with the permanent it is attached to,
+doesn't phase in by itself but with that permanent [CR#702.26g], so the phase-in half skips a
+phased-out permanent attached to a phased-out one. That reads "indirectly" by the attachment: an
+attachment that phased out directly and whose host later phased out too is skipped as well,
+which the rule would phase in (`lean-v3-phasing-direct-phase-out`). That every permanent changes
+at once is the engine's. -/
 def phasingTurnBased : ConferralRule :=
   { scope := isPermanent,
     confer :=
       .turnBased .untapStep
         (doIf (.duringPart .turn (some (controllerOf .this)))
-          (doIf (is .this isPhasedOut) (.setStatus .phasedIn .this)
+          (doIf (is .this isPhasedOut)
+            (doIf
+              (not (is .this (.attachment .attachment none (some (a (and [isPermanent,
+                isPhasedOut]))))))
+              (.setStatus .phasedIn .this) none)
             (some (doIf (is .this (hasKeyword phasing)) (.setStatus .phasedOut .this) none)))
           none) }
 theorem okPhasingTurnBased : ConferralRule.check phasingTurnBased = [] := by decide
