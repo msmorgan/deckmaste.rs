@@ -128,33 +128,35 @@ private def mangaraContext : DRS :=
     (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient))).1
 
 /-- *Mangara's Equity*: "Whenever a creature of the chosen color deals damage to you or a white
-creature you control, this enchantment deals 1 damage to that creature." The disjunction "you or
-a white creature you control" keeps no alternative's participant (`stepNounAlternativesWith`,
-`semantics-v3.md` §1.2, §1.5 card 10), so the raw "that creature" reads the damage source. -/
+creature you control, this enchantment deals that much damage to that creature." The disjunction
+"you or a white creature you control" keeps no alternative's participant
+(`stepNounAlternativesWith`, `semantics-v3.md` §1.2, §1.5 card 10), so the raw "that creature"
+reads the damage source, and the whole line checks with no explicit selector. -/
 theorem mangarasEquityRawDemonstrativeSelectsTheDamageSource :
-    selected (.type .creature) mangaraContext = [["mangara.source"]] := by decide
-
-theorem mangarasEquityExplicitSelectorRestoresDamageSource :
-    let (after, ids, errors) := stepNounPhrase 64 (nextClause mangaraContext) .obj true
-      (.laterMention "mangara.source" mangaraSource)
-    errors = [] ∧ (ids.filterMap after.findById?).map (·.idents) =
-      [["mangara.source"]] := by decide
+    selected (.type .creature) mangaraContext = [["mangara.source"]] ∧
+      Ability.check (DRS.ofList [ChoiceSort.binding (.quality .color)])
+        (when (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient))
+          (instruct thisEnchantment (dealDamage thatMuch (that creature)))) = [] := by decide
 
 private def noeticUpkeep : GameEvent :=
   .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .anyPlayer))) .current
-private def noeticContext : DRS :=
-  (stepLocationWith (stepOps 64)
-    (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1)
-    (.zone .hand (some (.firstMention "noetic.owner" (ownerOf (each isCreature)))))).1
+/-- "return to its owner's hand each creature that player controls with power greater than the
+number of cards in their hand": the move's subject, then its destination, an owner's hand scoped
+to nobody, since a card goes to its owner's hand [CR#400.3]. -/
+private def noeticReturn : Action :=
+  returnToHand (each (.and [isCreature, .hasPossessor .controller (that .player),
+    hasPower .greater (countOf (cardIn (handOf they)))]))
 
-theorem noeticScalesRawDemonstrativeSelectsWrongPlayer :
-    selected .player noeticContext = [["noetic.owner"]] := by decide
-
-theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
-    let (after, ids, errors) := stepNounPhrase 64 (nextClause noeticContext) .other false
-      (.laterMention "noetic.upkeepPlayer" (each .anyPlayer))
-    errors = [] ∧ (ids.filterMap after.findById?).map (·.idents) =
-      [["noetic.upkeepPlayer"]] := by decide
+/-- *Noetic Scales*: "At the beginning of each player's upkeep, return to its owner's hand each
+creature that player controls with power greater than the number of cards in their hand." The
+move steps its subject before its destination, and "its owner's hand" introduces no player, so
+the raw "that player" and "their" read the upkeep player, the only player in the result. -/
+theorem noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer :
+    let after := (stepAction 64 .postEvent .obj
+      (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1) noeticReturn)
+    Ability.check (DRS.ofList []) (when noeticUpkeep noeticReturn) = [] ∧ after.2 = [] ∧
+      (after.1.referents.filter (·.kind == .player)).map (·.idents) =
+        [["noetic.upkeepPlayer"]] := by decide
 
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,

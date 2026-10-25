@@ -498,6 +498,13 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (`mangarasEquityRawDemonstrativeSelectsWrongCreature`,
   `noeticScalesRawDemonstrativeSelectsWrongPlayer` and both `…ExplicitSelectorRestores…`
   workarounds remain; *Noetic Scales* is still a `stepLocationWith` over `.zone .hand`).
+  **Done 2026-10-24: nxntrvon** (retired `mangarasEquityExplicitSelectorRestoresDamageSource` and
+  `noeticScalesExplicitSelectorRestoresUpkeepPlayer`, the workarounds; `noeticScalesRawDemonstrativeSelectsWrongPlayer`
+  rewritten as `noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer`, the trigger over
+  `returnToHand (each … that player … their hand)` to an owner's hand scoped to nobody
+  [CR#400.3]: it checks, and the upkeep player is the only player in the result;
+  `mangarasEquityRawDemonstrativeSelectsTheDamageSource` also checks the whole line, "this
+  enchantment deals that much damage to that creature").
 - **Delete dead `Check/` code (§5.4):** Remove unused `NounResult` API,
   `introducedNounResult`, `HeadTy`, `unionPayload`/`unionBinding`/`unionReferentLists`/`unionBindings`,
   `recordHead`, `overIdentity`, `markFirst*`, `spentDistributively*`,
