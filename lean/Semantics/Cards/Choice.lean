@@ -1154,10 +1154,10 @@ def memoryPlunder : Spelled := spelled <| singleFacedCard
                   hybridPip .blue .black],
     types := [.instant],
     text :=
-      [ spell (establish
-          (can you
+      [ spell
+          (may
              (cast (target (and [isInstantOrSorcery, isCard]))
-                (from_ := graveyardOf anOpponent) (payment := withoutPaying)))) ] }
+                (from_ := graveyardOf anOpponent) (payment := withoutPaying))) ] }
 
 /-- Omniscience -/
 def omniscience : Spelled := spelled <| singleFacedCard

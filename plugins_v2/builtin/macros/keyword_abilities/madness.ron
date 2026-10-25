@@ -25,8 +25,11 @@ KeywordAbility(
             ),
             act(
                 ownerOf(this),
+                // One-shot: the owner casts it now, during the trigger's
+                // resolution, or puts it into their graveyard [CR#702.35a];
+                // not a lasting permission.
                 mayOrElse(
-                    establish(mayCastFrom(this, exileZone, PayingInstead(Param(0)))),
+                    enact(cast, procedure(Cast, this, PayingInstead(Param(0)))),
                     move(this, wherever, graveyard),
                 ),
             ),

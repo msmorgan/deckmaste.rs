@@ -200,6 +200,36 @@ theorem denryKlinPutsTheSameNumberOfEachKind :
         (putCounters (statOf .boundCounter thisCreature) thatKind (that creature))
         (domain := some thisCreature)) := rfl
 
+/-- Celestial Convergence's upkeep effect, after its counter removal. -/
+private def celestialConvergenceAfterRemoval : Option Action :=
+  match Cards.celestialConvergence.card with
+  | .singleFaced { characteristics := { text := [_, .triggered _ _ _ _ _ _ _
+      (.sequentially [_, rest]) ], .. } } => some rest
+  | _ => none
+
+/-- Celestial Convergence with omen counters left and players tied for the highest life total:
+the tie sentence is read only under "If there are no omen counters on this enchantment", so with
+counters left nothing happens; the game has no default for ties [CR#609.5]. -/
+theorem celestialConvergenceTieWithCountersDoesNothing :
+    (match celestialConvergenceAfterRemoval with
+      | some (.doIf noCounters _ none _) => some noCounters
+      | _ => none) =
+      some (compareAmt (countersOn omenCounter thisEnchantment) .atMost 0) := rfl
+
+/-- Celestial Convergence with no omen counters and a tie for the highest life total: the tie
+sentence modifies the win before it [CR#608.2c,609.5], so the game is a draw and no player wins;
+with no tie, the player with the highest life total wins. -/
+theorem celestialConvergenceZeroCounterTieDraws :
+    (match celestialConvergenceAfterRemoval with
+      | some (.doIf _ branch none _) => some branch
+      | _ => none) =
+      some (doIf (thereAre (counted (orMore 2)
+          (and [isPlayer, tiedFor .max (.playerStat .lifeTotal) isPlayer])))
+        drawGame
+        (some (instruct
+          (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])) winGame))) :=
+  rfl
+
 /-- "Double the number of each kind of counter on target creature" [CR#701.10e]: counters are
 put, so the doubling publishes that it put counters, as a group of every kind's. -/
 theorem doublingCountersPublishesCountersPut :

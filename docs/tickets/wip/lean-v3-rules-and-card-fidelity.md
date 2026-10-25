@@ -198,7 +198,9 @@ were re-located against the Lean source on 2026-10-24.
   life-tie → `drawGame` branch inside the `"if there are no omen counters on ~"`
   condition. Pin both the tie-with-counters and the zero-counter-tie cases ("no default for
   ties" [CR#609.5]).
-  **Reconciled 2026-10-24: live**
+  **Done** (`kskwzvou`): under the no-counters condition, `doIf tie drawGame (some <the highest wins>)`,
+  the tie sentence modifying the win [CR#608.2c]. Pins `celestialConvergenceTieWithCountersDoesNothing`
+  and `celestialConvergenceZeroCounterTieDraws` (`Proofs/Counters.lean`).
 - **Berserk & Ghor-Clan Rampager (§1.4):** moved to
   [lean-v3-trigger-words](../done/lean-v3-trigger-words.md) §3, which writes both as one shared-subject
   `establishFor` with the target written once, after
@@ -211,7 +213,9 @@ were re-located against the Lean source on 2026-10-24.
 - **Inkshield (`Cards/Damage.lean:462-469`, §1.5):** Prevent `some .combat` damage
   (not `none`), and give the created 2/1 white and black token the `inkling`
   subtype (`Definitions/Subtypes.lean:180`) and `flying`.
-  **Reconciled 2026-10-24: live**
+  **Done** (`kskwzvou`): `would any (dealDamage anyAmount you (some .combat))`, token
+  `creatureToken 2 1 [.white, .black] [inkling] [flying]`. Pin
+  `inkshieldPreventsCombatDamageForFlyingInklings` (`Proofs/Damage.lean`).
 - **Mishra's Factory (`Cards/Mana.lean:141,145`, `[CR#205.3m]`, §1.6):** Use the
   catalog `assemblyWorker` (`"Assembly-Worker"`) subtype instead of the
   misspelled `"AssemblyWorker"`.
@@ -251,20 +255,27 @@ were re-located against the Lean source on 2026-10-24.
   `simultaneously [gainControl ..., gainControl ...]` (`Cards/Anaphora.lean:75-77`). Corrected
   2026-10-21: the earlier `exchange (controlOf …) (controlOf …)` was malformed, since `controlOf`
   takes both operands (review #4).
-  **Reconciled 2026-10-24: live**
+  **Done** (`kskwzvou`): `exchangeControl thisCreature (target isCreature)`. Pin
+  `phyrexianInfiltratorExchangesControl` (`Proofs/Damage.lean`).
 - **One-shot resolution `"cast it"` (`[CR#608.2g]`, §1.13):** Encode *Memory
   Plunder* (`Cards/Choice.lean:1011-1014`), *Flawless Forgery*
   (`Cards/Copy.lean:55-60`), and *Arcane Proxy* (`Cards/Faces.lean:667-675`) as
   one-shot optional casting during resolution (`may (cast ...)`) rather than a
   durationless static permission `establish (can you (cast ...))`.
-  **Reconciled 2026-10-24: live**
+  **Done** (`kskwzvou`): all three write `may (cast …)`. Pins `memoryPlunderCastsDuringResolution`,
+  `copiedCardIsCastDuringResolution` (new `Proofs/CardFidelity.lean`; Arcane Proxy's line is the
+  same tree as Flawless Forgery's).
   - **Madness (review #34):** the may-arm of `mayOrElse` in `Definitions/Keywords.lean:1068-1074`
     is the same durationless `establish (can theActor (cast thisCard …))`, which lasts until the
     game ends [CR#611.2a] with normal timing. [CR#702.35a]: its owner "may cast it … If that
     player doesn't, they put this card into their graveyard". Replace the arm with a direct
     `cast thisCard (from_ := some exileZone) (payment := .payingInstead cost)`; the graveyard
     fallback already exists. Same in `madness.ron` (`:28-29`).
-    **Reconciled 2026-10-24: live**
+    **Done** (`kskwzvou`): the may-arm is `cast thisCard (from_ := some exileZone) (payment :=
+    .payingInstead cost)`; `madness.ron` writes `enact(cast, procedure(Cast, this,
+    PayingInstead(Param(0))))`. Pin `madnessCastsDuringTheTriggersResolution`; rewrote
+    `castPermissionsKeepPayingInstead` (`Proofs/KeywordCastPermissions.lean`), which pinned the
+    old durationless permission, to the one-shot cast.
 - **`"Return"` vs `"put"` (§3.4):** moved to
   [lean-v3-move-deeds-and-verbs](../done/lean-v3-move-deeds-and-verbs.md). The owner ruling of
   2026-10-21 removes `CoreDeed.return_` and `.put`, so the sites no longer "carry
@@ -372,7 +383,7 @@ Where a done ticket recorded the current shape as intended, this section superse
   (dealDamage anyAmount you)` needs `(some .combat)` (`lean-v3-damage-composition` retired
   `damageRule`), and the token is
   `creatureToken 2 1 [.white, .black] [inkling]` with `(abilities := [flying])`.
-  **Reconciled 2026-10-24: live**
+  **Done** (`kskwzvou`), with §3's Inkshield entry.
 - *Temple Altisaur* (`Cards/Damage.lean:605`, review #11): the recipient lacks "another".
   Write it with the bare "another" (`isOther`; ADR [semantics-v3](../../decisions/semantics-v3.md)
   §0.1 resolves the Contrast Anchor to the source).

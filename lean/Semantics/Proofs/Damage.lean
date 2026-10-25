@@ -1236,4 +1236,25 @@ theorem belltowerSphinxThatSourceReadsTheEventAgent :
         [.anaphor (.word .source) .one 0] := by
   decide
 
+/-- Inkshield: "Prevent all combat damage that would be dealt to you this turn. For each 1
+damage prevented this way, create a 2/1 white and black Inkling creature token with flying." The
+replaced event is combat damage only [CR#120.2a,615.1], and the token has its printed subtype and
+ability. -/
+theorem inkshieldPreventsCombatDamageForFlyingInklings :
+    Cards.inkshieldRider =
+      establishThroughout
+        (replace (would any (dealDamage anyAmount you (some .combat)))
+          (instead
+            (preventDamage allDamage
+              (also :=
+                createToken (creatureToken 2 1 [.white, .black] [inkling] [flying])
+                  (count := preventedThisWay)))))
+        thisTurn := rfl
+
+/-- Phyrexian Infiltrator's "Exchange control of this creature and target creature" is the
+exchange keyword action [CR#701.12a,701.12b], which happens as a whole or not at all, not two
+independent control changes. -/
+theorem phyrexianInfiltratorExchangesControl :
+    Cards.phyrexianInfiltrator.ownDeed? == some exchangeControl.deed := by decide
+
 end Semantics.Proofs.Damage

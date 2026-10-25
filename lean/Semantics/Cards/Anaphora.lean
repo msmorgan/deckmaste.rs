@@ -71,10 +71,7 @@ def foulTongueShriek : Action :=
       gainLife thatMuch ]
 theorem okFoulTongueShriek : Action.check (DRS.ofList []) foulTongueShriek = [] := by decide
 
-def phyrexianInfiltrator : Action :=
-  simultaneously
-    [ gainControl thisCreature none (controller := controllerOf (target isCreature)),
-      gainControl (that creature) none (controller := controllerOf thisCreature) ]
+def phyrexianInfiltrator : Action := exchangeControl thisCreature (target isCreature)
 theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrator = [] := by decide
 
 def impulse : Action :=

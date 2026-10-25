@@ -461,11 +461,12 @@ def candlesGlow : Spelled := spelled <| singleFacedCard
 /-- Inkshield -/
 def inkshieldRider : Action :=
   establishThroughout
-    (replace (would any (dealDamage anyAmount you))
+    (replace (would any (dealDamage anyAmount you (some .combat)))
       (instead
         (preventDamage allDamage
           (also :=
-            createToken (creatureToken 2 1 [.white, .black] []) (count := preventedThisWay)))))
+            createToken (creatureToken 2 1 [.white, .black] [inkling] [flying])
+              (count := preventedThisWay)))))
     thisTurn
 theorem okInkshieldRider : Action.check (DRS.ofList []) inkshieldRider = [] := by decide
 

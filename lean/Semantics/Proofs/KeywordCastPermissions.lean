@@ -290,9 +290,10 @@ theorem pureAlternativeCostsAreAltCost :
           !(componentStatics keyword).any isPayingInsteadPermission) = true := by
   decide
 
-/-- Flashback, escape, foretell and madness grant a cast from another zone, so each keeps its
-permission and pays its cost instead of the mana cost there
-[CR#702.34a,702.138a,702.143a,702.35a,601.3]. -/
+/-- Flashback, escape and foretell grant a cast from another zone, so each keeps its permission
+and pays its cost instead of the mana cost there [CR#702.34a,702.138a,702.143a,601.3]. Madness
+pays its cost instead too, but in a one-shot cast during its trigger's resolution, not under a
+permission [CR#702.35a,608.2g]. -/
 theorem castPermissionsKeepPayingInstead :
     (componentStatics (flashback cost)).any isPayingInsteadPermission = true ∧
       (componentStatics (escape cost)).any isPayingInsteadPermission = true ∧
@@ -309,10 +310,7 @@ theorem castPermissionsKeepPayingInstead :
             (.causes (.event (does any (discard thisCard))) (does any (exileFrom thisCard hand)))
             (instruct (ownerOf thisCard)
               (mayOrElse
-                (establish
-                  (can theActor
-                    (cast thisCard (from_ := exileZone)
-                      (payment := .payingInstead (.inCaller cost)))))
+                (cast thisCard (from_ := exileZone) (payment := .payingInstead (.inCaller cost)))
                 (putInto thisCard graveyard)))) := by
   refine ⟨by decide, by decide, rfl, rfl⟩
 

@@ -1074,10 +1074,7 @@ semantic_definition madness (cost : Cost) : Ability :=
         (.causes (.event (does any (discard thisCard))) (does any (exileFrom thisCard hand)))
         (instruct (ownerOf thisCard)
           (mayOrElse
-            (establish
-              (can theActor
-                (cast thisCard (from_ := exileZone)
-                  (payment := .payingInstead (.inCaller cost)))))
+            (cast thisCard (from_ := exileZone) (payment := .payingInstead (.inCaller cost)))
             (putInto thisCard graveyard))) ]
 semantic_definition maxSpeed (ability : Ability) : Ability :=
   .keyword (.named "maxSpeed") [.ability (.inCaller ability)]

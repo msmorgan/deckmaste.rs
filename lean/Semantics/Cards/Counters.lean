@@ -196,10 +196,12 @@ def celestialConvergence : Spelled := spelled <| singleFacedCard
           (sequentially
             [ removeCounters (exactly 1) omenCounter thisEnchantment,
               doIf (compareAmt (countersOn omenCounter thisEnchantment) .atMost 0)
-                (instruct (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])) winGame),
-              doIf (thereAre (counted (orMore 2)
-                      (and [isPlayer, tiedFor .max (.playerStat .lifeTotal) isPlayer])))
-                drawGame ]) ] }
+                (doIf (thereAre (counted (orMore 2)
+                        (and [isPlayer, tiedFor .max (.playerStat .lifeTotal) isPlayer])))
+                  drawGame
+                  (some (instruct
+                    (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))
+                    winGame))) ]) ] }
 
 def curseOfVengeance : Spelled := spelled <| singleFacedCard
   { name := "Curse of Vengeance", cost := [pip .black], types := [.enchantment],

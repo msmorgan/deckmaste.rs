@@ -670,8 +670,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                                   hasManaValue .atMost (powerOf thisCreature),
                                   in_ yourGraveyard ])),
                 copy .fromCardZone (that card) 1 [],
-                establish
-                  (can you (cast (that .copy) (payment := withoutPaying))) ]) ],
+                may (cast (that .copy) (payment := withoutPaying)) ]) ],
       power := stat 4, toughness := stat 3 } }
   (prototypeAlt [generic 1, pip .blue, pip .blue] 2 1)
 

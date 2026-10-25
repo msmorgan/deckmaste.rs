@@ -56,8 +56,7 @@ def flawlessForgeryLine : Action :=
   sequentially
     [ exile (target (and [isInstantOrSorcery, in_ (graveyardOf anOpponent)])),
       copy .fromCardZone (that card) 1 [],
-      establish
-        (can you (cast (that .copy) (payment := withoutPaying))) ]
+      may (cast (that .copy) (payment := withoutPaying)) ]
 theorem okFlawlessForgeryLine : Action.check (DRS.ofList []) flawlessForgeryLine = [] := by decide
 
 /-- Twincast -/
