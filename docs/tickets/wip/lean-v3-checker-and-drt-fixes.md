@@ -411,6 +411,9 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   (`Proofs/MovementScopes.lean:172-177`) to `some .command`. Re-verified 2026-10-21
   (mtg-rules review, `departures-lean.md` #54).
   **Reconciled 2026-10-24: live** (payload still hard-codes `some .battlefield`).
+  **Done 2026-10-24: qkmxqwqo** (`NounWord.readPayload` is the one Head Noun reading, shared by
+  `.headed` and `.theGrantor`; pin `emblemGrantorReadsABattlefieldObject` rewritten as
+  `grantorReadsItsHeadNoun`: the emblem in the command zone, the permanent on the battlefield).
 - **Align `permanentActor` facts with the CR (§2.11; mtg-rules review 2026-10-21,
   `departures-lean.md` #22):** adapt, harness and monstrosity are "this permanent" instructions
   [CR#701.46a,701.64a,701.37a] that the ability's controller follows [CR#608.2c] (a player is

@@ -169,11 +169,15 @@ theorem headNounsKeepTheirReadings :
       read thisAbility = [.ability none (some .stack)] ∧
       read thisCard = [.object [] none none none none] := by decide
 
-/-- "the emblem that granted it" reads the grantor as a battlefield object, whatever its Head
-Noun. -/
-theorem emblemGrantorReadsABattlefieldObject :
-    (stepNounPhrase 64 (DRS.ofList []) .other false (.theGrantor .emblem)).1.referents.map
-      (·.payload) = [.object [] (some .battlefield) none none none] := by decide
+/-- "the emblem that granted it" reads its grantor by its Head Noun, as "this emblem" does: an
+emblem is in the command zone [CR#114.2,114.4]; "the permanent that granted it" is on the
+battlefield. -/
+theorem grantorReadsItsHeadNoun :
+    let read (head : NounWord) :=
+      (stepNounPhrase 64 (DRS.ofList []) .other false (.theGrantor head)).1.referents.map
+        (·.payload)
+    read .emblem = [.object [] (some .command) none none none] ∧
+      read .permanent = [.object [] (some .battlefield) none none none] := by decide
 
 theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])

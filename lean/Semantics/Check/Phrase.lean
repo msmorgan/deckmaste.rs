@@ -866,6 +866,25 @@ def mentionThis (drs : DRS) (role : GramRole) (inArgSlot : Bool) :
       payload := .object drs.sourceTypes none none none none }
     (drs.push ref role inArgSlot, [drs.nextId], errors)
 
+/-- The reading a Head Noun gives the object it names: a permanent type or "permanent" is on the
+battlefield, "this spell" on the stack, "this ability" an ability on the stack, "this token" a
+token on the battlefield, "this emblem" in the command zone [CR#114.2,114.4], and any other head
+adds nothing. "This creature" and "the emblem that granted it" read their head alike. -/
+def NounWord.readPayload (head : NounWord) : Payload → Payload
+  | .object ty zone stamp origin size =>
+    match head with
+    | .type t | .subtype (.of t _) =>
+      .object (mergeTypes ty [t])
+        (zone.orElse (fun _ => if t.permanent then some .battlefield else none))
+        stamp origin size
+    | .ability => .ability origin (some .stack)
+    | .spell | .subtype (.spell _) => .object ty (some .stack) stamp origin size
+    | .token => .object ty (some .battlefield) stamp (some .token) size
+    | .permanent => .object ty (some .battlefield) stamp origin size
+    | .emblem => .object ty (some .command) stamp origin size
+    | _ => .object ty zone stamp origin size
+  | payload => payload
+
 /-- The Source referents among a handoff's performer `ids`: the selves its frame puts in view past
 its own clause (`ActorShape.selves`). "You" stays a self-referent: no third-person "they" or
 "that player" names the player the text addresses. -/
@@ -3245,21 +3264,7 @@ def stepOps : Nat → StepOps
         | .headed head subj =>
           let (out, ids, errs) := ops.np drs role inArgSlot subj
           let refined := ids.foldl (fun d id => d.updateById id fun r =>
-            let payload := match r.payload with
-              | .object ty zone stamp origin size =>
-                match head with
-                | .type t | .subtype (.of t _) =>
-                  .object (mergeTypes ty [t])
-                    (zone.orElse (fun _ => if t.permanent then some .battlefield else none))
-                    stamp origin size
-                | .ability => .ability origin (some .stack)
-                | .spell | .subtype (.spell _) => .object ty (some .stack) stamp origin size
-                | .token => .object ty (some .battlefield) stamp (some .token) size
-                | .permanent => .object ty (some .battlefield) stamp origin size
-                | .emblem => .object ty (some .command) stamp origin size
-                | _ => r.payload
-              | payload => payload
-            { r with payload }) out
+            { r with payload := head.readPayload r.payload }) out
           (refined, ids, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)) ++
             refuse (subj.ascribableIn drs) .ascribable ++ refuse head.isHead .headNoun)
         | .agree _ _ subj =>
@@ -3296,7 +3301,7 @@ def stepOps : Nat → StepOps
         | .theGrantor head =>
           let ref : Referent := {
             det := .the, plur := .one,
-            payload := .object [] (some .battlefield) none none none
+            payload := head.readPayload (.object [] none none none none)
           }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
