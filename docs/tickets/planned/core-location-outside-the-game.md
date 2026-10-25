@@ -103,7 +103,8 @@ and claimable on its own.
 - Standard constraints apply (fmt, clippy, CR citations blessed, wizards regen
   if touched).
 
-Routing (2026-10-08, `semantics-v2-keyword-action-residues`): Learn's second
-option ("a Lesson card you own from outside the game" [CR#701.48a]) and
-Venture into the Dungeon's dungeon card ([CR#701.49a,309.2]) wait on this
-location; both keyword actions stay bodyless until it lands.
+Routing (2026-10-08, `semantics-v2-keyword-action-residues`; revised 2026-10-25): this ticket is
+the Rust `Location` work only. On the Lean side, `lean-v3-keyword-bodies-and-catalog-sync`
+declared learn [CR#701.48a] with its Lesson described as `outsideTheGame`, a Predicate meaning in
+none of the seven zones [CR#400.11], not a zone; venture into the dungeon's dungeon card
+[CR#701.49a,309.2] is `lean-v3-venture-dungeon`'s.

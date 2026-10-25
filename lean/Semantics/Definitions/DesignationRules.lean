@@ -40,9 +40,9 @@ def monarchDefinition : Definition :=
 /-! ## The initiative
 
 Two of the initiative's three abilities venture into Undercity [CR#726.2,701.49d], and the
-grammar has no venture action: venture into the dungeon [CR#701.49] waits on a location for
-cards outside the game, where its dungeon card is chosen [CR#701.49a,309.2], and on the venture
-marker's room state [CR#309.4,309.5]. The row carries the third until they can be written. -/
+grammar has no venture action: venture into the dungeon [CR#701.49] needs a dungeon card frame
+with its rooms and the venture marker's position [CR#309.4,309.5] (`lean-v3-venture-dungeon`).
+The row carries the third until they can be written. -/
 
 /-- [CR#726.2] "Whenever one or more creatures a player controls deal combat damage to the player
 who has the initiative, the controller of those creatures takes the initiative." -/

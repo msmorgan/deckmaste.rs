@@ -505,7 +505,7 @@ theorem okMonarchSteal :
 
 /-- [CR#726.1,726.2] The one of the initiative's inherent triggered
 abilities the grammar can write checks; the two that venture into Undercity [CR#701.49d] wait on
-a venture action. -/
+a venture action (`lean-v3-venture-dungeon`). -/
 theorem okInitiativeDefinition : Definition.check initiativeDefinition = [] := by decide
 
 /-- [CR#726.2] "Whenever one or more creatures a player controls deal combat damage to the player
