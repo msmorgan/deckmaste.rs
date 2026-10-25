@@ -505,15 +505,16 @@ step is added to the current turn [CR#500.8,500.9]. A deed reads the performer f
 the frame. A Definition's deed (its `ownScope` header) does not check it: crewing, saddling,
 fully unlocking and triggering check the frame's kind (`eventAgent`), and a deed's own body reads
 its performer like any other reference. A deed whose header says a permanent performs it
-(`Deed.action`'s `permanentActor`: fight, explore, connive and endure, which instruct a permanent
+(`DeedPermanent.performs`: fight, explore, connive and endure, which instruct a permanent
 [CR#701.14a,701.44a,701.50a,701.63a]) written with no handoff to a permanent (printed
 "explore") is performed by the source permanent: its body is stepped under a frame for "this
 permanent". Inside a handoff to another player there is no such default, and the body's reads of
 its performer are refused on the player: explore, connive and endure hand their steps to the
-performer's controller (`possessorKind`), and fight reads its power (`kindMismatch`). Adapt,
-harness and monstrosity are instructions about "this permanent" [CR#701.46a,701.64a,701.37a]
-that the ability's controller follows [CR#608.2c,701.37c], so a player performs them. Adapt and
-monstrosity are `DeedPermanent.isAbout`: their bodies read the permanent they are about as
+performer's controller (`possessorKind`), and fight reads its power (`kindMismatch`). Adapt and
+monstrosity are instructions about "this permanent" [CR#701.46a,701.37a] that the ability's
+controller follows [CR#608.2c,701.37c], so a player performs them; harness is written with the
+permanent it harnesses, "Harness [this permanent]" [CR#701.64a], and its body names that
+parameter (`harness.subject`), not the Source. Adapt and monstrosity are `DeedPermanent.isAbout`: their bodies read the permanent they are about as
 `.actor`, the Source with no handoff, or the permanent a handoff or an event's subject names
 ("target creature adapts", *Biomancer's Familiar*), which the deed acts on (its patient, as
 `Action.subjectIsPatient` reads "this creature enters"), and a player handed one is refused as
