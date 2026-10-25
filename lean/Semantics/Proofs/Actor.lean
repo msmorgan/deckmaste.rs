@@ -184,7 +184,7 @@ outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
     let caller : DRS :=
       (DRS.ofList [{ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    ((Action.check caller (.ownScope (some (.action "destroy")) (destroy it))).contains
+    ((Action.check caller (.ownScope none (destroy it))).contains
         (.anaphor .bare .one 0),
      Action.check caller (destroy it)) = (true, []) := by
   decide
