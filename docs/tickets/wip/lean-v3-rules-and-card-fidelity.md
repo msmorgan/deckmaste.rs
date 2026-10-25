@@ -144,7 +144,8 @@ were re-located against the Lean source on 2026-10-24.
     (`Proofs/Keyword.lean`).
   - `clash` (`[CR#701.30b..701.30d]`, `Definitions/Actions.lean:649-654`): include the opponent
     and winner condition.
-    **Reconciled 2026-10-24: live**
+    **Superseded** by [lean-v3-clash](../planned/lean-v3-clash.md) (owner ruling 2026-10-25,
+    option (b): a win/lose outcome on the clash action, read back as coin flips are).
   - `melee` (`[CR#702.121a]`, `Definitions/Keywords.lean:1098-1108`): count attacked opponents
     rather than attack events.
     **Done** (`zkzrxmwr`): `forEach 1 (and [isOpponent, did you (.attackWith (a isCreature) (some
