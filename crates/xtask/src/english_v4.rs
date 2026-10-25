@@ -78,7 +78,9 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
     if let Some(parent) = args.output.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    serde_json::to_writer(File::create(&args.output)?, &report)?;
+    let mut json = std::io::BufWriter::new(File::create(&args.output)?);
+    serde_json::to_writer(&mut json, &report)?;
+    json.flush()?;
     write!(output, "{}", report.summary(args.top))?;
     if !corpus.stale_corrections.is_empty() {
         writeln!(

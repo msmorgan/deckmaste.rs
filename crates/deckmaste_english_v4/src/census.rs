@@ -186,86 +186,101 @@ pub fn run(
         })
         .collect();
     let threads = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
-    let chunk = corpus.units.len().div_ceil(threads).max(1);
-    let units: Vec<UnitResult> = std::thread::scope(|scope| {
-        let workers: Vec<_> = corpus
-            .units
-            .chunks(chunk)
-            .map(|units| {
+    // Workers claim small batches from a shared counter, so a slow batch never
+    // leaves the other threads idle; batches are reassembled in unit order.
+    let batch = 16;
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let mut batches: Vec<(usize, Vec<UnitResult>)> = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..threads)
+            .map(|_| {
                 let grammar = grammar.as_ref().ok();
                 let by_text = &by_text;
                 let cleave_faces = &cleave_faces;
+                let next = &next;
                 scope.spawn(move || {
                     let profiler = Profiler::new(env);
-                    units
-                        .iter()
-                        .map(|unit| {
-                            let face = &corpus.faces[unit.face];
-                            let analyzed =
-                                env.lexicon
-                                    .analyze_source_scoped(&unit.text, None, &face.scope);
-                            let profile = profiler.profile(unit.kind, &analyzed);
-                            let entries = |text: &str| -> Vec<&Judgment> {
-                                by_text
-                                    .get(text)
-                                    .into_iter()
-                                    .flatten()
-                                    .filter(|e| {
-                                        e.card
-                                            .as_ref()
-                                            .is_none_or(|c| *c == face.card || *c == face.name)
-                                    })
-                                    .copied()
-                                    .collect()
-                            };
-                            let cleave = cleave_faces[unit.face]
-                                .then(|| CleaveText::split(&unit.text))
-                                .flatten();
-                            let (verdict, derivations, segments, cheapest_tier) = match grammar {
-                                None => (Verdict::Unread(Unread::Unbound), 0, None, 0),
-                                Some((grammar, frame)) => {
-                                    let judge = |text: &str, analyzed: &AnalyzedText| {
-                                        let entries = entries(text);
-                                        judge_unit(
-                                            grammar,
-                                            frame,
-                                            env,
-                                            analyzed,
-                                            &face.scope,
-                                            &entries,
-                                        )
-                                    };
-                                    match cleave {
-                                        None => judge(&unit.text, &analyzed),
-                                        Some(cleave) => judge_cleave(&cleave, |text| {
-                                            let analyzed = env.lexicon.analyze_source_scoped(
-                                                text,
-                                                None,
+                    let mut done = Vec::new();
+                    loop {
+                        let start = next.fetch_add(batch, std::sync::atomic::Ordering::Relaxed);
+                        if start >= corpus.units.len() {
+                            break done;
+                        }
+                        let end = (start + batch).min(corpus.units.len());
+                        let units = &corpus.units[start..end];
+                        let results = units
+                            .iter()
+                            .map(|unit| {
+                                let face = &corpus.faces[unit.face];
+                                let analyzed = env.lexicon.analyze_source_scoped(
+                                    &unit.text,
+                                    None,
+                                    &face.scope,
+                                );
+                                let profile = profiler.profile(unit.kind, &analyzed);
+                                let entries = |text: &str| -> Vec<&Judgment> {
+                                    by_text
+                                        .get(text)
+                                        .into_iter()
+                                        .flatten()
+                                        .filter(|e| {
+                                            e.card
+                                                .as_ref()
+                                                .is_none_or(|c| *c == face.card || *c == face.name)
+                                        })
+                                        .copied()
+                                        .collect()
+                                };
+                                let cleave = cleave_faces[unit.face]
+                                    .then(|| CleaveText::split(&unit.text))
+                                    .flatten();
+                                let (verdict, derivations, segments, cheapest_tier) = match grammar
+                                {
+                                    None => (Verdict::Unread(Unread::Unbound), 0, None, 0),
+                                    Some((grammar, frame)) => {
+                                        let judge = |text: &str, analyzed: &AnalyzedText| {
+                                            let entries = entries(text);
+                                            judge_unit(
+                                                grammar,
+                                                frame,
+                                                env,
+                                                analyzed,
                                                 &face.scope,
-                                            );
-                                            judge(text, &analyzed)
-                                        }),
+                                                &entries,
+                                            )
+                                        };
+                                        match cleave {
+                                            None => judge(&unit.text, &analyzed),
+                                            Some(cleave) => judge_cleave(&cleave, |text| {
+                                                let analyzed = env.lexicon.analyze_source_scoped(
+                                                    text,
+                                                    None,
+                                                    &face.scope,
+                                                );
+                                                judge(text, &analyzed)
+                                            }),
+                                        }
                                     }
+                                };
+                                let surplus = segments
+                                    .as_ref()
+                                    .map_or(0, |s: &Segmentation| s.surplus(derivations));
+                                UnitResult {
+                                    face: face.identity.clone(),
+                                    name: face.name.clone(),
+                                    kind: unit.kind,
+                                    index: unit.index,
+                                    text: unit.text.clone(),
+                                    profile,
+                                    verdict,
+                                    derivations,
+                                    segments,
+                                    surplus,
+                                    cheapest_tier,
                                 }
-                            };
-                            let surplus = segments
-                                .as_ref()
-                                .map_or(0, |s: &Segmentation| s.surplus(derivations));
-                            UnitResult {
-                                face: face.identity.clone(),
-                                name: face.name.clone(),
-                                kind: unit.kind,
-                                index: unit.index,
-                                text: unit.text.clone(),
-                                profile,
-                                verdict,
-                                derivations,
-                                segments,
-                                surplus,
-                                cheapest_tier,
-                            }
-                        })
-                        .collect::<Vec<_>>()
+                            })
+                            .collect::<Vec<_>>();
+                        done.push((start, results));
+                    }
                 })
             })
             .collect();
@@ -274,6 +289,8 @@ pub fn run(
             .flat_map(|w| w.join().expect("census worker"))
             .collect()
     });
+    batches.sort_unstable_by_key(|(start, _)| *start);
+    let units: Vec<UnitResult> = batches.into_iter().flat_map(|(_, units)| units).collect();
     summarize(corpus.faces.len(), bind_error, units)
 }
 
@@ -354,11 +371,7 @@ fn judge_parse(
     (Verdict::Read, derivations)
 }
 
-fn summarize(
-    faces: usize,
-    bind_error: Option<String>,
-    units: Vec<UnitResult>,
-) -> Report {
+fn summarize(faces: usize, bind_error: Option<String>, units: Vec<UnitResult>) -> Report {
     let completed = crate::COMPLETED_STRATUM;
     let mut strata: Vec<StratumRow> = (0..=MAX_STRATUM)
         .map(|stratum| StratumRow {
