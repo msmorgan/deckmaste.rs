@@ -140,23 +140,31 @@ theorem mangarasEquityRawDemonstrativeSelectsTheDamageSource :
 
 private def noeticUpkeep : GameEvent :=
   .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .anyPlayer))) .current
-/-- "return to its owner's hand each creature that player controls with power greater than the
-number of cards in their hand": the move's subject, then its destination, an owner's hand scoped
-to nobody, since a card goes to its owner's hand [CR#400.3]. -/
-private def noeticReturn : Action :=
-  returnToHand (each (.and [isCreature, .hasPossessor .controller (that .player),
-    hasPower .greater (countOf (cardIn (handOf they)))]))
+/-- "each creature that player controls with power greater than the number of cards in their
+hand", the moved subject. -/
+private def noeticSubject : NounPhrase :=
+  each (.and [isCreature, .hasPossessor .controller (that .player),
+    hasPower .greater (countOf (cardIn (handOf they)))])
+/-- "return to its owner's hand each creature …", as the move steps it: the subject, then the
+destination. -/
+private def noeticReturn : Action := returnToHand noeticSubject
+/-- The players a step's mentions resolved to, by their Binding Identities. -/
+private def resolvedPlayers (drs : DRS) : List (List BindingId) :=
+  ((drs.resolvedIds.filterMap drs.findById?).filter (·.kind == .player)).map (·.idents)
 
 /-- *Noetic Scales*: "At the beginning of each player's upkeep, return to its owner's hand each
-creature that player controls with power greater than the number of cards in their hand." The
-move steps its subject before its destination, and "its owner's hand" introduces no player, so
-the raw "that player" and "their" read the upkeep player, the only player in the result. -/
+creature that player controls with power greater than the number of cards in their hand." A move
+steps its subject before its destination, whatever the surface order, so the raw "that player"
+and "their" read the upkeep player; with the owner written into the destination ("its owner's
+hand" as `handOf (ownerOf it)`), a player introduced after the subject, they still do. -/
 theorem noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer :
-    let after := (stepAction 64 .postEvent .obj
-      (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1) noeticReturn)
+    let context := nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1
+    let after := stepAction 64 .postEvent .obj context noeticReturn
+    let ownerWritten := stepAction 64 .postEvent .obj context
+      (returnTo noeticSubject (handOf (ownerOf it)) [])
     Ability.check (DRS.ofList []) (when noeticUpkeep noeticReturn) = [] ∧ after.2 = [] ∧
-      (after.1.referents.filter (·.kind == .player)).map (·.idents) =
-        [["noetic.upkeepPlayer"]] := by decide
+      resolvedPlayers after.1 = [["noetic.upkeepPlayer"]] ∧ ownerWritten.2 = [] ∧
+      resolvedPlayers ownerWritten.1 = [["noetic.upkeepPlayer"]] := by decide
 
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,

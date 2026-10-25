@@ -599,6 +599,12 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   [CR#400.3]: it checks, and the upkeep player is the only player in the result;
   `mangarasEquityRawDemonstrativeSelectsTheDamageSource` also checks the whole line, "this
   enchantment deals that much damage to that creature").
+  **Review fix 2026-10-24 (M1): uttspmvn.** The *Noetic Scales* pin no longer rests on "its
+  owner's hand introduces no player" (which is a gap, ticketed as
+  `lean-v3-owner-zone-introduces-owner`, not a reason) or on the upkeep player being the only
+  player: it asserts that the players "that player" and "their" resolve to are the upkeep player
+  (`DRS.resolvedIds`), because the move steps its subject before its destination, both with
+  `returnToHand` and with the owner written into the destination (`handOf (ownerOf it)`).
 - **Delete dead `Check/` code (§5.4):** Remove unused `NounResult` API,
   `introducedNounResult`, `HeadTy`, `unionPayload`/`unionBinding`/`unionReferentLists`/`unionBindings`,
   `recordHead`, `overIdentity`, `markFirst*`, `spentDistributively*`,
