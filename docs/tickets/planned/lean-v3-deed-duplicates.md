@@ -92,6 +92,10 @@ three overlaps:
 - It moves `regenerate`'s deed (`Definitions/Actions.lean:612-617`).
 - It touches `Proofs/ActionFamilies.lean`.
 
+[lean-v3-exchange-through-definitions](lean-v3-exchange-through-definitions.md) (added
+2026-10-25) moves the nine card sites that write `exchange` through the deed-less Template onto
+the exchange Definitions; until it lands, `exchanged` is still written by bare heads.
+
 This ticket edits only `Check/` and `Proofs/`. After that ticket lands, re-check whether
 `searched`, `shuffled`, `exchanged`, `voted` and `created` are still written anywhere as bare heads
 outside a Definition. If none is, they shadow a Deed too (question 2). Neither ticket needs the

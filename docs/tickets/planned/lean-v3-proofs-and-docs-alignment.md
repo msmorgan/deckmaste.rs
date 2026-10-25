@@ -200,6 +200,14 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
   (:327, :498; `lean/Semantics/Abilities.lean:938`); the §3.7 `DeonticMods` listing (:472-478: `bound`, `rider : DeonticRider`,
   `except : Option Cause`) does not match `lean/Semantics/Abilities.lean:887-899` (`timing`,
   `asThough`, `except : Option DeonticExcept`, `cause`, `rider`).
+- **`docs/decisions/semantics-v3.md:293` names a command that does not exist (added
+  2026-10-25, Atraxa audit triage):** the §2 table's **Law Gate** row says a Definition is
+  "Checked as an independent unit by `cargo xtask lean definitions`". That command is
+  deliberately absent: `crates/xtask/src/bin/cargo-xtask.rs:142-144` asserts `lean definitions`
+  is a parse error. Nothing checks a `semantic_definition` body on its own; authored declarations
+  are trusted (`lean/CONTRACTS.md:181,212-220`), and Action Definitions are only required to be
+  `ownScope` (`lean/Semantics/Authoring.lean:266`). Rewrite the cell to say so.
+  **Reconciled 2026-10-25: live**
 - **Glossary (`docs/contexts/game-model/CONTEXT.md`, §7.5):** Reconcile Lean's
   `Definition` (`Rules.lean`) vs the glossary's **Registry Definition** and
   remove the retired **Binding Possessor** entry.

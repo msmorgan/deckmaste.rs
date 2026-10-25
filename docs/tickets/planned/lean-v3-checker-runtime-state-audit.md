@@ -157,3 +157,29 @@ Tally (after the owner ruling): 3 removed (owned by the ninjutsu ticket), 1 remo
 ## Verification
 
 `./lean/scripts/build`; `cargo xtask lean check`; the CR citation gates.
+
+## Added 2026-10-25 (Atraxa and engine-creep audit triage)
+
+Re-checked against `wmyykqnv` under the owner's 2026-10-25 direction (the workbench represents
+what cards can say; a gameplay distinction stays only where reference resolution needs it).
+
+- **K7 is dead code: delete it.** Since R1 landed, `Location.face`
+  (`Check/AbilityRules.lean:103-116`) has no consumer: its only references are its own
+  recursion (`:110`) and the pin `zonePilesFixTheirFaces` (`Proofs/Piles.lean:133-140`). Delete
+  the def with its docstring and retire the pin (it pins a function nothing reads). Keep
+  `faceOfReach` (`Check/Words.lean`, used by the stepper) and `Referent.face`
+  (`Check/Words.lean:424`).
+- **U2 confirmed by probe.** *Mana Drain* ("Counter target spell. At the beginning of your next
+  main phase, add an amount of {C} equal to that spell's mana value.") is refused today with
+  `[.anaphor (.word .spell) .one 0]`, while bare "its mana value" checks `[]`; "counter that
+  spell" afterwards is refused, as K1 wants. The arm to change is the `.spell` /
+  `.subtype (.spell _)` case of `stampedWordOk` (`Check/Words.lean:1228`): admit a stamped
+  referent whose zone-change origin is the stack (the stamp built by `moveStamp`,
+  `Check/Words.lean:1112-1115`). Change it for the characteristic read (`reachesCharacteristic`,
+  `:1267`) only, not for `participialCandidates` (`:1396`). No existing pin asserts the old
+  restriction for a characteristic read (checked: `prohibitionsStillRefuseMissingCallerParameters`,
+  `exiledAbilityIsNotASpellOrCard`, `badRevealedAsAPlayerIsCast`). Update the stamped-word rule in
+  `lean/CONTRACTS.md:415-418`.
+- **K4 no longer exists under that name** (`lookbackLocus` is gone); nothing to classify.
+- **K6** (`Check/Rules.lean`) follows the owner's pending answer on rules rows; do not act on it
+  here.

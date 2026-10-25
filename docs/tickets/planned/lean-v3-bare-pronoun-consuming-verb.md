@@ -50,3 +50,26 @@ the stepper; no STOP is needed.
 - Pin the three rows above as refused, add an accepted pin for a bare `it` whose referent is on
   the battlefield (a permanent the text put or left there), and give `badHiddenCost`
   (`Proofs/Turn.lean:60`) back its bare `it`.
+
+## Added 2026-10-25: retire `itPermanent` (Atraxa audit triage)
+
+Once the stepper narrows a bare `it` in a sacrifice or tap slot, the `itPermanent` Template
+(`Templates.lean:95`) is redundant: Oracle prints a bare "it" at every site. Write `it` at each
+and delete the Template:
+
+- `Cards/Trigger.lean:612`, *Frost Walker*: "When this creature becomes the target of a spell or
+  ability, sacrifice it." A probe on 2026-10-25 found that bare `it` here resolves to the
+  targeting spell and checks `[]` today, a wrong reading. After the narrowing (sacrifice is a
+  move from the battlefield) it must resolve to the source. Add the pin
+  `frostWalkerSacrificesItself` asserting the resolved id is the source's.
+- `Cards/Choice.lean:1306` and `Cards/Anaphora.lean:585`, *Soul Ransom*: "This Aura's controller
+  sacrifices it". Pins `okSoulRansomRansom` (`Cards/Anaphora.lean:586`),
+  `possessiveDeicticIsReadableByIt` (`:593`), `possessiveDescribedBaseUnchanged` (`:606`) stay
+  green.
+- `Proofs/Turn.lean:62`, `badHiddenCost` (already listed above).
+
+If a site still needs `.atSlot` after the narrowing, keep the Template, STOP and report the site.
+`itCard` (`Templates.lean:93`; Bioplasm `Cards/Anaphora.lean:420`, Vaevictis Asmadi `:784`) is
+not covered by this ruling: its carrier comes from a predicate ("if it's a creature card") or a
+card-zone origin, not from an action slot. Whether the stepper should narrow those too is an
+open owner question; leave `itCard` alone here.
