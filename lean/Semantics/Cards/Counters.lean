@@ -564,9 +564,11 @@ def cycloneUpkeepPayment : Ability :=
   at_ (beginningOfYour .upkeep)
     (sequentially
       [ putCounters 1 windCounter thisEnchantment,
-        doUnless (sacrifice thisEnchantment)
-          (scaled [pip .green]
-            (times 1 (countersOn windCounter thisEnchantment))) ])
+        may (pay (scaled [pip .green] (times 1 (countersOn windCounter thisEnchantment))) .once)
+          (some (instruct thisEnchantment
+            (dealDamage (countersOn windCounter thisEnchantment)
+              (each (or [isCreature, isPlayer])))))
+          (some (sacrifice thisEnchantment)) ])
 theorem okCycloneUpkeepPayment : Ability.check (DRS.ofList []) cycloneUpkeepPayment = [] := by decide
 
 def stormwildCapridor : Spelled := spelled <| singleFacedCard

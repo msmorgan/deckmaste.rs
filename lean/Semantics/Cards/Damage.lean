@@ -222,23 +222,9 @@ them." A counted existential, whose domain "them" reads (`semantics-v3.md` §1.3
 def purgingScythe : Ability :=
   at_ (beginningOfYour .upkeep)
     (sequentially
-      [ instruct thisArtifact (dealDamage 2 (the (and [isCreature, superlative .min (.stat .toughness) isCreature]))),
-        doIf
-          (thereAre (counted (orMore 2) (and [isCreature, tiedFor .min (.stat .toughness) isCreature])))
-          (choose (someOf (exactly 1) them)) ])
+      [ choose (a (and [isCreature, superlative .min (.stat .toughness) isCreature])),
+        instruct thisArtifact (dealDamage 2 (that creature)) ])
 theorem okPurgingScythe : Ability.check (DRS.ofList []) purgingScythe = [] := by decide
-/-- In *Purging Scythe*, "them" reads the creatures the counted existential introduces (`.count`):
-"the number of …" would close its domain, and "the creature with the least toughness" is one. -/
-theorem purgingScytheThemReadsTheTiedCreatures :
-    let least := the (and [isCreature, superlative .min (.stat .toughness) isCreature])
-    let before := (stepAction 512 .postEvent .obj (DRS.ofList [])
-      (instruct thisArtifact (dealDamage 2 least))).1
-    let tied := thereAre (counted (orMore 2)
-      (and [isCreature, tiedFor .min (.stat .toughness) isCreature]))
-    let after := (stepCondition 512 (nextClause before) tied).1
-    (resolveCandidates .bare .many (nextClause after)).map (·.det) = [.count] := by
-  decide
-
 def lionHeart : Spelled := spelled <| singleFacedCard
   { name := "Lion Heart", cost := [generic 4], types := [.artifact],
     subtypes := [equipment],
@@ -456,7 +442,8 @@ def candlesGlow : Spelled := spelled <| singleFacedCard
           (establishThroughout
             (replace (would any (dealDamage anyAmount (target isAnyTarget)))
               (instead (preventDamage (theNext 3) (also := gainLife preventedThisWay))))
-            thisTurn) ] }
+            thisTurn),
+        Ability.splice (hasSubtype arcane) [generic 1, pip .white] ] }
 
 /-- Inkshield -/
 def inkshieldRider : Action :=

@@ -316,7 +316,18 @@ were re-located against the Lean source on 2026-10-24.
     Oracle text names manifested creatures). Add a spend purpose for the turn-face-up Special
     Action (neither `ofSpecialAction` nor `faceUpManaCost` exists), use it for Zealot, and add the
     manifest arm to Qarsi.
-  **Reconciled 2026-10-24: live** (all seven cards still lack their clause.)
+  **Done, partly** (`swyklnyl`): *Candles' Glow* adds `Ability.splice (hasSubtype arcane) [generic
+  1, pip .white]`; *Giggling Skitterspike* adds `does thisCreature attack`; *Cyclone* is `may (pay
+  …) (some <damage to each creature and player>) (some (sacrifice …))`; *Purging Scythe* chooses
+  among the least-toughness creatures, then deals 2 damage to the chosen one. Pins (`Proofs/CardFidelity.lean`):
+  `candlesGlowSplicesOntoArcane`, `gigglingSkitterspikeTriggersOnAttack`,
+  `cycloneDealsDamageIfYouPay`, `purgingScytheChoosesAmongTheLeastThenDeals`. Retired
+  `purgingScytheThemReadsTheTiedCreatures` (`Cards/Damage.lean`): it pinned "them" reading the
+  tied creatures of the old encoding, which chose after dealing the damage.
+  **Live** (STOPs, 2026-10-25 report): *Vedalken Squirrel-Whacker* needs a base power/toughness
+  value to exchange with (no `Stat` or `ProjAxis` reads base P/T); *Overgrown Zealot* and *Qarsi
+  Deceiver* need the turn-face-up spend purpose, a new `SpendPurpose`/`CostNamed` constructor whose
+  shape the ticket leaves open.
 
 ### 4. Printed move text dropped by the move-deeds landing (wave review, 2026-10-21)
 

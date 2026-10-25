@@ -85,4 +85,40 @@ theorem lifePaymentsArePayLife :
         (instruct (controllerOf it) (doUnless (instruct they (sacrifice it)) (payLife (letter .x)))) :=
   rfl
 
+/-- Candles' Glow prints "Splice onto Arcane {1}{W}" [CR#702.47a] after its spell ability. -/
+theorem candlesGlowSplicesOntoArcane :
+    (faceText Cards.candlesGlow.card).getLast? =
+      some (Ability.splice (hasSubtype arcane) [generic 1, pip .white]) := rfl
+
+/-- Giggling Skitterspike triggers "whenever this creature attacks, blocks, or becomes the target
+of a spell": three trigger events [CR#603.2], the attack among them. -/
+theorem gigglingSkitterspikeTriggersOnAttack :
+    Cards.gigglingSkitterspikeTriggers =
+      [does thisCreature attack, does thisCreature block, does (a isSpell) (target thisCreature)] :=
+  rfl
+
+/-- Cyclone: "sacrifice this enchantment unless you pay {G} for each wind counter on it. If you
+pay, this enchantment deals damage equal to the number of wind counters on it to each creature and
+each player": the payment's two outcomes [CR#118.12,118.12a], the damage when you pay. -/
+theorem cycloneDealsDamageIfYouPay :
+    (match Cards.cycloneUpkeepPayment with
+      | .triggered _ _ _ _ _ _ _ (.sequentially [_, payment]) => some payment
+      | _ => none) =
+      some (may (pay (scaled [pip .green] (times 1 (countersOn windCounter thisEnchantment))) .once)
+        (some (instruct thisEnchantment
+          (dealDamage (countersOn windCounter thisEnchantment) (each (or [isCreature, isPlayer])))))
+        (some (sacrifice thisEnchantment))) := rfl
+
+/-- Purging Scythe: "deals 2 damage to the creature with the least toughness. If two or more
+creatures are tied for least toughness, you choose one of them." The tie sentence modifies the
+earlier text [CR#608.2c,609.5]: you choose among the least-toughness creatures first, and the
+chosen one is dealt the damage. -/
+theorem purgingScytheChoosesAmongTheLeastThenDeals :
+    (match Cards.purgingScythe with
+      | .triggered _ _ _ _ _ _ _ effect => some effect
+      | _ => none) =
+      some (sequentially
+        [ choose (a (and [isCreature, superlative .min (.stat .toughness) isCreature])),
+          instruct thisArtifact (dealDamage 2 (that creature)) ]) := rfl
+
 end Semantics.Proofs.CardFidelity

@@ -217,7 +217,7 @@ def chubToad : Spelled := spelled <| singleFacedCard
 
 /-- Giggling Skitterspike -/
 def gigglingSkitterspikeTriggers : List GameEvent :=
-  [does thisCreature block, does (a isSpell) (target thisCreature)]
+  [does thisCreature attack, does thisCreature block, does (a isSpell) (target thisCreature)]
 theorem okGigglingSkitterspikeTriggers :
     GameEvent.checkAll (DRS.ofList []) gigglingSkitterspikeTriggers = [] := by decide
 
