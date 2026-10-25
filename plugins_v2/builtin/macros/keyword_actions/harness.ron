@@ -1,8 +1,9 @@
 // "Harness [this permanent]" [CR#701.64a] = "If this permanent isn't harnessed,
 // it becomes harnessed." Harnessed is a marker designation with no rules
 // meaning of its own [CR#701.64b].
-// A permanent performs it, so its performer is the permanent a handoff names, or,
-// with none, the source permanent (Lean `enactAgentOk`).
+// It is an instruction about "this permanent", not one to a permanent: the
+// ability's controller follows it [CR#608.2c], as a player is instructed to
+// "monstrosity X" [CR#701.37c].
 KeywordAction(
     name: "harness",
     params: [Subject],

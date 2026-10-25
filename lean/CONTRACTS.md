@@ -504,16 +504,16 @@ turn is taken by the performer, which must be a player [CR#500.7]; an added phas
 step is added to the current turn [CR#500.8,500.9]. A deed reads the performer from
 the frame. A Definition's deed (its `ownScope` header) does not check it: crewing, saddling,
 fully unlocking and triggering check the frame's kind (`eventAgent`), and a deed's own body reads
-its performer like any other reference. A deed whose row says a permanent performs it
-(`ActFacts.permanentActor`: fight, explore, adapt, connive, endure, harness and
-monstrosity [CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]) written with no
-handoff to a permanent
-(printed "Adapt N" [CR#701.46a]) is performed by the source permanent: its body is
-stepped under a frame for "this permanent". Inside a handoff to another player there is
-no such default, and the body's reads of its performer are refused on the player:
-explore, connive and endure hand their steps to the performer's controller
-(`possessorKind`), adapt reads its counters, monstrosity its designation and fight its
-power (`kindMismatch`). `Proofs/Actor.lean` pins each. An event's performer is written in
+its performer like any other reference. A deed whose header says a permanent performs it
+(`Deed.action`'s `permanentActor`: fight, explore, connive and endure, which instruct a permanent
+[CR#701.14a,701.44a,701.50a,701.63a]) written with no handoff to a permanent (printed
+"explore") is performed by the source permanent: its body is stepped under a frame for "this
+permanent". Inside a handoff to another player there is no such default, and the body's reads of
+its performer are refused on the player: explore, connive and endure hand their steps to the
+performer's controller (`possessorKind`), and fight reads its power (`kindMismatch`). Adapt,
+harness and monstrosity are instructions about "this permanent" [CR#701.46a,701.64a,701.37a]
+that the ability's controller follows [CR#608.2c,701.37c]: their bodies name the Source, and a
+player performs them. `Proofs/Actor.lean` pins each. An event's performer is written in
 the same kind: "whenever a creature you control explores". Who pays a cost (the
 retired `payAgrees`, `costPaidByYou` and `keywordCostPaidByYou`) is not checked
 (`lean-checker-sweep-costs`); a cost may hand its action to another player.

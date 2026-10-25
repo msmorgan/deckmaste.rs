@@ -336,7 +336,7 @@ inductive Deed where
   | core (deed : CoreDeed)
   /-- A keyword action, written by its Action Definition. `permanentActor`: a permanent is
   instructed to perform it, so written with no Handoff to a Permanent, the source Permanent
-  performs it [CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]. -/
+  performs it [CR#701.14a,701.44a,701.50a,701.63a]. -/
   | action (label : KeywordActionLabel) (permanentActor : Bool := false)
   | ofAbility (keyword : KeywordLabel)
   deriving DecidableEq, Repr

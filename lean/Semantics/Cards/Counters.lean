@@ -351,12 +351,24 @@ theorem doublingSeasonWatchesAnEffect :
     watchesAnEffect doublingSeasonTokens = true ∧ watchesAnEffect doublingSeasonCounters = true ∧
       watchesAnEffect corpsejackMenace = false := by decide
 
+/-- What *Doc Samson, Super Psychiatrist* watches you do: "put one or more counters on a permanent
+you control". -/
+def docSamsonWatched : Action := putCounters anyAmount anyKind (a (and [isPermanent, youControl]))
+
 /-- Doc Samson, Super Psychiatrist -/
 def docSamsonDistributive : Ability :=
-  static (replace
-            (would you
-               (putCounters anyAmount anyKind (a (and [isPermanent, youControl])))) (instead (putCounters (plus thatMuch 1) thoseCounters (that permanent))))
+  static (replace (would you docSamsonWatched)
+    (instead (putCounters (plus thatMuch 1) thoseCounters (that permanent))))
 theorem okDocSamsonDistributive : Ability.check (DRS.ofList []) docSamsonDistributive = [] := by decide
+
+/-- Adapt is an instruction about "this permanent" that you, its controller, follow
+[CR#701.46a,608.2c], so the counters it puts are ones you put: Doc Samson's "if you would put"
+watches them, and Adapt 2 puts three. -/
+theorem docSamsonWatchesAdaptsCounters :
+    let watched := docSamsonWatched.describedEvents (some .player)
+    let adapted := (stepAction 64 .postEvent .obj (DRS.ofList []) (adapt 2)).1.causedEvents
+    watched ≠ [] ∧ watched.all adapted.contains = true := by
+  decide
 
 /-- Winding Constrictor -/
 def windingConstrictor : Spelled := spelled <| singleFacedCard

@@ -434,6 +434,16 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   counters.
   **Reconciled 2026-10-24: live** (adapt, harness and monstrosity still write
   `.action … true`).
+  **Done 2026-10-24: vzxszzmo** (adapt, harness and monstrosity headers drop the flag; adapt and
+  monstrosity read `this_`; CONTRACTS, the `Deed.action` docstring and the three `.ron` comments
+  corrected. Pins added: `Actor.bareAdaptIsTheControllers` (replacing `okBareAdaptDefaultsToThis`,
+  whose "performed by the source permanent" was the defect), `Counters.docSamsonWatchesAdaptsCounters`.
+  Rewritten: `Tables.permanentPerformedActions` (four, not seven), `badAdaptHandedToOpponent` →
+  `adaptHandedToAPlayerReadsTheSource`, `badMonstrosityHandedToOpponent` →
+  `monstrosityHandedToAPlayerReadsTheSource`, `badPlayersCantExploreOrAdapt` →
+  `badPlayersCantExploreButCanBeForbiddenToAdapt` (a player follows adapt and monstrosity
+  [CR#608.2c], and is instructed "to 'monstrosity X'" [CR#701.37c], so neither is a refusal). Retired: `okAdaptHandedToAPermanent`, which asserted that the
+  body reads a handed permanent; it now reads the Source, and no card hands adapt to a permanent).
 - **One constructor per refusal obligation (§2.12):** Stop reusing
   `.anaphor (.word .permanent)` for failed reflexive/`which`, `.lookbackSubject`
   for unused `which`, and `kindMismatch (.quality .color)` for non-replaceable

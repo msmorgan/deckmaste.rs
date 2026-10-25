@@ -1,8 +1,9 @@
 // "Adapt N" [CR#701.46a] = "If this permanent has no +1/+1 counters on it, put
 // N +1/+1 counters on it." The counter test is the whole condition: the rule
 // asks only whether any are there, not how many.
-// A permanent performs it, so its performer is the permanent a handoff names, or,
-// with none, the source permanent (Lean `enactAgentOk`).
+// It is an instruction about "this permanent", not one to a permanent: the
+// ability's controller follows it [CR#608.2c], as a player is instructed to
+// "monstrosity X" [CR#701.37c].
 KeywordAction(
     name: "adapt",
     params: [Amount],

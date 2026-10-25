@@ -272,13 +272,14 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
       doIf (not (is it (.hasSubtype subtype)))
         (become it { characteristics := { subtypes := [subtype] } })
         none ])
-/-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]). -/
+/-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]): "this permanent" is the
+Source, and the ability's controller follows the instruction [CR#608.2c,701.37c]. -/
 semantic_definition monstrosity (amount : Amount) : Action :=
-  .ownScope (some (.action "monstrosity" true))
-    (doIf (not (is .actor (hasDesignation monstrous)))
+  .ownScope (some (.action "monstrosity"))
+    (doIf (not (is this_ (hasDesignation monstrous)))
       (sequentially
-        [ putCounters (.inCaller amount) p1p1Counter .actor,
-          gainDesignation .actor monstrous ])
+        [ putCounters (.inCaller amount) p1p1Counter this_,
+          gainDesignation this_ monstrous ])
       none)
 /-- "double the number of each kind of counter on <on>" (`Definition`, [CR#701.10e]): for each
 kind of counter on it, put as many of that kind on it as it already has. -/
@@ -597,10 +598,12 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
 
 /-! ## Keyword actions -/
 
+/-- "adapt N" with its reminder text (`Definition`, [CR#701.46a]): "this permanent" is the
+Source, and the ability's controller follows the instruction [CR#608.2c]. -/
 semantic_definition adapt (amount : Amount) : Action :=
-  .ownScope (some (.action "adapt" true))
-    (doIf (not (is .actor (.hasCounters p1p1Counter)))
-      (putCounters (.inCaller amount) p1p1Counter .actor)
+  .ownScope (some (.action "adapt"))
+    (doIf (not (is this_ (.hasCounters p1p1Counter)))
+      (putCounters (.inCaller amount) p1p1Counter this_)
       none)
 semantic_definition behold (quality : Predicate) : Action :=
   .ownScope (some (.action "behold"))
@@ -683,7 +686,7 @@ semantic_definition goad (subject : NounPhrase) : Action :=
     (gainDesignation (.firstMention "goad.subject" (.inCaller subject)) goaded
       untilYourNextTurn)
 semantic_definition harness (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "harness" true))
+  .ownScope (some (.action "harness"))
     (doIf
       (not
         (is (.firstMention "harness.subject" (.inCaller subject))
