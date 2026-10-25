@@ -23,7 +23,9 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
   :218-227),
   `lean/Semantics/Proofs/GiftVariants.lean:22-50` (removing the local `gift`
   shadow and its local `giftACard`/`giftATappedFish`), `lean/Semantics/Proofs/KeywordByCardClass.lean:20-40`, and
-  `lean/Semantics/Check.lean:44-104` (`exploreDef` :44, `conniveDef` :61, `airbendDef` :85)
+  `lean/Semantics/Check.lean:44-104` (`exploreDef` :44, `conniveDef` :61, renamed
+  `revealThenCountDef`/`drawDiscardCountDef` 2026-10-24 by `lean-v3-checker-and-drt-fixes`, since
+  they hand off to their parameter and are not explore or connive; `airbendDef` :85)
   with direct references to the production declarations in
   `lean/Semantics/Definitions/` (rehoming `Check.lean`'s `CorePins`, :20-287, into
   `lean/Semantics/Proofs/`).

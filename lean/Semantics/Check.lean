@@ -39,10 +39,12 @@ private def handZone : Location :=
 private def graveyardZone : Location :=
   .zone .graveyard (some .you)
 
-/-- Representative multi-step definition 1: `explore` [CR#701.44a]
-(`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
-def exploreDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "explore")) <|
+/-- Representative multi-step Definition fixture 1, shaped like explore but no keyword action:
+its body hands off to its own parameter, where explore's performer is the handoff's
+[CR#701.44a] (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` +
+`putCounters`). -/
+def revealThenCountDef (subject : NounPhrase) : Action :=
+  .ownScope (some (.action "revealThenCount")) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .sequentially [
         .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
@@ -53,13 +55,15 @@ def exploreDef (subject : NounPhrase) : Action :=
             (.laterMention "subject" (.inCaller subject))))
       ]
 
-theorem explore_def_sound :
-    (exploreDef targetCreature).check (DRS.ofList []) = [] := by decide
+theorem reveal_then_count_def_sound :
+    (revealThenCountDef targetCreature).check (DRS.ofList []) = [] := by decide
 
-/-- Representative multi-step definition 2: `connive` [CR#701.50a]
-(`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` + `doIf`). -/
-def conniveDef (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "connive")) <|
+/-- Representative multi-step Definition fixture 2, shaped like connive but no keyword action:
+its body hands off to its own parameter, where connive's performer is the handoff's
+[CR#701.50a] (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` +
+`doIf`). -/
+def drawDiscardCountDef (subject : NounPhrase) : Action :=
+  .ownScope (some (.action "drawDiscardCount")) <|
     .instruct (.firstMention "subject" (.inCaller subject)) <|
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [
@@ -76,8 +80,8 @@ def conniveDef (subject : NounPhrase) : Action :=
           none
       ]
 
-theorem connive_def_sound :
-    (conniveDef targetCreature).check (DRS.ofList []) = [] := by decide
+theorem draw_discard_count_def_sound :
+    (drawDiscardCountDef targetCreature).check (DRS.ofList []) = [] := by decide
 
 /-- Representative multi-step definition 3: `airbend`
 (`ownScope` + `inCaller` + `firstMention` + zone-changing `move` + Participial Description
@@ -186,13 +190,13 @@ theorem sacrifice_draw_activated_sound :
 
 /-- Closed event and deontic head-gating (`semantics-v3.md` §3.6–3.7):
 compound actions (`sequentially`) are refused inside `does`, `would`, `did`, and `cant` with
-`Refusal.eventHead`, while `ownScope (some (.action name))` is admitted. -/
+`Refusal.eventHead`, while a Definition's `ownScope` header is admitted. -/
 theorem compound_event_head_refused :
     (GameEvent.does (.actor .you) (.sequentially [.draw (.exactlyOf (.lit 1)), .draw (.exactlyOf (.lit 1))])).check
       (DRS.ofList []) = [.eventHead] := by decide
 
 theorem own_scope_action_event_head_admitted :
-    (GameEvent.does (.actor aCreature) (exploreDef aCreature)).check
+    (GameEvent.does (.actor aCreature) (revealThenCountDef aCreature)).check
       (DRS.ofList []) = [] := by decide
 
 /-- Slice A pin (*Weeping Angel*-style combat trigger + attachment/status):
