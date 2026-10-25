@@ -306,8 +306,7 @@ theorem castPermissionsKeepPayingInstead :
       (components (madness cost))[1]? =
         some
           (when
-            (.causes (.event (does any (discard thisCard)))
-              (does any (.move thisCard hand exileZone .arrival [])))
+            (.causes (.event (does any (discard thisCard))) (does any (exileFrom thisCard hand)))
             (instruct (ownerOf thisCard)
               (mayOrElse
                 (establish

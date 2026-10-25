@@ -367,6 +367,20 @@ theorem keywordListOfAbilities :
 theorem okMadness : Ability.check (DRS.ofList []) (madness (mana [generic 1, pip .red])) = [] := by
   decide
 
+/-- Madness's replacement body, "that player discards it, but exiles it instead of putting it
+into their graveyard" [CR#702.35a]: the discard frame nests the exile Definition, so the card is
+both exiled, read by "the exiled card" and by the trigger's "when this card is exiled this way"
+[CR#702.35a], and discarded, as effects referencing the discarded card find it [CR#702.35c]. -/
+theorem madnessCardIsDiscardedAndExiled :
+    let body : Action := .ownScope (some discard.deed) (exileFrom (.inCaller thisCard) hand)
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) body).1
+    (participialCandidates (.deed exile.deed) (some .one) none false after).length = 1 ∧
+      (participialCandidates (.deed discard.deed) (some .one) none false after).length = 1 ∧
+      Action.check (DRS.ofList [])
+        (sequentially [body, putInto (the (was (exile which))) graveyard]) = [] ∧
+      (exileFrom thisCard hand).namedDeed = some exile.deed := by
+  decide
+
 /-- Mayhem {1}{R}: castable from your graveyard as long as you discarded this card this turn
 [CR#702.187b]. -/
 theorem okMayhem : Ability.check (DRS.ofList []) (mayhem (mana [generic 1, pip .red])) = [] := by

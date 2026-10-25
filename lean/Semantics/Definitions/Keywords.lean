@@ -1066,11 +1066,9 @@ semantic_definition madness (cost : Cost) : Ability :=
     [ static
         (replace (would (a isPlayer) (discard thisCard))
           (instead
-            (.ownScope (some discard.deed)
-              (.move (.inCaller thisCard) hand exileZone .arrival [])))),
+            (.ownScope (some discard.deed) (exileFrom (.inCaller thisCard) hand)))),
       when
-        (.causes (.event (does any (discard thisCard)))
-          (does any (.move thisCard hand exileZone .arrival [])))
+        (.causes (.event (does any (discard thisCard))) (does any (exileFrom thisCard hand)))
         (instruct (ownerOf thisCard)
           (mayOrElse
             (establish
