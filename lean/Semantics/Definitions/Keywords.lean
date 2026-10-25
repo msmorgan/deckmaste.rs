@@ -624,8 +624,22 @@ semantic_definition enchant (quality : Predicate) : Ability :=
           (would thisAura
             (enter (riders := [.attachedTo .any, .not (.attachedTo (a (legalHostOf thisAura)))])))
           (instead (doIf (is thisAura (in_ stack)) (putInto thisAura graveyard)))) ]
+/-- "Encore [cost]": "[Cost], Exile this card from your graveyard: For each opponent, create a
+token that's a copy of this card that attacks that opponent this turn if able. The tokens gain
+haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery."
+[CR#702.141a] -/
 semantic_definition encore (cost : Cost) : Ability :=
-  keywordCosting (.named "encore") (.inCaller cost)
+  .keyword (.named "encore") [.cost (.inCaller cost)]
+    [ activatedOnlyDuring
+        (.compound [.inCaller cost, .perform (exileFrom thisCard yourGraveyard)])
+        (sequentially
+          [ .doForEach (each isOpponent)
+              (sequentially
+                [ createTokenCopy this_,
+                  establishThroughout (must thatToken (.attack (some (that player)))) thisTurn ]),
+            gain thoseTokens (keyword (.named "haste")),
+            atNext .endStep (sacrifice thoseTokens) ])
+        asSorcery ]
 semantic_definition enlist : Ability := keyword (.named "enlist")
 semantic_definition entwine (cost : Cost) : Ability :=
   .keyword (.named "entwine") [.cost (.inCaller cost)]
@@ -804,10 +818,23 @@ semantic_definition fortify (cost : Cost) : Ability :=
     [ activatedOnlyDuring (.inCaller cost)
         (attachTo thisPermanent (target (and [isLand, youControl])))
         asSorcery ]
+/-- "Freerunning [cost]": "You may pay [cost] rather than pay this spell's mana cost if a player
+was dealt combat damage this turn by a creature that, at the time it dealt that damage, was an
+Assassin creature or a commander under your control." [CR#702.173a] The lookback's description
+reads the creature as it dealt the damage, as prowl's does. -/
 semantic_definition freerunning (cost : Cost) : Ability :=
-  keywordCosting (.named "freerunning") (.inCaller cost)
+  .keyword (.named "freerunning") [.cost (.inCaller cost)]
+    [ static
+        (onlyWhile (altCost this_ (some (.inCaller cost)))
+          (did
+            (a (and [isCreature, or [.hasSubtype assassin, hasDesignation commander], youControl]))
+            (.dealDamage .anyAmount (a isPlayer) (some .combat)) soFarThisTurn)) ]
+/-- "Frenzy N": "Whenever this creature attacks and isn't blocked, it gets +N/+0 until end of
+turn." [CR#702.68a] -/
 semantic_definition frenzy (amount : Amount) : Ability :=
-  keywordNumber (.named "frenzy") (.inCaller amount)
+  .keyword (.named "frenzy") [.number (.inCaller amount)]
+    [ whenever (does thisCreature (.attackUnblocked none))
+        (get thisCreature (.up (.inCaller amount)) (.up 0) untilEndOfTurn) ]
 semantic_definition fuse : Ability := keyword (.named "fuse")
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
@@ -1237,8 +1264,19 @@ semantic_definition partnerCharacterSelect : Ability := keyword (.named "partner
 semantic_definition partnerFatherAndSon : Ability := keyword (.named "partnerFatherAndSon")
 semantic_definition partnerFriendsForever : Ability := keyword (.named "partnerFriendsForever")
 semantic_definition partnerSurvivors : Ability := keyword (.named "partnerSurvivors")
+/-- "Partner with [name]" represents two abilities [CR#702.124j]. The first lets two legendary
+cards be your commander and functions before the game begins, a deck-construction rule of the
+Commander variant [CR#702.124a]; it is no ability of the game, so the body writes the second:
+"When this permanent enters, target player may search their library for a card named [name],
+reveal it, put it into their hand, then shuffle." `quality` is the card's name. -/
 semantic_definition partnerWith (quality : Predicate) : Ability :=
-  keywordQuality (.named "partnerWith") (.inCaller quality)
+  .keyword (.named "partnerWith") [.quality (.inCaller quality)]
+    [ when (does thisPermanent enter)
+        (instruct (target isPlayer)
+          (may
+            (sequentially
+              [ search (libraryOf .actor) (a (and [isCard, .inCaller quality])),
+                reveal it, putInto it hand, shuffle ]))) ]
 semantic_definition persist : Ability :=
   .keyword (.named "persist") []
     [ when (does thisPermanent die)
@@ -1717,7 +1755,13 @@ semantic_definition vanishing (amount : Amount) : Ability :=
         (removeCounters (oneThrough 1) timeCounter thisPermanent),
       when (lastCounterRemoved timeCounter thisPermanent)
         (sacrifice thisPermanent) ]
-semantic_definition vigilance : Ability := keyword (.named "vigilance")
+/-- "Vigilance": "Attacking doesn't cause creatures with vigilance to tap." [CR#702.20b] Declaring
+a creature as an attacker taps it [CR#508.1f]; vigilance is a cause-qualified prohibition of
+that tap alone, as "damage doesn't cause you to lose life" is of the loss [CR#120.3a], so another
+effect may still tap the creature. -/
+semantic_definition vigilance : Ability :=
+  .keyword (.named "vigilance") []
+    [ static (cant any (tap thisCreature) (causedBy := byEvent (does thisCreature (.attack none)))) ]
 semantic_definition ward (cost : Cost) : Ability :=
   .keyword (.named "ward") [.cost (.inCaller cost)]
     [ whenever (does (.by (a (and [.in_ stack, opponentsControl]))) (.target thisPermanent))

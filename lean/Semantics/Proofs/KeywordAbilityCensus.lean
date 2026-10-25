@@ -8,6 +8,8 @@ The keyword abilities `semantics-v2-keyword-ability-census` bodied from vocabula
 existed: saddle and teamwork over a group bounded by its total power (`SliceCount.totalling`, as
 crew's cost is written), awaken as an alternative cost and a spell ability, and indestructible as
 a prohibition over the destroy deed. Each definition is written as its declaration builds it, checks.
+`lean-v3-keyword-bodies-and-catalog-sync` bodied frenzy, freerunning, encore, partner with and
+vigilance the same way; their pins follow the census's.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -103,5 +105,54 @@ continuously since their most recent turn began [CR#702.10b,702.10c,302.6]. -/
 theorem okHasteDefinition :
     (match haste with | .keyword _ _ body => body.length | _ => 0) = 2 ∧
       Ability.check (DRS.ofList []) haste = [] := by decide
+
+/-! ## Bodies of `lean-v3-keyword-bodies-and-catalog-sync` -/
+
+/-- The static ability a keyword's body holds first, if it is one. -/
+private def firstStatic? : Ability → Option StaticSpec
+  | .keyword _ _ (.static spec :: _) => some spec
+  | _ => none
+
+/-- "Frenzy 1": one triggered ability, on this creature's attacking and not being blocked
+[CR#702.68a,509.1h], and it checks. -/
+theorem okFrenzyDefinition :
+    (match frenzy 1 with
+      | .keyword _ _ [.triggered (.does (.actor _) (.attackUnblocked none)) [] none [] none none none _]
+        => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (frenzy 1) = [] := by decide
+
+/-- "Freerunning {1}{U}": an alternative cost [CR#118.9] that applies only while its condition
+holds [CR#702.173a], and it checks. -/
+theorem okFreerunningDefinition :
+    (match firstStatic? (freerunning [generic 1, pip .blue]) with
+      | some (.conditional (.altCost _ (some _)) (.did _) _) => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (freerunning [generic 1, pip .blue]) = [] := by decide
+
+/-- "Encore {3}{B}": one activated ability, activated only as a sorcery [CR#702.141a], and it
+checks. -/
+theorem okEncoreDefinition :
+    (match encore [generic 3, pip .black] with
+      | .keyword _ _ [.activated (.compound [_, .perform _]) _ (some _) none none none] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (encore [generic 3, pip .black]) = [] := by decide
+
+/-- "Partner with Blaring Recruiter": the one ability of the game partner with represents, the
+entering trigger [CR#702.124j], and it checks. -/
+theorem okPartnerWithDefinition :
+    (match partnerWith (named "Blaring Recruiter") with
+      | .keyword _ _ [.triggered ..] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (partnerWith (named "Blaring Recruiter")) = [] := by decide
+
+/-- Vigilance forbids only the tap its creature's attacking causes [CR#702.20b,508.1f]: the
+prohibition carries that cause, and it checks. -/
+theorem okVigilanceDefinition :
+    (match firstStatic? vigilance with
+      | some (.cant .any (.ownScope (some (.action "tap")) _)
+          { cause := some (.event (.does (.actor _) (.attack none))), .. }) => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) vigilance = [] := by decide
 
 end Semantics.Proofs.KeywordAbilityCensus
