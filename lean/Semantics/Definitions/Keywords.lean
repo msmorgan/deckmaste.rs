@@ -502,7 +502,7 @@ semantic_definition dethrone : Ability :=
         (does thisCreature
           (.attack
             (some
-              (the (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))))
+              (a (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))))
         (putCounters 1 p1p1Counter thisCreature) ]
 /-- "Devoid" means "This object is colorless": a Characteristic-Defining Ability
 [CR#702.114a,604.3a]. -/

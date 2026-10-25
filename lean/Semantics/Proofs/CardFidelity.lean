@@ -236,4 +236,45 @@ theorem memoricideExilesWhatItFinds :
       | .sequentially [_, _, exiling, _] => some exiling
       | _ => none) = some (exile them) := rfl
 
+/-- Quakebringer's "This ability triggers only if …" is a trigger restriction, the `qualified`
+guard, as Solved's [CR#702.169c]; the triggered ability itself has no intervening "if", which
+would be rechecked as it resolves [CR#603.4], so the ability still deals its damage if
+Quakebringer leaves in response. -/
+theorem quakebringerRestrictsTriggeringOnly :
+    (match Cards.quakebringerDamage with
+      | .qualified (.triggered _ _ _ _ _ _ intervening _) _ _ guard _ =>
+        some (intervening.isNone, guard.isSome)
+      | _ => none) = some (true, true) := rfl
+
+/-- Cult of the Waxing Moon: "Whenever a permanent you control transforms into a non-Human
+creature": the transform deed, which converting also performs, with the characteristic the
+permanent has immediately after [CR#701.27e]. -/
+theorem cultOfTheWaxingMoonWatchesTransformingIntoANonHumanCreature :
+    triggerEvents Cards.cultOfTheWaxingMoon.card =
+      [ does any (transform (a (and [isPermanent, youControl]))
+          (into := some (and [isCreature, not (hasSubtype human)]))) ] := rfl
+
+/-- "The X with the most … or tied for the most" is membership in the tied set, not a singular
+"the", since the game has no default for ties [CR#609.5,702.105a]: Padeem asks whether you control
+an artifact with the greatest mana value, and dethrone, Seraphic Greatsword and Undercover Butler
+watch an attack on a player with the most life. -/
+theorem orTiedForTheMostIsMembership :
+    (match Cards.padeemConsulOfInnovation with
+      | .triggered _ _ _ _ _ _ intervening _ => intervening
+      | _ => none) =
+        some (exists_ (and [isArtifact, youControl,
+          superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])])) ∧
+      (match dethrone with
+        | .keyword _ _ [.triggered event ..] => some event
+        | _ => none) =
+        some (does thisCreature (.attack (some
+          (a (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer]))))) ∧
+      triggerEvents Cards.seraphicGreatsword.card =
+        [ does (equipped creature) (attack (some
+            (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))) ] ∧
+      triggerEvents Cards.undercoverButler.card =
+        [ does thisCreature (attack (some
+            (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))) ] :=
+  ⟨rfl, rfl, rfl, rfl⟩
+
 end Semantics.Proofs.CardFidelity

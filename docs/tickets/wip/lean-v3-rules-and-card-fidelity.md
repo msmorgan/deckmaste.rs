@@ -444,7 +444,9 @@ Where a done ticket recorded the current shape as intended, this section superse
   doc `Abilities.lean:1399-1405`), the carrier `solved` uses for [CR#702.169c]. `qualified`'s `from_`
   holds one zone; the battlefield-or-graveyard functioning may need the guard alone. Supersedes the
   note in `docs/tickets/done/workbench-coordination-1-condition-disjunction.md:126-129`.
-  **Reconciled 2026-10-24: live**
+  **Done** (`olrrzkqs`): `qualified (at_ …) (guard := some <battlefield, or graveyard with a
+  Giant>)`, the guard alone covering the two functioning zones. Pin
+  `quakebringerRestrictsTriggeringOnly`, on the timing distinction (no intervening "if").
 - *Keeper of the Flame* (`Cards/Damage.lean:1431-1433`, review #14): the life comparison sits in
   the target's description, so it is rechecked on resolution [CR#608.2b]; the ruling (2009-10-01)
   needs it true only "as you activate the ability". Either make it an activation-time condition
@@ -454,7 +456,8 @@ Where a done ticket recorded the current shape as intended, this section superse
   slot, `chooseWhile`, `Templates.lean:1191-1192`) and the pin `okChoiceWithActivationRider`
   (`Proofs/Choice.lean:544-549`), whose docstring says "the rider times the announcement, not the
   comparison".
-  **Reconciled 2026-10-24: live**
+  **Live** (STOP, 2026-10-25 report): either option needs a construct the AST lacks, a comparison
+  read only at the announcement and excluded from the [CR#608.2b] recheck.
 - *Cult of the Waxing Moon* (`Cards/Faces.lean:417-419`, review #17): `whenever (does any (turnOver
   (a (and [isPermanent, youControl])))) …` has no deed and no "non-Human creature" complement. The
   ability triggers if the object transforms or converts and "has the specified characteristic
@@ -463,10 +466,9 @@ Where a done ticket recorded the current shape as intended, this section superse
   [lean-v3-keyword-triggers-entries-and-parties](../done/lean-v3-keyword-triggers-entries-and-parties.md)
   §9. `docs/tickets/done/workbench-transform-tail.md:56` claims the complement landed; head lacks
   it.
-  **Reconciled 2026-10-24: live** (partly: matching converts is done by
-  [lean-v3-keyword-triggers-entries-and-parties](../done/lean-v3-keyword-triggers-entries-and-parties.md)
-  §9, `convert` now being `transform`'s tree, `Definitions/Actions.lean:659`; the card's
-  transform deed and "non-Human creature" complement are live.)
+  **Done** (`olrrzkqs`): `does any (transform (a (and [isPermanent, youControl])) (into := some (and
+  [isCreature, not (hasSubtype human)])))`. Pin
+  `cultOfTheWaxingMoonWatchesTransformingIntoANonHumanCreature`.
 - *Archfiend's Vessel* (`Cards/Keyword.lean:1122-1123`, review #18): "exile it. If you do, create
   …" is `triggerReflexively`. Reflexive triggers are only "when [a player] [does or doesn't]" or
   "when [something happens] this way" [CR#603.12]; "If you do" is followed in order [CR#608.2c].
@@ -486,7 +488,10 @@ Where a done ticket recorded the current shape as intended, this section superse
   control an artifact satisfying `superlative .max manaValue`", "attacks a player satisfying
   `superlative .max lifeTotal`"). Keep `the` for definite superlatives that print their own tie
   sentence.
-  **Reconciled 2026-10-24: live**
+  **Done** (`olrrzkqs`): Padeem is `exists_ (and [isArtifact, youControl, superlative .max …])`;
+  dethrone, Seraphic Greatsword and Undercover Butler attack `a (and [… superlative .max lifeTotal
+  …])`. Pin `orTiedForTheMostIsMembership`. Not done: `dethrone.ron` (v2, deletion-bound, not
+  named by the item).
 
 Tests: a pin per site on the corrected tree; for *Lightmine Field*, *Quakebringer* and *Keeper of
 the Flame*, a pin on the timing distinction itself.

@@ -1617,7 +1617,7 @@ def seraphicGreatsword : Spelled := spelled <| singleFacedCard
           (does (equipped creature)
              (attack
                 (some
-                   (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
+                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
           (create 1
             (written
               { characteristics :=

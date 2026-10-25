@@ -415,7 +415,8 @@ def cultOfTheWaxingMoon : Spelled := spelled <| singleFacedCard
     types := [.creature], subtypes := [human, shaman],
     text :=
       [ whenever
-          (does any (turnOver (a (and [isPermanent, youControl]))))
+          (does any (transform (a (and [isPermanent, youControl]))
+            (into := some (and [isCreature, not (hasSubtype human)]))))
           (createToken (creatureToken 2 2 [.green] [wolf])) ],
     power := stat 5, toughness := stat 4 }
 

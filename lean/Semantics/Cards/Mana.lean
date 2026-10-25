@@ -879,10 +879,8 @@ theorem okSoulShatter : Action.check (DRS.ofList []) soulShatter = [] := by deci
 /-- Padeem, Consul of Innovation -/
 def padeemConsulOfInnovation : Ability :=
   at_ (beginningOfYour .upkeep)
-    (if_ := some (is
-      (the (and [isArtifact,
-                  superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])]))
-      youControl))
+    (if_ := some (exists_ (and [isArtifact, youControl,
+      superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])])))
     (draw 1)
 theorem okPadeemConsulOfInnovation : Ability.check (DRS.ofList []) padeemConsulOfInnovation = [] := by decide
 

@@ -222,7 +222,7 @@ def undercoverButler : Spelled := spelled <| singleFacedCard
           (does thisCreature
              (attack
                 (some
-                   (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
+                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
           (establishThroughout (cant any (block it)) thisTurn) ],
     power := stat 2, toughness := stat 3 }
 

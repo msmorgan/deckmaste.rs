@@ -1009,14 +1009,19 @@ def twinshotSniper : Spelled := spelled <| singleFacedCard
             (instruct it (dealDamage 2 (target isAnyTarget)))) ],
     power := stat 2, toughness := stat 3 }
 
-/-- Quakebringer -/
+/-- Quakebringer: "This ability triggers only if …" restricts when the ability triggers, as
+Solved's does [CR#702.169c]; it is no intervening "if", which only immediately follows a trigger
+condition and is rechecked on resolution [CR#603.4]. So it is the `qualified` guard, and the
+ability resolves even if Quakebringer leaves in response. The guard also names the zones it
+functions from [CR#113.6b], the battlefield or the graveyard, which `qualified`'s one-zone `from_`
+cannot. -/
 def quakebringerDamage : Ability :=
-  at_ (beginningOfYour .upkeep)
-    (if_ := some (or [ is this_ (in_ battlefield),
+  qualified
+    (at_ (beginningOfYour .upkeep) (instruct this_ (dealDamage 2 eachOpponent)))
+    (guard := some (or [ is this_ (in_ battlefield),
            and [ is this_ (cardIn yourGraveyard),
                   exists_ (and [isCreature, giant,
                                  youControl]) ] ]))
-    (instruct this_ (dealDamage 2 eachOpponent))
 theorem okQuakebringerDamage : Ability.check (DRS.ofList []) quakebringerDamage = [] := by decide
 /-- Sand Strangler -/
 def sandStranglerDamage : Ability :=
