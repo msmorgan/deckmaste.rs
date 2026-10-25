@@ -786,10 +786,13 @@ theorem badAuthoredExploreHandedToOpponent :
       = [.possessorKind .controller .player] := by
   decide
 
-/-- "Target opponent endures 1": the body asks for the player's controller. -/
+/-- "Target opponent endures 1": the body asks for the player's controller, and reads the
+performer itself, not a "that permanent" anaphor, for the counters, as `explore` does
+[CR#701.63a]. Handed a creature, it checks. -/
 theorem badEndureHandedToOpponent :
     Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (endure 1))
-      = [.possessorKind .controller .player, .anaphor (.word .permanent) .one 0] := by
+      = [.possessorKind .controller .player] ∧
+      Action.check (DRS.ofList []) (instruct (target isCreature) (endure 1)) = [] := by
   decide
 
 /-- "Target opponent monstrosities 2": the monstrosity is about a permanent [CR#701.37a], and the

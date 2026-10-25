@@ -17,7 +17,7 @@ KeywordAbility(
         ),
         activated(
             Param(0),
-            enact(attach, attachment(Unattached, thisPermanent)),
+            attachment(Unattached, thisPermanent),
             asSorcery,
             matches(thisPermanent, attachment(Attachment, a(creature))),
         ),

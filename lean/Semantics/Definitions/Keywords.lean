@@ -1368,7 +1368,7 @@ semantic_definition reconfigure (cost : Cost) : Ability :=
         (attachTo thisPermanent (target (and [isCreature, isOther, youControl])))
         asSorcery,
       .activated (.inCaller cost)
-        (.attachment .unattached thisPermanent none)
+        (unattach thisPermanent)
         asSorcery none
         (is thisPermanent (.attachment .attachment none (some (a isCreature))))
         none ]

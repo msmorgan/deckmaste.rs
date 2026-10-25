@@ -502,4 +502,12 @@ theorem bloodthirstReadsTheOpponentAsTheDamagedPlayer :
       | _ => none) =
       some (Condition.was (dealDamage anyAmount anOpponent) soFarThisTurn) := rfl
 
+/-- Reconfigure's second ability unattaches this permanent [CR#702.151a,701.3d]: the `unattach`
+Template, stamped with no attach deed, since unattaching is not attaching. -/
+theorem reconfigureUnattachesWithoutTheAttachDeed :
+    (match reconfigure (.mana [generic 2]) with
+      | .keyword _ _ [_, .activated _ effect _ _ _ _] => some effect
+      | _ => none) = some (unattach thisPermanent) ∧
+      (unattach thisPermanent).ownDeed? = none := ⟨rfl, rfl⟩
+
 end Semantics.Proofs.Keyword

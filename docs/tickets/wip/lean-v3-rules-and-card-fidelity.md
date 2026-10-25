@@ -78,14 +78,19 @@ were re-located against the Lean source on 2026-10-24.
 - **`reconfigure` (`[CR#702.151a,701.3d]`, §1.7):** Fix `Keywords.lean:1364-1365`
   to use `unattach` (`Templates.lean:76`) instead of stamping unattach as `enact (.action
   "attach")`.
-  **Reconciled 2026-10-24: live**
+  **Done** (`nnpxuxqr`): the Lean body already wrote the raw `.attachment .unattached` with no
+  deed and now writes `unattach thisPermanent`; the stamp survived in the RON mirror
+  (`reconfigure.ron`, `enact(attach, …)`), now dropped. Pin
+  `reconfigureUnattachesWithoutTheAttachDeed` (`Proofs/Keyword.lean`).
 - **`regenerate` (`[CR#701.19c]`, §1.8):** Fix `Definitions/Actions.lean:612-617`
   so creating a regeneration replacement shield does not carry the `"regenerate"`
   deed on creation (it is still `.ownScope (some (.action "regenerate"))` around the shield's
   `.establish`) — only the shield's application (`regeneration`, `:137-152`) carries the
   deed — and strengthen `regenerationEventDescribesTheApplicationRatherThanTheShield`
   (`Proofs/ActionFamilies.lean:295-306`) to pin the deed.
-  **Reconciled 2026-10-24: live**
+  **Done** (`nnpxuxqr`): `regenerate` is `.ownScope none`; the strengthened pin asserts
+  `regenerate` has no deed, `regeneration` has `regeneration.deed`, and stepping the shield causes
+  no event of that deed. `regenerate.ron` already named no deed.
 - **`buyback`, `rebound`, and `haunt` spell half (`[CR#702.27a,702.55a,702.88a]`, §1.9):**
   Restrict their `stack → graveyard` replacement/trigger (`Keywords.lean:347,805,1197`, each
   `.move thisSpell stack (some graveyard) .departure none []`) to the [CR#608.2n] resolution move,
@@ -104,7 +109,11 @@ were re-located against the Lean source on 2026-10-24.
 - **`endure` (`[CR#701.63a]`, §1.17):** Fix `endure` in `Definitions/Actions.lean:691-696`
   to reference `firstMention .actor` (like `explore` and `connive`, `:427`, `:442`) rather than
   `that .permanent` (`:695`).
-  **Reconciled 2026-10-24: live**
+  **Done** (`nnpxuxqr`): `controllerOf (.firstMention "endure.permanent" .actor)` and the counters
+  on its `.laterMention`. Rewrote `badEndureHandedToOpponent` (`Proofs/Actor.lean`): its stray
+  `.anaphor (.word .permanent)` refusal came from the `that .permanent` read, so it now expects only
+  the `.possessorKind` refusal, as `badAuthoredExploreHandedToOpponent` does, and adds the
+  handed-a-creature case.
 - **Smaller keyword fidelity fixes (§1.15):**
   - `timeTravel` (`[CR#701.56a,702.62b]`, `Definitions/Actions.lean:817-819`): include the
     `"has suspend"` filter on exiled cards (`.hasKeyword (.the (.named "suspend"))`; review #26).

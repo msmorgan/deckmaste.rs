@@ -292,12 +292,17 @@ theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
         [.thisWayUngrounded] := by decide
 
 /-- A regeneration shield's application, not the shield, is the regeneration event: it acts on
-the object on the battlefield, and the shield introduces none [CR#701.19a,701.19c]. -/
+the object on the battlefield, and the shield introduces none. Creating the shield is not
+regenerating [CR#701.19a,701.19c], so `regenerate` carries no deed and causes no event of the
+regeneration deed, which only the application carries. -/
 theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
     let event := does any (regeneration thisCreature)
     let applied := (stepGameEvent 64 (DRS.ofList []) event).1
     let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
-    GameEvent.check (DRS.ofList []) event = [] ∧
+    (regenerate thisCreature).ownDeed? == none ∧
+      (regeneration thisCreature).ownDeed? == some regeneration.deed ∧
+      (shield.causedEvents.filter (·.deed == some regeneration.deed)).isEmpty ∧
+      GameEvent.check (DRS.ofList []) event = [] ∧
       countOnes .object applied = 1 ∧
       (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
         some (.object, some .battlefield) ∧

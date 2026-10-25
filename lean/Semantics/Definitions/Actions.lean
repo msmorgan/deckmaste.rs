@@ -591,7 +591,7 @@ semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider
 /-- A resolving regeneration action installs a single-use shield for this turn;
 only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
 semantic_definition regenerate (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "regenerate"))
+  .ownScope none
     (.establish (.replace
       (.would .any (destroy (.firstMention "regenerate.subject" (.inCaller subject))))
       (instead (regeneration (.laterMention "regenerate.subject" (.inCaller subject))))
@@ -668,8 +668,9 @@ semantic_definition earthbend (amount : Amount) : Action :=
           [does .any (.move (that land) battlefield exileZone .departure [])] ])
 semantic_definition endure (amount : Amount) : Action :=
   .ownScope (some (.action "endure" .performs))
-    (instruct (controllerOf .actor)
-      (chooseOne (putCounters (.inCaller amount) p1p1Counter (that .permanent))
+    (instruct (controllerOf (.firstMention "endure.permanent" .actor))
+      (chooseOne
+        (putCounters (.inCaller amount) p1p1Counter (.laterMention "endure.permanent" .actor))
         (createToken (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit]))))
 semantic_definition exert (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exert"))
