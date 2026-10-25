@@ -1359,14 +1359,16 @@ semantic_definition rebound : Ability :=
                 [ exile thisSpell,
                   delay (beginningOf .upkeep (some .you) (.next none))
                     (may (cast this_ (payment := withoutPaying))) ])))) ]
+/-- Reconfigure [CR#702.151a]: attaching is the `attachTo` Definition; unattaching moves the
+Equipment away and is no attaching [CR#701.3d], so it is the bare attachment change and names no
+deed. -/
 semantic_definition reconfigure (cost : Cost) : Ability :=
   .keyword (.named "reconfigure") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
         (attachTo thisPermanent (target (and [isCreature, isOther, youControl])))
         asSorcery,
       .activated (.inCaller cost)
-        (.ownScope (some attachTo.deed)
-          (.attachment .unattached (.inCaller thisPermanent) none))
+        (.attachment .unattached thisPermanent none)
         asSorcery none
         (is thisPermanent (.attachment .attachment none (some (a isCreature))))
         none ]
