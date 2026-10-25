@@ -211,6 +211,9 @@ mutual
     | colorsSpent
     /-- mana spent to pay the total cost [CR#601.2h] -/
     | manaValueSpent
+    /-- Phyrexian mana symbols in the cost paid for with life rather than mana [CR#107.4f]:
+    compleated's "for each of those mana symbols" [CR#702.150a]. -/
+    | phyrexianPaidWithLife
     /-- [CR#702.33c..702.33d] -/
     | timesPaid (which : LinkSource)
     /-- "was kicked" [CR#702.33d], optionally within a span ("this turn") -/

@@ -421,7 +421,19 @@ semantic_definition cleave (cost : Cost) : Ability :=
       static
         (onlyWhile (.textChange thisSpell .removeBracketed)
           (keywordCostPaid (.named "cleave") thisSpell)) ]
-semantic_definition compleated : Ability := keyword (.named "compleated")
+/-- "Compleated": "If this permanent would enter with one or more loyalty counters on it and the
+player who cast it chose to pay life for any part of its cost represented by Phyrexian mana
+symbols, it instead enters the battlefield with that many loyalty counters minus two for each of
+those mana symbols." [CR#702.150a] Two fewer for each is the entry's loyalty counters lowered by
+twice their number. -/
+semantic_definition compleated : Ability :=
+  .keyword (.named "compleated") []
+    [ static
+        (replace
+          (would thisPermanent (enter (riders := [.withCounters anyAmount loyaltyCounter .fresh])))
+          (doIf (.compareAmt (phyrexianPaidWithLife thisSpell) .atLeast 1)
+            (withRiders
+              [.withCounters (times 2 (phyrexianPaidWithLife thisSpell)) loyaltyCounter .fewer]))) ]
 semantic_definition conspire : Ability :=
   .keyword (.named "conspire") []
     [ static

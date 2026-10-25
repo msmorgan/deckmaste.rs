@@ -110,7 +110,7 @@ def Amount.unit (amount : Amount) (fuel : Nat := 32) : Bool :=
 termination_by structural fuel
 
 def LinkedFacet.named : LinkedFacet → Bool
-  | .colorsSpent | .manaValueSpent => true
+  | .colorsSpent | .manaValueSpent | .phyrexianPaidWithLife => true
   | .timesPaid source | .readback source _ | .taken source => source.named
 
 def LinkedFacet.localChecks (facet : LinkedFacet) : List Refusal :=

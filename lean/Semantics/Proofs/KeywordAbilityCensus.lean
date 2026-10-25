@@ -246,4 +246,15 @@ theorem castModeDefinitions :
       Ability.check (DRS.ofList []) (moreThanMeetsTheEye [pip .white, pip .blue]) = [] ∧
       Ability.check (DRS.ofList []) fuse = [] := by decide
 
+/-- Compleated replaces an entry with loyalty counters, lowering them by two for each Phyrexian
+symbol paid with life [CR#702.150a], and it checks. -/
+theorem okCompleatedDefinition :
+    (match compleated with
+      | .keyword _ _
+          [.static (.replace _
+            (.onlyIf (.compareAmt (.paid .phyrexianPaidWithLife _) .atLeast _)
+              (.withRiders [.withCounters _ _ .fewer])) _ _ _)] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) compleated = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

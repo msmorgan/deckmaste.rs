@@ -1250,6 +1250,9 @@ semantic_template noColoredManaSpentToCast (spell : NounPhrase) : Condition :=
   .compareAmt (colorsSpentToCast spell) .eq 0
 /-- "the amount of mana spent to cast <spell>" -/
 semantic_template manaValueSpentToCast (spell : NounPhrase) : Amount := .paid .manaValueSpent spell
+/-- "the Phyrexian mana symbols in <spell>'s cost its caster paid life for" [CR#107.4f,702.150a] -/
+semantic_template phyrexianPaidWithLife (spell : NounPhrase) : Amount :=
+  .paid .phyrexianPaidWithLife spell
 /-- "if no mana was spent to cast <spell>" -/
 semantic_template noManaSpentToCast (spell : NounPhrase) : Condition :=
   .compareAmt (manaValueSpentToCast spell) .eq 0
