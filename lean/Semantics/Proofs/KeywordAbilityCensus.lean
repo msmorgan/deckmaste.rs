@@ -268,4 +268,22 @@ theorem okSuspendDefinition :
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) (suspend 4 [generic 1, pip .blue]) = [] := by decide
 
+/-- "Miracle {R}": as you draw your first card each turn, if it is this card, revealing it makes
+a reflexive trigger that may cast it for its miracle cost [CR#702.94a,603.12], and it checks. -/
+theorem okMiracleDefinition :
+    (match miracle [pip .red] with
+      | .keyword _ _
+          [.static (.asEvent (.nthOccurrence (.nth 1) (some .turn) _)
+            (.doIf _ (.triggerReflexively _ none _) none _))] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (miracle [pip .red]) = [] := by decide
+
+/-- Miracle's "that card" is the card the draw drew: an event that draws none leaves it no
+antecedent. -/
+theorem badDrawnCardWithoutADraw :
+    Ability.check (DRS.ofList [])
+      (static (asEvent (nthOccurrence (.nth 1) (does you (gainLife 1)) (some .turn))
+        (doIf (is (that .card) (not (otherThan thisCard))) (draw 1) none))) =
+      [.anaphor (.word .card) .one 0] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

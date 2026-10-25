@@ -1191,8 +1191,18 @@ semantic_definition mentor : Ability :=
     [ whenever (does thisCreature (.attack none))
         (putCounters 1 p1p1Counter
           (target (and [isCreature, isAttacking, hasPower .less (powerOf thisCreature)]))) ]
+/-- "Miracle [cost]": "You may reveal this card from your hand as you draw it if it's the first
+card you've drawn this turn. When you reveal this card this way, you may cast it by paying [cost]
+rather than its mana cost." [CR#702.94a] A static ability linked to a reflexive triggered one
+[CR#603.11,603.12]: as you draw your first card each turn, if the drawn card is this card. -/
 semantic_definition miracle (cost : Cost) : Ability :=
-  keywordCosting (.named "miracle") (.inCaller cost)
+  .keyword (.named "miracle") [.cost (.inCaller cost)]
+    [ static
+        (asEvent (nthOccurrence (.nth 1) (does you (draw 1)) (some .turn))
+          (doIf (is (that .card) (not (otherThan thisCard)))
+            (triggerReflexively (may (reveal thisCard))
+              (may (cast thisCard (payment := payingInstead (.inCaller cost)))))
+            none)) ]
 semantic_definition mobilize (amount : Amount) : Ability :=
   .keyword (.named "mobilize") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.attack none))
