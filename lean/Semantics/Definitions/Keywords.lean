@@ -1282,7 +1282,7 @@ semantic_definition paradigm : Ability :=
               thisGame))
           (delayWithin (beginningOfYour .firstMain) restOfGame
             (sequentially
-              [ .copy .fromCardZone this_ 1 [],
+              [ .copy (.inZone .exile) this_ 1 [],
                 may (cast (that .copy) (payment := withoutPaying)) ]))
           none),
       spell (exile thisSpell) ]

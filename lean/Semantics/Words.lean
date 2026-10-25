@@ -465,6 +465,9 @@ inductive TargetExtent where
 
 inductive CopySort where
   | fromStack | fromCardZone
+  /-- A copy of an object created in a zone the effect names, "create a copy of this object in
+  exile" (paradigm [CR#702.192a]), not the zone the object is in. -/
+  | inZone (zone : Zone)
   deriving DecidableEq, Repr
 
 /-- A family of keywords ("a landwalk ability"). -/

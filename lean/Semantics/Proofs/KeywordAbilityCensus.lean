@@ -156,10 +156,14 @@ theorem okVigilanceDefinition :
       Ability.check (DRS.ofList []) vigilance = [] := by decide
 
 /-- Paradigm is two spell abilities [CR#702.192a], the first creating a delayed triggered ability
-for the rest of the game, and it checks. -/
+for the rest of the game whose copy is created in exile, and it checks. -/
 theorem okParadigmDefinition :
     (match paradigm with
-      | .keyword _ _ [.spell none (.doIf _ (.delay _ [] (some _) _) none _), .spell none _] => true
+      | .keyword _ _
+          [ .spell none
+              (.doIf _
+                (.delay _ [] (some _) (.sequentially [.copy (.inZone .exile) _ _ _, _])) none _),
+            .spell none _ ] => true
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) paradigm = [] := by decide
 

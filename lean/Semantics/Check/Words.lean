@@ -1658,6 +1658,7 @@ def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
 def CopySort.landsIn : CopySort → Option Zone → Option Zone
   | .fromStack, _ => some .stack
   | .fromCardZone, z => z
+  | .inZone z, _ => some z
 
 /-! ## Mana -/
 
