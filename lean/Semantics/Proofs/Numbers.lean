@@ -155,8 +155,10 @@ theorem triplingPowerAndToughnessIsSigned :
     (triplePowerAndToughness (target isCreature) (some untilEndOfTurn)).numberSlots =
       [(times 2 (powerOf later), .signed), (times 2 (toughnessOf later), .signed)] := by rfl
 
-/-- The `double` deed's scope signs only a power or toughness change: doubling counters puts a
-count of counters, which stays clamped [CR#107.1b,701.10e]. -/
+/-- The `double` deed's scope signs only a power or toughness change it directly encloses: a counter
+put directly under the deed keeps its clamped count [CR#107.1b,701.10e]. This is a hand-built tree:
+the real `doubleCounters` puts its counters inside a kind loop, which declares no slots of its own,
+and the loop's put declares its own clamped slot when the walk reaches it. -/
 theorem doubleDeedLeavesCounterAmountsClamped :
     (Action.ownScope (some doubleCounters.deed) (putCounters 2 p1p1Counter thisCreature)).numberSlots
       = [(.lit 2, .clamped)] := by rfl

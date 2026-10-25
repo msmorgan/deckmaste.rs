@@ -65,8 +65,9 @@ theorem discardIsHandedToTheDiscardingPlayer :
         may (sacrifice (a isCreature)) (some (instruct eachOpponent (discard (a (cardIn hand))))) ∧
       (match Cards.immersturmSkullcairn with
         | .activated _ (.sequentially [_, discarding]) _ _ _ _ => some discarding
-        | _ => none) = some (instruct (that .player) (discard (a (cardIn hand)))) :=
-  ⟨rfl, rfl, rfl, rfl⟩
+        | _ => none) = some (instruct (that .player) (discard (a (cardIn hand)))) ∧
+      Cards.cryOfContrition = instruct (target isPlayer) (discard (a (cardIn hand))) :=
+  ⟨rfl, rfl, rfl, rfl, rfl⟩
 
 /-- "Counter target spell unless its controller pays {3}": the spell's controller is offered the
 payment, and if they don't pay, the counterspell's controller counters it [CR#118.12a,608.2c],

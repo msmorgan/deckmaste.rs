@@ -275,7 +275,10 @@ def unblinkingObserver : Spelled := spelled <| singleFacedCard
             [spendOnly [toPay (.ofKeyword disturb), toCast isInstantOrSorcery]]) ],
     power := stat 2, toughness := stat 1 }
 
-/-- Qarsi Deceiver -/
+/-- Qarsi Deceiver: "Spend this mana only to cast a face-down creature spell, pay a mana cost to
+turn a manifested creature face up, or pay a morph cost." The turn-face-up purpose does not yet
+say "a mana cost", so it also admits a manifested card's disguise cost [CR#701.40d], which the text
+forbids: `planned/lean-v3-turn-face-up-spend-cost.md`. -/
 def qarsiDeceiverMorphSpend : Ability :=
   activated tapSymbol
     (addMana 1 (manaOf [[.colorless]])

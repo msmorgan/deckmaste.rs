@@ -349,7 +349,9 @@ were re-located against the Lean source on 2026-10-24.
   thisObject])` between its cast and morph purposes. "Manifested" as a look-back needed the
   `manifest` (and `cloak`) Definition to read its own subject back by mention instead of `that
   .card`, which nothing grounds in a pattern. Pins `overgrownZealotSpendsToTurnFaceUp`,
-  `qarsiDeceiverSpendsOnManifestAndMorph`.
+  `qarsiDeceiverSpendsOnManifestAndMorph`. The purpose does not yet say Qarsi's "pay a mana
+  cost", so it admits a manifested card's disguise cost:
+  [lean-v3-turn-face-up-spend-cost](../planned/lean-v3-turn-face-up-spend-cost.md).
 
 ### 4. Printed move text dropped by the move-deeds landing (wave review, 2026-10-21)
 
