@@ -1723,4 +1723,49 @@ def deadpoolTradingCard : Spelled := spelled <| singleFacedCard
           (instruct (each isOtherPlayer) (draw 1)) ],
     power := stat 5, toughness := stat 3 }
 
+/-- Frenzy Sliver -/
+def frenzySliver : Spelled := spelled <| singleFacedCard
+  { name := "Frenzy Sliver", cost := [generic 1, pip .black], types := [.creature],
+    subtypes := [sliver],
+    text := [static (abilityGrant (allOf (and [sliver, isCreature])) (frenzy 1))],
+    power := stat 1, toughness := stat 1 }
+
+/-- Eagle Vision -/
+def eagleVision : Spelled := spelled <| singleFacedCard
+  { name := "Eagle Vision", cost := [generic 4, pip .blue], types := [.sorcery],
+    text := [freerunning [generic 1, pip .blue], spell (draw 3)] }
+
+/-- Briarblade Adept -/
+def briarbladeAdept : Spelled := spelled <| singleFacedCard
+  { name := "Briarblade Adept", cost := [generic 4, pip .black], types := [.creature],
+    subtypes := [elf, assassin],
+    text :=
+      [ whenever (does thisCreature attack)
+          (get (target (and [isCreature, opponentsControl])) (down 1) (down 1) untilEndOfTurn),
+        encore [generic 3, pip .black] ],
+    power := stat 3, toughness := stat 4 }
+
+/-- Blaring Captain -/
+def blaringCaptain : Spelled := spelled <| singleFacedCard
+  { name := "Blaring Captain", cost := [generic 3, pip .black], types := [.creature],
+    subtypes := [azra, warrior],
+    text :=
+      [ partnerWith (named "Blaring Recruiter"),
+        whenever (does thisCreature attack)
+          (get (allOf (and [warrior, isAttacking])) (up 1) (up 1) untilEndOfTurn) ],
+    power := stat 2, toughness := stat 2 }
+
+/-- Eyetwitch -/
+def eyetwitch : Spelled := spelled <| singleFacedCard
+  { name := "Eyetwitch", cost := [pip .black], types := [.creature], subtypes := [eye, bat],
+    text := [flying, when (does thisCreature die) learn],
+    power := stat 1, toughness := stat 1 }
+
+/-- Countersculpt -/
+def countersculpt : Spelled := spelled <| singleFacedCard
+  { name := "Countersculpt", cost := [pip .blue, pip .blue], types := [.instant],
+    text :=
+      [ static (addedCost (or [behold jace, [generic 1]]) false),
+        spell (sequentially [counter (target isSpell), empowerJace 1]) ] }
+
 end Semantics.Cards

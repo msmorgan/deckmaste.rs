@@ -612,6 +612,11 @@ and nothing more. The call survives in the authoring tree, where lowering reads 
 that cleave removes [CR#702.148a,702.148b]. -/
 semantic_template bracketed {α : Type} (x : α) : α := x
 semantic_template cardIn (zone : Location) : Predicate := .and [.isCard, .in_ zone]
+/-- "outside the game": in none of the game's zones. Outside the game is not a zone
+[CR#400.11], so it is no `Location` but the complement of all seven [CR#400.1]: a sideboard's
+cards are there [CR#400.11a], and so is a Lesson that learn reveals [CR#701.48a]. -/
+semantic_template outsideTheGame : Predicate :=
+  .not (.in_ (.or [library, hand, battlefield, graveyard, stack, exileZone, commandZone]))
 /-- "<spell> was <designation>": the spell was a card holding it before it was cast, as "if this
 spell was foretold" [CR#702.143c]. -/
 semantic_template wasBeforeCast (designation : DesignationLabel) : Predicate :=

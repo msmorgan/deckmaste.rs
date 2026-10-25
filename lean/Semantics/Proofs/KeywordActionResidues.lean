@@ -133,4 +133,11 @@ theorem badNamedEmblemWithoutAbilities :
     Action.check (DRS.ofList []) (.createObject 1 (.emblem (some "The Ring") []) none) = [.nonEmpty] := by
   decide
 
+/-- "Learn" [CR#701.48a] checks: the revealed Lesson is read back by "it", and the discard's
+result, not the choice to discard, decides whether a Lesson may be revealed. -/
+theorem okLearn : Action.check (DRS.ofList []) learn = [] := by decide
+
+/-- "Empower Jace 1" [CR#701.71a]: the chosen Jace token is "it". -/
+theorem okEmpowerJace : Action.check (DRS.ofList []) (empowerJace 1) = [] := by decide
+
 end Semantics.Proofs.KeywordActionResidues

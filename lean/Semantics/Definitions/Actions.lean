@@ -777,6 +777,38 @@ semantic_definition theRingTemptsYou : Action :=
                       (instruct eachOpponent (loseLife 3))))
                   (compareAmt timesTempted .atLeast 4)) ])
           :: tempting))
+/-- "empower Jace N" (`Definition`, [CR#701.71a]): "If you don't control a Jace planeswalker token,
+create a blue Jace planeswalker token with 0 loyalty, '[−1]: Surveil 1,' and '[−3]: Draw a card.'
+Choose a Jace planeswalker token you control. Put N loyalty counters on it." -/
+semantic_definition empowerJace (amount : Amount) : Action :=
+  let jaceToken : Predicate := and [.isToken, isPlaneswalker, .hasSubtype jace, actorControls]
+  .ownScope (some (.action "empowerJace"))
+    (sequentially
+      [ doIf (not (exists_ jaceToken))
+          (createToken
+            { characteristics :=
+                { colors := [.blue], types := [.planeswalker], subtypes := [jace],
+                  loyalty := some 0,
+                  text :=
+                    [ activated (loyaltySymbol (.down 1)) (surveil 1),
+                      activated (loyaltySymbol (.down 3)) (draw 1) ] } })
+          none,
+        choose (a jaceToken),
+        putCounters (.inCaller amount) loyaltyCounter it ])
+/-- "learn" (`Definition`, [CR#701.48a]): "You may discard a card. If you do, draw a card. If you
+didn't discard a card, you may reveal a Lesson card you own from outside the game and put it into
+your hand." The second condition is the discard's result, not the choice: a player who chose to
+discard with no card in hand discarded none. -/
+semantic_definition learn : Action :=
+  .ownScope (some (.action "learn"))
+    (sequentially
+      [ may (discard (a .isCard)) (some (draw 1)),
+        doIf (not (exists_ (and [.isCard, was (discard which) thisWay])))
+          (may
+            (sequentially
+              [ reveal (a (and [.isCard, .hasSubtype lesson, ownedBy .actor, outsideTheGame])),
+                putInto it (handOf .actor) ]))
+          none ])
 /-- "time travel" [CR#701.56a]: any number of permanents the performer controls with time counters
 and/or suspended cards they own in exile with time counters, a suspended card being one in exile
 that has suspend and a time counter [CR#702.62b]; for each, put or remove a time counter
