@@ -281,6 +281,14 @@ example : Spelled := spelled <| .singleFaced
 theorem deedIsGenerated : exile.deed = .action "exile" ∧ searchZonesOf.deed = search.deed ∧
     explore.deed = .action "explore" true := by decide
 
+/-- A Definition's name stands for its deed wherever a `Deed` is expected (`elabDeedName`). -/
+example : (exile : Deed) = exile.deed := rfl
+
+-- A misspelled keyword action is no identifier at all.
+/-- error: Unknown identifier `destory` -/
+#guard_msgs in
+example : Deed := destory
+
 /-! ## Coercions and the card envelope
 
 `spelled` accepts the authoring coercions: core's `α → Option α`, a written mana cost and an action

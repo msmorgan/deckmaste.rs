@@ -527,9 +527,9 @@ def elabKeywordName : TermElab := fun stx expectedType? => do
 open Lean Elab Term Meta in
 /-- An Action Definition names its keyword action wherever a `Deed` is expected:
 `.deed exile`. The identifier elaborates as the authored deed constant the
-Definition generates (`exile.deed`, `Authoring.deedConstant`), so a card never spells the internal
-`Deed.action` and a misspelled action is no identifier at all. Any other identifier, or an
-expected type other than `Deed`, is left to the ordinary elaborator. -/
+Definition generates (`exile.deed`, `Authoring.deedConstant`), so a pin or a Definition never
+spells the internal `Deed.action` and a misspelled action is no identifier at all. Any other
+identifier, or an expected type other than `Deed`, is left to the ordinary elaborator. -/
 @[scoped term_elab ident]
 def elabDeedName : TermElab := fun stx expectedType? => do
   let some expected := expectedType? | throwUnsupportedSyntax
