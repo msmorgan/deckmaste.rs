@@ -363,7 +363,7 @@ theorem okDocSamsonDistributive : Ability.check (DRS.ofList []) docSamsonDistrib
 
 /-- Adapt is an instruction about "this permanent" that you, its controller, follow
 [CR#701.46a,608.2c], so the counters it puts are ones you put: Doc Samson's "if you would put"
-watches them, and Adapt 2 puts three. -/
+watches them. -/
 theorem docSamsonWatchesAdaptsCounters :
     let watched := docSamsonWatched.describedEvents (some .player)
     let adapted := (stepAction 64 .postEvent .obj (DRS.ofList []) (adapt 2)).1.causedEvents
