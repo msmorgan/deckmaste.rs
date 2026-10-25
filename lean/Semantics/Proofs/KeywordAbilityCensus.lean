@@ -269,7 +269,7 @@ theorem okSuspendDefinition :
       Ability.check (DRS.ofList []) (suspend 4 [generic 1, pip .blue]) = [] := by decide
 
 /-- "Miracle {R}": as you draw your first card each turn, if it is this card, revealing it makes
-a reflexive trigger that may cast it for its miracle cost [CR#702.94a,603.12], and it checks. -/
+a linked trigger that may cast it for its miracle cost [CR#702.94a,603.11], and it checks. -/
 theorem okMiracleDefinition :
     (match miracle [pip .red] with
       | .keyword _ _
@@ -285,5 +285,13 @@ theorem badDrawnCardWithoutADraw :
       (static (asEvent (nthOccurrence (.nth 1) (does you (gainLife 1)) (some .turn))
         (doIf (is (that .card) (not (otherThan thisCard))) (draw 1) none))) =
       [.anaphor (.word .card) .one 0] := by decide
+
+/-- Companion's in-game ability is its special action, taken once per game from outside the
+game [CR#702.139a,116.2g], and it checks. -/
+theorem okCompanionDefinition :
+    (match companion (deckSizeOverMinimum 20) with
+      | .keyword _ _ [.static (.specialAction none (some _) _ (.limited _ ⟨1, .game⟩))] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) (companion (deckSizeOverMinimum 20)) = [] := by decide
 
 end Semantics.Proofs.KeywordAbilityCensus

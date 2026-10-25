@@ -13,9 +13,17 @@ open Semantics.Templates
 
 /-! ## Abilities -/
 
-/-- "Companion — <condition>" -/
+/-- "Companion — <condition>" [CR#702.139a]: once during the game, any time you have priority and
+the stack is empty during a main phase of your turn, you may pay {3} and put this card from
+outside the game into your hand, a special action [CR#116.2g]. Revealing it before the game, if
+your starting deck fulfils the condition, is a start-of-game rule [CR#103.2b]
+(`lean-v3-companion-pregame-rule`). -/
 semantic_definition companion (condition : DeckCondition) : Ability :=
-  .keyword (.named "companion") [.deckCondition condition] []
+  .keyword (.named "companion") [.deckCondition condition]
+    [ static
+        (specialAction (and [asSorcery, whileTrue (is thisCard outsideTheGame)])
+          (mana [generic 3])
+          (limited (putInto thisCard (handOf you)) oncePerGame)) ]
 /-- "Level up [cost]" with its definition, an activated ability: "[Cost]: Put a level counter on
 this permanent. Activate only as a sorcery." [CR#702.87a] -/
 semantic_definition levelUp (cost : Cost) : Ability :=
@@ -1193,8 +1201,8 @@ semantic_definition mentor : Ability :=
           (target (and [isCreature, isAttacking, hasPower .less (powerOf thisCreature)]))) ]
 /-- "Miracle [cost]": "You may reveal this card from your hand as you draw it if it's the first
 card you've drawn this turn. When you reveal this card this way, you may cast it by paying [cost]
-rather than its mana cost." [CR#702.94a] A static ability linked to a reflexive triggered one
-[CR#603.11,603.12]: as you draw your first card each turn, if the drawn card is this card. -/
+rather than its mana cost." [CR#702.94a] A static ability linked to a triggered one [CR#603.11],
+written as a reflexive trigger: as you draw your first card each turn, if it is this card. -/
 semantic_definition miracle (cost : Cost) : Ability :=
   .keyword (.named "miracle") [.cost (.inCaller cost)]
     [ static
