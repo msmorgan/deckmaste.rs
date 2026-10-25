@@ -511,6 +511,8 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `spentDistributivelyList` (`Check/Words.lean:859-863`, referenced only by itself), and
   `SelectionEvidence` now lives at `Proofs/SelectionEvidence.lean`. Still live: delete
   `spentDistributivelyList`).
+  **Done 2026-10-24: wuspqokq** (`spentDistributivelyList` deleted; every other listed name was
+  already gone, and `SelectionEvidence` already lives in `Proofs/`).
 
 ## Verification
 

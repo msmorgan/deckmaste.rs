@@ -927,16 +927,6 @@ def theRestFits (k : Kind) : Plurality → DRS → Bool
   | .one, drs => theOtherOk k drs
   | .many, drs => theRestOk k drs
 
-/-- `out` re-places referents of `outer` without touching the table: every referent keeps its
-determiner, kind and plurality, and only plural ones, one object per agent, may have moved
-[CR#701.21a]. -/
-def spentDistributivelyList : List Referent → List Referent → Bool
-  | [], [] => true
-  | a :: as_, b :: bs =>
-    a.det == b.det && a.kind == b.kind && a.plur == b.plur &&
-      (a.payload == b.payload || !a.plur.isOne) && spentDistributivelyList as_ bs
-  | _, _ => false
-
 def partsClosed (drs : DRS) : DRS :=
   { drs with referents := drs.referents.map fun b =>
       if drs.isVisible b.id && b.det == .part then { b with det := .the } else b }
