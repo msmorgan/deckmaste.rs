@@ -332,15 +332,15 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | _ + 1, .described d _ => d.plur
   | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
   | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
-  -- A slice's size is read through its Definition argument: `mill (.lit 1)` writes
-  -- `.inCaller (.lit 1)`, one card as `topSlice (.lit 1)` is [CR#701.17a].
+  -- A slice is its count of cards from each owner's pile: one when both are one. Its size is
+  -- read through its Definition argument: `mill (.lit 1)` writes `.inCaller (.lit 1)`, one card
+  -- as `topSlice (.lit 1)` is [CR#701.17a]; "the top card of each player's library" is one per
+  -- player, collected.
   | n + 1, .slice _ count pool =>
-    if count.plur != .one then .many
-    else match pool with
-      | .zone .library (some who) | .zone .graveyard (some who) =>
-        -- "the top card of each player's library": one per player, collected
-        if who.det n == some .each then .many else who.plur n
+    let ownerPlur := match pool with
+      | .zone _ (some who) => if who.det n == some .each then .many else who.plur n
       | _ => .one
+    outputPlur count.plur ownerPlur
   | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
   | _ + 1, .and _ | _ + 1, .coord .andOr _ => .many
   | n + 1, .or (x :: _) => x.plur n

@@ -505,6 +505,9 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   mqyprupu: `.addedAbilities` introduces the letter any parameter of a granted keyword writes for
   its number (`KeywordParam.writtenLetter?`), not only a sole one; pin
   `GetsBothDeltas.grantedKeywordLetterIsIntroducedBesideACost` (reinforce X—{2}).
+  kvtozrzo: `NounPhrase.plur` reads a slice as its count from each owner's pile
+  (`outputPlur` of the count and the owner), for any owned zone, not a library-or-graveyard case
+  list; existing pins unchanged.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,
