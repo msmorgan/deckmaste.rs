@@ -129,6 +129,21 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `GetsBothDeltas.archpriestOfIonaGivesFlyingToItsPumpedTarget`; `Cards/Choice`
   `joustConditionReadsTheClauseSubject` counts only the objects resolved, "you" being resolved
   too. `ControllerSacrifice`'s `controllerInstructState` mirrors the handoff; statements unchanged).
+  **Owner ruling 2026-10-24 (HIGH-1, refines (b)).** Inside a handoff the performer is in view
+  as an ordinary referent (`det .the`) only inside `ownScope` Definition bodies (explore, connive,
+  endure, …) and in nested clauses after the handoff's own clause; in the handoff's own immediate
+  clause `thisCreature`/`thisPermanent` stays `.self`, so *Terror of the Peaks*'s "this creature
+  deals damage equal to that creature's power" and *Rampaging Ferocidon*'s "that creature's
+  controller" read the triggering creature.
+  **Done 2026-10-24: yoyruwqs** (`ActorShape.selves`: a handoff to "this …" records its Source
+  performer, put in view by `nextClause` and `enterOwnScope` (`performersInView`), restored to
+  `.self` on leaving the handoff; `performerInView` is kept for a Definition's implicit performer.
+  Pins added: `Actor.terrorOfThePeaksThatCreatureIsTheEnteringCreature`,
+  `Actor.rampagingFerocidonThatCreatureIsTheEnteringCreature`. Rewritten:
+  `Counters.threeHeadersPublishTheirSelf` (it read the Source by "that creature" in the handoff's
+  own clause; now "its power" checks and "that creature" there is refused). `ControllerSacrifice`'s
+  `controllerInstructState` and `controllerAlreadyInView` mirror the new handoff; statements
+  unchanged. `okExploreReadsThatCreature` and the explore, connive and endure pins pass unchanged).
 - **Wire `DRS.performer : Option ReferentId` and retire fake `Payload.actor`
   referents (§2.5):** Track the performer in `DRS.performer` per
   `docs/decisions/semantics-v3.md` §1.2/§1.4 instead of pushing `Payload.actor`
@@ -287,6 +302,12 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `Action.eventHead`/`Action.deonticHead`; pin
   `DefinitionsAndTemplates.headGatesAgreeOnADefinitionHeader`; ADR §3.7 reworded. The raw-move half
   awaits the ruling above).
+  **Owner ruling 2026-10-24: option (b)**, admitting any `.move` in a deontic clause, as the event
+  gate does (the review's witness search found no Vintage-legal card that needs it). `leave`,
+  `putInto`, `returnTo`, `returnToHand` and `returnToBattlefield` are verified Templates over
+  `.move` (`Templates.lean`), not Definitions.
+  **Done 2026-10-24: yoqskptw, yxouwpnx** (yxouwpnx: `Action.deonticHead` admits `.move ..`; ADR
+  §3.7 amended; pin `Deontic.prohibitionAdmitsAnyZoneChange`).
 - **Unify deed stamping and prune dead `CoreDeed` constructors (§§3.1, 3.3):**
   - Eliminate the three competing deed-stamping mechanisms (`ownScope (some (.action ...))`
     header, `.enact`, and `Action.inferredDeed` string-guessing at
@@ -350,6 +371,34 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   (the locus field is gone; `Anaphora.searchLookbackCarriesItsScope` pins the search's own
   scope) and the `Authoring` witnesses `enactedDeedRecordsDefinitionAuthorship`, the "descry" and
   the "destory" examples (the `enact` template was the only card surface that named a deed).
+- **Review fixes to this section (2026-10-24).** A review of the section's changes found one
+  MEDIUM and seven LOWs, fixed as follows.
+  - **MEDIUM, madness lost the exile deed** [CR#702.35a,702.35c]. **Done 2026-10-24: qqpvkmzq**
+    (the instead body is `ownScope discard (exileFrom (.inCaller thisCard) hand)`, the trigger
+    watches `exileFrom thisCard hand` caused by the discard; pin
+    `Keyword.madnessCardIsDiscardedAndExiled`; `KeywordCastPermissions.castPermissionsKeepPayingInstead`
+    rewritten to the new trigger).
+  - **LOW, raw reveals.** **Done 2026-10-24: kuknqryk** (amplify, ninjutsu, transmute and
+    *Vaevictis Asmadi, the Dire* use the `reveal` Definition; amplify counts "for each card revealed
+    this way" by `forEach … was (reveal which) thisWay` [CR#702.38a]; pin
+    `OffStack.amplifyCountsTheCardsRevealedThisWay`).
+  - **LOW, reconfigure's unattach stamped with the attach deed** [CR#701.3d,702.151a].
+    **Done 2026-10-24: qyzpptsz** (header dropped: unattaching is no attaching, so the bare
+    attachment change names no deed; no unattach Definition added, since the CR defines no
+    "unattach" keyword action of its own).
+  - **LOW, fixtures.** **Done 2026-10-24: vzlwtkkr** (relabeled: `exploreDef`/`conniveDef` are
+    `revealThenCountDef`/`drawDiscardCountDef` over the deeds `revealThenCount`/`drawDiscardCount`,
+    plainly fixtures; `explore_def_sound`/`connive_def_sound` renamed
+    `reveal_then_count_def_sound`/`draw_discard_count_def_sound`. Rewriting over production is
+    `lean-v3-proofs-and-docs-alignment`'s, whose reference is updated).
+  - **LOW, `Actor.scopedBodyCannotReadTheCaller`.** **Done 2026-10-24: otlrzvlq**
+    (`.ownScope none (destroy it)`).
+  - **LOW, `bareShapesNameNoDeed`'s citation.** **Done 2026-10-24: rvuowpmv** (cites ADR §2.1).
+  - **LOW, `shuffleZone` refused an exiled face-down pile** [CR#701.24a]. **Done 2026-10-24:
+    zvyplnpw** (a shuffle of exile is admitted; pin `Lookback.exiledPileCanBeShuffled`).
+  - **LOW, misspelled-deed pin.** **Done 2026-10-24: ttsomvqz** (`#guard_msgs` on
+    `example : Deed := destory` in `Proofs/Authoring.lean`, beside `(exile : Deed) = exile.deed`;
+    `elabDeedName`'s docstring no longer talks about cards).
 
 ### 3. `theGrantor`, `permanentActor`, Refusal Hygiene, Positional Hacks, Fuel & Dead Code (Opus §§1.16, 2.9, 2.11–2.13, 5.4, 6.7; Astra §§2, 7)
 
