@@ -40,8 +40,8 @@ private def playerReferent : Referent :=
 
 private theorem selectedCardMetadataIgnoresUnrelatedReferentOrder :
     let phrase : NounPhrase := .pro (.word .card) .one
-    let before := DRS.ofList [cardReferent, playerReferent]
-    let after := DRS.ofList [playerReferent, cardReferent]
+    let before := DRS.ofNumbered [cardReferent, playerReferent]
+    let after := DRS.ofNumbered [playerReferent, cardReferent]
     (phrase.ty before, phrase.zone before, phrase.ty after, phrase.zone after) =
       ([.creature], some .exile, [.creature], some .exile) := by decide
 

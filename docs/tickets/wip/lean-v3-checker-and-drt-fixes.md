@@ -507,6 +507,12 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `commonMovedHeaderSuccessorDoesNotResurrectOldIdentity`,
   `SelectionEvidence.preexistingTargetsAreNotReaggregated`; statements otherwise unchanged); the
   unused, ambiguous `EmptyCollection DRS` instance is deleted.
+  Review fix (H2): qyqmouxs. `DrtCards.typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent`
+  wrote id 17 into `DRS.ofList`, which now renumbers it, so its claim was vacuous; it uses
+  `DRS.ofNumbered` and asserts `(initial.findById? 17).isSome`. `Check/Queries.lean`'s
+  `selectedCardMetadataIgnoresUnrelatedReferentOrder` also wrote ids (7, 3) and uses
+  `DRS.ofNumbered`, keeping its claim that only list order changes. No other `DRS.ofList` literal
+  writes an id.
   lsqzsrwt: the `ownScope` step (where `enact`'s `pendingRoles.take` now lives) reads its body's
   last-clause mentions as those not pending when the body began, not by the length of a prefix;
   `ControllerSacrifice`'s private mirror (`sacrificeStampState`, `sacrificeStampProjected`,

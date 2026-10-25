@@ -104,9 +104,9 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
       id := 17, det := .target, plur := .one,
       payload := .join (.object [.planeswalker] (some .battlefield) none none none)
         (.player false) }
-    let initial := nextClause (DRS.ofList [joinedRef])
+    let initial := nextClause (DRS.ofNumbered [joinedRef])
     let out := stepZoneOwnerWith (stepOps 12) initial (some they)
-    out.2 = [] ∧ (out.1.findById? 17).map (·.payload) =
+    (initial.findById? 17).isSome = true ∧ out.2 = [] ∧ (out.1.findById? 17).map (·.payload) =
       (initial.findById? 17).map (·.payload) := by decide
 
 theorem distributedDamagePublishesItsRecipientGroup :
