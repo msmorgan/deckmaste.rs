@@ -178,18 +178,18 @@ were re-located against the Lean source on 2026-10-24.
   - `epic` [CR#702.50a] `Keywords.lean:627-636`.
   `demonstrate` (`Keywords.lean:485-493`) is correctly unguarded: [CR#702.144a] grants "you may
   choose new targets for the copy" with no condition.
-  **Live** (STOP, 2026-10-25). `zkzrxmwr` guarded each body with `doIf (is thisSpell (targeting
+  **Superseded** by the owner ruling of 2026-10-25: the item is dropped and the bodies stay
+  unguarded. `may (chooseNewTargets …)` already says it, and whether the spell has targets is the
+  stack object's runtime state. History: `zkzrxmwr` guarded each body with `doIf (is thisSpell (targeting
   .any .someTarget))`, which is wrong and was reverted by `rrrusrnr`: "that targets" reads the
   targets' current state [CR#115.9b], so a target that left its zone drops out, while "if the spell
   has any targets" asks whether targets were chosen for it, and a vanished or illegal target is
   still one the copy may keep [CR#707.10,707.10c]. Epic's guard was always false (the spell has
   left the stack by each upkeep), and storm's turned false when *Grapeshot*'s target was
-  sacrificed. No existing `TargetExtent` or predicate reads "had targets chosen" ([CR#115.9a]'s
-  count of times chosen); the options are in the 2026-10-25 report. The pin
+  sacrificed. The pin
   `copyKeywordsGuardNewTargetsOnTheSpellsTargets` was retired with the guard and
-  `stormCountsEarlierThisTurn` restored to the unguarded tail. When the guard lands, the v2 RON
-  mirrors (`storm.ron`, `replicate.ron`, `gravestorm.ron`, `casualty.ron`, `conspire.ron`,
-  `epic.ron`) are out of reach: they are deletion-bound and take no new variants.
+  `stormCountsEarlierThisTurn` restored to the unguarded tail; the v2 RON mirrors are unguarded
+  too, as wanted.
 - **Route keyword bodies through keyword-action `Definitions` (§3.2):**
   - Replace raw `.search` / `.shuffle` in `transmute` and `transfigure`
     (`Keywords.lean:1632-1646`, `:1619-1630`; Definitions `search` and `shuffle` at

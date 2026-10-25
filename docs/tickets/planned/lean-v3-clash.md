@@ -17,10 +17,11 @@ optional bottom: it has no opponent and no winner [CR#701.30b..701.30d]
   a coin flip's is read as `did you (flipCoins 1 (some .wins)) thisWay` (`Cards/Faces.lean`). No `wonClash` Condition is minted.
 - A player wins a clash if they revealed a card with a higher mana value than all other cards
   revealed in it [CR#701.30d].
-- "Clash with an opponent" [CR#701.30b], "Choose an opponent. You and that opponent each clash,"
-  is one Definition. Its body keeps [CR#701.30c]: the clashing players reveal at the same time,
-  decide in APNAP order [CR#101.4] where to put their cards, and the cards move at the same time.
-  A per-player `instruct (eachOf …) clash` loop would serialize the reveals, against
-  [CR#701.30c], so the body is not written that way.
+- "Clash with an opponent" is one Definition, [CR#701.30b]'s composition: "Choose an opponent. You
+  and that opponent each clash," plus the win/lose outcome read back with `did … thisWay`
+  [CR#701.30d].
+- The simultaneous reveal, the APNAP decisions and the simultaneous move [CR#701.30c] are the
+  engine's procedure (owner update 2026-10-25; `docs/decisions/semantics-v3.md` §0.1 item 4:
+  timing and order are the engine's). The body does not encode them.
 - "Whenever you clash" triggers for each clashing player, so each player's clash is a clash
   event carrying the `clash` deed.
