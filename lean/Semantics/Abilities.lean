@@ -1271,8 +1271,10 @@ mutual
     | conclude (verb : OutcomeVerb) (cause : Option StateBasedCause := none)
     | restartGame
     | separateIntoPiles (group : NounPhrase) (piles : Nat) (faces : List PileFace)
-    /-- The `when` rider is the printed "as you activate this ability": the announcement's
-    timing, not a condition on what may be chosen. -/
+    /-- The `when` rider is the printed "as you activate this ability": it times the choice by
+    its description, comparisons included ("target opponent who has more life than you do as you
+    activate this ability"). How activation and resolution evaluate that description
+    [CR#601.2c,608.2b] is the engine's. -/
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
         (when : Option Timing)
     | revealChoices (sort : HiddenSort)

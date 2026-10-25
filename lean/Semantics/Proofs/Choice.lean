@@ -542,7 +542,8 @@ def opponentWithMoreLife : NounPhrase :=
   target (.and [(.isOpponentOf .you), .compare [.playerStat .lifeTotal] .greater (lifeTotalOf .you)])
 
 /-- "Choose target opponent who has more life than you do as you activate this ability.": the
-rider times the announcement, not the comparison. -/
+rider times the choice by its description, the comparison included; how activation and
+resolution evaluate it is the engine's [CR#601.2c,608.2b]. -/
 theorem okChoiceWithActivationRider :
     Action.check (DRS.ofList [])
       (chooseWhile opponentWithMoreLife (.whileDoing (.does (.actor .you) (.procedure .activate thisAbility .itsOwnCost none none none)))) = [] := by

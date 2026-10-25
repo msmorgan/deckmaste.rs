@@ -465,8 +465,11 @@ Where a done ticket recorded the current shape as intended, this section superse
   slot, `chooseWhile`, `Templates.lean:1191-1192`) and the pin `okChoiceWithActivationRider`
   (`Proofs/Choice.lean:544-549`), whose docstring says "the rider times the announcement, not the
   comparison".
-  **Live** (STOP, 2026-10-25 report): either option needs a construct the AST lacks, a comparison
-  read only at the announcement and excluded from the [CR#608.2b] recheck.
+  **Superseded** by the owner ruling of 2026-10-25 (no timed predicate): the card already writes
+  the printed "as you activate this ability" as `chooseWhile … (whileDoing (does you (activate
+  thisAbility)))`, and how activation and resolution evaluate it [CR#601.2c,608.2b] is the
+  engine's (ADR §0.1 item 4). The `Action.choose` docstring and `okChoiceWithActivationRider`'s
+  now say the rider times the choice by its description, comparison included.
 - *Cult of the Waxing Moon* (`Cards/Faces.lean:417-419`, review #17): `whenever (does any (turnOver
   (a (and [isPermanent, youControl])))) …` has no deed and no "non-Human creature" complement. The
   ability triggers if the object transforms or converts and "has the specified characteristic
