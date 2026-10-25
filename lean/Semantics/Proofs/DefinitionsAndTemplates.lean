@@ -88,7 +88,9 @@ theorem headGatesAgreeOnADefinitionHeader :
       (Action.devour (a isCreature)).deonticHeadOk = true := by decide
 
 /-- No deed is guessed from a body's shape: a bare move to exile, a bare status change and a bare
-creation name none; each is a keyword action only as its Definition [CR#701.13a,701.26a,701.7a]. -/
+creation name none. The checker reads a keyword action's deed only from its Definition's
+`ownScope` header (`semantics-v3.md` §2.1, "The checker does not guess a deed from a body's
+shape"). -/
 theorem bareShapesNameNoDeed :
     (Action.move (target isCreature) .anyLocation (some exileZone) .arrival []).namedDeed = none ∧
       (Action.setStatus .tapped (target isCreature)).namedDeed = none ∧
