@@ -65,7 +65,15 @@ needs: [lean-v3-rules-and-card-fidelity]
     `asEvent (does you (cast thisSpell)) (may (choose …))`, not as gift's additional cost.
     Where it falls among the steps of casting is the engine's. The checker publishes an
     optional text choice (`actionTextChoices` recurses into `withContinuation`). Pinned by
-    `okAssistDefinition` and `optionalTextChoiceIsPublished`.
+    `okAssistDefinition` and `optionalTextChoiceIsPublished`. A keyword body's announced choices
+    stay inside the keyword (`Ability.textContextWith`): the card's printed abilities do not read
+    them (`badAssistChoiceNotPublishedToCard`, `okAssistBesidePrintedChoice`). A published choice
+    is `linked`, so only "the chosen player" reads it across abilities [CR#607.2d], never `they`
+    (`badTheyDoesNotReadEarlierChoice`); no card in `Cards/` or `Proofs/` relied on the old
+    reading.
+  - *Nissa, Ascended Animist* (`Cards/Keyword.lean`): the +1 binds X (`letter .x`, then `define .x`
+    to Nissa's loyalty, as *Dokai*), and the −7 is one establish over the creatures you control,
+    as *Elspeth's Talent*.
   - `paradigm`'s copy is created in exile, `CopySort.inZone` (`qukkvxmy`).
   - Cumulative upkeep and echo pay a labelled keyword cost, `doUnlessKeywordCost`: `whose` this
     permanent, `keyword` the keyword (`ntppnnoz`, `cumulativeUpkeepPaymentIsLabelled` against

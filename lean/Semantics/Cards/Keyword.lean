@@ -1803,16 +1803,16 @@ def nissaAscendedAnimist : Spelled := spelled <| singleFacedCard
     text :=
       [ compleated,
         activated (loyaltySymbol (up 1))
-          (createToken
-            (creatureTokenOf (statOf (.stat .loyalty) thisPlaneswalker)
-              (statOf (.stat .loyalty) thisPlaneswalker) [.green] [phyrexian, horror])),
+          (sequentially
+            [ createToken (creatureTokenOf (letter .x) (letter .x) [.green] [phyrexian, horror]),
+              define .x (statOf (.stat .loyalty) thisPlaneswalker) ]),
         activated (loyaltySymbol (down 1)) (destroy (target (or [isArtifact, isEnchantment]))),
         activated (loyaltySymbol (down 7))
-          (sequentially
-            [ get (allOf (and [isCreature, youControl]))
-                (up (forEach 1 (and [forest, youControl]))) (up (forEach 1 (and [forest, youControl])))
-                untilEndOfTurn,
-              gain (allOf (and [isCreature, youControl])) trample untilEndOfTurn ]) ],
+          (establishFor (allOf (and [isCreature, youControl]))
+            [ getsPt them (up (forEach 1 (and [forest, youControl])))
+                (up (forEach 1 (and [forest, youControl]))),
+              abilityGrant them trample ]
+            untilEndOfTurn) ],
     loyalty := stat 7 }
 
 end Semantics.Cards
