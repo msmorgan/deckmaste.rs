@@ -18,13 +18,15 @@ the creature attacks, not a prohibition unless paid. Pair it with a linked refle
 "when you do". No `asEvent`, which would make the cost an effect.
 
 Why it was not done in `lean-v3-keyword-bodies-and-catalog-sync`: the cost's description needs
-two predicates the grammar lacks.
+a predicate the grammar lacks. "That you didn't choose to attack with": the cost is chosen at
+[CR#508.1g], before the chosen creatures become attacking creatures [CR#508.1k], so `isAttacking`
+doesn't say it. It needs the declaration's chosen set.
 
-- "That you didn't choose to attack with": the cost is chosen at [CR#508.1g], before the chosen
-  creatures become attacking creatures [CR#508.1k], so `isAttacking` doesn't say it. It needs the
-  declaration's chosen set.
-- "Has been under your control continuously since this turn began" as a `Predicate`: it exists
-  only as a `Condition` (`heldSince`, `controlledSinceTheirTurnBegan`).
+"Has been under your control continuously since this turn began" composes as a negated lookback.
+A creature you control has been under your control continuously since the turn began unless it
+entered or changed control this turn:
+`not (or [did which enter soFarThisTurn, did any (.changeControl which none) soFarThisTurn])`.
+It checks inside the tap's description.
 
 The linked trigger reads the tapped creature's power. The engine counts each enlist instance's
 trigger once, for its own cost [CR#702.154d].
