@@ -286,10 +286,9 @@ private def selectedContext (drs : DRS) : DRS :=
     { det := .the, plur := .one, payload := .player false } .subj true
 
 private def sacrificeStampState (fuel : Nat) (drs : DRS) (body : Action) : DRS :=
- let priorMentions := drs.pendingRoles.length
  let (after, _) := stepAction fuel .postEvent .obj drs body
  let mentions := if after.currentClause == drs.currentClause then
-    after.pendingRoles.take (after.pendingRoles.length - priorMentions)
+    after.pendingRoles.filter (!drs.pendingRoles.contains ·)
     else after.pendingRoles
  let actedIds := mentions.filterMap fun (id, role) => if role == .obj then some id else none
  applyInPlaceStamp after actedIds (some (.action "sacrifice"))
@@ -302,7 +301,7 @@ private theorem sacrificeStampProjected (fuel : Nat) (drs : DRS) (body : Action)
  sacrificeStampState fuel drs body =
  let after := (stepAction fuel .postEvent .obj drs body).1
  let mentions := if after.currentClause == drs.currentClause then
-   after.pendingRoles.take (after.pendingRoles.length - drs.pendingRoles.length)
+   after.pendingRoles.filter (!drs.pendingRoles.contains ·)
     else after.pendingRoles
  let actedIds := mentions.filterMap fun (id, role) => if role == .obj then some id else none
  applyInPlaceStamp after actedIds (some (.action "sacrifice")) := by
@@ -672,7 +671,7 @@ private theorem actualTailReduction (fuel fresh : Nat) (rs : List Referent)
  change (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
    (List.filterMap (fun x : ReferentId × GramRole => if x.2 == .obj then some x.1 else none)
      (if (movedOut fresh rs).currentClause == 1 then
-       ((movedOut fresh rs).pendingRoles.take ((movedOut fresh rs).pendingRoles.length - 0))
+       ((movedOut fresh rs).pendingRoles.filter (!([] : List (ReferentId × GramRole)).contains ·))
       else (movedOut fresh rs).pendingRoles)) (some (.action "sacrifice"))))).referents =
      (dropActorFrame (leaveOwnScope (applyInPlaceStamp (sans (movedOut fresh rs))
        [fresh + 4] (some (.action "sacrifice"))))).referents

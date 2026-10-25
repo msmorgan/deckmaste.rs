@@ -491,6 +491,10 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `commonMovedHeaderSuccessorDoesNotResurrectOldIdentity`,
   `SelectionEvidence.preexistingTargetsAreNotReaggregated`; statements otherwise unchanged); the
   unused, ambiguous `EmptyCollection DRS` instance is deleted.
+  lsqzsrwt: the `ownScope` step (where `enact`'s `pendingRoles.take` now lives) reads its body's
+  last-clause mentions as those not pending when the body began, not by the length of a prefix;
+  `ControllerSacrifice`'s private mirror (`sacrificeStampState`, `sacrificeStampProjected`,
+  `actualTailReduction`'s `change`) follows; public statements unchanged.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,

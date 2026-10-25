@@ -3614,10 +3614,11 @@ def stepOps : Nat → StepOps
             let (out, selves) := performerInView out ids
             (out.pushPerformer shape, selves, errors)
             else (innerDrs, [], [])
-          let priorMentions := inner.pendingRoles.length
           let (drs1, e1) := ops.inst phase patientRole inner body
+          -- The body's mentions in its last clause: those not already pending as it began (the
+          -- Source performer's), whatever their order.
           let bodyMentions := if drs1.currentClause == inner.currentClause then
-              drs1.pendingRoles.take (drs1.pendingRoles.length - priorMentions)
+              drs1.pendingRoles.filter (!inner.pendingRoles.contains ·)
             else drs1.pendingRoles
           let actedIds := bodyMentions.filterMap fun (id, role) =>
             if role == patientRole then some id else none
