@@ -183,4 +183,57 @@ arrival [CR#603.6a]. -/
 theorem bareReturnToBattlefieldIsObservedOnArrival :
     moves 64 (returnToBattlefield (target isCreature)) = [(.anyLocation, .arrival, [])] := rfl
 
+/-! ## Card witnesses that dropped or misread a clause -/
+
+/-- The trigger event of a card's triggered abilities, in order. -/
+def triggerEvents (card : Card) : List GameEvent :=
+  (faceText card).filterMap fun
+    | .triggered event .. => some event
+    | _ => none
+
+/-- Darksteel Garrison: "Whenever fortified land becomes tapped" fires on the change from untapped
+to tapped [CR#603.2e], for mana or not (ruling 2007-05-01). -/
+theorem darksteelGarrisonWatchesBecomingTapped :
+    triggerEvents Cards.darksteelGarrison.card = [does (fortified land) (become tapped)] := rfl
+
+/-- Lightmine Field deals damage "equal to the number of attacking creatures", counted as the
+effect applies [CR#608.2h]: a creature removed from combat isn't attacking [CR#506.4]
+(rulings 2010-06-15), so the amount is the attacking creatures, not the triggering group. -/
+theorem lightmineFieldCountsAttackingCreaturesOnResolution :
+    ((faceText Cards.lightmineField.card).filterMap fun
+      | .triggered _ _ _ _ _ _ _ effect => some effect
+      | _ => none) =
+      [ instruct thisEnchantment
+          (dealDamage (countOf isAttacking) (eachOf (those creature))) ] := rfl
+
+/-- Temple Altisaur: "another Dinosaur you control", the bare "another" contrasting with the
+source of the ability (ADR semantics-v3 §0.1). -/
+theorem templeAltisaurProtectsAnotherDinosaur :
+    (faceText Cards.templeAltisaur.card) =
+      [ static (replace (would (a isSource)
+          (dealDamage anyAmount (a (and [dinosaur, youControl, isOther]))))
+          (instead (preventDamage (allBut 1)))) ] := rfl
+
+/-- Aether Gust: "target spell or permanent that's red or green". -/
+theorem aetherGustTargetsRedOrGreenSpellOrPermanent :
+    (match Cards.aetherGustPlacement with
+      | .sequentially (first :: _) => some first
+      | _ => none) =
+      some (choose (target (and [or [isSpell, isPermanent], or [hasColor .red, hasColor .green]]))) :=
+  rfl
+
+/-- Archfiend's Vessel: "exile it. If you do, create …" is followed in order [CR#608.2c]; a
+reflexive trigger is only "when [a player] does" or "when … this way" [CR#603.12]. -/
+theorem archfiendsVesselIfYouDoIsNoReflexiveTrigger :
+    ((faceText Cards.archfiendsVessel.card).filterMap fun
+      | .triggered _ _ _ _ _ _ _ (.withContinuation .required body (some _) none) => some body
+      | _ => none) = [exile it] := rfl
+
+/-- Memoricide: "Search … for any number of cards with that name and exile them. Then that player
+shuffles." The exile is not dropped. -/
+theorem memoricideExilesWhatItFinds :
+    (match Cards.memoricideSearch with
+      | .sequentially [_, _, exiling, _] => some exiling
+      | _ => none) = some (exile them) := rfl
+
 end Semantics.Proofs.CardFidelity

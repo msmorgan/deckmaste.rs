@@ -240,7 +240,7 @@ def lightmineField : Spelled := spelled <| singleFacedCard
     text :=
       [ whenever (does (counted (orMore 1) isCreature) attack)
           (instruct thisEnchantment
-             (dealDamage (numberOf (those creature)) (eachOf (those creature)))) ] }
+             (dealDamage (countOf isAttacking) (eachOf (those creature)))) ] }
 
 def ingeniousArtillerist : Spelled := spelled <| singleFacedCard
   { name := "Ingenious Artillerist", cost := [generic 2, pip .red], types := [.creature],
@@ -591,7 +591,7 @@ def templeAltisaur : Spelled := spelled <| singleFacedCard
   { name := "Temple Altisaur", cost := [generic 4, pip .white], types := [.creature],
     subtypes := [dinosaur],
     text :=
-      [ static (replace (would (a isSource) (dealDamage anyAmount (a (and [dinosaur, youControl]))))
+      [ static (replace (would (a isSource) (dealDamage anyAmount (a (and [dinosaur, youControl, isOther]))))
           (instead (preventDamage (allBut 1)))) ],
     power := stat 3, toughness := stat 4 }
 

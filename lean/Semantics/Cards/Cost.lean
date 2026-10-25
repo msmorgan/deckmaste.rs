@@ -796,7 +796,7 @@ def darksteelGarrison : Spelled := spelled <| singleFacedCard
     subtypes := [fortification],
     text :=
       [ static (abilityGrant (fortified land) indestructible),
-        whenever (does any (tapForMana (fortified land)))
+        whenever (does (fortified land) (become tapped))
           (get (target isCreature) (up 1) (up 1) untilEndOfTurn),
         fortify [generic 3] ] }
 

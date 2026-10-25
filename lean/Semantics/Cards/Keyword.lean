@@ -1159,8 +1159,8 @@ def archfiendsVessel : Spelled := spelled <| singleFacedCard
           (if_ := some (or
             [ did it (enter (from_ := yourGraveyard)) triggering,
               is it (did you (cast which (from_ := yourGraveyard)) thisObject) ]))
-          (triggerReflexively (exile it)
-            (createToken
+          (doIfDone (exile it)
+            (some <| createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [demon],
                   text := [flying], power := stat 5, toughness := stat 5 } })) ],

@@ -411,14 +411,16 @@ Where a done ticket recorded the current shape as intended, this section superse
   change from untapped to tapped [CR#603.2e], not only for mana (ruling 2007-05-01). Write `does
   (fortified land) (become tapped)` (`Status.become`, `Templates.lean:1054`, as *Gideon's Avenger*,
   `Cards/Counters.lean:113`).
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): `whenever (does (fortified land) (become tapped))`. Pin
+  `darksteelGarrisonWatchesBecomingTapped`.
 - *Lightmine Field* (`Cards/Damage.lean:257`, review #10): the amount is `numberOf (those
   creature)`, the triggering group. The Oracle text counts "attacking creatures", determined as the
   effect applies [CR#608.2h]; a creature removed from combat isn't attacking [CR#506.4] (rulings
   2010-06-15). Write `dealDamage (countOf isAttacking) (eachOf (those creature))`. This supersedes
   `docs/tickets/done/workbench-bare-plural-det.md:77-80`'s re-spelling as "the number of those
   creatures".
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): `dealDamage (countOf isAttacking) (eachOf (those creature))`. Pin
+  `lightmineFieldCountsAttackingCreaturesOnResolution`, on the resolution-time count itself.
 - *Inkshield* (review #11, §3 above; `Cards/Damage.lean:464,468`): the replaced event `would any
   (dealDamage anyAmount you)` needs `(some .combat)` (`lean-v3-damage-composition` retired
   `damageRule`), and the token is
@@ -427,12 +429,14 @@ Where a done ticket recorded the current shape as intended, this section superse
 - *Temple Altisaur* (`Cards/Damage.lean:605`, review #11): the recipient lacks "another".
   Write it with the bare "another" (`isOther`; ADR [semantics-v3](../../decisions/semantics-v3.md)
   §0.1 resolves the Contrast Anchor to the source).
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): the recipient is `a (and [dinosaur, youControl, isOther])`. Pin
+  `templeAltisaurProtectsAnotherDinosaur`.
 - *Aether Gust* (`Cards/Choice.lean:980`, review #11): `and [isPermanent, hasColor .red]` drops
   "or green" and "spell or". Write `and [or [isSpell, isPermanent], or [hasColor .red, hasColor
   .green]]`. If the spell-or-permanent subject is still refused (the documented
   `badSpellOrPermanentSubject` gap), keep "or green" and leave that half to its gap.
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): the full predicate checks; no gap left. Pin
+  `aetherGustTargetsRedOrGreenSpellOrPermanent`.
 - *Quakebringer* (`Cards/Damage.lean:1025-1031`, review #12): "This ability triggers only if …" is
   passed to `at_`'s `if_`, the intervening "if" [CR#603.4], which is rechecked on resolution, so the
   ability does nothing if the Giant dies in response. [CR#603.4] "only applies to an 'if' that
@@ -467,11 +471,12 @@ Where a done ticket recorded the current shape as intended, this section superse
   …" is `triggerReflexively`. Reflexive triggers are only "when [a player] [does or doesn't]" or
   "when [something happens] this way" [CR#603.12]; "If you do" is followed in order [CR#608.2c].
   Write `doIfDone (exile it) (some (createToken …))` (`Templates.lean:1504-1506`).
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): `doIfDone (exile it) (some <| createToken …)`. Pin
+  `archfiendsVesselIfYouDoIsNoReflexiveTrigger`.
 - *Memoricide* (`Cards/Choice.lean:964-968`, review #47): the count is fixed (`counted anyNumber
   …`), but "exile them" is missing before the shuffle. Add it. (The Idris witness is
   deletion-bound; leave it.)
-  **Reconciled 2026-10-24: live**
+  **Done** (`ztopqskq`): `exile them` before the shuffle. Pin `memoricideExilesWhatItFinds`.
 - Ties: *Padeem* (`Cards/Mana.lean:880-886`), *Seraphic Greatsword* (`Cards/Keyword.lean:1580`),
   *Undercover Butler* (`Cards/Deontic.lean:225`) and the `dethrone` Definition
   (`Definitions/Keywords.lean:494-501`) all write "the X with the most … or tied for the most" as a

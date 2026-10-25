@@ -1110,6 +1110,7 @@ def memoricideSearch : Action :=
   sequentially
     [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
       searchZonesOf (target isPlayer) (counted anyNumber (named chosenName)),
+      exile them,
       instruct (that player) shuffle ]
 theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] := by decide
 /-- Lost Hours -/
@@ -1122,7 +1123,7 @@ theorem okLostHoursPlacement : Action.check (DRS.ofList []) lostHoursPlacement =
 /-- Aether Gust -/
 def aetherGustPlacement : Action :=
   sequentially
-    [ choose (target (and [isPermanent, hasColor .red])),
+    [ choose (target (and [or [isSpell, isPermanent], or [hasColor .red, hasColor .green]])),
       instruct (ownerOf it) (put it (or [onTop, onBottom])) ]
 theorem okAetherGustPlacement : Action.check (DRS.ofList []) aetherGustPlacement = [] := by decide
 /-- Fastbond -/
