@@ -170,12 +170,13 @@ private def bodiless : Ability → Bool
 
 /-- The keywords whose rule the CR states as a rule of the game reading the keyword, not as an
 ability of its object, hold no body (`lean/CONTRACTS.md`, "Keyword abilities with no body"):
-combat procedure [CR#510.4,510.1c,702.22c], rules-table rows [CR#704.5h,502.1,704.5aa,702.164c],
-flying's rule [CR#702.17b], cost payment [CR#601.2g] and Commander deck construction
-[CR#702.124a]. -/
+their rules are rows, the combat damage turn-based actions [CR#703.4k,703.4m], deathtouch's and
+start your engines!'s state-based actions [CR#704.5h,704.5aa], phasing's turn-based action
+[CR#703.4a] and toxic's damage result [CR#702.164c], or flying's rule [CR#702.17b]; or they are
+Commander deck construction [CR#702.124a]. -/
 theorem intentionallyBodiless :
     [ firstStrike, doubleStrike, trample, deathtouch, banding, bandsWithOther isCreature, reach,
-      phasing, startYourEngines, toxic 1, assist, partner, partnerCharacterSelect,
+      phasing, startYourEngines, toxic 1, partner, partnerCharacterSelect,
       partnerFatherAndSon, partnerFriendsForever, partnerSurvivors, chooseABackground,
       doctorsCompanion ].all bodiless = true := by decide
 

@@ -611,27 +611,26 @@ not an execution proof.
 A keyword ability's Definition holds the abilities the keyword represents (`Ability.keyword`'s
 `body`). A keyword whose rule the CR states as a rule of the game that reads the keyword, rather
 than as an ability of the object that has it, has an empty body: the keyword is a fact the rule
-asks about (`hasKeyword`), and the rule is the combat procedure's, the rules tables' or the
-deck-construction rules'. These are the intentionally bodiless keyword Definitions in
-`Definitions/Keywords.lean`, each with the rule that holds its meaning:
+asks about (`hasKeyword`), and the rule is a rules-table row (`Proofs/Rules.lean`) or a
+deck-construction rule. These are the bodiless keyword Definitions in `Definitions/Keywords.lean`,
+each with the rule that holds its meaning:
 
 | Keyword | Where its rule is |
 |---|---|
-| `firstStrike`, `doubleStrike` | The combat damage step: which creatures assign combat damage in which step [CR#702.7b,702.4b,510.4]. |
-| `trample` | The assignment of an attacking creature's combat damage [CR#702.19b,510.1c]. |
-| `deathtouch` | Lethal damage in combat damage assignment [CR#702.2c], and the state-based action that destroys a creature dealt damage by a deathtouch source [CR#702.2b,704.5h], a rules-table row (none is written yet: see "Rules tables"). |
-| `banding`, `bandsWithOther` | Declaring attacking bands and assigning combat damage among them [CR#702.22c..702.22k]. |
+| `firstStrike`, `doubleStrike`, `trample`, `banding`, `bandsWithOther` | The combat damage turn-based actions, assigning and dealing combat damage [CR#703.4k,703.4m,510.4,702.19b,702.22c]: rows not yet written (`lean-v3-combat-damage-rule-rows`). |
+| `deathtouch` | The state-based action that destroys a creature dealt damage by a deathtouch source [CR#702.2b,704.5h], `deathtouchDestruction`; and lethal damage in combat damage assignment [CR#702.2c] (`lean-v3-combat-damage-rule-rows`). |
+| `phasing` | The untap step's phasing turn-based action [CR#703.4a,502.1,702.26a], `phasingTurnBased`. |
+| `startYourEngines` | A state-based action giving a player with no speed a speed of 1 [CR#702.179a,704.5aa]: no row yet, since no action sets speed (`lean-v3-player-speed-rules`). |
+| `toxic` | The result of combat damage to a player, reading the creature's total toxic value [CR#702.164b,702.164c], `toxicPoison`. |
 | `reach` | Flying's rule, "can't be blocked except by creatures with flying and/or reach" [CR#702.17b,702.9b], which `flying`'s body writes. |
-| `phasing` | The untap step's first turn-based action [CR#702.26a,502.1], a rules-table row (none is written yet). |
-| `startYourEngines` | A state-based action giving a player with no speed a speed of 1 [CR#702.179a,704.5aa], a rules-table row (none is written yet). |
-| `toxic` | The result of combat damage to a player, reading the creature's total toxic value [CR#702.164b,702.164c], a rules-table row (`Proofs/Rules.lean`). |
-| `assist` | The steps of paying the spell's total cost [CR#702.132a,601.2g,601.2h]. |
 | `partner`, `partnerCharacterSelect`, `partnerFatherAndSon`, `partnerFriendsForever`, `partnerSurvivors`, `chooseABackground`, `doctorsCompanion` | Deck construction in the Commander variant, before the game begins [CR#702.124a]. `partnerWith`'s first ability is too; its body writes the second, its entering trigger [CR#702.124j]. |
 
-`Proofs/KeywordAbilityCensus.lean` pins each of these bodiless (`intentionallyBodiless`). The
-other keyword Definitions with an empty body, `companion`, `compleated`, `craft`, `disturb`,
-`echo`, `enlist`, `fuse`, `miracle`, `moreThanMeetsTheEye`, `prototype` and `suspend`, are not in
-this set: each represents abilities of its object that the grammar cannot yet write.
+Only the deck-construction keywords are bodiless because nothing in the game applies their rule;
+the others are bodiless because their rule is the game's, written as a row. A keyword whose rule
+is stated about its own object has a body even where it modifies a game procedure: vigilance's
+"attacking doesn't cause creatures with vigilance to tap" [CR#702.20b] is a cause-qualified
+prohibition of that tap [CR#508.1f], so `vigilance`'s body states it.
+`Proofs/KeywordAbilityCensus.lean` pins each of these bodiless (`intentionallyBodiless`).
 
 ## Scheduling fields
 

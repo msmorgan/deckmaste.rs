@@ -108,6 +108,45 @@ theorem planeswalkerDamageResultIsNotAnAbility :
       | .property _ => true
       | _ => false) = true := rfl
 
+/-! ## The rules that read a keyword
+
+A keyword whose rule the CR states as a rule of the game, not as an ability of its object, holds
+no body (`lean/CONTRACTS.md`, "Keyword abilities with no body"); its rule is a row here, as
+toxic's is. -/
+
+/-- [CR#702.2b,704.5h] "If a creature has toughness greater than 0, and it's been dealt damage by
+a source with deathtouch since the last time state-based actions were checked, that creature is
+destroyed." The source is read as it dealt the damage, from any zone [CR#702.2d]; "is destroyed"
+is the destroy action, which regeneration can replace. -/
+def deathtouchDestruction : SbaRule :=
+  { scope := isCreature,
+    when :=
+      .and
+        [ .compareAmt (toughnessOf .this) .greater 0,
+          did (by_ (a (and [isSource, hasKeyword deathtouch]))) (dealDamage anyAmount .this)
+            (within (.between (some .stateBasedActionsChecked) (some .now))) ],
+    then_ := destroy .this }
+theorem okDeathtouchDestruction : SbaRule.check deathtouchDestruction = [] := by decide
+
+/-- [CR#703.4a,502.1,702.26a] "Immediately after the untap step begins, all phased-in permanents
+with phasing that the active player controls phase out, and all phased-out permanents that the
+active player controlled when they phased out phase in." One row, so each permanent does one or
+the other: one phased out this way is not phased in again by the same action. The active player
+is read as the controller whose turn it is [CR#102.1]. The phase-in half reads the phased-out
+permanent's present controller, which phasing does not change [CR#702.26d]; it differs from the
+one it phased out under only if a control effect ended while it was phased out [CR#702.26f], and
+reading that one needs a term for the active player (`lean-v3-active-player-term`). That every
+permanent changes at once is the engine's. -/
+def phasingTurnBased : ConferralRule :=
+  { scope := isPermanent,
+    confer :=
+      .turnBased .untapStep
+        (doIf (.duringPart .turn (some (controllerOf .this)))
+          (doIf (is .this isPhasedOut) (.setStatus .phasedIn .this)
+            (some (doIf (is .this (hasKeyword phasing)) (.setStatus .phasedOut .this) none)))
+          none) }
+theorem okPhasingTurnBased : ConferralRule.check phasingTurnBased = [] := by decide
+
 /-! ## Registry definitions -/
 
 /-- [CR#122.1] "A counter is a marker placed on an object or player." A charge counter is a
