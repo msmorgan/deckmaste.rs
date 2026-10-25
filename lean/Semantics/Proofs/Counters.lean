@@ -111,14 +111,22 @@ theorem alternateHeadersPublishTheirSelf :
         (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature block)))).map (·.id) = some 0 := by
   decide
 
+/-- Three headers that each name the Source publish it, read by "its" in the handoff to it. In
+the handoff's own clause the performer stays the self-referent no noun word reads (owner ruling
+2026-10-24), so "that creature" there finds no other creature and is refused; "it" reads the
+Source outside the handoff too. -/
 theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (whenever (does thisCreature attack)
         (or_ := [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)])
-        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)))))
+        (Action.instruct thisCreature (.dealDamage (powerOf it) (each (.isOpponentOf .you)))))
       = [] ∧
-      -- Outside the handoff the Source is a self-referent, read by "it", not "that creature"
-      -- (`Determiner.self`; owner ruling 2026-10-24); inside it, the performer is in view.
+      Ability.check (DRS.ofList [])
+        (whenever (does thisCreature attack)
+          (or_ := [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)])
+          (Action.instruct thisCreature
+            (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)))))
+        = [.anaphor (.word (.type .creature)) .one 0] ∧
       (firstReach .bare .one
         (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature attack)))).map (·.id) = some 0 := by
   decide

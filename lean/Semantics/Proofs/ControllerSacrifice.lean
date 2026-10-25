@@ -865,8 +865,8 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
     isYou := subject.isYou
     ascribable := false
     refIds := ids }
-  let (inView, selves) := performerInView selected ids
-  let framed := inView.pushPerformer shape
+  let selves := selected.handedSelves ids
+  let framed := selected.pushPerformer { shape with selves }
   let (after, _) := withDistributiveSubject subject ids framed (stepAction fuel .postEvent .obj · body)
   let out := performerOutOfView (dropActorFrame after) selves
   { out with outerReferentIds := out.outerReferentIds.drop 1 }
@@ -908,15 +908,14 @@ private theorem nonDistributiveReferents (subject : NounPhrase) (ids : List Refe
   rw [plain]
   rfl
 
-/-- The controller is no self-referent, so the handoff puts nothing in view. -/
+/-- The controller is no self-referent, so the handoff has nothing to put in view. -/
 private theorem controllerAlreadyInView (drs : DRS) :
-    performerInView (selectedContext { drs with
-      outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }) [drs.nextId + 3] =
-      (selectedContext { drs with
-        outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }, []) := by
+    (selectedContext { drs with
+      outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }).handedSelves
+        [drs.nextId + 3] = [] := by
   have h := selectedController { drs with
     outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
-  simp only [performerInView, List.filter_cons, List.filter_nil, h, controllerRecord,
+  simp only [DRS.handedSelves, List.filter_cons, List.filter_nil, h, controllerRecord,
     Option.any_some]
   rfl
 

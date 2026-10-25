@@ -866,14 +866,19 @@ def mentionThis (drs : DRS) (role : GramRole) (inArgSlot : Bool) :
       payload := .object drs.sourceTypes none none none none }
     (drs.push ref role inArgSlot, [drs.nextId], errors)
 
-/-- Put a handoff's performer in view (owner ruling 2026-10-24): inside the handoff, the Source
-performing it is an ordinary referent (`det := .the`), so a Definition worded as the CR words it
-reads the performing permanent by a noun word, "that permanent" [CR#701.63a]; returns the ids it
-changed. "You" stays a self-referent: no third-person "they" or "that player" names the player
-the text addresses. -/
-def performerInView (drs : DRS) (ids : List ReferentId) : DRS × List ReferentId :=
-  let selves := ids.filter fun id =>
+/-- The Source referents among a handoff's performer `ids`: the selves its frame puts in view past
+its own clause (`ActorShape.selves`). "You" stays a self-referent: no third-person "they" or
+"that player" names the player the text addresses. -/
+def DRS.handedSelves (drs : DRS) (ids : List ReferentId) : List ReferentId :=
+  ids.filter fun id =>
     (drs.findById? id).any (fun ref => ref.det == .self && ref.kind != .player)
+
+/-- Put a Definition's implicit performer in view (owner ruling 2026-10-24): inside the
+Definition's body, the Source performing it is an ordinary referent (`det := .the`), so a
+Definition worded as the CR words it reads the performing permanent by a noun word, "that
+permanent" [CR#701.63a]; returns the ids it changed. -/
+def performerInView (drs : DRS) (ids : List ReferentId) : DRS × List ReferentId :=
+  let selves := drs.handedSelves ids
   (selves.foldl (fun d id => d.updateById id fun r => { r with det := .the }) drs, selves)
 
 /-- Leave a handoff: its performer, if still the object it was, is a self-referent again. -/
@@ -3643,8 +3648,8 @@ def stepOps : Nat → StepOps
                 if refIds.contains r.id then { r with plur := .one } else r }
             else drs1
           let framePlur := if subj.det == some .each then Plurality.many else subj.plur
-          let (memberDrs, selves) := performerInView memberDrs refIds
-          let drs2 := memberDrs.pushPerformer { shape with plur := framePlur }
+          let selves := memberDrs.handedSelves refIds
+          let drs2 := memberDrs.pushPerformer { shape with plur := framePlur, selves }
           let (drs3, e2) := withDistributiveSubject subj refIds drs2 (ops.inst phase .obj · body)
           let outerIds := drs3.outerReferentIds.headD []
           let currentSubjectIds := (actorShape? drs3).map (·.refIds) |>.getD refIds

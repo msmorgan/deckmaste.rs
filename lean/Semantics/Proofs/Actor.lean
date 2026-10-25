@@ -856,4 +856,35 @@ theorem twoYousAreOneReferent :
       (·.kind == .player)).map (fun ref => (ref.id, ref.det)) = [(0, .self)] := by
   decide
 
+/-- *Terror of the Peaks*: "Whenever another creature you control enters, this creature deals
+damage equal to that creature's power to any target." In the handoff's own clause the Source
+stays the self-referent no noun word reads (owner ruling 2026-10-24), so "that creature" reads
+the creature that entered: with no other creature in the header it finds none. -/
+theorem terrorOfThePeaksThatCreatureIsTheEnteringCreature :
+    Ability.check (DRS.ofList [])
+        (whenever (does (a (and [isCreature, isOther, youControl])) enter)
+          (Action.instruct thisCreature
+            (.dealDamage (powerOf (that (.type .creature))) (target isAnyTarget) none))) = [] ∧
+      Ability.check (DRS.ofList [])
+        (whenever (does thisCreature enter)
+          (Action.instruct thisCreature
+            (.dealDamage (powerOf (that (.type .creature))) (target isAnyTarget) none))) =
+        [.anaphor (.word (.type .creature)) .one 0] := by
+  decide
+
+/-- *Rampaging Ferocidon*: "Whenever another creature enters, this creature deals 1 damage to
+that creature's controller." As in *Terror of the Peaks*, "that creature" in the handoff's own
+clause reads the entering creature, never the Source. -/
+theorem rampagingFerocidonThatCreatureIsTheEnteringCreature :
+    Ability.check (DRS.ofList [])
+        (whenever (does (a (and [isCreature, isOther])) enter)
+          (Action.instruct thisCreature
+            (.dealDamage 1 (controllerOf (that (.type .creature))) none))) = [] ∧
+      Ability.check (DRS.ofList [])
+        (whenever (does thisCreature enter)
+          (Action.instruct thisCreature
+            (.dealDamage 1 (controllerOf (that (.type .creature))) none))) =
+        [.anaphor (.word (.type .creature)) .one 0] := by
+  decide
+
 end Semantics.Proofs.Actor

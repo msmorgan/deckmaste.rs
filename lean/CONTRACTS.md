@@ -365,10 +365,14 @@ library" reads "it" as the damaged creature, not the Source
 introduced at its first mention and re-mentioned at every later one (`mentionThis`,
 `mentionYou`), read by a bare pronoun but never by a noun word, so "Tap this creature. Untap
 that creature." and "You choose a creature they control." are refused
-(`thisThenThatCreatureIsRefused`, `handedToYouThirdPersonDoesNotReadYou`). Inside a handoff to the
-Source (`instruct this…`, or a permanent-performed Definition's implicit performer), the
-performer is an ordinary referent (`performerInView`), so a Definition worded as the CR words it
-reads it as "that permanent" [CR#701.44a,701.63a]; "you" stays a self-referent in its own
+(`thisThenThatCreatureIsRefused`, `handedToYouThirdPersonDoesNotReadYou`). Inside a
+permanent-performed Definition's body (`ownScope`, with its implicit performer or handed to
+"this …"), and in a later clause of a handoff's action, the performer is an ordinary referent
+(`performerInView`, `performersInView`), so a Definition worded as the CR words it reads it as
+"that permanent" [CR#701.44a,701.63a]; in the handoff's own clause it stays a self-referent, so
+*Terror of the Peaks*'s "this creature deals damage equal to that creature's power" reads the
+entering creature (owner ruling 2026-10-24, `terrorOfThePeaksThatCreatureIsTheEnteringCreature`,
+`rampagingFerocidonThatCreatureIsTheEnteringCreature`). "You" stays a self-referent in its own
 handoff. `nextClause` commits the
 pending roles, advances `currentClause` and clears `pronounResolved`.
 

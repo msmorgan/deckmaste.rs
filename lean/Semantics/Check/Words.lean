@@ -228,14 +228,19 @@ def GramRole.rank : GramRole → Nat
 /-- The performer of a handoff (`Action.instruct`, a subject's clause, or a permanent-performed
 deed's implicit performer), as `DRS.performers` holds it: its kind, whether it is "you", whether
 a quality can be ascribed to it, the referents it names (none for a performer of a kind only, as
-"a player"; several for a group), and its number. -/
+"a player"; several for a group), and its number. `selves`: the Source referents a handoff to
+"this …" hands the action to, which come in view (`det := .the`) only past the handoff's own
+clause, in a later clause of its action or in a Definition's body (`DRS.performersInView`;
+owner ruling 2026-10-24). -/
 structure ActorShape where
   kind         : Kind
   isYou        : Bool
   ascribable   : Bool
   refIds       : List ReferentId := []
   plur         : Plurality := .one
+  selves       : List ReferentId := []
   deriving DecidableEq, Repr
+
 
 /-- Domain-sort and characteristic facts of a discourse referent (`semantics-v3.md` §1.2).
 `parameterFrame`, `scopeFrame`, `hidden`, `masked`, and `amount` are gone. -/
@@ -666,10 +671,22 @@ def DRS.pushAll (additions : List Referent) (drs : DRS) (role : GramRole := .oth
 instance : HAppend (List Referent) DRS DRS where
   hAppend rs drs := drs.pushAll rs
 
+/-- The referents of `referents` with each handoff's Source performer (`ActorShape.selves`) put
+in view as an ordinary referent (`det := .the`), so a later clause of the handoff's action, or a
+Definition's body worded as the CR words it ("that permanent" [CR#701.63a]), reads it by a noun
+word; in the handoff's own clause it stays the self-referent no noun word reads ("This creature
+deals damage equal to that creature's power" reads another creature). -/
+def performersInView (performers : List ActorShape) (referents : List Referent) :
+    List Referent :=
+  match performers.flatMap (·.selves) with
+  | [] => referents
+  | ids => referents.map fun r =>
+    if r.det == .self && ids.contains r.id then { r with det := .the } else r
+
 /-- Advance the clause counter (`semantics-v3.md` §1.2): commits buffered `pendingRoles` updates
 (`clause` and `role`) onto `drs.referents`, clears `pendingRoles`, and resets `pronounResolved`. -/
 def nextClause (drs : DRS) : DRS :=
-  let updated := drs.referents.map fun r =>
+  let updated := (performersInView drs.performers drs.referents).map fun r =>
     match drs.pendingRoles.find? (fun (id, _) => id == r.id) with
     | some (_, slotRole) =>
         { r with clause := drs.currentClause, role := slotRole, pronounResolved := false }
@@ -1483,6 +1500,7 @@ def enterOwnScope (drs : DRS) (deed : Option Deed := none) : DRS :=
   }
   -- A Definition is written for any Source, so its Source's Card Types are unknown.
   { (enterSelectionScope drs) with
+    referents     := performersInView drs.performers drs.referents
     scopeStack    := frame :: drs.scopeStack
     pendingRoles  := []
     currentClause := drs.currentClause + 1
