@@ -7,19 +7,20 @@ KeywordAbility(
     ),
     // "Melee" means "Whenever this creature attacks, it gets +1/+1 until end of turn
     // for each opponent you attacked with a creature this combat." [CR#702.121a]
+    // A count of opponents, each attacked by any number of creatures, not of
+    // attack events.
     body: [
         triggered(
             attacks(thisCreature),
             getsBoth(
                 thisCreature,
                 up(
-                    times(
+                    forEach(
                         1,
-                        eventCount(
-                            attacksWith(you, a(creature), gap(Player)),
-                            bare(opponent),
-                            thisCombat,
-                        ),
+                        and([
+                            opponent,
+                            happenedTo(attacksWith(you, a(creature), relative(Player)), thisCombat),
+                        ]),
                     ),
                 ),
                 untilEndOfTurn,

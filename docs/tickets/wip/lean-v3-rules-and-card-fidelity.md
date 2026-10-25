@@ -125,16 +125,22 @@ were re-located against the Lean source on 2026-10-24.
     `"has suspend"` filter on exiled cards (`.hasKeyword (.the (.named "suspend"))`; review #26).
     The mirror `timeTravel.ron:23-28` has the same gap, and its comment (`:4-5`) cites [CR#702.62a]
     for the suspended state, which is [CR#702.62b].
-    **Reconciled 2026-10-24: live**
+    **Done** (`zkzrxmwr`): the exiled-card arm has `.hasKeyword (.the (.named "suspend"))`, in Lean
+    and in `timeTravel.ron` (comment now cites [CR#702.62b]). Pin `timeTravelReadsSuspendedCards`
+    (`Proofs/Keyword.lean`).
   - `clash` (`[CR#701.30b..701.30d]`, `Definitions/Actions.lean:649-654`): include the opponent
     and winner condition.
     **Reconciled 2026-10-24: live**
   - `melee` (`[CR#702.121a]`, `Definitions/Keywords.lean:1098-1108`): count attacked opponents
     rather than attack events.
-    **Reconciled 2026-10-24: live**
+    **Done** (`zkzrxmwr`): `forEach 1 (and [isOpponent, did you (.attackWith (a isCreature) (some
+    .which)) thisCombat])` on each axis; `melee.ron` mirrors it with `forEach(1, and([opponent,
+    happenedTo(attacksWith(…, relative(Player)), thisCombat)]))`. Pin `meleeCountsAttackedOpponents`.
   - `shadow` (`[CR#702.28b]`, `Definitions/Keywords.lean:1432-1434`): bind `thisCreature` rather
     than quantifying over every shadow creature in the second static ability.
-    **Reconciled 2026-10-24: live**
+    **Done** (`zkzrxmwr`): `cant (.by thisCreature) (.block (allOf (and [isCreature, not shadow])))`;
+    `shadow.ron` mirrors it as an agent-role `deonticRule(thisCreature, Forbid, [Block], Agent,
+    Counterpart(…))`. Pin `shadowSecondHalfIsAboutThisCreature`.
 - **Copy keywords drop "If the spell has any targets" (added 2026-10-24; storm/replicate moved
   here from `lean-v3-proofs-and-docs-alignment` §2, its only home now):** each of these rules says
   "If the spell has any targets, you may choose new targets for" the copy or copies, but each body
@@ -149,7 +155,14 @@ were re-located against the Lean source on 2026-10-24.
   - `epic` [CR#702.50a] `Keywords.lean:627-636`.
   `demonstrate` (`Keywords.lean:485-493`) is correctly unguarded: [CR#702.144a] grants "you may
   choose new targets for the copy" with no condition.
-  **Reconciled 2026-10-24: live**
+  **Done** (`zkzrxmwr`): each body ends in `doIf (is thisSpell (targeting .any .someTarget)) (may
+  (.chooseNewTargets …))`, and storm's docstring quotes the rule. Pin
+  `copyKeywordsGuardNewTargetsOnTheSpellsTargets` (`Proofs/Keyword.lean`); rewrote
+  `stormCountsEarlierThisTurn` (`Proofs/Faces.lean`), which restates storm's tree, to the guarded
+  tail. **Live:** the v2 RON
+  mirrors (`storm.ron`, `replicate.ron`, `gravestorm.ron`, `casualty.ron`, `conspire.ron`,
+  `epic.ron`) still end in an unguarded `may(chooseNewTargets(…))`; guarding them needs a v2 mirror
+  of Lean's `NounPhrase.any` ("targets anything"), which v2's `NounPhrase` lacks.
 - **Route keyword bodies through keyword-action `Definitions` (§3.2):**
   - Replace raw `.search` / `.shuffle` in `transmute` and `transfigure`
     (`Keywords.lean:1632-1646`, `:1619-1630`; Definitions `search` and `shuffle` at

@@ -1,9 +1,9 @@
 // "Time travel" [CR#701.56a]: choose any number of permanents you control with
 // one or more time counters on them and/or suspended cards you own in exile
 // with one or more time counters on them, and for each put a time counter on it
-// or remove one from it. A suspended card is read as its state — an exiled card
-// its owner owns bearing time counters [CR#702.62a]. "You" is the actor,
-// whoever time travels.
+// or remove one from it. A suspended card is read as its state — a card in
+// exile that has suspend and a time counter [CR#702.62b] — owned by the actor.
+// "You" is the actor, whoever time travels.
 KeywordAction(
     name: "timeTravel",
     params: [],
@@ -24,6 +24,7 @@ KeywordAction(
                         card,
                         inZone(exileZone),
                         ownedBy(actor),
+                        hasKeyword(The(suspend)),
                         hasCounters(timeCounter),
                     ]),
                 ]),

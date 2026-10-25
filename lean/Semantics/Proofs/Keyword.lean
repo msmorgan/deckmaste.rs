@@ -510,4 +510,61 @@ theorem reconfigureUnattachesWithoutTheAttachDeed :
       | _ => none) = some (unattach thisPermanent) ∧
       (unattach thisPermanent).ownDeed? = none := ⟨rfl, rfl⟩
 
+/-- Shadow's second half binds this creature as the blocker [CR#702.28b]: creatures without
+shadow can't be blocked by it, not by every creature with shadow. -/
+theorem shadowSecondHalfIsAboutThisCreature :
+    (match shadow with
+      | .keyword _ _ [_, .static (.cant subject action _)] => some (subject, action)
+      | _ => none) =
+      some (.by thisCreature,
+        .block (allOf (and [isCreature, not (.hasKeyword (.the (.named "shadow")))]))) := rfl
+
+/-- Melee counts opponents attacked with a creature this combat, not attack events [CR#702.121a]:
+each axis gets one per such opponent. -/
+theorem meleeCountsAttackedOpponents :
+    let perOpponent : Amount := forEach 1 (and [isOpponent,
+      did you (.attackWith (a isCreature) (some .which)) thisCombat])
+    (match melee with
+      | .keyword _ _ [.triggered _ _ _ _ _ _ _
+          (.establish (.characteristicChange _ [.stat _ _ power, .stat _ _ toughness]) _)] =>
+        some (power, toughness)
+      | _ => none) = some (perOpponent, perOpponent) := rfl
+
+/-- Time travel's exiled cards are suspended ones [CR#701.56a]: a suspended card has suspend as
+well as a time counter [CR#702.62b]. -/
+theorem timeTravelReadsSuspendedCards :
+    (match timeTravel with
+      | .ownScope _ (.sequentially (.choose _ (.described _ (.coord _ [_, exiled]) ) _ _ :: _)) =>
+        some exiled
+      | _ => none) =
+      some (and [.isCard, .in_ exileZone, ownedBy .actor,
+        .hasKeyword (.the (.named "suspend")), .hasCounters timeCounter]) := rfl
+
+/-- The last step of a keyword's last ability's effect, when it is a sequence: where the copy
+keywords offer new targets. -/
+private def copyKeywordLastStep (keyword : Ability) : Option Action :=
+  let last : Action → Option Action
+    | .sequentially steps => steps.getLast?
+    | _ => none
+  match keyword with
+  | .keyword _ _ abilities =>
+    match abilities.getLast? with
+    | some (.triggered _ _ _ _ _ _ _ effect) => last effect
+    | some (.spell _ (.delay _ _ _ effect)) => last effect
+    | _ => none
+  | _ => none
+
+/-- "If the spell has any targets, you may choose new targets for" the copy or copies
+[CR#702.40a,702.56a,702.69a,702.153a,702.78a,702.50a]: each copy keyword guards its new-target
+choice on the spell's targeting. -/
+theorem copyKeywordsGuardNewTargetsOnTheSpellsTargets :
+    let guarded (copies : NounPhrase) : Action :=
+      doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets copies))
+    copyKeywordLastStep storm = some (guarded (.pro (.word .copy) .many)) ∧
+      copyKeywordLastStep (replicate (.mana [generic 1])) = some (guarded (those .copy)) ∧
+      copyKeywordLastStep gravestorm = some (guarded (those .copy)) ∧
+      copyKeywordLastStep (casualty 2) = some (guarded (that .copy)) ∧
+      copyKeywordLastStep conspire = some (guarded (that .copy)) ∧
+      copyKeywordLastStep epic = some (guarded (that .copy)) := ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
+
 end Semantics.Proofs.Keyword

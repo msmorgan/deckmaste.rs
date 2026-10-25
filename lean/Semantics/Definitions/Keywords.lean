@@ -22,8 +22,9 @@ semantic_definition levelUp (cost : Cost) : Ability :=
   .keyword (.named "levelUp") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
         (putCounters 1 levelCounter thisPermanent) asSorcery ]
-/-- "Storm" with its reminder text: "When you cast this spell, copy it for each other spell that
-was cast before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
+/-- "Storm": "When you cast this spell, copy it for each other spell that was cast before it this
+turn. If the spell has any targets, you may choose new targets for any of the copies."
+[CR#702.40a] -/
 semantic_definition storm : Ability :=
   .keyword (.named "storm") []
     [ when (does you (cast thisSpell))
@@ -33,7 +34,7 @@ semantic_definition storm : Ability :=
                 (cast (a (and [isSpell, isOther])))
                 (a .anyPlayer) earlierThisTurn)
               [],
-            may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ]
+            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (.pro (.word .copy) .many))) ]) ]
 /-- "Cascade" with its reminder text [CR#702.85a]. -/
 semantic_definition cascade : Ability :=
   let cheaper : Predicate :=
@@ -367,7 +368,9 @@ semantic_definition casualty (amount : Amount) : Ability :=
           true .once),
       when (does you (cast thisSpell))
         (if_ := keywordCostPaid (.named "casualty") thisSpell)
-        (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
+        (sequentially
+          [ copyOnStack thisSpell,
+            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ]) ]
 semantic_definition champion (quality : Predicate) : Ability :=
   .keyword (.named "champion") [.subject (.inCaller quality)]
     [ when (does thisPermanent enter)
@@ -421,7 +424,9 @@ semantic_definition conspire : Ability :=
           true .once),
       when (does you (cast thisSpell))
         (if_ := keywordCostPaid (.named "conspire") thisSpell)
-        (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
+        (sequentially
+          [ copyOnStack thisSpell,
+            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ]) ]
 semantic_definition convoke : Ability :=
   .keyword (.named "convoke") []
     [ static
@@ -635,7 +640,7 @@ semantic_definition epic : Ability :=
           (sequentially
             [ .copy .fromStack thisSpell 1
                 [.edits [.removedAbilities (.specified [.term (.the (.named "epic"))])]],
-              may (.chooseNewTargets (that .copy)) ])) ]
+              doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ])) ]
 semantic_definition equip (cost : Cost) : Ability :=
   .keyword (.named "equip") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
@@ -840,7 +845,7 @@ semantic_definition gravestorm : Ability :=
         (sequentially
           [ copyOnStack thisSpell
               (eventCount die (a isPermanent) soFarThisTurn),
-            may (.chooseNewTargets (those .copy)) ]) ]
+            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (those .copy))) ]) ]
 semantic_definition harmonize (cost : Cost) : Ability :=
   .keyword (.named "harmonize") [.cost (.inCaller cost)]
     [ static
@@ -1098,16 +1103,17 @@ semantic_definition megamorph (cost : Cost) : Ability :=
         (replace (would any (turnFaceUp thisPermanent))
           (doIf (keywordCostPaid (.named "morph") thisPermanent)
             (alongside (putCounters 1 p1p1Counter thisPermanent)))) ]
+/-- "Melee": "Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent
+you attacked with a creature this combat." [CR#702.121a]: a count of opponents, each attacked by
+any number of creatures, not of attack events. -/
 semantic_definition melee : Ability :=
   .keyword (.named "melee") []
     [ whenever (does thisCreature (.attack none))
         (get thisCreature
-          (.up
-            (times 1
-              (eventCount (.attackWith (a isCreature) (some .which)) you thisCombat)))
-          (.up
-            (times 1
-              (eventCount (.attackWith (a isCreature) (some .which)) you thisCombat)))
+          (.up (forEach 1 (and [isOpponent,
+            did you (.attackWith (a isCreature) (some .which)) thisCombat])))
+          (.up (forEach 1 (and [isOpponent,
+            did you (.attackWith (a isCreature) (some .which)) thisCombat])))
           untilEndOfTurn) ]
 /-- "Menace": "This creature can't be blocked except by two or more creatures."
 [CR#702.111b] -/
@@ -1392,7 +1398,7 @@ semantic_definition replicate (cost : Cost) : Ability :=
         (if_ := keywordCostPaid (.named "replicate") thisSpell)
         (sequentially
           [ copyOnStack thisSpell (timesPaid (.byKeyword (.named "replicate")) thisSpell),
-            may (.chooseNewTargets (those .copy)) ]) ]
+            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (those .copy))) ]) ]
 /-- "Retrace": "You may cast this card from your graveyard by discarding a land card as an
 additional cost to cast it" [CR#702.81a]. The discard is added to the mana cost or an alternative
 cost, so an alternative cost still applies [CR#118.9a,601.2b]. -/
@@ -1430,13 +1436,16 @@ semantic_definition scavenge (cost : Cost) : Ability :=
         (putCounters (powerOf (the (and [isCard, did you (exile which)])))
           p1p1Counter (target isCreature))
         asSorcery ]
+/-- "Shadow": "A creature with shadow can't be blocked by creatures without shadow, and a creature
+without shadow can't be blocked by creatures with shadow." [CR#702.28b] Each half is about this
+creature: creatures without shadow can't block it, and it can't block them. -/
 semantic_definition shadow : Ability :=
   .keyword (.named "shadow") []
     [ static
         (cant (.by (allOf (and [isCreature, not (.hasKeyword (.the (.named "shadow")))])))
           (.block thisCreature)),
       static
-        (cant (.by (allOf (and [isCreature, .hasKeyword (.the (.named "shadow"))])))
+        (cant (.by thisCreature)
           (.block (allOf (and [isCreature, not (.hasKeyword (.the (.named "shadow")))])))) ]
 /-- "Shroud": "This permanent or player can't be the target of spells or abilities"
 [CR#702.18a], written over its holder (`this_`). -/
