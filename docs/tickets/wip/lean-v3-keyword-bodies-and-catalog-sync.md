@@ -47,6 +47,23 @@ needs: [lean-v3-rules-and-card-fidelity]
   freerunning, fuse, moreThanMeetsTheEye, paradigm, the five partner variants and partnerWith,
   phasing, startYourEngines, trample, vigilance, companion — still needs the audit; `toxic`
   (`:1602-1603`) is bodiless by the Q89 ruling.)
+  **Done (partly), 2026-10-25:** bodies for `frenzy`, `freerunning`, `encore`, `partnerWith`
+  (its entering trigger; the deck-construction ability is Commander's [CR#702.124a]) and
+  `vigilance` (a cause-qualified prohibition of the tap attacking causes [CR#702.20b,508.1f]) in
+  `nopwpnpu`, pinned `okFrenzyDefinition`, `okFreerunningDefinition`, `okEncoreDefinition`,
+  `okPartnerWithDefinition`, `okVigilanceDefinition` (`Proofs/KeywordAbilityCensus.lean`) and the
+  cards *Frenzy Sliver*, *Eagle Vision*, *Briarblade Adept*, *Blaring Captain*
+  (`Cards/Keyword.lean`). `paradigm` in `spqvkpmt`, pinned `okParadigmDefinition` and
+  *Germination Practicum*. `learn` and `empowerJace` declared in `Definitions/Actions.lean` in
+  `kqmwntuv` (learn's Lesson is `outsideTheGame`, the complement of the seven zones
+  [CR#400.11]), pinned `okLearn`, `okEmpowerJace` (`Proofs/KeywordActionResidues.lean`) and
+  *Eyetwitch*, *Countersculpt*. `prototype` records its printed parameters and the linter option
+  is gone (`rokqwlum`). Audit result: `reach`, `assist`, `banding`, `bandsWithOther`, `phasing`,
+  `startYourEngines`, `toxic`, the partner variants, `chooseABackground` and `doctorsCompanion`
+  are intentionally bodiless (next item). Still bodiless, each a STOP awaiting a decision:
+  `echo`, `suspend`, `miracle`, `prototype`, `disturb`, `moreThanMeetsTheEye`, `fuse`,
+  `compleated`, `craft`, `enlist`, `companion`, `ventureIntoTheDungeon` and the initiative's two
+  venture triggers.
 - Note: `lifelink`, `wither`, `infect`, and `toxic` were landed by
   [`lean-v3-damage-composition`](../done/lean-v3-damage-composition.md) (Q89 ruled
   2026-10-22: toxic is one rules-table result reading the total toxic value); do not
@@ -59,6 +76,9 @@ needs: [lean-v3-rules-and-card-fidelity]
   bodiless/intrinsic/firstStrike/trample); the bodiless definitions are `firstStrike`
   (`Keywords.lean:726`), `doubleStrike` (`:540`), `trample` (`:1618`), `vigilance` (`:1709`),
   `deathtouch` (`:471`), `reach` (`:85`) and the rest listed above.
+  **Done, 2026-10-25** (`rokqwlum`): `lean/CONTRACTS.md` "Keyword abilities with no body" lists
+  the set and where each keyword's rule is, pinned `intentionallyBodiless`
+  (`Proofs/KeywordAbilityCensus.lean`).
 
 ### 2. Retire Unread Registry Columns & Cross-Pin Catalog Authorities (Astra §4, Opus §§5.3, 6.9)
 
@@ -81,6 +101,9 @@ needs: [lean-v3-rules-and-card-fidelity]
     matched only as `_`/`..` (`Check/Rules.lean:59`, `Rules.lean:143`, `Proofs/Rules.lean:202`);
     `crates/xtask/src/facts/lean.rs` is gone with the facts generator, and the retirement note is
     `lean/CONTRACTS.md:885` "GivingWarrant".)
+    **Done, 2026-10-25** (`zkvuwlvn`): `Definition.designation` is `designation (label)
+    (confers)`; the monarch and initiative rows, the `Proofs/Rules.lean` designation pins and
+    the "GivingWarrant" note follow.
 - **Cross-pin Lean catalogs against `Check/Facts.lean` (§6.9):**
   - Add missing `Empower Jace` (`[CR#701.71]`) to `keywordActionLabels` and a
     participle row for `"blighted"` (`[CR#701.68c]`).
