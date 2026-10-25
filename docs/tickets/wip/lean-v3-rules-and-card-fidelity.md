@@ -36,8 +36,14 @@ were re-located against the Lean source on 2026-10-24.
     **Reconciled 2026-10-24: done** (no single landing ticket): `okDoubledDamageClamped`'s
     docstring (`Proofs/Numbers.lean:142-146`) now says [CR#107.1b] exempts doubling only of a life
     total or a power or toughness, damage being doubled by replacement [CR#701.10g].
-  **Reconciled 2026-10-24: live** (partly: the `Proofs/Numbers.lean` docstring is done; the
-  signed P/T doubling/tripling regime and the *Chameleon Colossus* and negative pins are live).
+  **Done** (`vrlrtwru`): the [CR#701.10c] `.down` expansion per axis. The six `double*`/`triple*`
+  Definitions are `getsScaledStats` (`Definitions/Actions.lean`): per axis, `doIf (… .less 0)`
+  gets `.down (per × differenceBetween 0 value)`, then `doIf (… .atLeast 0)` gets `.up (per ×
+  value)`; scaling keeps the sign, so exactly one fires, and every clamped amount is a magnitude.
+  The `NumberRegime` docstring says how doubling is written. Pins (`Proofs/Numbers.lean`):
+  `negativePowerDoublesBelowZero`, `negativeAxisTriplesBelowZero`,
+  `doublingChangesAreClampedMagnitudes`, `chameleonColossusBoostStaysClamped`. The v2 RON helpers
+  (`instructions/doublePower.ron` and kin) read `up` of a negative as signed and were left alone.
 - **Counter movement fidelity (Astra §1, Opus §1.11):**
   - Fix `moveCounters` (`lean/Semantics/Templates.lean:1539-1546`, a guardless
     `.sequentially [.removeCounters …, .putCounters …]`) so moving counters
@@ -48,7 +54,8 @@ were re-located against the Lean source on 2026-10-24.
     still says `sameAs` and "not modelled" and is corrected in the same change. Add proofs for
     the destination-gone and same-object cases (review #42) beside the existing `moveCounters`
     pins (`Proofs/Counters.lean:155-163`).
-    **Reconciled 2026-10-24: live**
+    **Reconciled 2026-10-24: live** (partly: `lean/CONTRACTS.md` now states the `those` kind half
+    (`vrlrtwru`). The all-or-nothing half is live: see the STOP in the 2026-10-25 report.)
   - Fix *Star Pupil* and *Denry Klin* (`lean/Semantics/Cards/Counters.lean:421,391`), which
     put `(.lit 1) (sameKindAs …)`, one of each kind (`CounterKindSource.sameAs`,
     `Abilities.lean:648`; `sameKindAs`, `Templates.lean:2230`). Corrected 2026-10-21 (review #9):

@@ -137,6 +137,59 @@ theorem okExchangeValuesSigned :
       (.values (lifeTotalOf .you) (lifeTotalOf (target (.isOpponentOf .you))))).numberSlots
       = [(lifeTotalOf .you, .signed), (lifeTotalOf (target (.isOpponentOf .you)), .signed)] := by rfl
 
+/-! ## Doubling and tripling a power or toughness -/
+
+/-- The steps of a doubling or tripling Definition: its guarded changes, in order. -/
+private def scaledSteps : Action → List Action
+  | .ownScope _ (.sequentially steps) => steps
+  | _ => []
+
+/-- "Double target creature's power": a power less than 0 gets −X/−0, X the difference between
+0 and it [CR#701.10c], so a −2 power doubles to −4 rather than clamping its +X/+0 to +0/+0
+[CR#107.1b]; a power of 0 or more gets +X/+0 [CR#701.10b]. -/
+theorem negativePowerDoublesBelowZero :
+    let first : NounPhrase := .firstMention "doublePower.subject" (.inCaller (target isCreature))
+    let later : NounPhrase := .laterMention "doublePower.subject" (.inCaller (target isCreature))
+    scaledSteps (doublePower (target isCreature)) =
+      [ doIf (is first (hasPower .less 0))
+          (get later (.down (arith .differenceBetween 0 (powerOf later))) (.up 0)),
+        doIf (is later (hasPower .atLeast 0)) (get later (.up (powerOf later)) (.up 0)) ] := rfl
+
+/-- "Triple target creature's power and toughness": each axis below 0 gets −X, X twice the
+difference between 0 and it, and each of 0 or more +X, X twice it [CR#701.11b,701.11c], so a
+−1/3 creature gets −2/+6 and ends −3/9. -/
+theorem negativeAxisTriplesBelowZero :
+    let first : NounPhrase :=
+      .firstMention "triplePowerAndToughness.subject" (.inCaller (target isCreature))
+    let later : NounPhrase :=
+      .laterMention "triplePowerAndToughness.subject" (.inCaller (target isCreature))
+    scaledSteps (triplePowerAndToughness (target isCreature) (some untilEndOfTurn)) =
+      [ doIf (is first (hasPower .less 0))
+          (get later (.down (times 2 (arith .differenceBetween 0 (powerOf later)))) (.up 0)
+            (some untilEndOfTurn)),
+        doIf (is later (hasPower .atLeast 0))
+          (get later (.up (times 2 (powerOf later))) (.up 0) (some untilEndOfTurn)),
+        doIf (is later (hasToughness .less 0))
+          (get later (.up 0) (.down (times 2 (arith .differenceBetween 0 (toughnessOf later))))
+            (some untilEndOfTurn)),
+        doIf (is later (hasToughness .atLeast 0))
+          (get later (.up 0) (.up (times 2 (toughnessOf later))) (some untilEndOfTurn)) ] := rfl
+
+/-- Each guarded change's amount is a magnitude in a clamped slot: the difference between 0 and
+a negative power, which is never below zero, so the clamp of [CR#107.1b] changes nothing. -/
+theorem doublingChangesAreClampedMagnitudes :
+    (getsPt thisCreature (.down (arith .differenceBetween 0 (powerOf thisCreature))) (.up 0)
+      ).numberSlots =
+      [(arith .differenceBetween 0 (powerOf thisCreature), .clamped), (.lit 0, .clamped)] := by
+  rfl
+
+/-- Chameleon Colossus: "This creature gets +X/+X until end of turn, where X is its power." This
+is no doubling: an effect's calculation below zero reads zero [CR#107.1b], so a −2 power gets
++0/+0, and both slots stay clamped. -/
+theorem chameleonColossusBoostStaysClamped :
+    (getsPt thisCreature (.up (powerOf thisCreature)) (.up (powerOf thisCreature))).numberSlots =
+      [(powerOf thisCreature, .clamped), (powerOf thisCreature, .clamped)] := by rfl
+
 /-! ## Doubling damage -/
 
 /-- "If a source would deal damage to a permanent or player, it deals double that damage

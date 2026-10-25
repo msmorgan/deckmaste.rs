@@ -3,7 +3,10 @@ import Semantics.Check.Phrase
 namespace Semantics
 
 /-- Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
-is clamped unless it sets, doubles, or triples a life total or a power and toughness. -/
+is clamped unless it sets, doubles, or triples a life total or a power and toughness. Doubling a
+life total is written as its set (`doubleLifeTotal`); doubling or tripling a power or toughness
+as the rules' change by the value's magnitude under its sign [CR#701.10c,701.11c]
+(`getsScaledStats`), whose clamped amounts are never below zero. -/
 inductive NumberRegime where
   | clamped | signed
   deriving DecidableEq, Repr

@@ -1320,10 +1320,10 @@ Losing counters (`loseCounters`) is the shared counter removal (`Action.removeCo
 performed from a player, with its removed-counter outcome.
 
 Moving counters (`moveCounters`) is a removal from the source followed by a placement on the
-destination, each publishing its outcome [CR#122.5]. Two parts of that rule are not modelled:
-the move is all or nothing (if either half is impossible, no counter is removed or put), and,
-with no kind written, what is put is a counter of each kind on the source (`sameAs`) rather
-than exactly the counter removed.
+destination, each publishing its outcome [CR#122.5]. With no kind written, what is put is the
+counters removed this way (`those`), of the kind removed. One part of that rule is not modelled:
+the move is all or nothing (if either half is impossible, no counter is removed or put); that is
+`lean-v3-rules-and-card-fidelity` §1.
 
 ## Rules tables
 
