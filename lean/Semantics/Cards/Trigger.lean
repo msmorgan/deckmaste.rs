@@ -16,7 +16,8 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 def gracefulReprieve : Action :=
-  delayWithin (does (target isCreature) die) thisTurn (returnToBattlefield (that card))
+  delayWithin (does (target isCreature) die) thisTurn
+    (returnToBattlefield (that card) [(under (ownerOf it))])
 theorem okGracefulReprieve : Action.check (DRS.ofList []) gracefulReprieve = [] := by decide
 
 def cloudkinSeer : Ability := when (does thisCreature enter) (draw 1)

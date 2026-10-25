@@ -355,7 +355,8 @@ against the Lean source and the Oracle text in `data/derived/cards.jsonl`; re-lo
     owner's control."
   A sweep of the authored cards whose Oracle text prints "under its/their owner's control" found
   no others (*Daydream*, *Infernal Vessel* and *Yedora, Grave Gardener* already write it).
-  **Reconciled 2026-10-24: live**
+  **Done** (`rytuvxmt`): all three write `[(under (ownerOf it))]`. Pin `returnsUnderTheOwnersControl`
+  (`Proofs/CardFidelity.lean`).
 - **"from your graveyard" (or "from a graveyard") is not the move's origin.** The sites below
   print the origin in the move clause and write only a target restriction (`in_ yourGraveyard`)
   or nothing at all. A move written without an origin is observed on arrival, not on departure,
@@ -386,7 +387,13 @@ against the Lean source and the Oracle text in `data/derived/cards.jsonl`; re-lo
     origin and departure observation point [CR#603.6c,603.10a]. The checker must accept both
     together; if it refuses the pair as redundant, that is a checker defect to fix, with a pin
     that the pair is accepted.
-  **Reconciled 2026-10-24: live**
+  **Done** (`rytuvxmt`): every listed site writes its origin (`returnToHand … yourGraveyard`,
+  `returnToBattlefield … (from_ := some …)`, `putOntoBattlefieldUnderYourControl … (from_ := some
+  graveyard)`), keeping the targets' `in_`; `putOntoBattlefield`, `putOntoBattlefieldTapped` and
+  `putOntoBattlefieldUnderYourControl` gained the optional `from_`. The checker accepts the pair
+  as is. Pins `graveyardOriginsAreDepartureObserved` (with `Action.check … = []` for the pair),
+  `spelledGraveyardOriginsAreDepartureObserved`, and the arrival pin
+  `bareReturnToBattlefieldIsObservedOnArrival`.
 
 Tests to add (in `Proofs/` beside the existing move pins): for each rider site, a pin that the
 authored action's move carries `.under` the owner; for each origin site, a pin that the move is

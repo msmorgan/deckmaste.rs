@@ -782,7 +782,7 @@ def bloodfireEnforcers : Spelled := spelled <| singleFacedCard
 
 def stormOfSouls : Action :=
   sequentially
-    [ returnToBattlefield (allOf (and [isCreature, in_ yourGraveyard])),
+    [ returnToBattlefield (allOf (and [isCreature, in_ yourGraveyard])) (from_ := some yourGraveyard),
       become them
         { characteristics :=
           { subtypes := [spirit], text := [flying],

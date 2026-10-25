@@ -49,7 +49,8 @@ theorem okMillACardReturnIt : Action.check (DRS.ofList []) millACardReturnIt = [
 /-- Bond of Revival -/
 def bondOfRevival : Action :=
   sequentially
-    [ returnToBattlefield (target (and [isCreature, in_ yourGraveyard])),
+    [ returnToBattlefield (target (and [isCreature, in_ yourGraveyard]))
+        (from_ := some yourGraveyard),
       gainHaste it untilYourNextTurn ]
 theorem okBondOfRevival : Action.check (DRS.ofList []) bondOfRevival = [] := by decide
 
@@ -229,14 +230,16 @@ def oust : Spelled := spelled <| singleFacedCard
 
 def riseFromTheGrave : Action :=
   sequentially
-    [ putOntoBattlefieldUnderYourControl (target (and [isCreature, in_ graveyard])),
+    [ putOntoBattlefieldUnderYourControl (target (and [isCreature, in_ graveyard]))
+        (from_ := some graveyard),
       become (that creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } } ]
 theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] := by decide
 
 def everAfter : Action :=
   sequentially
-    [ returnToBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard])),
+    [ returnToBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard]))
+        (from_ := some yourGraveyard),
       become (those creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } },
       putInto this_ onBottom ]

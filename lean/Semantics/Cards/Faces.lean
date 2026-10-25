@@ -448,7 +448,7 @@ def midnightScavengers : Spelled := spelled <| .transforming
         [ when (does thisCreature enter)
             (may
               (returnToHand (target (and [ isCreature, in_ yourGraveyard,
-                                hasManaValue .atMost 3 ])))) ],
+                                hasManaValue .atMost 3 ])) yourGraveyard)) ],
       power := stat 3, toughness := stat 3 } }
   chitteringHostOnScavengers
 

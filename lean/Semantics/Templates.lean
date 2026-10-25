@@ -1152,19 +1152,22 @@ semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (am
     (kind : CounterKind) : Action :=
   zoneChange subject battlefield .anyLocation
     [(.under who), (.withCounters amount (.printed kind) .fresh)]
-/-- "put <subject> onto the battlefield" -/
-semantic_template putOntoBattlefield (subject : NounPhrase) : Action :=
-  zoneChange subject battlefield .anyLocation []
+/-- "put <subject> [from <from_>] onto the battlefield" -/
+semantic_template putOntoBattlefield (subject : NounPhrase) (from_ : Option Location := none) :
+    Action :=
+  zoneChange subject battlefield (from_.getD .anyLocation) []
 /-- "put <subject> [from <from_>] onto the battlefield attached to <host>" [CR#303.4i] -/
 semantic_template putOntoBattlefieldAttachedTo (subject host : NounPhrase)
     (from_ : Option Location := none) : Action :=
   zoneChange subject battlefield (from_.getD .anyLocation) [.attachedTo host]
-/-- "put <subject> onto the battlefield tapped" -/
-semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
-  zoneChange subject battlefield .anyLocation [(.entersAs .tapped)]
-/-- "put <subject> onto the battlefield under your control" -/
-semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Action :=
-  zoneChange subject battlefield .anyLocation [(.under .you)]
+/-- "put <subject> [from <from_>] onto the battlefield tapped" -/
+semantic_template putOntoBattlefieldTapped (subject : NounPhrase)
+    (from_ : Option Location := none) : Action :=
+  zoneChange subject battlefield (from_.getD .anyLocation) [(.entersAs .tapped)]
+/-- "put <subject> [from <from_>] onto the battlefield under your control" -/
+semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase)
+    (from_ : Option Location := none) : Action :=
+  zoneChange subject battlefield (from_.getD .anyLocation) [(.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking [<defender>]"; with no defender
 named, its controller chooses [CR#508.4]. -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)

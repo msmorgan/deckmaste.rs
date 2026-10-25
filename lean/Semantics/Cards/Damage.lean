@@ -1441,7 +1441,7 @@ def wordsOfWorship : Action :=
 theorem okWordsOfWorship : Action.check (DRS.ofList []) wordsOfWorship = [] := by decide
 def theLastRoninII : Action :=
   triggerReflexively (mill 4)
-    (returnToHand (target (and [isCreature, in_ yourGraveyard])))
+    (returnToHand (target (and [isCreature, in_ yourGraveyard])) yourGraveyard)
 theorem okTheLastRoninII : Action.check (DRS.ofList []) theLastRoninII = [] := by decide
 
 def moonlitWakeCard : Spelled := spelled <| singleFacedCard

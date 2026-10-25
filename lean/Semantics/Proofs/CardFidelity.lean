@@ -121,4 +121,66 @@ theorem purgingScytheChoosesAmongTheLeastThenDeals :
         [ choose (a (and [isCreature, superlative .min (.stat .toughness) isCreature])),
           instruct thisArtifact (dealDamage 2 (that creature)) ]) := rfl
 
+/-! ## Printed move text: "under its owner's control" and "from your graveyard" -/
+
+/-- The zone changes an action makes, in order: each move's written origin, its Observation
+Point, and its riders. -/
+def moves : Nat → Action → List (Location × ObservationPoint × List MoveRider)
+  | 0, _ => []
+  | _ + 1, .move _ from_ _ at_ riders => [(from_, at_, riders)]
+  | n + 1, .sequentially steps => steps.flatMap (moves n)
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .instruct _ body
+  | n + 1, .delay _ _ _ body | n + 1, .doForEachKind _ _ _ body => moves n body
+  | n + 1, .withContinuation _ body _ _ => moves n body
+  | n + 1, .triggerReflexively body _ reflexive => moves n body ++ moves n reflexive
+  | _ + 1, _ => []
+
+/-- The zone changes an ability's effect makes. -/
+def abilityMoves : Ability → List (Location × ObservationPoint × List MoveRider)
+  | .activated _ action .. | .spell _ action | .triggered _ _ _ _ _ _ _ action => moves 64 action
+  | _ => []
+
+/-- Turn to Mist, Voyager Staff and Graceful Reprieve return the card "under its owner's
+control": with no such rider, an effect puts an object onto the battlefield under the control of
+the player it instructs [CR#110.2a]. -/
+theorem returnsUnderTheOwnersControl :
+    (moves 64 Cards.turnToMist).getLast? =
+        some (.anyLocation, .arrival, [(under (ownerOf it))]) ∧
+      ((abilityMoves Cards.voyagerStaff).getLast?.map (·.2.2)) = some [(under (ownerOf it))] ∧
+      moves 64 Cards.gracefulReprieve = [(.anyLocation, .arrival, [(under (ownerOf it))])] :=
+  ⟨rfl, rfl, rfl⟩
+
+/-- A move from a graveyard written with its printed origin is observed on departure, so a
+"leaves a graveyard" trigger sees it [CR#603.6c,603.10a]; the target keeps its own
+`in_ <graveyard>` for target legality [CR#115.1] (owner ruling 2026-10-24), and the checker
+accepts the pair. -/
+theorem graveyardOriginsAreDepartureObserved :
+    abilityMoves Cards.hammerOfBogardan = [(yourGraveyard, .departure, [])] ∧
+      moves 64 Cards.stormOfSouls = [(yourGraveyard, .departure, []), (.anyLocation, .arrival, [])] ∧
+      (moves 64 Cards.bondOfRevival).head? = some (yourGraveyard, .departure, []) ∧
+      (moves 64 Cards.everAfter).head? = some (yourGraveyard, .departure, []) ∧
+      (moves 64 Cards.riseFromTheGrave).head? = some (graveyard, .departure, [(.under .you)]) ∧
+      moves 64 Cards.hymnOfRebirth = [(graveyard, .departure, [(.under .you)])] ∧
+      (moves 64 Cards.theLastRoninII).getLast? = some (yourGraveyard, .departure, []) ∧
+      Action.check (DRS.ofList []) Cards.bondOfRevival = [] ∧
+      Action.check (DRS.ofList []) Cards.hymnOfRebirth = [] := by
+  refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, by decide, by decide⟩
+
+/-- The same on the spelled cards: Eerie Ultimatum, Rogues' Gallery, Blood Spatter Analysis's
+reflexive return, and Midnight Scavengers' front face, each "from your graveyard". -/
+theorem spelledGraveyardOriginsAreDepartureObserved :
+    (faceText Cards.eerieUltimatum.card).flatMap abilityMoves = [(yourGraveyard, .departure, [])] ∧
+      (faceText Cards.roguesGallery.card).flatMap abilityMoves =
+        [(yourGraveyard, .departure, [])] ∧
+      ((faceText Cards.bloodSpatterAnalysis.card).flatMap abilityMoves).getLast? =
+        some (yourGraveyard, .departure, []) ∧
+      (match Cards.midnightScavengers.card with
+        | .transforming front _ => front.characteristics.text.flatMap abilityMoves
+        | _ => []) = [(yourGraveyard, .departure, [])] := ⟨rfl, rfl, rfl, rfl⟩
+
+/-- A bare "return it to the battlefield", with no rider and no origin, stays observed on
+arrival [CR#603.6a]. -/
+theorem bareReturnToBattlefieldIsObservedOnArrival :
+    moves 64 (returnToBattlefield (target isCreature)) = [(.anyLocation, .arrival, [])] := rfl
+
 end Semantics.Proofs.CardFidelity

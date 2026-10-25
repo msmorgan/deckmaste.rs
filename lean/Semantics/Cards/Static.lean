@@ -36,6 +36,7 @@ def timeVaultLock : Ability := static (doesntUntap thisArtifact you)
 theorem okTimeVaultLock : Ability.check (DRS.ofList []) timeVaultLock = [] := by decide
 def hymnOfRebirth : Action :=
   putOntoBattlefieldUnderYourControl (target (and [isCreature, in_ graveyard]))
+    (from_ := some graveyard)
 theorem okHymnOfRebirth : Action.check (DRS.ofList []) hymnOfRebirth = [] := by decide
 def counterspell : Action := counter (target isSpell)
 theorem okCounterspell : Action.check (DRS.ofList []) counterspell = [] := by decide
@@ -831,7 +832,8 @@ def eerieUltimatum : Spelled := spelled <| singleFacedCard
     types := [.sorcery],
     text :=
       [ spell (returnToBattlefield (withDifferentNames
-            (counted anyNumber (and [isPermanentCard, in_ yourGraveyard])))) ] }
+            (counted anyNumber (and [isPermanentCard, in_ yourGraveyard])))
+            (from_ := some yourGraveyard)) ] }
 
 /-- Gray Merchant of Asphodel -/
 def grayMerchantDrain : Action :=

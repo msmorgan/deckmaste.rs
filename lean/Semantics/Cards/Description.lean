@@ -335,7 +335,8 @@ def roguesGallery : Spelled := spelled <| singleFacedCard
       [ spell
           (doForEachKind .color .color
              (returnToHand
-                (targets (upTo 1) (and [isCreature, ofChosen .color, in_ yourGraveyard])))) ] }
+                (targets (upTo 1) (and [isCreature, ofChosen .color, in_ yourGraveyard]))
+                yourGraveyard)) ] }
 
 /-- Bioplasm -/
 def bioplasmAttack : GameEvent := does thisCreature attack
