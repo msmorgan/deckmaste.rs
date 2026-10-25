@@ -2529,12 +2529,13 @@ termination_by structural fuel
 reads it in a later ability, never `they`, "that player" or "another player" [CR#607.2d]. -/
 def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
   sorts.foldl (fun context sort =>
-    context.push { sort.binding with announcedChoice := true, linked := true } .other false) drs
+    context.push { sort.binding with linked := true } .other false) drs
 
 private def costResult (ref : Referent) : Bool :=
   (match ref.payload with
      | .object .. | .pile .. => ref.zone.isSome
-     | _ => true)
+     | .quality _ | .player true => true
+     | _ => false)
 
 /-- An object a printed ability acted on that a linked ability can read back: one the ability's
 deed stamped, in whatever zone it is now [CR#607.2a]. -/
@@ -2555,7 +2556,7 @@ private def publishResults (drs out : DRS) (since : ReferentId) (keep : Referent
   let marked := additions.map fun ref =>
     match ref.payload with
     | .object .. => { ref with linked := true, linkSite := site, linkArms := arms }
-    | _ => ref
+    | _ => { ref with linked := true }
   nextClause { drs with
     referents := marked ++ drs.referents,
     nextId := Nat.max drs.nextId out.nextId,
@@ -2764,7 +2765,7 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | n+1, .keyword _ _ body =>
     let out := body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
     { out with referents := out.referents.filter fun ref =>
-        !(ref.announcedChoice && ref.id ≥ drs.nextId) }
+        !(ref.payload.isChoice && ref.id ≥ drs.nextId) }
   | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
   | n+1, .inCaller body =>
     Ability.textContextWith ops drs body n

@@ -331,4 +331,28 @@ theorem badTheyDoesNotReadEarlierChoice :
         Primitives.Ability.spell none (instruct they (draw 1))]
       = [.anaphor (.word .player) .one 0] := by decide
 
+/-- Gift's choice is a cost's: it stays inside gift, so a printed ability reads no "chosen player"
+from it [CR#702.174a,607.2d]. -/
+theorem badGiftChoiceNotPublishedToCard :
+    Ability.checkText (DRS.ofList []) [giftACard,
+        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))]
+      = [.choiceRef .theChoice .player 0] := by decide
+
+/-- Gift beside a printed player choice: "the chosen player" reads that one alone. -/
+theorem okGiftBesidePrintedChoice :
+    Ability.checkText (DRS.ofList []) [giftACard, Primitives.Ability.spell none (choose anOpponent),
+        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
+
+/-- A bare "them" after gift reads no opponent gift chose. -/
+theorem badThemDoesNotReadGiftOpponent :
+    Ability.checkText (DRS.ofList []) [giftACard,
+        Primitives.Ability.spell none (instruct them (draw 1))]
+      = [.anaphor .bare .many 0, .kindMismatch .player .object] := by decide
+
+/-- The life a cost pays is no result a later ability reads: "that much" finds none. -/
+theorem badThatMuchDoesNotReadCostLife :
+    Ability.checkText (DRS.ofList []) [activated (payLife 2) (draw 1),
+        Primitives.Ability.spell none (gainLife thatMuch)]
+      = [.quantOutcomeInScope 0] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

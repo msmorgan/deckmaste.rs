@@ -69,7 +69,9 @@ needs: [lean-v3-rules-and-card-fidelity]
     stay inside the keyword (`Ability.textContextWith`): the card's printed abilities do not read
     them (`badAssistChoiceNotPublishedToCard`, `okAssistBesidePrintedChoice`). A published choice
     is `linked`, so only "the chosen player" reads it across abilities [CR#607.2d], never `they`
-    (`badTheyDoesNotReadEarlierChoice`); no card in `Cards/` or `Proofs/` relied on the old
+    (`badTheyDoesNotReadEarlierChoice`), and a cost's choice (gift's) is published the same way
+    (`badGiftChoiceNotPublishedToCard`, `okGiftBesidePrintedChoice`, `badThemDoesNotReadGiftOpponent`);
+    a cost publishes only what it acted on and its choices (`badThatMuchDoesNotReadCostLife`); no card in `Cards/` or `Proofs/` relied on the old
     reading.
   - *Nissa, Ascended Animist* (`Cards/Keyword.lean`): the +1 binds X (`letter .x`, then `define .x`
     to Nissa's loyalty, as *Dokai*), and the −7 is one establish over the creatures you control,

@@ -268,6 +268,12 @@ inductive Payload where
 
 namespace Payload
 
+/-- A choice a text announced ("choose a color", "choose another player"): the values "the chosen
+[value]" reads back [CR#607.2d]. -/
+def isChoice : Payload → Bool
+  | .quality _ | .player true => true
+  | _ => false
+
 /-- The kind a payload denotes; an ability on the stack is an object [CR#113.1c]. -/
 def kind : Payload → Kind
   | .object .. => .object
@@ -362,9 +368,6 @@ structure Referent where
   (`Ability.textContext`): only a Participial Description with no span written reads it back,
   the ability that reads it being linked to the one that published it [CR#607.1,607.2a]. -/
   linked : Bool := false
-  /-- A choice the text announced ("choose a color", "you may choose another player"), published
-  by `publishTextChoices`: a keyword ability's body keeps its own (`Ability.textContextWith`). -/
-  announcedChoice : Bool := false
   /-- Where a linked referent was published: the line of text that acted on it, by the context's
   `nextId` as the line was published, and the arm taken at each of that line's branch points
   on the way to the deed that acted on it. -/

@@ -4,10 +4,7 @@ namespace Semantics
 
 /-- Embedded ability text retains selected values without retaining ordinary discourse. -/
 def choiceContext (drs : DRS) : DRS :=
-  { referents := drs.visibleReferents.filter fun ref =>
-      match ref.payload with
-      | .quality _ | .player true => true
-      | _ => false
+  { referents := drs.visibleReferents.filter (·.payload.isChoice)
     nextId := drs.nextId
     currentClause := drs.currentClause }
 
