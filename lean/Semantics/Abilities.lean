@@ -1327,6 +1327,15 @@ mutual
     last" is `theLast` [CR#702.62a,310.12b]. -/
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase)
+    /-- Move `amount` counters of `kind` from `source` onto `destination`: remove them from the
+    one and put them onto the other, publishing both outcomes [CR#122.5]. With no kind written,
+    what is put is the counters removed (`those`). The move is all or nothing: if either half
+    isn't possible (the same object, no such counter on the source, a destination that can't
+    have counters put on it, either object gone from its zone), no counter is removed or put
+    [CR#122.5], as an exchange happens whole or not at all [CR#701.12a]; that is the engine's to
+    execute. -/
+    | moveCounters (amount : Amount) (kind : Option CounterKindSource)
+        (source destination : NounPhrase)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)
         (whose : Option NounPhrase) (keyword : Option KeywordLabel)
     /-- 3rd-person imperative handoff: `subj`, a player or a permanent, performs `action`

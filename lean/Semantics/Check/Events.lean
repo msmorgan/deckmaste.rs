@@ -38,7 +38,7 @@ def Action.eventHead : Action → Bool
   | .gainDesignation .. | .gameGains _ | .unlock .. | .conclude ..
   | .choose .. | .vote .. | .copy .. | .changeLife .. | .addMana .. | .draw ..
   | .expose .. | .search .. | .shuffle .. | .flipCoins .. | .rollDice ..
-  | .createObject .. | .putCounters .. | .distribute .. | .removeCounters ..
+  | .createObject .. | .putCounters .. | .distribute .. | .removeCounters .. | .moveCounters ..
   | .move .. | .pay .. | .procedure .. | .relate .. | .merge ..
   | .skipUntap .. | .skipPart .. | .addTurnPart .. | .exchange .. => true
   | _ => false
@@ -79,7 +79,7 @@ def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
   | _ + 1, .dealDamage .. | _ + 1, .markDamage ..
   | _ + 1, .changeLife (.up _) | _ + 1, .changeLife (.down _)
   | _ + 1, .pay .. | _ + 1, .draw .. | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
-  | _ + 1, .createObject .. | _ + 1, .addMana .. => true
+  | _ + 1, .moveCounters .. | _ + 1, .createObject .. | _ + 1, .addMana .. => true
   | _ + 1, _ => false
 termination_by structural fuel
 

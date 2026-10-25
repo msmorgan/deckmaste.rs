@@ -1123,7 +1123,7 @@ def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Action) : List Re
   let agent := match subject with | .any => none | .actor noun | .by noun => some noun
   let agentRead := agent.all NounPhrase.eventAgentOk
   match action.scopeBody with
-  | .putCounters _ _ _ | .removeCounters _ _ _ =>
+  | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ =>
     refuse agentRead .eventAgent
   | .createObject _ spec under =>
     let tokenErrors := match spec with
@@ -1160,7 +1160,7 @@ def Action.performed (action : Action) : Bool :=
 def clauseActorKind (action : Action) : Option Kind :=
   match action.scopeBody with
   | .draw _ | .procedure .. | .flipCoins .. | .rollDice ..
-  | .createObject .. | .putCounters .. | .removeCounters .. => some .player
+  | .createObject .. | .putCounters .. | .removeCounters .. | .moveCounters .. => some .player
   | .dealDamage .. => some .object
   | _ => none
 
@@ -1216,6 +1216,7 @@ def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
   | _ + 1, .putCounters .. | _ + 1, .distribute (.counters _) .. => [.countersPut]
   | _ + 1, .distribute (.damage _) .. => [.damageDealt]
   | _ + 1, .removeCounters .. => [.countersRemoved]
+  | _ + 1, .moveCounters .. => [.countersRemoved, .countersPut]
   | _ + 1, .move .. => [.moved]
   | _ + 1, .pay .. => [.paid]
   | _ + 1, .procedure kind .. => [.procedure kind]
@@ -4110,6 +4111,15 @@ def stepOps : Nat → StepOps
           let drs4 := if drs.actionPattern && (optQ.map (·.plur)) == some .one then drs3
             else drs3.push (outcomeB .countersRemoved) .other false
           (drs4, e1 ++ e2 ++ e3 ++ refuse (counterHolderKind kind) .counterHolderKind)
+        -- The all-or-nothing move reads as its two halves [CR#122.5]: the removal from the
+        -- source, then the placement on the destination, each publishing its outcome; with no
+        -- kind written, what is put is those removed. Whether both halves are possible is the
+        -- engine's to decide as the move happens.
+        | .moveCounters amt ks source destination =>
+          ops.inst phase patientRole drs (.sequentially
+            [ .removeCounters (some (.exactlyOf amt)) ks
+                (.firstMention "moveCounters.source" source),
+              .putCounters amt (ks.getD .those) destination ])
         | .distribute v amt among =>
           let (drs1, e1) := stepDividedVerbWith ops drs v
           let (drs2, e2) := ops.amt drs1 amt

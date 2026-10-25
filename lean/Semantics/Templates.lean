@@ -1544,14 +1544,12 @@ semantic_template may (body : Action) (ifDid : Option Action := none)
 semantic_template mayOrElse (body otherwise : Action) : Action := may body none otherwise
 semantic_template merge (subject onto : NounPhrase) (position : MergePosition) : Action :=
   .merge subject onto position
-/-- "move <amount> [<kind>] counters from <source> onto <destination>": remove them from the
-source, then put them onto the destination [CR#122.5]. With no kind written, what is put is
-counters of the kind removed this way (`those`). -/
+/-- "move <amount> [<kind>] counters from <source> onto <destination>": the all-or-nothing move
+(`Action.moveCounters`), a removal from the source and a placement on the destination
+[CR#122.5]. With no kind written, what is put is counters of the kind removed (`those`). -/
 semantic_template moveCounters (amount : Amount) (source destination : NounPhrase)
     (kind : Option CounterKindSource := none) : Action :=
-  .sequentially
-    [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source),
-      .putCounters amount (kind.getD .those) destination ]
+  .moveCounters amount kind source destination
 /-- "pay <cost>": paying a cost carries out its instructions [CR#118.1]. A cost that is itself one
 plain payment ("Pay 5 life", `payLife`) is paid by making that payment once, not by paying a
 payment (`Cost.asPaid`). -/

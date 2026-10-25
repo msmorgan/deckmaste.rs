@@ -1319,11 +1319,14 @@ whose tree is `transform`'s (`convertIsTransform`), with no Deed of its own.
 Losing counters (`loseCounters`) is the shared counter removal (`Action.removeCounters`)
 performed from a player, with its removed-counter outcome.
 
-Moving counters (`moveCounters`) is a removal from the source followed by a placement on the
-destination, each publishing its outcome [CR#122.5]. With no kind written, what is put is the
-counters removed this way (`those`), of the kind removed. One part of that rule is not modelled:
-the move is all or nothing (if either half is impossible, no counter is removed or put); that is
-`lean-v3-rules-and-card-fidelity` §1.
+Moving counters (`moveCounters`) is one action, `Action.moveCounters` (owner ruling 2026-10-25):
+a removal from the source and a placement on the destination, each publishing its outcome
+[CR#122.5]. With no kind written, what is put is the counters removed (`those`), of the kind
+removed. The move is all or nothing: if either half is impossible (the same object, no such
+counter on the source, a destination that can't have counters, either object gone from its
+zone), no counter is removed or put [CR#122.5]. The checker reads the two halves for anaphora;
+the engine executes the move whole, as it does an exchange [CR#701.12a]
+(`moveCountersToAGoneDestinationIsOneAction`, `moveCountersOntoTheSameObjectIsOneAction`).
 
 ## Rules tables
 

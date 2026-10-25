@@ -177,6 +177,26 @@ theorem moveCounterPublishesRemovalAndPlacement :
     countOutcomes .countersRemoved after = 1 ∧ countOutcomes .countersPut after = 1 := by
   decide
 
+/-- "Move a +1/+1 counter from this creature onto target creature" is one all-or-nothing action
+[CR#122.5], not a removal followed by a placement: when the destination has left the battlefield
+by the time the move happens, neither half is carried out, which the engine executes as it does
+an exchange [CR#701.12a]. The text checks either way; the one node is what keeps the removal from
+standing alone. -/
+theorem moveCountersToAGoneDestinationIsOneAction :
+    moveCounters 1 thisCreature (target isCreature) (some p11) =
+        Action.moveCounters 1 (some p11) thisCreature (target isCreature) ∧
+      Action.check (DRS.ofList []) (moveCounters 1 thisCreature (target isCreature) (some p11))
+        = [] := ⟨rfl, by decide⟩
+
+/-- "Move a counter from target creature onto target creature" with the same creature chosen for
+both is a move the rules make impossible, so no counter is removed or put [CR#122.5]: the move is
+one node over both objects, and its impossibility is the engine's, not a refusal of the text. -/
+theorem moveCountersOntoTheSameObjectIsOneAction :
+    moveCounters 1 (target isCreature) (target isCreature) =
+        Action.moveCounters 1 none (target isCreature) (target isCreature) ∧
+      Action.check (DRS.ofList []) (moveCounters 1 (target isCreature) (target isCreature))
+        = [] := ⟨rfl, by decide⟩
+
 /-- Star Pupil's "put its counters on target creature you control": the trigger checks that the
 creature left the battlefield, so it doesn't move counters but puts the same number of each kind
 the creature had, read by last known information [CR#122.8,608.2h]: a loop over its counter
