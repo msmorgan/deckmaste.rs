@@ -24,15 +24,19 @@ pub enum CardType {
     Dungeon,
 }
 
-/// A rules procedure a card can instruct a player to carry out during
-/// resolution: activating an ability [CR#701.2a,602.1], casting a spell
+/// A rules procedure: one a card can instruct a player to carry out during
+/// resolution, activating an ability [CR#701.2a,602.1], casting a spell
 /// [CR#701.5a,601.2], or playing a card as a land or as a spell
-/// [CR#701.18a,701.18b].
+/// [CR#701.18a,701.18b]; or a spell's or ability's resolution
+/// [CR#608.1,608.2], which no player carries out but which an event can name
+/// ("as it resolves"), as the final part of which an instant or sorcery spell
+/// is put into its owner's graveyard [CR#608.2n]. Lean `Procedure`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Procedure {
     Activate,
     Cast,
     Play,
+    Resolve,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

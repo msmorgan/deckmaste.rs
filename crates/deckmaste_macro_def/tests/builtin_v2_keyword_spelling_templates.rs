@@ -74,6 +74,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("proliferate", "proliferate"),
     ("recruit", "recruit"),
     ("regenerate", "regenerate <Param(0)>"),
+    ("resolve", "resolve <Param(0)>"),
     ("reveal", "reveal <Param(0)>"),
     ("sacrifice", "sacrifice <Param(0)>"),
     ("scry", "scry <Param(0)>"),

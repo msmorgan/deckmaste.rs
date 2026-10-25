@@ -1399,7 +1399,8 @@ pub enum Instruction {
     },
     /// Carry out a rules procedure on `subject` now, during resolution:
     /// activate it, cast it, or play it [CR#701.2a,701.5a,701.18a], paying as
-    /// `payment` says. `resulting` is what the spell the procedure produces
+    /// `payment` says; or, named only by an event, its resolution
+    /// [CR#608.2]. `resulting` is what the spell the procedure produces
     /// must be ("if the resulting spell's mana value is N or less"
     /// [CR#701.57a]).
     Procedure {

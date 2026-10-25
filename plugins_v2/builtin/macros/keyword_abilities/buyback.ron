@@ -8,12 +8,18 @@ KeywordAbility(
     // "Buyback [cost]" means "You may pay an additional [cost] as you cast this
     // spell" and "If the buyback cost was paid, put this spell into its owner's
     // hand instead of into that player's graveyard as it resolves." [CR#702.27a]
+    // "As it resolves" is the move its resolution causes [CR#608.2n], so a
+    // countered spell [CR#701.6a] or one whose targets are all illegal
+    // [CR#608.2b] goes to the graveyard.
     body: [
         static(addedCost(Param(0), true)),
         static(
             onlyWhile(
                 insteadOf(
-                    zoneChange(thisSpell, Before, Zones([stack]), graveyard),
+                    causes(
+                        Event(verbedEvent(resolve, thisSpell)),
+                        zoneChange(thisSpell, Before, Zones([stack]), graveyard),
+                    ),
                     move(thisSpell, wherever, hand),
                 ),
                 keywordCostPaid(buyback, thisSpell),

@@ -14,6 +14,8 @@ KeywordAbility(
     // The exiled card then "haunts" that creature [CR#702.55b]: the `haunting`
     // Relation, which "the creature it haunts" reads back as its
     // `counterpart`. Each half is guarded by the card's class, as gift's are.
+    // "During its resolution" is the move its resolution causes [CR#608.2n],
+    // which a countered spell's is not [CR#701.6a].
     body: [
         triggeredIf(
             dies(thisPermanent),
@@ -21,7 +23,10 @@ KeywordAbility(
             sequentially([exile(it), relate(it, haunting, target(creature))]),
         ),
         triggeredIf(
-            zoneChange(thisSpell, Before, Zones([stack]), graveyard),
+            causes(
+                Event(verbedEvent(resolve, thisSpell)),
+                zoneChange(thisSpell, Before, Zones([stack]), graveyard),
+            ),
             matches(this, instantOrSorcery),
             sequentially([exile(it), relate(it, haunting, target(creature))]),
         ),

@@ -1,0 +1,17 @@
+// "<spell or ability> resolves" [CR#608.1,608.2], Lean's `resolve`
+// Definition: no player carries it out or pays for it, but an event names it.
+// As the final part of an instant or sorcery spell's resolution the spell is
+// put into its owner's graveyard [CR#608.2n], so "as it resolves" (buyback,
+// rebound) and "during its resolution" (haunt) write the resolution as the
+// cause of that move: `causes(Event(verbedEvent(resolve, thisSpell)), …)`. A
+// countered spell's move is caused by no resolution [CR#701.6a].
+KeywordAction(
+    name: "resolve",
+    params: [Subject],
+    spelling: "resolve <Param(0)>",
+    grammar: Verb(
+        bare: "resolve",
+        frame_set: Transitive,
+    ),
+    body: procedure(Resolve, Param(0), ItsOwnCost),
+)

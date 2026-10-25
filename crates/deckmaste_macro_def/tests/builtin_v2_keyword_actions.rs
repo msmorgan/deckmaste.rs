@@ -62,6 +62,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "proliferate",
     "recruit",
     "regenerate",
+    "resolve",
     "reveal",
     "sacrifice",
     "scry",

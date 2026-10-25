@@ -1,6 +1,7 @@
 // `Instruction.Procedure` under Lean's own name for it: carry out a rules
 // procedure (activate, cast, play) on the subject during resolution
-// [CR#701.2a,701.5a,701.18a].
+// [CR#701.2a,701.5a,701.18a], or the subject's own resolution, which only an
+// event names (`resolve`, [CR#608.2]).
 (
     name: "procedure",
     kinds: [Instruction],

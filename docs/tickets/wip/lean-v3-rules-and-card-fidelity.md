@@ -106,6 +106,12 @@ were re-located against the Lean source on 2026-10-24.
   `.causedBy`/`.causes (.event (does .any (resolve thisSpell)))`. Live: the RON mirrors still
   match any stack-to-graveyard move, `plugins_v2/builtin/macros/keyword_abilities/buyback.ron:16`,
   `rebound.ron:19`, `haunt.ron:24`.)
+  **Done** (`npzmoknl`): the three mirrors write the move as `causes(Event(verbedEvent(resolve,
+  thisSpell)), zoneChange(…))`, mirroring Lean's `resolve` Definition into v2 as
+  `keyword_actions/resolve.ron` over a new `Procedure::Resolve` (Lean `Procedure.resolve`). Pin
+  `resolution_move_keywords_read_the_resolution_as_the_cause`
+  (`crates/deckmaste_semantics_v2/tests/keyword_bodies.rs`); `resolve` added to the macro_def
+  keyword-action name and template lists.
 - **`endure` (`[CR#701.63a]`, §1.17):** Fix `endure` in `Definitions/Actions.lean:691-696`
   to reference `firstMention .actor` (like `explore` and `connive`, `:427`, `:442`) rather than
   `that .permanent` (`:695`).

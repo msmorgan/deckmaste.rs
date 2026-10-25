@@ -11,12 +11,17 @@ KeywordAbility(
     // [CR#702.88a] One static that functions while the spell is on the stack: a
     // replacement of its move to the graveyard as it resolves, whose instruction
     // creates the delayed trigger, that trigger's source this object [CR#603.7f].
-    // "This card" is written as the rule writes it.
+    // "This card" is written as the rule writes it. "As it resolves" is the move
+    // its resolution causes [CR#608.2n], which a countered spell's is not
+    // [CR#701.6a].
     body: [
         static(
             onlyIfSo(
                 insteadOf(
-                    zoneChange(subject: thisSpell, observation: Before, from: Zones([stack]), to: graveyard),
+                    causes(
+                        Event(verbedEvent(resolve, thisSpell)),
+                        zoneChange(subject: thisSpell, observation: Before, from: Zones([stack]), to: graveyard),
+                    ),
                     sequentially([
                         exile(thisSpell),
                         delay(beginningOf(Upkeep, you, Next(None)), may(castWithoutPaying(this))),
