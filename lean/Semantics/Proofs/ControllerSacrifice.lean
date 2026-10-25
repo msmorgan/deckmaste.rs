@@ -323,7 +323,7 @@ private def moveBody : Action :=
 private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPattern = false) :
  (stepAction (fuel + 1) .postEvent .obj drs moveBody).1 =
  let selected := stepNounPhrase fuel drs .obj true moveArg
- (applyZoneMove { selected.1 with historicalMoveFrom := drs.historicalMoveFrom }
+ (applyZoneMove { selected.1 with readsLastKnown := drs.readsLastKnown, handedOrigin := drs.handedOrigin }
    selected.2.1 drs.scopeDeed (some .graveyard)).withCaused drs .postEvent moveBody := by
  cases drs with
  | mk => simp only at ordinary; subst ordinary; rfl

@@ -509,7 +509,12 @@ structure DRS where
   ability [CR#607.1,607.1a]. -/
   grantorLinked : Option GrantorLinked := none
   historicalReferentIds : List ReferentId := []
-  historicalMoveFrom : Option Zone := none
+  /-- The referents among `historicalReferentIds` are read by their Last Known Information, as
+  the permanents they were before they left the battlefield [CR#608.2h]. -/
+  readsLastKnown : Bool := false
+  /-- The origin a grounded "this way" lookback took from the Zone Change it reads back, handed to
+  its move that writes none (`DRS.thisWayRecordedOrigin`) [CR#608.2c]. -/
+  handedOrigin : Option Zone := none
   groupSizeScope : Option (List ReferentId) := none
   selectionEvidence : List SelectionEvidence := []
   selectionScope : Nat := 0
@@ -1281,7 +1286,7 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
     List Referent :=
   let j1 := drs.visibleReferents.filter fun ref => !ref.linked && (
     (if drs.characteristicRead then reachesCharacteristic r pl ref else reaches r pl ref) ||
-      (drs.historicalMoveFrom == some .battlefield &&
+      (drs.readsLastKnown &&
         drs.historicalReferentIds.contains ref.id && reachesCharacteristic r pl ref))
   match r with
   | .bare | .atSlot _ =>

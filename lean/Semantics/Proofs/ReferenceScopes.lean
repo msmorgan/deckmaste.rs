@@ -73,7 +73,6 @@ theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause i
   obtain ⟨byClause, byRole⟩ := rankingWithoutPending { referents := subject :: rs } rfl
   simp only [byClause, byRole]
   simp only [Bool.false_eq_true, ↓reduceIte,
-    show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
     Bool.true_and, List.filter_cons, eligible,
     show Plurality.one.isOne = true from rfl]
@@ -351,7 +350,6 @@ private theorem pendingPowerSubjectWins (rs : List Referent) (clause id : Nat)
   dsimp only
   rw [visible]
   simp only [Bool.false_eq_true, ↓reduceIte,
-    show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
     Bool.true_and, List.filter_cons, eligible,
     show Plurality.one.isOne = true from rfl]

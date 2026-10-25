@@ -89,7 +89,6 @@ private theorem candidateWins (rs : List Referent) (clause id : Nat)
     { referents := candidate clause id :: rs, characteristicRead := true } rfl
   simp only [byClause, byRole]
   simp only [Bool.false_eq_true, ↓reduceIte,
-    show ((none : Option Zone) == some .battlefield) = false from rfl,
     Bool.false_and, Bool.or_false, show (candidate clause id).linked = false from rfl,
     Bool.not_false, Bool.true_and, List.filter_cons, eligible,
     show Plurality.one.isOne = true from rfl]

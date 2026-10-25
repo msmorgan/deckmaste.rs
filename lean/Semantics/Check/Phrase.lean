@@ -1455,10 +1455,10 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
     -- A subject the move moves ("that creature dies") reads the participants introduced before
     -- the clause as the permanents they were, as a patient written inside the move does.
     -- A grounded "this way" lookback whose move writes no origin reads it from the events the
-    -- lookback reads back, and hands it to the move's patient read through `historicalMoveFrom`.
+    -- lookback reads back, and hands it to the move's patient read through `handedOrigin`.
     let recorded := drs.thisWayRecordedOrigin subj action within
     let subjectContext := if action.subjectReadsDepartedPermanent recorded then
-      { drs with historicalMoveFrom := some .battlefield
+      { drs with readsLastKnown := true
                  historicalReferentIds := drs.referents.map (·.id) } else drs
     -- With no agent written, or one written with "by", no performer of the enclosing action
     -- performs the deed looked back at: its handoffs are hidden while the clause steps.
@@ -1470,7 +1470,8 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       performers := if hidden.isEmpty then drs1.performers else []
       actionPattern := true
       historicalReferentIds := drs.referents.map (·.id)
-      historicalMoveFrom := if recorded.isSome then recorded else drs.historicalMoveFrom
+      readsLastKnown := drs.readsLastKnown
+      handedOrigin := recorded.orElse fun _ => drs.handedOrigin
       participialAnchorRead := none }
     -- After the action, the performer the subject handed it to is still in view: the lookback's
     -- ground is read at its kind.
@@ -1479,7 +1480,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         | .actor _ => (actorShape? d).map (·.kind)
         | .by np => some (np.kindIn drs .object)
         | .any => none
-      ({ d with historicalMoveFrom := drs.historicalMoveFrom },
+      ({ d with readsLastKnown := drs.readsLastKnown, handedOrigin := drs.handedOrigin },
         lookbackGroundRefusals drs action subjectKind within)
     let (out, errors) := stepActionClauseWith ops subjectContext subj action .postEvent
       Action.eventHeadOk true historical restored
@@ -3900,14 +3901,15 @@ def stepOps : Nat → StepOps
           -- The move's own Observation Point (`Location.observedOnDeparture` for the put and
           -- return Templates) decides whether its battlefield patient is the permanent it was.
           -- A move that writes no origin reads the one a grounded "this way" lookback handed it
-          -- (`historicalMoveFrom`, `DRS.thisWayRecordedOrigin`), for its patient alone.
-          let handed := if from_.writesNoOrigin then drs.historicalMoveFrom else none
+          -- (`handedOrigin`, `DRS.thisWayRecordedOrigin`), for its patient alone.
+          let handed := if from_.writesNoOrigin then drs.handedOrigin else none
           let readContext :=
             if drs.actionPattern && Location.readsDepartedPermanent from_ at_ handed then
-              { drs with historicalMoveFrom := some .battlefield } else drs
+              { drs with readsLastKnown := true } else drs
           let (selected, refIds, e1) := ops.np readContext patientRole true subj
           let drs1 := { selected with
-            historicalMoveFrom := if handed.isSome then none else drs.historicalMoveFrom }
+            readsLastKnown := drs.readsLastKnown
+            handedOrigin := if handed.isSome then none else drs.handedOrigin }
           let actualKind := (refIds.head?.bind drs1.findById?).map (·.kind)
           let moveKind := Kind.join .object .pile
           let e1 := e1 ++ actualKind.toList.flatMap (fun kind =>
@@ -4044,10 +4046,10 @@ def stepOps : Nat → StepOps
             ref.clause + 1 == drs.currentClause && ref.role == .obj).map (·.id)
           let (drs1, e1) := ops.spec
             (if modifies then
-              { drs with historicalMoveFrom := some .battlefield, historicalReferentIds := patients }
+              { drs with readsLastKnown := true, historicalReferentIds := patients }
              else drs) spec
           let drs1 := if modifies then
-              { drs1 with historicalMoveFrom := drs.historicalMoveFrom
+              { drs1 with readsLastKnown := drs.readsLastKnown
                           historicalReferentIds := drs.historicalReferentIds }
             else drs1
           let (drs2, e2) := match dur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])

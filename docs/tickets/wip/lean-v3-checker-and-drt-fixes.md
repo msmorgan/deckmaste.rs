@@ -495,6 +495,13 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   last-clause mentions as those not pending when the body began, not by the length of a prefix;
   `ControllerSacrifice`'s private mirror (`sacrificeStampState`, `sacrificeStampProjected`,
   `actualTailReduction`'s `change`) follows; public statements unchanged.
+  sqklwsrp: `DRS.historicalMoveFrom` carried two things in one `Option Zone`: the mode in which
+  the historical referents are read as the permanents they were (only ever `.battlefield`) and the
+  origin a "this way" lookback hands its move. It is split into `readsLastKnown : Bool`
+  [CR#608.2h] and `handedOrigin : Option Zone` [CR#608.2c], each set and restored where its own
+  use is; a mode no longer reads as a handed origin. `HistoricalMove`'s exit pin reads both
+  fields; three proof `simp` sets in `ComparisonBox`/`ReferenceScopes` lose the unused
+  `Option Zone` lemma.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,
