@@ -97,7 +97,7 @@ This ticket edits only `Check/` and `Proofs/`. After that ticket lands, re-check
 outside a Definition. If none is, they shadow a Deed too (question 2). Neither ticket needs the
 other.
 
-## Open questions for the owner
+## Open questions for the owner (ruled below)
 
 1. `ownScope none` is written only in `Proofs/` (`CallerScope.lean:59-76`, `Actor.lean:187`,
    `ActionFamilies.lean:277`) and matched in four checker arms. Every Definition writes
@@ -106,3 +106,13 @@ other.
 2. Should the five classes in the Overlap section go too, once no bare head writes them?
 3. Should authoring refuse two Definitions that share a keyword-action label but disagree on
    `DeedPermanent`? Today the label `fight` agrees by hand.
+
+## Owner rulings, 2026-10-25
+
+1. **Keep `Option Deed`.** The premise was stale: `regenerate` is now a Definition with
+   `.ownScope none` (rules-and-card-fidelity), since creating a regeneration shield is not
+   regenerating [CR#701.19c]; only `regeneration` carries the deed. No ADR §1.4 change.
+2. **Yes.** After `lean-v3-rules-and-card-fidelity` lands, delete each of `searched`, `shuffled`,
+   `exchanged`, `voted` and `created` that no bare head outside a Definition still writes.
+3. **Yes.** Authoring (or `Check/`) refuses two Action Definitions that share a keyword-action
+   label but disagree on `DeedPermanent`, with a pin that a mismatch is refused.
