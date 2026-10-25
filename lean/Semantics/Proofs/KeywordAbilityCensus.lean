@@ -180,4 +180,13 @@ theorem intentionallyBodiless :
       partnerFatherAndSon, partnerFriendsForever, partnerSurvivors, chooseABackground,
       doctorsCompanion ].all bodiless = true := by decide
 
+/-- "Assist": the chosen player pays generic mana for the spell, one generic mana each
+[CR#702.132a], and it checks. -/
+theorem okAssistDefinition :
+    (match assist with
+      | .keyword _ _ [.static (.addedCost _ true .once),
+          .static (.paySubstitute _ ⟨.instruct _ _, [.generic]⟩)] => true
+      | _ => false) = true ∧
+      Ability.check (DRS.ofList []) assist = [] := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus

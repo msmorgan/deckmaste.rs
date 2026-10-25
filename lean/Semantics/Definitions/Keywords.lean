@@ -255,7 +255,16 @@ semantic_definition ascend : Ability :=
                 not (is .you (hasDesignation citysBlessing)) ])
             (gainDesignation .you citysBlessing restOfGame)
             none)) ]
-semantic_definition assist : Ability := keyword (.named "assist")
+/-- "Assist" [CR#702.132a]: as you cast this spell, you may choose another player, and before you
+begin to pay its total cost the chosen player may pay for any amount of its generic mana. The
+generic mana the chosen player pays is a Mana Substitute, as convoke's tapped creatures are
+[CR#702.51a]; the choice is written as gift's is, so the substitute reads the chosen player. -/
+semantic_definition assist : Ability :=
+  .keyword (.named "assist") []
+    [ static (.addedCost (.perform (choose (a (and [isPlayer, isOther])))) true .once),
+      static
+        (.paySubstitute thisSpell
+          ⟨ instruct (the isChosenPlayer) (pay (.mana [generic 1]) .once), [.generic] ⟩) ]
 semantic_definition auraSwap (cost : Cost) : Ability :=
   .keyword (.named "auraSwap") [.cost (.inCaller cost)]
     [ activated (.inCaller cost)

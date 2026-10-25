@@ -1776,4 +1776,9 @@ def germinationPracticum : Spelled := spelled <| singleFacedCard
       [ spell (putCounters 2 p1p1Counter (each (and [isCreature, youControl]))),
         paradigm ] }
 
+/-- Out of Bounds -/
+def outOfBounds : Spelled := spelled <| singleFacedCard
+  { name := "Out of Bounds", cost := [generic 3, pip .blue], types := [.instant],
+    text := [assist, spell (counter (target isSpell))] }
+
 end Semantics.Cards
