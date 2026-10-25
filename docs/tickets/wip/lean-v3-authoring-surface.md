@@ -269,7 +269,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     is `cant you (loseGame (cause := nonpositiveLife))`, over `Action.conclude (verb) (cause)`.
 
 #### 2.4 Quantifiers on `Quantity` (Retiring `DeonticMods.bound`)
-**Reconciled 2026-10-24: live** (partly: `DeonticMods.bound`, `CountBound` and `allPlayers` retired, `Quantity.moreThanOf`/`.additional` at `Abilities.lean:450,453` with `moreThan`/`additional` at `Templates.lean:172,174`, `DeonticExcept.byObjects (objects : NounPhrase)` at `Abilities.lean:686`, menace `counted (orMore 2) isCreature` at `Definitions/Keywords.lean:1111-1114`, `UsageLimit.mk` at `Abilities.lean:572`, all by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-6-cards-dewarting](../done/lean-v3-authoring-impl-6-cards-dewarting.md); live: `cast (allOf …)` is still the only spelling of a cast object, 23 sites and no `cast (bare …)` anywhere, e.g. bare-plural "spells" on *Vedalken Orrery* `Cards/Choice.lean:579`, *Borne Upon a Wind* `Cards/Choice.lean:610`, *Grand Abolisher* `Cards/Deontic.lean:433`, *Conqueror's Flail* `Cards/Deontic.lean:748`, and `Definitions/Keywords.lean:1524`, `Cards/Mana.lean:371,437,438`, `Cards/Keyword.lean:561`, `Cards/Deontic.lean:316,326,335,347`, plus `Cards/Copy.lean` and the rest of `Cards/Choice.lean`; `bare` shares `allOf`'s tree (`Templates.lean:184-186`), so only the recorded Form differs).
+**Reconciled 2026-10-24: live** (partly: `DeonticMods.bound`, `CountBound` and `allPlayers` retired, `Quantity.moreThanOf`/`.additional` at `Abilities.lean:450,453` with `moreThan`/`additional` at `Templates.lean:172,174`, `DeonticExcept.byObjects (objects : NounPhrase)` at `Abilities.lean:686`, menace `counted (orMore 2) isCreature` at `Definitions/Keywords.lean:1111-1114`, `UsageLimit.mk` at `Abilities.lean:572`, all by [lean-v3-authoring-impl-1-core-ast-and-checker](../done/lean-v3-authoring-impl-1-core-ast-and-checker.md)/[lean-v3-authoring-impl-2-templates-and-definitions](../done/lean-v3-authoring-impl-2-templates-and-definitions.md)/[lean-v3-authoring-impl-6-cards-dewarting](../done/lean-v3-authoring-impl-6-cards-dewarting.md); **Done 2026-10-25 (vyllkzyx)**: every cast object printed as a bare plural now reads `cast (bare …)` (30 sites incl. proofs; none prints "all"/"each"). Previously live: `cast (allOf …)` was the only spelling of a cast object, 23 sites and no `cast (bare …)` anywhere, e.g. bare-plural "spells" on *Vedalken Orrery* `Cards/Choice.lean:579`, *Borne Upon a Wind* `Cards/Choice.lean:610`, *Grand Abolisher* `Cards/Deontic.lean:433`, *Conqueror's Flail* `Cards/Deontic.lean:748`, and `Definitions/Keywords.lean:1524`, `Cards/Mana.lean:371,437,438`, `Cards/Keyword.lean:561`, `Cards/Deontic.lean:316,326,335,347`, plus `Cards/Copy.lean` and the rest of `Cards/Choice.lean`; `bare` shares `allOf`'s tree (`Templates.lean:184-186`), so only the recorded Form differs).
 - Delete `DeonticMods.bound` (`Option CountBound`).
 - Add `.moreThanOf (amount : Amount)` (`moreThan n`) and
   `.additional (quantity : Quantity)` (`additional q`) to `Quantity` so noun
@@ -389,7 +389,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   so it is in this family. Each expands to `.does …` or `.causes .anEffect (.does …)`; rewrite every
   caller to `does <subj> <action>` with the matching `Action` template (for `transformsInto`, the
   transform deed over `turnOver` with the named face), delete the wrappers, and update pins that
-  name them. **Reconciled 2026-10-24: live.**
+  name them. **Done 2026-10-25 (ltokzkkp):** callers rewritten to `does any/(actor …)/(by_ …) (<Action>)`, wrappers and `transformsInto` deleted, `theLast : Quantity` Template added, `Proofs/Counters.lean` pins renamed only. The unused wrappers (`bareCountersRemoved`, `manyCountersPutByEffect`, `tokenCreationEvent`, `tokensCreated`, `tokensCreatedByEffectUnder`) had no callers. The ~35 v2-port wrappers below are already gone (only the private `zoneChange` and the `enters` StaticSpec remain).
 - Retire all ~35 `v2`-port 3rd-person singular `GameEvent` wrapper templates in
   `Primitives.lean`, `Macros.lean`, and `Declared.lean` (`dies`, `enters`,
   `leaves`, `leavesZone`, `attacks`, `attacksPlayer`, `attacksWith`, `blocks`,
@@ -522,7 +522,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 - Added 2026-10-24: the `Predicate.anyPlayer` constructor (`Abilities.lean:226`, 127 uses
   under `lean/Semantics`) keeps a non-`is*` name; only its Template is `isPlayer`
   (`Templates.lean:402`), though this section asks for boolean-like naming of the constructors too.
-  **Reconciled 2026-10-24: live.**
+  **Done 2026-10-25 (xuzqwpqm):** constructor is now `Predicate.isPlayer`.
 - **Adopt boolean-like naming across all `Predicate` constructors and templates:**
   - **Types, kinds, and roles (`is*`):**
     - `isCreature`, `isArtifact`, `isEnchantment`, `isLand`, `isInstant`, `isSorcery`, `isPlaneswalker`, `isBattle`, `isKindred`, `isInstantOrSorcery`, `isPermanentType`
