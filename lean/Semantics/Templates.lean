@@ -1378,6 +1378,12 @@ termination_by structural fuel
 /-- "may pay <cost>. If they don't, <action>." -/
 semantic_template doUnless (action : Action) (cost : Cost) : Action :=
   .withContinuation .optional (.pay cost.asPaid .once .paid none none) none action
+/-- "<action> unless you pay <whose>'s <keyword> cost": `doUnless` whose payment is of the keyword
+cost of `whose`, as cumulative upkeep's and echo's are [CR#702.24a,702.30a], so a trigger on paying
+that cost and mana spendable only on it read this payment. -/
+semantic_template doUnlessKeywordCost (action : Action) (cost : Cost) (whose : NounPhrase)
+    (keyword : KeywordLabel) : Action :=
+  .withContinuation .optional (.pay cost.asPaid .once .paid (some whose) (some keyword)) none action
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .characteristicChange subject [statEdit .power power, statEdit .toughness toughness]

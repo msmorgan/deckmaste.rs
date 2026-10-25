@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Mana
 
 /-!
 # Semantics.Proofs.Mana
@@ -357,5 +358,35 @@ theorem badRepeatedAdditionType :
                                                       { types := [.artifact, .artifact] } } none)
       = [.distinct] := by
   decide
+
+/-- The payment the last step of a keyword's upkeep trigger offers: whose keyword cost it is, and
+which keyword's. -/
+private def upkeepPayment? : Ability → Option (Option NounPhrase × Option KeywordLabel)
+  | .keyword _ _
+      [.triggered _ _ _ _ _ _ _
+        (.sequentially [_, .withContinuation .optional (.pay _ _ _ whose keyword) none _])] =>
+    some (whose, keyword)
+  | _ => none
+
+/-- The keyword cost a payment trigger watches. -/
+private def watchedPayment? : Ability → Option KeywordLabel
+  | .triggered (.does _ (.pay _ _ _ (some _) keyword)) _ _ _ _ _ _ _ => keyword
+  | _ => none
+
+/-- The keyword cost mana a card's first ability adds may be spent on. -/
+private def manaPurpose? : Card → Option KeywordLabel
+  | .singleFaced ⟨{ text := .activated _ (.addMana _ _ [.spendOnly [.toPay (.ofKeyword k)]]) _ _ _ _
+      :: _, .. }⟩ => some k
+  | _ => none
+
+/-- Cumulative upkeep's payment is of this permanent's cumulative upkeep cost [CR#702.24a]: the
+payment *Hibernation's End*'s "Whenever you pay this enchantment's cumulative upkeep" watches, and
+the cost *Adarkar Unicorn*'s mana may be spent on. -/
+theorem cumulativeUpkeepPaymentIsLabelled :
+    upkeepPayment? (cumulativeUpkeep (.mana [generic 1]))
+        = some (some thisPermanent, some (.named "cumulativeUpkeep")) ∧
+      watchedPayment? Cards.hibernationsEndTrigger = some (.named "cumulativeUpkeep") ∧
+      manaPurpose? Cards.adarkarUnicorn.card = some (.named "cumulativeUpkeep") :=
+  ⟨rfl, rfl, rfl⟩
 
 end Semantics.Proofs.Mana

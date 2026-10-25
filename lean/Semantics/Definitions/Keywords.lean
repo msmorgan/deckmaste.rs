@@ -81,8 +81,9 @@ semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
         (if_ := is thisPermanent isPermanent)
         (sequentially
           [ putCounters 1 ageCounter thisPermanent,
-            doUnless (sacrifice thisPermanent)
-              (.scaled (.inCaller cost) (times 1 (countersOn ageCounter thisPermanent))) ]) ]
+            doUnlessKeywordCost (sacrifice thisPermanent)
+              (.scaled (.inCaller cost) (times 1 (countersOn ageCounter thisPermanent)))
+              thisPermanent (.named "cumulativeUpkeep") ]) ]
 semantic_definition reach : Ability := keyword (.named "reach")
 /-- "Flying" with its definition, a static ability: "This creature can't be blocked except by
 creatures with flying and/or reach." [CR#702.9b] -/
