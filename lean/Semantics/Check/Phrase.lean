@@ -554,7 +554,6 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
               id := freshId
               idents := []
               payload := payload
-              librarySearchResult := false
               movedFrom := oldId :: r.movedFrom }
           else r
         let frames := state.scopeStack.map fun frame =>
@@ -587,8 +586,7 @@ def applySearchFound (drs : DRS) (refIds : List ReferentId) (zone : Option Zone)
       match r.payload with
       | .object ty _ _ orig size =>
         { r with
-          payload := .object ty zone (mkStamp (some searchDeed) none) orig size
-          librarySearchResult := zone == some .library }
+          payload := .object ty zone (mkStamp (some searchDeed) none) orig size }
       | _ => r) drs
 
 /-- The plural group a Coordination of noun phrases ("and", "and/or") denotes, over the

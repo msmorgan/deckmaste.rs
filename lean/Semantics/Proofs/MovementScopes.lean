@@ -184,7 +184,7 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
       (search yourLibrary (a isInstantOrSorcery))).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched)
       (.sequentially [reveal it, shuffle])
-    let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
+    let beforeIds := (searched.referents.filter (·.stampedBy searchDeed)).map (·.id)
     errors = [] ∧ beforeIds.length = 1 ∧
       (resolveCandidates .bare .one (nextClause after)).map (·.id) = beforeIds ∧
       (participialCandidates (.deed (.action "search")) (some .one) (some .card) false
@@ -199,6 +199,6 @@ theorem zoneMoveClearsSearchProvenance :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (search yourLibrary (a isInstantOrSorcery))).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (putInto it hand)
-    errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
+    errors = [] ∧ after.referents.all (fun r => !r.stampedBy searchDeed) := by decide
 
 end Semantics.Proofs.MovementScopes

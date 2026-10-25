@@ -468,7 +468,6 @@ private theorem movingMapSuffix (suffix : List Referent) (id fresh : ReferentId)
           id := fresh
           idents := []
           payload := payload
-          librarySearchResult := false
           movedFrom := id :: r.movedFrom }
       else r) = suffix := by
   induction suffix with

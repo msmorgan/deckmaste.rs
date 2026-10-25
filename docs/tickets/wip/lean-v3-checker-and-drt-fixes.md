@@ -478,6 +478,11 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Reconciled 2026-10-24: live** (partly: `DeedFeature` is gone, deleted by
   [lean-v3-action-facts-deleted](../done/lean-v3-action-facts-deleted.md); everything else
   listed remains).
+  **Partly done 2026-10-24.** kozxmszv: `Referent.librarySearchResult` deleted; a search's stamp
+  (`Stamp.deeds` holding the search deed, reset by a move [CR#400.7]) is what `stampedBy` and
+  `survivesShuffle` read; `MovementScopes.revealedSearchResultSurvivesShuffleWithSameIdentity` and
+  `zoneMoveClearsSearchProvenance` read the stamp instead of the flag, statements otherwise
+  unchanged.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,

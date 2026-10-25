@@ -348,7 +348,6 @@ structure Referent where
   [CR#601.2c]; any other choice, while the effect applies [CR#608.2d]. -/
   chosenObject : Bool := false
   createdResult : Bool := false
-  librarySearchResult : Bool := false
   /-- Published to later abilities of the same text by the ability that acted on it
   (`Ability.textContext`): only a Participial Description with no span written reads it back,
   the ability that reads it being linked to the one that published it [CR#607.1,607.2a]. -/
@@ -1214,8 +1213,7 @@ def stampIs (v : Deed) : Option Stamp → Bool
   | some st => stampedBy v st
 
 def Referent.stampedBy (b : Referent) (verb : Deed) : Bool :=
-  stampIs verb b.payload.prov ||
-    (b.librarySearchResult && verb == searchDeed)
+  stampIs verb b.payload.prov
 
 def markTy (ty : List CardType) (b : Referent) : Referent :=
   match b.payload with
@@ -1226,7 +1224,7 @@ def markTy (ty : List CardType) (b : Referent) : Referent :=
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
-    b.librarySearchResult || st.deeds.contains searchDeed
+    st.deeds.contains searchDeed
   | .object _ (some .library) none _ _ => false
   | _ => true
 
