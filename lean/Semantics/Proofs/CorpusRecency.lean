@@ -155,8 +155,10 @@ private def resolvedPlayers (drs : DRS) : List (List BindingId) :=
 /-- *Noetic Scales*: "At the beginning of each player's upkeep, return to its owner's hand each
 creature that player controls with power greater than the number of cards in their hand." A move
 steps its subject before its destination, whatever the surface order, so the raw "that player"
-and "their" read the upkeep player; with the owner written into the destination ("its owner's
-hand" as `handOf (ownerOf it)`), a player introduced after the subject, they still do. -/
+reads the upkeep player; with the owner written into the destination ("its owner's
+hand" as `handOf (ownerOf it)`), a player introduced after the subject, it still does. The
+"their" inside "the number of cards in their hand" is read in that measured domain, which is
+closed after it, so no resolution of it is recorded to assert here. -/
 theorem noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer :
     let context := nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1
     let after := stepAction 64 .postEvent .obj context noeticReturn

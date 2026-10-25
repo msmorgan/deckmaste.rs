@@ -451,9 +451,9 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   Source with no handoff, or the permanent a handoff or an event subject names), the deed's
   patient is that permanent (`causedPatient`; `Action.subjectIsPatient` for patterns), and its
   performer, and each body step's, is the controller (`causedPerformer`) [CR#701.46a,608.2c].
-  Monstrosity took the same fix, since it was the same edit. Pins added:
-  `Counters.biomancersFamiliar` (spelled; "the next time" is ticketed as
-  `lean-v3-single-use-as-though`), `Counters.biomancersFamiliarWatchesTheCreatureThatAdapts`;
+  Monstrosity took the same fix, since it was the same edit. Pin added:
+  `Counters.biomancersFamiliarWatchesTheCreatureThatAdapts` (the card itself is unspelled until
+  `lean-v3-single-use-as-though` gives an as-though statement its single use);
   `Actor.okAdaptHandedToAPermanent` restored, asserting that the counters and the stamp go on the
   target and that the controller performs. Rewritten back to refusals: `adaptHandedToAPlayerReadsTheSource`
   → `badAdaptHandedToOpponent`, `monstrosityHandedToAPlayerReadsTheSource` →
@@ -571,7 +571,7 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   **Review fix 2026-10-24 (M1): uttspmvn.** The *Noetic Scales* pin no longer rests on "its
   owner's hand introduces no player" (which is a gap, ticketed as
   `lean-v3-owner-zone-introduces-owner`, not a reason) or on the upkeep player being the only
-  player: it asserts that the players "that player" and "their" resolve to are the upkeep player
+  player: it asserts that the player "that player" resolves to is the upkeep player
   (`DRS.resolvedIds`), because the move steps its subject before its destination, both with
   `returnToHand` and with the owner written into the destination (`handOf (ownerOf it)`).
 - **Delete dead `Check/` code (§5.4):** Remove unused `NounResult` API,

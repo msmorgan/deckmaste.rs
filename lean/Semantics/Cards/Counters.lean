@@ -370,26 +370,12 @@ theorem docSamsonWatchesAdaptsCounters :
     watched ≠ [] ∧ watched.all adapted.contains = true := by
   decide
 
-/-- *Biomancer's Familiar*. "Target creature adapts" is the adapt whose "this permanent" is that
-creature [CR#701.46a], which its controller performs [CR#608.2c]: "it just lets the creature
-adapt despite already having +1/+1 counters on it" (Gatherer). The single use, "the next time",
-has no form for an as-though statement yet (`lean-v3-single-use-as-though`), so the line is
-spelled for every adapt this turn. -/
-def biomancersFamiliar : Spelled := spelled <| singleFacedCard
-  { name := "Biomancer's Familiar", cost := [pip .green, pip .blue], types := [.creature],
-    subtypes := [mutant],
-    text :=
-      [ static (costShift (allOf (and [abilityHead .anyActivated, abilityOf (allOf
-          (and [isCreature, youControl]))]))
-          (less 2 (some 1))),
-        activated tapSymbol
-          (establishThroughout (asThough (actor (target isCreature)) (adapt anyAmount)
-            (holds (not (is it (hasCounter p1p1Counter))))) thisTurn) ],
-    power := stat 2, toughness := stat 2 }
-
-/-- "Target creature adapts", as *Biomancer's Familiar* writes it, describes the adapt the
+/-- *Biomancer's Familiar*: "{T}: The next time target creature adapts this turn, it adapts as
+though it had no +1/+1 counters on it." Its "target creature adapts" describes the adapt the
 creature undergoes, done by a player, as a resolving "target creature adapts 2" causes it: the
-creature is what the adapt acts on and carries its stamp, not the Source [CR#701.46a,608.2c]. -/
+creature is what the adapt acts on and carries its stamp, not the Source [CR#701.46a,608.2c].
+The card itself is unspelled until `lean-v3-single-use-as-though` gives an as-though statement
+its single use. -/
 theorem biomancersFamiliarWatchesTheCreatureThatAdapts :
     let described := (adapt anyAmount).describedEvents (some .object)
     let adapted := (stepGameEvent 64 (DRS.ofList []) (.does (.actor (target isCreature)) (adapt 2))).1
