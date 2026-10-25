@@ -449,10 +449,15 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
 toughness, the axes `power` and `toughness` select [CR#701.10b,701.10c,701.11b,701.11c]: an axis
 whose value is less than 0 gets −X, X `per` times the difference between 0 and that value, and
 one whose value is 0 or more gets +X, X `per` times that value, so one negative axis beside a
-nonnegative one gets −X/+Y or +X/−Y. Scaling keeps a value's sign, so each axis is one of two
-guarded changes, the negative first as the rule states it; and each reads its value under its own
-sign, so the amount of a boost or a penalty is never below zero and clamps nothing [CR#107.1b].
-`first` introduces the subject in the first sign test, `later` reads it back. -/
+nonnegative one gets −X/+Y or +X/−Y. Each change reads its value under its own sign, so the
+amount of a boost or a penalty is never below zero and clamps nothing [CR#107.1b]. `first`
+introduces the subject in the first sign test, `later` reads it back.
+
+The intended spelling is one `doIf (… .less 0) <−X> (some <+X>)` per axis. The checker's
+otherwise-branch cannot read a subject first mentioned in the condition, so each axis is
+instead two complementary guarded changes, which scaling's keeping the sign makes equivalent;
+`planned/lean-v3-doif-otherwise-reads-condition-mentions.md` fixes the checker and rewrites this
+Template. -/
 semantic_template getsScaledStats (first later : NounPhrase) (per : Nat) (power toughness : Bool)
     (duration : Option Duration) : Action :=
   let scaled (value : Amount) : Amount := if per = 1 then value else times (.lit per) value

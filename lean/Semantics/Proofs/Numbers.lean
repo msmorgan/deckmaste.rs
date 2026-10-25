@@ -175,13 +175,17 @@ theorem negativeAxisTriplesBelowZero :
         doIf (is later (hasToughness .atLeast 0))
           (get later (.up 0) (.up (times 2 (toughnessOf later))) (some untilEndOfTurn)) ] := rfl
 
-/-- Each guarded change's amount is a magnitude in a clamped slot: the difference between 0 and
-a negative power, which is never below zero, so the clamp of [CR#107.1b] changes nothing. -/
+/-- `doublePower`'s guarded changes put magnitudes in clamped slots: the difference between 0 and
+a negative power, and a power of 0 or more, neither ever below zero, so the clamp of [CR#107.1b]
+changes nothing. -/
 theorem doublingChangesAreClampedMagnitudes :
-    (getsPt thisCreature (.down (arith .differenceBetween 0 (powerOf thisCreature))) (.up 0)
-      ).numberSlots =
-      [(arith .differenceBetween 0 (powerOf thisCreature), .clamped), (.lit 0, .clamped)] := by
-  rfl
+    let later : NounPhrase := .laterMention "doublePower.subject" (.inCaller thisCreature)
+    (match scaledSteps (doublePower thisCreature) with
+      | [.doIf _ (.establish negative _) _ _, .doIf _ (.establish nonnegative _) _ _] =>
+        negative.numberSlots ++ nonnegative.numberSlots
+      | _ => []) =
+      [ (arith .differenceBetween 0 (powerOf later), .clamped), (.lit 0, .clamped),
+        (powerOf later, .clamped), (.lit 0, .clamped) ] := by rfl
 
 /-- Chameleon Colossus: "This creature gets +X/+X until end of turn, where X is its power." This
 is no doubling: an effect's calculation below zero reads zero [CR#107.1b], so a −2 power gets

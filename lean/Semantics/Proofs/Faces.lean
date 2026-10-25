@@ -776,8 +776,7 @@ theorem stormCountsEarlierThisTurn :
                   (eventCount (cast (a (.and [isSpell, isOther])))
                     (.actor (a .anyPlayer)) earlierThisTurn)
                   [],
-                doIf (is thisSpell (targeting .any .someTarget))
-                  (may (.chooseNewTargets (.pro (.word .copy) .many))) ]) ] := by
+                may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ] := by
   rfl
 
 end Semantics.Proofs.Faces

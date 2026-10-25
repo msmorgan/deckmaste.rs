@@ -34,7 +34,7 @@ semantic_definition storm : Ability :=
                 (cast (a (and [isSpell, isOther])))
                 (a .anyPlayer) earlierThisTurn)
               [],
-            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (.pro (.word .copy) .many))) ]) ]
+            may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ]
 /-- "Cascade" with its reminder text [CR#702.85a]. -/
 semantic_definition cascade : Ability :=
   let cheaper : Predicate :=
@@ -369,7 +369,7 @@ semantic_definition casualty (amount : Amount) : Ability :=
         (if_ := keywordCostPaid (.named "casualty") thisSpell)
         (sequentially
           [ copyOnStack thisSpell,
-            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ]) ]
+            may (.chooseNewTargets (that .copy)) ]) ]
 semantic_definition champion (quality : Predicate) : Ability :=
   .keyword (.named "champion") [.subject (.inCaller quality)]
     [ when (does thisPermanent enter)
@@ -425,7 +425,7 @@ semantic_definition conspire : Ability :=
         (if_ := keywordCostPaid (.named "conspire") thisSpell)
         (sequentially
           [ copyOnStack thisSpell,
-            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ]) ]
+            may (.chooseNewTargets (that .copy)) ]) ]
 semantic_definition convoke : Ability :=
   .keyword (.named "convoke") []
     [ static
@@ -639,7 +639,7 @@ semantic_definition epic : Ability :=
           (sequentially
             [ .copy .fromStack thisSpell 1
                 [.edits [.removedAbilities (.specified [.term (.the (.named "epic"))])]],
-              doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (that .copy))) ])) ]
+              may (.chooseNewTargets (that .copy)) ])) ]
 semantic_definition equip (cost : Cost) : Ability :=
   .keyword (.named "equip") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
@@ -844,7 +844,7 @@ semantic_definition gravestorm : Ability :=
         (sequentially
           [ copyOnStack thisSpell
               (eventCount die (a isPermanent) soFarThisTurn),
-            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (those .copy))) ]) ]
+            may (.chooseNewTargets (those .copy)) ]) ]
 semantic_definition harmonize (cost : Cost) : Ability :=
   .keyword (.named "harmonize") [.cost (.inCaller cost)]
     [ static
@@ -1394,7 +1394,7 @@ semantic_definition replicate (cost : Cost) : Ability :=
         (if_ := keywordCostPaid (.named "replicate") thisSpell)
         (sequentially
           [ copyOnStack thisSpell (timesPaid (.byKeyword (.named "replicate")) thisSpell),
-            doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets (those .copy))) ]) ]
+            may (.chooseNewTargets (those .copy)) ]) ]
 /-- "Retrace": "You may cast this card from your graveyard by discarding a land card as an
 additional cost to cast it" [CR#702.81a]. The discard is added to the mana cost or an alternative
 cost, so an alternative cost still applies [CR#118.9a,601.2b]. -/

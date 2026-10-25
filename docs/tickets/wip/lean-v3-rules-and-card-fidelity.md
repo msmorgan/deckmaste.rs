@@ -42,8 +42,12 @@ were re-located against the Lean source on 2026-10-24.
   value)`; scaling keeps the sign, so exactly one fires, and every clamped amount is a magnitude.
   The `NumberRegime` docstring says how doubling is written. Pins (`Proofs/Numbers.lean`):
   `negativePowerDoublesBelowZero`, `negativeAxisTriplesBelowZero`,
-  `doublingChangesAreClampedMagnitudes`, `chameleonColossusBoostStaysClamped`. The v2 RON helpers
-  (`instructions/doublePower.ron` and kin) read `up` of a negative as signed and were left alone.
+  `doublingChangesAreClampedMagnitudes`, `chameleonColossusBoostStaysClamped`. The two guards per
+  axis are a workaround: the intended spelling is one `doIf (… .less 0) … (some …)` per axis, which
+  the checker refuses because an otherwise-branch cannot read a subject first mentioned in the
+  condition; [lean-v3-doif-otherwise-reads-condition-mentions](../planned/lean-v3-doif-otherwise-reads-condition-mentions.md)
+  fixes that and rewrites `getsScaledStats`. v2 has no number regime; its RON helpers
+  (`instructions/doublePower.ron` and kin) were left alone because v2 is deletion-bound.
 - **Counter movement fidelity (Astra §1, Opus §1.11):**
   - Fix `moveCounters` (`lean/Semantics/Templates.lean:1539-1546`, a guardless
     `.sequentially [.removeCounters …, .putCounters …]`) so moving counters
@@ -149,8 +153,10 @@ were re-located against the Lean source on 2026-10-24.
   - `shadow` (`[CR#702.28b]`, `Definitions/Keywords.lean:1432-1434`): bind `thisCreature` rather
     than quantifying over every shadow creature in the second static ability.
     **Done** (`zkzrxmwr`): `cant (.by thisCreature) (.block (allOf (and [isCreature, not shadow])))`;
-    `shadow.ron` mirrors it as an agent-role `deonticRule(thisCreature, Forbid, [Block], Agent,
-    Counterpart(…))`. Pin `shadowSecondHalfIsAboutThisCreature`.
+    Pin `shadowSecondHalfIsAboutThisCreature`. `shadow.ron` is unchanged: the agent-role
+    `deonticRule` mirror `zkzrxmwr` wrote broke the v2 corpus read of *Spirit en-Dal* (`shadow`
+    inside its own `hasKeyword(The(shadow))` in an `Any` slot reads as a recursive macro call), so
+    it was reverted; v2 is deletion-bound and this item names only the Lean body.
 - **Copy keywords drop "If the spell has any targets" (added 2026-10-24; storm/replicate moved
   here from `lean-v3-proofs-and-docs-alignment` §2, its only home now):** each of these rules says
   "If the spell has any targets, you may choose new targets for" the copy or copies, but each body
@@ -165,14 +171,18 @@ were re-located against the Lean source on 2026-10-24.
   - `epic` [CR#702.50a] `Keywords.lean:627-636`.
   `demonstrate` (`Keywords.lean:485-493`) is correctly unguarded: [CR#702.144a] grants "you may
   choose new targets for the copy" with no condition.
-  **Done** (`zkzrxmwr`): each body ends in `doIf (is thisSpell (targeting .any .someTarget)) (may
-  (.chooseNewTargets …))`, and storm's docstring quotes the rule. Pin
-  `copyKeywordsGuardNewTargetsOnTheSpellsTargets` (`Proofs/Keyword.lean`); rewrote
-  `stormCountsEarlierThisTurn` (`Proofs/Faces.lean`), which restates storm's tree, to the guarded
-  tail. **Live:** the v2 RON
+  **Live** (STOP, 2026-10-25). `zkzrxmwr` guarded each body with `doIf (is thisSpell (targeting
+  .any .someTarget))`, which is wrong and was reverted by `rrrusrnr`: "that targets" reads the
+  targets' current state [CR#115.9b], so a target that left its zone drops out, while "if the spell
+  has any targets" asks whether targets were chosen for it, and a vanished or illegal target is
+  still one the copy may keep [CR#707.10,707.10c]. Epic's guard was always false (the spell has
+  left the stack by each upkeep), and storm's turned false when *Grapeshot*'s target was
+  sacrificed. No existing `TargetExtent` or predicate reads "had targets chosen" ([CR#115.9a]'s
+  count of times chosen); the options are in the 2026-10-25 report. The pin
+  `copyKeywordsGuardNewTargetsOnTheSpellsTargets` was retired with the guard and
+  `stormCountsEarlierThisTurn` restored to the unguarded tail. When the guard lands, the v2 RON
   mirrors (`storm.ron`, `replicate.ron`, `gravestorm.ron`, `casualty.ron`, `conspire.ron`,
-  `epic.ron`) still end in an unguarded `may(chooseNewTargets(…))`; guarding them needs a v2 mirror
-  of Lean's `NounPhrase.any` ("targets anything"), which v2's `NounPhrase` lacks.
+  `epic.ron`) are out of reach: they are deletion-bound and take no new variants.
 - **Route keyword bodies through keyword-action `Definitions` (§3.2):**
   - Replace raw `.search` / `.shuffle` in `transmute` and `transfigure`
     (`Keywords.lean:1632-1646`, `:1619-1630`; Definitions `search` and `shuffle` at

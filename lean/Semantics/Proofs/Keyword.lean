@@ -540,33 +540,6 @@ theorem timeTravelReadsSuspendedCards :
       some (and [.isCard, .in_ exileZone, ownedBy .actor,
         .hasKeyword (.the (.named "suspend")), .hasCounters timeCounter]) := rfl
 
-/-- The last step of a keyword's last ability's effect, when it is a sequence: where the copy
-keywords offer new targets. -/
-private def copyKeywordLastStep (keyword : Ability) : Option Action :=
-  let last : Action → Option Action
-    | .sequentially steps => steps.getLast?
-    | _ => none
-  match keyword with
-  | .keyword _ _ abilities =>
-    match abilities.getLast? with
-    | some (.triggered _ _ _ _ _ _ _ effect) => last effect
-    | some (.spell _ (.delay _ _ _ effect)) => last effect
-    | _ => none
-  | _ => none
-
-/-- "If the spell has any targets, you may choose new targets for" the copy or copies
-[CR#702.40a,702.56a,702.69a,702.153a,702.78a,702.50a]: each copy keyword guards its new-target
-choice on the spell's targeting. -/
-theorem copyKeywordsGuardNewTargetsOnTheSpellsTargets :
-    let guarded (copies : NounPhrase) : Action :=
-      doIf (is thisSpell (targeting .any .someTarget)) (may (.chooseNewTargets copies))
-    copyKeywordLastStep storm = some (guarded (.pro (.word .copy) .many)) ∧
-      copyKeywordLastStep (replicate (.mana [generic 1])) = some (guarded (those .copy)) ∧
-      copyKeywordLastStep gravestorm = some (guarded (those .copy)) ∧
-      copyKeywordLastStep (casualty 2) = some (guarded (that .copy)) ∧
-      copyKeywordLastStep conspire = some (guarded (that .copy)) ∧
-      copyKeywordLastStep epic = some (guarded (that .copy)) := ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
-
 /-- The deed each step of a keyword's one activated ability's sequence performs. -/
 private def activatedStepDeeds : Ability → List (Option Deed)
   | .keyword _ _ [.activated _ (.sequentially steps) _ _ _ _] => steps.map (·.ownDeed?)

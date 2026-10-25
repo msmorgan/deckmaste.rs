@@ -7,18 +7,13 @@ KeywordAbility(
     ),
     // "A creature with shadow can't be blocked by creatures without shadow, and a
     // creature without shadow can't be blocked by creatures with shadow."
-    // [CR#702.28b] Each half is about this creature: creatures without shadow
-    // can't block it, and it can't block them.
+    // [CR#702.28b]
     body: [
         static(cantBeBlockedBy(thisCreature, and([creature, not(hasKeyword(The(shadow)))]))),
         static(
-            deonticRule(
-                thisCreature,
-                Forbid,
-                [Block],
-                Agent,
-                Counterpart(allOf(and([creature, not(hasKeyword(The(shadow)))]))),
-                NoRider,
+            cantBeBlockedBy(
+                allOf(and([creature, not(hasKeyword(The(shadow)))])),
+                and([creature, hasKeyword(The(shadow))]),
             ),
         ),
     ],

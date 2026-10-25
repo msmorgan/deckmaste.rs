@@ -34,6 +34,7 @@ use ::ron::value::RawValue;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::abilities::Instruction;
 use deckmaste_semantics_v2::abilities::KeywordParam;
+use deckmaste_semantics_v2::phrase::GameEvent;
 use deckmaste_semantics_v2::phrase::NounPhrase;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::reader::ron_files_recursive;
@@ -333,16 +334,29 @@ fn read_body<T: DeserializeOwned>(macros: &MacroSet, family: &str, stem: &str) -
 /// Buyback, rebound and haunt's spell half act on the move to the graveyard
 /// "as it resolves" / "during its resolution", the final part of the spell's
 /// resolution [CR#608.2n], so the event is that move as the resolution causes
-/// it, and a countered spell's move [CR#701.6a] does not match.
+/// it, and a countered spell's move [CR#701.6a] does not match. The whole
+/// event, the `Causes` node over exactly the stack-to-graveyard move, must
+/// appear in each body.
 #[test]
 fn resolution_move_keywords_read_the_resolution_as_the_cause() {
     let builtin = Plugin::load(builtin_root()).expect("the builtin declarations load");
+    let expected: GameEvent = builtin
+        .macros
+        .read_str(
+            "causes(Event(verbedEvent(resolve, thisSpell)), \
+             zoneChange(thisSpell, Before, Zones([stack]), graveyard))",
+        )
+        .expect("the resolution-caused move reads");
+    assert!(
+        matches!(expected, GameEvent::Causes { .. }),
+        "the expected event is the caused move: {expected:?}"
+    );
+    let expected = format!("{expected:?}");
     for stem in ["buyback", "rebound", "haunt"] {
         let body: Vec<Ability> = read_body(&builtin.macros, "keyword_abilities", stem);
         let text = format!("{body:?}");
         assert!(
-            text.contains("Causes { cause: Event { event: VerbedEvent")
-                && text.contains("\"resolve\""),
+            text.contains(&expected),
             "{stem}: the stack-to-graveyard move is not caused by the spell's resolution:\n{text}"
         );
     }
