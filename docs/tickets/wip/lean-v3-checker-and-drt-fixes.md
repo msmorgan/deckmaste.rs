@@ -502,6 +502,9 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   use is; a mode no longer reads as a handed origin. `HistoricalMove`'s exit pin reads both
   fields; three proof `simp` sets in `ComparisonBox`/`ReferenceScopes` lose the unused
   `Option Zone` lemma.
+  mqyprupu: `.addedAbilities` introduces the letter any parameter of a granted keyword writes for
+  its number (`KeywordParam.writtenLetter?`), not only a sole one; pin
+  `GetsBothDeltas.grantedKeywordLetterIsIntroducedBesideACost` (reinforce X—{2}).
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,

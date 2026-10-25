@@ -373,6 +373,15 @@ theorem grantedKeywordLetterIsIntroducedAndClosed :
         [grant, .letterDefinition .x (countOf (and [isCreature, youControl]))])
       result.2 = [] ∧ anyOpenLetter .x result.1 = false := by decide
 
+/-- "This creature has reinforce X—{2}, where X is …": the letter is introduced whichever of the
+keyword's parameters writes it, here the first of two [CR#702.77a], not only a sole one. -/
+theorem grantedKeywordLetterIsIntroducedBesideACost :
+    let grant := Templates.abilityGrant thisCreature (reinforce (.letter .x) [generic 2])
+    anyOpenLetter .x (stepStaticSpec 32 (DRS.ofList []) grant).1 = true ∧
+      (stepStaticSpec 32 (DRS.ofList []) (.conjunction none
+        [grant, .letterDefinition .x (countOf (and [isCreature, youControl]))])).2 = [] := by
+  decide
+
 theorem modernSharedSubjectSurvivesAnEarlierExile :
     let body := Action.sequentially [exile (target isArtifact),
       establishFor (.firstMention "audit.shared" (target isCreature))

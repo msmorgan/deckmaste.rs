@@ -1926,17 +1926,24 @@ def stepAbilitySelectionWith (ops : StepOps) (drs : DRS) (sel : AbilitySelection
   | .allExcept (some p) => ops.pred drs p
   | .family _ | .printedAfter _ | .allExcept none => (drs, [])
 
+/-- The letter a keyword parameter writes for its number ("toxic X"), if it writes one. -/
+def KeywordParam.writtenLetter? : KeywordParam → Option Letter
+  | .number (.letter l) | .number (.inCaller (.letter l)) => some l
+  | _ => none
+
 def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicEdit) : DRS × List Refusal :=
   match ed with
   | .manaCost _ => (drs, [])
   | .stat _ _ amt => ops.amt drs amt
   | .quality _ q => stepWrittenQualityWith ops drs q
   | .addedAbilities abs =>
-    -- A granted keyword whose number is a letter ("has toxic X") introduces that letter.
+    -- A granted keyword writing a letter for a number ("has toxic X") introduces that letter,
+    -- whichever of its parameters writes it.
     let out := abs.foldl (fun d ab => match ab with
-      | .keyword _ [.number (.letter l)] _
-      | .keyword _ [.number (.inCaller (.letter l))] _ =>
-        (introducedLetters l drs).foldl (fun d r => d.push r .other false) d
+      | .keyword _ params _ =>
+        params.foldl (fun d param => match param.writtenLetter? with
+          | some l => (introducedLetters l d).foldl (fun d r => d.push r .other false) d
+          | none => d) d
       | _ => d) drs
     (out, (stepAbilityListWith ops (linkedTextContext drs) abs).2)
   | .addedAbilitiesOf src _ optEx =>
