@@ -69,12 +69,12 @@ theorem okAnnouncingRemovalAgent :
 
 theorem badAnnouncingRemovalAgent :
     GameEvent.check (DRS.ofList [])
-      (.does (.by (target .anyPlayer)) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment)) = [.eventAgent] := by
+      (.does (.by (target .isPlayer)) (.removeCounters (some .theLast) (some (.printed (.named "interventionCounter"))) thisEnchantment)) = [.eventAgent] := by
   decide
 
 /-- "Whenever a creature attacks a player, …" -/
 theorem okSingularAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .anyPlayer)))) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .isPlayer)))) = [] := by decide
 
 /-- "Whenever a creature attacks your opponents, …" -/
 theorem badPluralAttackDefender :
@@ -114,10 +114,10 @@ theorem okTriggerLimitOffChapter :
 
 /-- "Whenever a creature attacks a player" -/
 theorem okPlayerAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .anyPlayer)))) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .isPlayer)))) = [] := by decide
 
 /-- "Whenever a player pays life": a payment of life, `payLife` [CR#119.4]. -/
-def afterLifePayment : DRS := GameEvent.extend (DRS.ofList []) (does (a .anyPlayer) (payLife anyAmount))
+def afterLifePayment : DRS := GameEvent.extend (DRS.ofList []) (does (a .isPlayer) (payLife anyAmount))
 
 /-- "Whenever a player pays life, that player draws a card." -/
 theorem okLifePaymentPayerReadback :
@@ -180,7 +180,7 @@ theorem okSpellTargetingEvent :
 
 /-- "Whenever you become the target of a player, …" -/
 theorem badPlayerTargetingEvent :
-    GameEvent.check (DRS.ofList []) (.does (.by (a .anyPlayer)) (.target .you)) = [.targeter .player] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.by (a .isPlayer)) (.target .you)) = [.targeter .player] := by decide
 
 /-- "If an ability ... triggers, it triggers an additional time." -/
 theorem okMultipliedTrigger :
@@ -200,7 +200,7 @@ theorem triggersIsTheAbilityTriggering :
 /-- "Whenever a player triggers an ability": a player is not an ability, so it cannot be the
 event's agent. -/
 theorem badPlayerTriggers :
-    GameEvent.check (DRS.ofList []) (Templates.triggers (a .anyPlayer)) = [.eventAgent] := by
+    GameEvent.check (DRS.ofList []) (Templates.triggers (a .isPlayer)) = [.eventAgent] := by
   decide
 
 /-- Day and night are designations the game itself has [CR#731.1]: "it becomes night" is the game
@@ -250,7 +250,7 @@ an opponent controls, or a card in an opponent's graveyard [CR#700.13]; the whol
 no opponent, so such a crime has no opponent-owned object. One player at a time commits one
 (`okCrimeBySinglePlayer`). -/
 theorem badCrimeByAllPlayers :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor (allOf .anyPlayer)) .commitCrime) (draw 1))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor (allOf .isPlayer)) .commitCrime) (draw 1))
       = [.singular] := by
   decide
 

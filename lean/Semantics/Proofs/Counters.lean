@@ -337,7 +337,7 @@ theorem okCreatedThenCountered :
 theorem badDistributedCreationIt :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (create 1
+        [ instruct (each .isPlayer) (create 1
             (.written (creatureToken 1 1 [.green] [plant])) []),
           (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 0] := by
   decide

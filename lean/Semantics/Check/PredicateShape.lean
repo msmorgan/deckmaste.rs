@@ -41,7 +41,7 @@ def Predicate.flatten (ps : List Predicate) : List Predicate := ps.flatMap (fun 
 def Predicate.negatable (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.negatable n
-  | _ + 1, .anyPlayer | _ + 1, .chosen _ | _ + 1, .qualityNoun _ none
+  | _ + 1, .isPlayer | _ + 1, .chosen _ | _ + 1, .qualityNoun _ none
   | _ + 1, .counterKindOn _ | _ + 1, .isSource | _ + 1, .eachKind _ _ => false
   | _, _ => true
 termination_by structural fuel

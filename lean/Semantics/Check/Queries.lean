@@ -86,7 +86,7 @@ private theorem turnOwnersMustBePlayersAtEveryEntry :
   decide
 
 private theorem durationBoundariesNeedDefiniteOwners :
-    let indefinite : NounPhrase := .described (.a .unmarked) .anyPlayer
+    let indefinite : NounPhrase := .described (.a .unmarked) .isPlayer
     let rejected : Duration := .between none
       (some (.beginningOf .upkeep (some indefinite) .current))
     let accepted : Duration := .between none
@@ -125,7 +125,7 @@ private theorem enchantedPlayerAndTypedAttachmentCounterparts :
         (.attachment .host none (some .you))).2 = [.kindMismatch .object .player] := by decide
 
 private theorem attachmentHostModifierDoesNotOverrideThePlayerHead :
-    Predicate.kind? (.and [.attachment .host (some .enchanted) none, .anyPlayer]) =
+    Predicate.kind? (.and [.attachment .host (some .enchanted) none, .isPlayer]) =
       some .player := by decide
 
 private theorem attachmentKindsUseTheMatchedSubjectAndOneHeadGate :

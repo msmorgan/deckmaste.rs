@@ -326,7 +326,7 @@ theorem okCompanionSharedColor :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Action.check (DRS.ofList []) (Templates.instruct (each .anyPlayer) (scry 1)) = [] := by decide
+    Action.check (DRS.ofList []) (Templates.instruct (each .isPlayer) (scry 1)) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :

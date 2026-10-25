@@ -228,7 +228,7 @@ mutual
     | hasType (type : CardType)
     | hasSubtype (subtype : Subtype)
     | hasSupertype (supertype : Supertype)
-    | anyPlayer
+    | isPlayer
     /-- The member is an opponent of `who` [CR#102.2,102.3]. -/
     | isOpponentOf (who : NounPhrase)
     /-- The member is a teammate of `who` [CR#102.3]. -/

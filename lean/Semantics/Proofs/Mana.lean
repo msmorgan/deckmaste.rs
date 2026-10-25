@@ -85,7 +85,7 @@ theorem okBeforeCombatDamage :
 theorem okDistributiveAttackWindow :
     Ability.check (DRS.ofList [])
       (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
+        (some (beforePart .declareAttackers (some (each .isPlayer))))) = [] := by
   decide
 
 /-- "Cast this spell only before the combat damage step." -/
@@ -261,7 +261,7 @@ theorem okManaCumulativeUpkeep :
 
 /-- "Whenever a player taps a land for mana, …" -/
 theorem okTappedForMana :
-    GameEvent.check (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a isLand) none)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.by (a .isPlayer)) (.tapForMana (a isLand) none)) = [] := by decide
 
 /-- An artifact with the given text. -/
 def artifactWith (text : List Ability) : Card :=
@@ -293,10 +293,10 @@ theorem badTapForChosenNonManaType :
   decide
 
 def afterALandTapForMana : DRS :=
-  GameEvent.extend (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a isLand) none))
+  GameEvent.extend (DRS.ofList []) (.does (.by (a .isPlayer)) (.tapForMana (a isLand) none))
 
 def afterAPlainLandTap : DRS :=
-  GameEvent.extend (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.setStatus .tapped (a isLand)))
+  GameEvent.extend (DRS.ofList []) (.does (.actor (a .isPlayer)) (.setStatus .tapped (a isLand)))
 
 /-- "one mana of any type that land produced" -/
 theorem okProducedByTapEvent :
@@ -330,7 +330,7 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Action.check (DRS.ofList []) (Templates.instruct (target .anyPlayer) (sacrifice (aTheirChoice isCreature))) = [] :=
+    Action.check (DRS.ofList []) (Templates.instruct (target .isPlayer) (sacrifice (aTheirChoice isCreature))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/

@@ -113,15 +113,15 @@ private def moveOuter : Action :=
     (some (.zone .exile none)) .departure []
 
 theorem loopPreservesFreshSuccessorOfOuterReferent :
-    let loop := Action.doForEach (.described .each .anyPlayer) moveOuter
+    let loop := Action.doForEach (.described .each .isPlayer) moveOuter
     let result := stepAction 64 .postEvent .obj original loop
     result.2 = [] ∧ result.1.findById? 0 = none ∧
       (result.1.findById? 3).map (fun ref => (ref.ty, ref.zone)) =
         some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem nestedLoopsPreserveOuterSuccessor :
-    let inner := Action.doForEach (.described .each .anyPlayer) moveOuter
-    let outer := Action.doForEach (.described .each .anyPlayer) inner
+    let inner := Action.doForEach (.described .each .isPlayer) moveOuter
+    let outer := Action.doForEach (.described .each .isPlayer) inner
     let result := stepAction 64 .postEvent .obj original outer
     result.2 = [] ∧ result.1.findById? 0 = none ∧
       (result.1.findById? 5).map (fun ref => (ref.ty, ref.zone)) =
@@ -142,7 +142,7 @@ theorem consumingActionChecksThePreMoveZone :
     result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 theorem distributedMovementKeepsAnOuterCardSingular :
-    let action := Action.instruct (.described .each .anyPlayer) moveOuter
+    let action := Action.instruct (.described .each .isPlayer) moveOuter
     let result := stepAction 64 .postEvent .obj original action
     result.2 = [] ∧ (result.1.findById? 2).map (fun ref => (ref.plur, ref.zone)) =
       some (.one, some .exile) ∧ result.1.outerReferentIds = [] := by decide

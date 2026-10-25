@@ -514,7 +514,7 @@ theorem okBarePluralPlayerDamageRecipient :
 /-- "Prevent all damage that would be dealt to any player or permanent." -/
 theorem okPreventDealtToPermanent :
     StaticSpec.check (DRS.ofList [])
-      (replace (would any (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+      (replace (would any (dealDamage anyAmount (a (.or [isPermanent, .isPlayer]))))
         (instead (preventDamage .all))) = [] := by
   decide
 
@@ -629,7 +629,7 @@ theorem badPreventedThisWayUnannounced :
 
 /-- "… They gain 2 life for each card less than two they drew this way." -/
 theorem okShortOfCeilingAnnounced :
-    let drawing := instruct (each .anyPlayer)
+    let drawing := instruct (each .isPlayer)
       (.sequentially [may (drawCount (upToOf 2)),
         instruct they (gainLife (times 2 shortOfCeiling))])
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) drawing).1
@@ -640,7 +640,7 @@ theorem okShortOfCeilingAnnounced :
 theorem singularTheyCannotReadThePublishedPlayerGroup :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (may (instruct they (drawCount (upToOf 2)))),
+        [ instruct (each .isPlayer) (may (instruct they (drawCount (upToOf 2)))),
           instruct they (gainLife (times 2 shortOfCeiling)) ]) =
       [.anaphor (.word .player) .one 0] := by decide
 
@@ -747,7 +747,7 @@ permanent or player instead": the source deals twice the damage it would have [C
 the source and "that much" the replaced damage. -/
 theorem okScaleDoubled :
     StaticSpec.check (DRS.ofList [])
-      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .isPlayer]))))
         (instead (instruct it (dealDamage (times 2 thatMuch) thatJoin)))) = [] := by
   decide
 
@@ -755,7 +755,7 @@ theorem okScaleDoubled :
 the one amount in scope. -/
 theorem okScaleShiftByThatMuch :
     StaticSpec.check (DRS.ofList [])
-      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .anyPlayer]))))
+      (replace (would (a isSource) (dealDamage anyAmount (a (.or [isPermanent, .isPlayer]))))
         (instead (instruct it (dealDamage (plus thatMuch thatMuch) thatJoin)))) = [] := by
   decide
 
@@ -938,7 +938,7 @@ theorem badLastChosenColorNoChooser :
 
 /-- "the greatest life total among all players" -/
 theorem okPlayerAggregate :
-    Amount.check (DRS.ofList []) (.aggregate .max (.playerStat .lifeTotal) (allOf .anyPlayer)) = [] := by decide
+    Amount.check (DRS.ofList []) (.aggregate .max (.playerStat .lifeTotal) (allOf .isPlayer)) = [] := by decide
 
 /-- "the total power of target creature" -/
 theorem badSingularAggregate :
@@ -968,7 +968,7 @@ theorem badAmountRollRow :
 theorem badCreatureHalfRead :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage 3 (target (.or [.hasType .planeswalker, .anyPlayer])))),
+        [ (Action.instruct .this (.dealDamage 3 (target (.or [.hasType .planeswalker, .isPlayer])))),
           discard (a (.and [.isCard, .in_ (handOf (eitherOf (.pro (.unionHalf .player) .one)
               (controllerOf (that (.type .creature)))))])) ]) = [.anaphor (.word (.type .creature))
                   .one 0] := by
@@ -993,7 +993,7 @@ theorem badPluralLifeTotalRead :
 
 /-- "You gain life equal to each player's life total." -/
 theorem badDistributiveLifeTotalRead :
-    Amount.check (DRS.ofList []) (lifeTotalOf (each .anyPlayer)) = [.singular] := by decide
+    Amount.check (DRS.ofList []) (lifeTotalOf (each .isPlayer)) = [.singular] := by decide
 
 /-- "Destroy target creature." -/
 theorem okDestroyCreature : Action.check (DRS.ofList []) (destroy (target isCreature)) = [] := by decide

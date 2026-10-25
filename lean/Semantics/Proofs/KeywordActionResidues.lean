@@ -50,7 +50,7 @@ theorem okWaterbend : Action.check (DRS.ofList []) (waterbend (.mana [generic 4]
 players. -/
 theorem badSubstituteWithPlayers :
     Action.check (DRS.ofList []) (.pay (.withSubstitute (.mana [generic 4])
-      (substitute (tap (a .anyPlayer)) [.generic])) .once .paid none none) =
+      (substitute (tap (a .isPlayer)) [.generic])) .once .paid none none) =
       [.kindMismatch .object .player] := by decide
 
 /-- Convoke [CR#702.51a]: "mana of that creature's color" reads back the creature the action

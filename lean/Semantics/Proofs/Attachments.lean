@@ -19,10 +19,10 @@ theorem okEnchantedPlayer :
 
 theorem okEnchantedPlayerWithModifierFirst :
     NounPhrase.checkAt (some .player) (DRS.ofList [])
-      (a (.and [.attachment .host (some .enchanted) none, .anyPlayer])) = [] := by decide
+      (a (.and [.attachment .host (some .enchanted) none, .isPlayer])) = [] := by decide
 
 theorem okEnchantedPlayerHasNoZone :
-    nounZone (DRS.ofList []) (a (.and [.anyPlayer, .attachment .host (some .enchanted) none])) = none := by rfl
+    nounZone (DRS.ofList []) (a (.and [.isPlayer, .attachment .host (some .enchanted) none])) = none := by rfl
 
 theorem badEquippedPlayer :
     Condition.check (DRS.ofList []) (.matches .you (.attachment .host (some .equipped) none)) =
@@ -118,7 +118,7 @@ theorem okEquipmentMayBeAttachedToACreature :
 
 /-- An Aura may be attached to a player [CR#702.5d]: the host role admits either kind. -/
 theorem okAuraMayBeAttachedToAPlayer :
-    StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .anyPlayer)) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .isPlayer)) = [] := by decide
 
 theorem passiveAgentAndAttachmentHostAreDistinct :
     (.by (allOf isCreature) : Subject).patientRole = .subj ∧
@@ -153,7 +153,7 @@ target, the legal-host permission, and the entry clause [CR#702.5a,303.4a,303.4c
 theorem okEnchantCreature : Ability.check (DRS.ofList []) (enchant isCreature) = [] := by decide
 
 /-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
-theorem okEnchantPlayer : Ability.check (DRS.ofList []) (enchant .anyPlayer) = [] := by decide
+theorem okEnchantPlayer : Ability.check (DRS.ofList []) (enchant .isPlayer) = [] := by decide
 
 /-! ## An enchanted card is not on the battlefield
 

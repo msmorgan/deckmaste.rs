@@ -35,7 +35,7 @@ theorem okStateBasedLossForPlayerGroup :
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Action.check (DRS.ofList []) (.establish
-      (.cant (.actor (target .anyPlayer)) (.conclude .loseGame (some .nonpositiveLife)) {}) (some thisTurn)) = [] := by decide
+      (.cant (.actor (target .isPlayer)) (.conclude .loseGame (some .nonpositiveLife)) {}) (some thisTurn)) = [] := by decide
 
 /-- A prohibition over an empty action names no deed. -/
 theorem badEmptyProhibitedAction :
@@ -447,7 +447,7 @@ theorem okCantBeRevealed :
 quantity, the rate the rule's timing. -/
 theorem okMoreThanOneSpellEachTurn :
     StaticSpec.check (DRS.ofList [])
-      (.cant (.actor (each .anyPlayer))
+      (.cant (.actor (each .isPlayer))
         (.procedure .cast (counted (.moreThanOf 1) isSpell) .itsOwnCost none none none)
         { timing := some (.inPart .turn none (.each none)) }) = [] := by decide
 

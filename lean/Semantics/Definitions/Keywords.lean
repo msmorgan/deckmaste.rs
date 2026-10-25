@@ -40,7 +40,7 @@ semantic_definition storm : Ability :=
           [ .copy .fromStack thisSpell
               (eventCount
                 (cast (a (and [isSpell, isOther])))
-                (a .anyPlayer) earlierThisTurn)
+                (a .isPlayer) earlierThisTurn)
               [],
             may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ]
 /-- "Cascade" with its reminder text [CR#702.85a]. -/
@@ -77,7 +77,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_definition renown (count : Amount) : Ability :=
   .keyword (.named "renown") [.number (.inCaller count)]
-    [ when (does thisCreature (dealDamage (to := a .anyPlayer) (kind := some .combat)))
+    [ when (does thisCreature (dealDamage (to := a .isPlayer) (kind := some .combat)))
         (if_ := some (not (is thisCreature (hasDesignation renowned))))
         (sequentially
           [ putCounters (.inCaller count) p1p1Counter thisCreature,
@@ -417,7 +417,7 @@ semantic_definition cipher : Ability :=
       static
         (abilityGrant (.counterpart encodedOn this_)
           (whenever
-            (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
+            (does thisCreature (.dealDamage .anyAmount (a .isPlayer) (some .combat)))
             (may
               (sequentially
                 [ .copy .fromCardZone
@@ -533,7 +533,7 @@ semantic_definition dethrone : Ability :=
         (does thisCreature
           (.attack
             (some
-              (a (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))))
+              (a (and [.isPlayer, .superlative .max (.playerStat .lifeTotal) .isPlayer])))))
         (putCounters 1 p1p1Counter thisCreature) ]
 /-- "Devoid" means "This object is colorless": a Characteristic-Defining Ability
 [CR#702.114a,604.3a]. -/
@@ -1082,7 +1082,7 @@ semantic_definition infinity (ability : Ability) : Ability :=
           (is thisPermanent (hasDesignation harnessed))) ]
 semantic_definition ingest : Ability :=
   .keyword (.named "ingest") []
-    [ whenever (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
+    [ whenever (does thisCreature (.dealDamage .anyAmount (a .isPlayer) (some .combat)))
         (instruct they
           (exile (.slice .top 1 (libraryOf they)))) ]
 /-- "Intimidate": "This creature can't be blocked except by artifact creatures and/or creatures
@@ -1379,7 +1379,7 @@ semantic_definition plot (cost : Cost) : Ability :=
           (sequentially [exileFrom thisCard yourHand, gainDesignation it plotted])) ]
 semantic_definition poisonous (amount : Amount) : Ability :=
   .keyword (.named "poisonous") [.number (.inCaller amount)]
-    [ whenever (does thisCreature (.dealDamage .anyAmount (a .anyPlayer) (some .combat)))
+    [ whenever (does thisCreature (.dealDamage .anyAmount (a .isPlayer) (some .combat)))
         (putCounters (.inCaller amount) poison they) ]
 semantic_definition powerUp (ability : Ability) : Ability :=
   .keyword (.named "powerUp") [.ability (.inCaller ability)]

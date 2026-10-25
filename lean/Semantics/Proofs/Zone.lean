@@ -69,7 +69,7 @@ theorem badNegatedQualityHead :
   decide
 
 /-- "non-player" -/
-theorem badNegatedPlayerHead : Predicate.checkAt .player (DRS.ofList []) (.not .anyPlayer) = [.negatable] := by
+theorem badNegatedPlayerHead : Predicate.checkAt .player (DRS.ofList []) (.not .isPlayer) = [.negatable] := by
   decide
 
 /-- "Tap target creature an opponent controls. That player loses 1 life." -/
@@ -298,7 +298,7 @@ theorem okInsteadOfSearchRevealsIt :
 /-- "Each player mills a card. Exile it." -/
 theorem badDistributedMillSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .anyPlayer) (mill 1), exile it])
+      (.sequentially [instruct (each .isPlayer) (mill 1), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -400,7 +400,7 @@ theorem okRemoveFromCombatOnBattlefield :
 /-- "Players can't untap more than one creature during each untap step." -/
 theorem okUntapCapBattlefieldSet :
     Ability.check (DRS.ofList [])
-      (.static (cant (actor (.described .all .anyPlayer)) (untap (counted (moreThan 1) isCreature))))
+      (.static (cant (actor (.described .all .isPlayer)) (untap (counted (moreThan 1) isCreature))))
       = [] := by
   decide
 

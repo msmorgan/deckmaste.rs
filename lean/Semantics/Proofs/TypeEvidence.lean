@@ -106,7 +106,7 @@ theorem conjunctionDistributesThroughAlternatives :
     Predicate.headTyAlts (.and [.or [isArtifact, isLand], isCreature]) =
       [[.creature, .artifact], [.creature, .land]] := by decide
 
-private def joined : DRS := afterTarget (.or [artifactCreature, .anyPlayer])
+private def joined : DRS := afterTarget (.or [artifactCreature, .isPlayer])
 
 theorem joinedObjectHalfReadsCreature :
     countReach (.unionHalf (.type .creature)) .one joined = 1 := by decide
@@ -119,7 +119,7 @@ theorem joinedObjectHalfDoesNotInventLand :
 
 theorem joinedObjectHalfDoesNotBorrowBetweenAlternatives :
     countReach (.unionHalf (.type .artifact)) .one
-      (afterTarget (.or [artifactCreature, isCreature, .anyPlayer])) = 0 := by decide
+      (afterTarget (.or [artifactCreature, isCreature, .isPlayer])) = 0 := by decide
 
 theorem damageAcceptsArtifactCreature :
     Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage 1 (target artifactCreature))) = [] := by decide

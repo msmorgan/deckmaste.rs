@@ -82,7 +82,7 @@ theorem possibleChoiceHistoryDoesNotExportLoopReferences :
            (.described .each (.and [.hasType .creature, .notChosen])))] =
         [.choiceInScope .object] ∧
       let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
-        (.doForEach (.described .each .anyPlayer) optionalCreature)).1
+        (.doForEach (.described .each .isPlayer) optionalCreature)).1
       out.choiceWasPossible .object = true ∧ countParts .object out = 0 ∧
         countOnes .object out = 0 ∧ countManys .object out = 0 := by decide
 
@@ -90,7 +90,7 @@ private def loopTarget (predicate : Predicate) : Action :=
   .choose none (.described (.target (.range (some 1) (some 1))) predicate) .openly none
 
 private def targetForEachPlayer : Action :=
-  .doForEach (.described .each .anyPlayer)
+  .doForEach (.described .each .isPlayer)
     (loopTarget (.and [.in_ (.zone .battlefield none),
       .hasPossessor .controller (.pro (.word .player) .one)]))
 
@@ -118,7 +118,7 @@ theorem playersCanSacrificeTheCollectedTargets :
 
 private def afterPlayerLoop (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
-    (.doForEach (.described .each .anyPlayer) body)).1
+    (.doForEach (.described .each .isPlayer) body)).1
 
 theorem ordinaryLocalsAndOptionalTargetsRemainClosed :
     countManys .object (afterPlayerLoop
@@ -153,7 +153,7 @@ theorem preexistingTargetsAreNotReaggregated :
       payload := .object [.artifact] (some .battlefield) none none none,
       announcedTargetResult := true }]
     let out := (stepAction 64 .postEvent .obj outer
-      (.doForEach (.described .each .anyPlayer) (.draw (.exactlyOf 1)))).1
+      (.doForEach (.described .each .isPlayer) (.draw (.exactlyOf 1)))).1
     (out.findById? 10).map (·.plur) = some .one ∧
       countManys .object out = 0 ∧ countOnes .object out = 1 := by decide
 

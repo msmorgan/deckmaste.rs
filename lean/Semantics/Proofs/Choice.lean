@@ -267,8 +267,8 @@ def upToOneTheyControl : NounPhrase :=
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 def distributedRestOfOwnChoice : Action :=
   .sequentially
-    [ instruct (each .anyPlayer) (choose upToOneTheyControl),
-      instruct (each .anyPlayer) (sacrifice (theRest .object)) ]
+    [ instruct (each .isPlayer) (choose upToOneTheyControl),
+      instruct (each .isPlayer) (sacrifice (theRest .object)) ]
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." The
 party selection repeats a choice for each listed creature type and player [CR#700.8d]. This
@@ -278,7 +278,7 @@ theorem okDistributedRestOfOwnChoice : Action.check (DRS.ofList []) distributedR
   decide
 
 def afterDistributedChoice : DRS :=
-  actionResult (DRS.ofList []) (instruct (each .anyPlayer) (choose upToOneTheyControl))
+  actionResult (DRS.ofList []) (instruct (each .isPlayer) (choose upToOneTheyControl))
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 theorem okDistributedRestStands :
@@ -297,12 +297,12 @@ theorem badDistributedRestDisposedTwice :
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
 theorem okSharedGroupWithoutARest :
     Action.check (DRS.ofList [])
-      (.sequentially [tap (allOf isCreature), instruct (each .anyPlayer) (choose upToOneTheyControl)])
+      (.sequentially [tap (allOf isCreature), instruct (each .isPlayer) (choose upToOneTheyControl)])
       = [] := by
   decide
 
 theorem targetLoopPublishesAFreshPluralResult :
-    let loop := Action.doForEach (each .anyPlayer)
+    let loop := Action.doForEach (each .isPlayer)
       (choose (target (.and [isPermanent, .hasPossessor .controller they])))
     let after := actionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
@@ -314,7 +314,7 @@ theorem targetLoopPublishesAFreshPluralResult :
       (firstReach (.word .permanent) .one (nextClause after)).isNone = true := by decide
 
 theorem ordinaryLoopChoicesRemainLocal :
-    let loop := Action.doForEach (each .anyPlayer)
+    let loop := Action.doForEach (each .isPlayer)
       (choose (a (.and [isPermanent, .hasPossessor .controller they])))
     let after := actionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
@@ -326,8 +326,8 @@ theorem ordinaryLoopChoicesRemainLocal :
 theorem distributedRestPreservesTheUnrelatedOuterGroup :
     let tapping := tap (allOf isCreature)
     let sequence := Action.sequentially
-      [tapping, instruct (each .anyPlayer) (choose upToOneTheyControl),
-        instruct (each .anyPlayer) (sacrifice (theRest .object))]
+      [tapping, instruct (each .isPlayer) (choose upToOneTheyControl),
+        instruct (each .isPlayer) (sacrifice (theRest .object))]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 5).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
@@ -339,7 +339,7 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
 theorem distributedSacrificeConsumesTheOuterRemainder :
     let sequence := Action.sequentially
       [choose (counted (upTo 1) isCreature),
-        instruct (each .anyPlayer) (sacrifice (theRest .object))]
+        instruct (each .isPlayer) (sacrifice (theRest .object))]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 3).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
@@ -408,7 +408,7 @@ theorem okNotChosenAcrossChoosers :
 /-- "Each player chooses a creature they control." [CR#700.8d] -/
 theorem okAgentScopedChoice :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they])))) = [] := by
+      (instruct (each .isPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they])))) = [] := by
   decide
 
 /-- "Choose a creature they control.": the chooserless spelling has no antecedent for "they"
@@ -421,7 +421,7 @@ theorem badUnchooseredTheyControl :
 /-- "Starting with you, each player chooses a creature they control." [CR#101.4] -/
 theorem okChoiceStartingWithYou :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (.choose (some .you)
+      (instruct (each .isPlayer) (.choose (some .you)
         (a (.and [isCreature, .hasPossessor .controller they])) .openly none)) = [] := by
   decide
 
@@ -430,7 +430,7 @@ there is no order for "starting with" to fix [CR#101.4] (`okChoiceStartingWithYo
 same order over a distributive chooser). -/
 theorem badOrderedSingularChooser :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.choose (some .you) (a isCreature) .openly none))
+      (instruct (target .isPlayer) (.choose (some .you) (a isCreature) .openly none))
       = [.choiceOrder] := by
   decide
 
@@ -451,7 +451,7 @@ theorem badChoseThisWayWithoutAChoice :
 
 /-- "Each player chooses a creature. Exile them." -/
 theorem okDistributedChoiceReadsAsGroup :
-    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a isCreature)), exile
+    Action.check (DRS.ofList []) (.sequentially [instruct (each .isPlayer) (choose (a isCreature)), exile
         them])
       = [] := by
   decide
@@ -460,7 +460,7 @@ theorem okDistributedChoiceReadsAsGroup :
 chooser, so the singular read has no antecedent (`okDistributedChoiceReadsAsGroup` is the
 plural read). -/
 theorem badDistributedChoiceReadSingular :
-    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a isCreature)), exile
+    Action.check (DRS.ofList []) (.sequentially [instruct (each .isPlayer) (choose (a isCreature)), exile
         it])
       = [.anaphor .bare .one 0] := by
   decide
@@ -487,7 +487,7 @@ theorem playAndCastFromGraveyardThisTurn :
 /-- "Each player may play an additional land on each of their turns." No printed card on the
 bench. -/
 theorem eachPlayerPlaysAdditionalLand :
-    StaticSpec.check (DRS.ofList []) (can (each .anyPlayer) (play (counted (additional (exactly 1)) isLand))) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (can (each .isPlayer) (play (counted (additional (exactly 1)) isLand))) = [] := by decide
 
 /-- "Mill three cards. You may put an artifact card from among the cards milled this way into
 your hand." No printed card on the bench. -/
@@ -510,7 +510,7 @@ theorem millThenPutFromAmongMilled :
 the bench. -/
 theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (may
+      (instruct (each .isPlayer) (may
         (instruct they (shuffleInto
           (both (allOf (.and [.isCard, .in_ (handOf they)])) (allOf (.and [.isCard, .in_ (graveyardOf they)])))))))
       = [] := by
@@ -519,14 +519,14 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 /-- "Each player may discard their hand and draw seven cards." No printed card on the bench. -/
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (may
+      (instruct (each .isPlayer) (may
         (.sequentially [discard (allOf (.and [.isCard, .in_ (handOf they)])), instruct they (draw 7)])))
       = [] := by
   decide
 
 /-- "Each player may …": the offer subject and the two counts its context publishes. No
 printed card on the bench. -/
-def eachPlayerOffered : NounPhrase := each .anyPlayer
+def eachPlayerOffered : NounPhrase := each .isPlayer
 
 theorem eachPlayerOfferBindsOneMember :
     Action.check (DRS.ofList [])
@@ -555,14 +555,14 @@ gate is the plural choice. -/
 theorem okChoseExtremeAfterNumbers :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (choose (disclosure := .secretly) (a (quality .number))),
+        [ instruct (each .isPlayer) (choose (disclosure := .secretly) (a (quality .number))),
           .revealChoices .numbers,
-          instruct (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife .thatMuch) ]) = [] := by
+          instruct (each (.and [.isPlayer, .choseExtreme .max])) (loseLife .thatMuch) ]) = [] := by
   decide
 
 /-- The same read with no number chosen anywhere in the text. -/
 theorem badChoseExtremeWithoutChoice :
-    Action.check (DRS.ofList []) (instruct (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife 1))
+    Action.check (DRS.ofList []) (instruct (each (.and [.isPlayer, .choseExtreme .max])) (loseLife 1))
       = [.numberChoiceInScope] := by
   decide
 

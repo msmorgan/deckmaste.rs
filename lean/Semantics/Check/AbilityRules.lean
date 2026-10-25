@@ -135,7 +135,7 @@ private theorem cardTextThreadsChoicesButIndependentAbilitiesDoNot :
 private theorem choiceNeedsAnIndefiniteOrSelectingPhrase :
     Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] ∧
       Action.check (DRS.ofList [])
-        (.choose none (.described .the (.superlative .max (.playerStat .lifeTotal) .anyPlayer)) .openly none) = [.choiceClause] := by decide
+        (.choose none (.described .the (.superlative .max (.playerStat .lifeTotal) .isPlayer)) .openly none) = [.choiceClause] := by decide
 
 private theorem cardTextDoesNotExportOrdinaryObjectMentions :
     Ability.checkText (DRS.ofList [])
@@ -145,8 +145,8 @@ private theorem cardTextDoesNotExportOrdinaryObjectMentions :
 private theorem selectedPlayerCanBeReadWithinTheSameAction :
     Action.check (DRS.ofList [])
       (.sequentially
-        [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,
-         .draw (.exactlyOf (.devotion (.described .the (.and [.anyPlayer, .chosen .theChoice])) (.lit .red) none))]) = [] := by decide
+        [.choose none (.described (.a .unmarked) .isPlayer) .openly none,
+         .draw (.exactlyOf (.devotion (.described .the (.and [.isPlayer, .chosen .theChoice])) (.lit .red) none))]) = [] := by decide
 
 private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
     Ability.check (DRS.ofList [qualityB .color])
@@ -171,7 +171,7 @@ private theorem theirChoiceUsesTheActivePlayerIdentity :
 
 private theorem eachPlayerChoosesLocallyAmongUnrelatedPlayers :
     Action.check (DRS.ofList [kindBinding .player, kindBinding .player])
-      (.instruct (.described .each .anyPlayer)
+      (.instruct (.described .each .isPlayer)
         (.choose none (.described (.a .theirChoice) (.hasType .creature)) .openly none)) = [] := by decide
 
 end Semantics

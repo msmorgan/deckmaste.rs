@@ -774,7 +774,7 @@ theorem stormCountsEarlierThisTurn :
             (.sequentially
               [ .copy .fromStack thisSpell
                   (eventCount (cast (a (.and [isSpell, isOther])))
-                    (.actor (a .anyPlayer)) earlierThisTurn)
+                    (.actor (a .isPlayer)) earlierThisTurn)
                   [],
                 may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ] := by
   rfl

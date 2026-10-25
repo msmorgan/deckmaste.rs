@@ -271,7 +271,7 @@ theorem orTiedForTheMostIsMembership :
         | .keyword _ _ [.triggered event ..] => some event
         | _ => none) =
         some (does thisCreature (.attack (some
-          (a (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer]))))) ∧
+          (a (and [.isPlayer, .superlative .max (.playerStat .lifeTotal) .isPlayer]))))) ∧
       triggerEvents Cards.seraphicGreatsword.card =
         [ does (equipped creature) (attack (some
             (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))) ] ∧

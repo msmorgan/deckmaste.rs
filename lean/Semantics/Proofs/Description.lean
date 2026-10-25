@@ -40,12 +40,12 @@ theorem badEachOfSingular :
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
-    Action.check (DRS.ofList []) (lookAt (.slice .top 1 (libraryOf (target .anyPlayer)))) = [] := by decide
+    Action.check (DRS.ofList []) (lookAt (.slice .top 1 (libraryOf (target .isPlayer)))) = [] := by decide
 
 /-- "Look at the top card of two target players' library." -/
 theorem badSliceOfCountedPossessor :
     Action.check (DRS.ofList [])
-      (lookAt (.slice .top 1 (libraryOf (.described (.target (exactly 2)) .anyPlayer))))
+      (lookAt (.slice .top 1 (libraryOf (.described (.target (exactly 2)) .isPlayer))))
       = [.slicePossessor] := by
   decide
 
@@ -199,7 +199,7 @@ theorem okPowerAmongObjects :
 
 /-- "the greatest power among players" -/
 theorem badPowerAmongPlayers :
-    Amount.check (DRS.ofList []) (aggregate .max (.stat .power) .anyPlayer) = [.projScope .player] := by decide
+    Amount.check (DRS.ofList []) (aggregate .max (.stat .power) .isPlayer) = [.projScope .player] := by decide
 
 /-- "the highest life total among creatures you control" -/
 theorem badLifeTotalAmongObjects :
@@ -314,7 +314,7 @@ theorem badTheCitysBlessing :
 
 /-- "the player with the highest life total" -/
 theorem okPlayerStatSuperlative :
-    Predicate.checkAt .player (DRS.ofList []) (.superlative .max (.playerStat .lifeTotal) .anyPlayer) = [] := by
+    Predicate.checkAt .player (DRS.ofList []) (.superlative .max (.playerStat .lifeTotal) .isPlayer) = [] := by
   decide
 
 /-- "the creature with the highest life total among creatures you control" -/
@@ -478,7 +478,7 @@ theorem badMixedAxisComparison :
 /-- "a player with 13 or less life" -/
 theorem okPlayerReadInPlayerDomain :
     Predicate.checkAt .player (DRS.ofList [])
-      (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .atMost 13]) = [] := by
+      (.and [.isPlayer, .compare [.playerStat .lifeTotal] .atMost 13]) = [] := by
   decide
 
 /-- "an object with 13 or less life" -/

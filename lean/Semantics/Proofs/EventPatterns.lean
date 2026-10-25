@@ -55,7 +55,7 @@ theorem damageOutcomePrecedesParticipantsForEveryContext
 
 theorem damagePublishesParticipantsAndOutcome :
     let after := GameEvent.extend (DRS.ofList [])
-      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .anyPlayer)))
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .isPlayer)))
     countOutcomes .damageDealt after = 1 ∧
       (after.findById? 0).map (·.role) = some .subj ∧
       (after.findById? 1).map (·.role) = some .obj := by decide
@@ -182,7 +182,7 @@ theorem partConditionChecksPlayer :
 theorem applicabilityReadsTheSpecSubject :
     StaticSpec.check (DRS.ofList [])
       (partScope .turn (some (that .player))
-        (.manaRetention (a .anyPlayer) (.unspent none))) = [] := by decide
+        (.manaRetention (a .isPlayer) (.unspent none))) = [] := by decide
 
 theorem applicabilityPreservesNumericDefinition :
     Amount.check (stepStaticSpec 64 (DRS.ofList [])

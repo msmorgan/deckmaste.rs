@@ -75,7 +75,7 @@ theorem okOnePileAfterPartition :
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anyLocation (some hand) .arrival [])
+    Action.check (DRS.ofList []) (.move (target .isPlayer) .anyLocation (some hand) .arrival [])
       = [.kindLte .player (.join .object .pile)] := by decide
 
 /-- "Put one pile into your hand." -/
@@ -189,8 +189,8 @@ theorem rippleRevealedCardsRemainAccessible :
 theorem nestedStaticConditionals :
     StaticSpec.check (DRS.ofList [])
       (.conditional
-        (.conditional (.manaRetention .you (.unspent none)) (exists_ .anyPlayer) .ifSo)
-        (exists_ .anyPlayer) .ifSo) = [] := by
+        (.conditional (.manaRetention .you (.unspent none)) (exists_ .isPlayer) .ifSo)
+        (exists_ .isPlayer) .ifSo) = [] := by
   decide
 
 theorem nestedTurnPartWindows :
@@ -201,7 +201,7 @@ theorem nestedTurnPartWindows :
 
 theorem voteStartingWithSpecifiedPlayer :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) none)) =
+      (instruct (each .isPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) none)) =
           [] := by
   decide
 
@@ -210,7 +210,7 @@ no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlay
 same order over every player). -/
 theorem badOrderedSingularVoter :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) none))
+      (instruct (target .isPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) none))
       = [.choiceOrder] := by
   decide
 
@@ -219,7 +219,7 @@ votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"])),
+        [ instruct (each .isPlayer) (vote .openly (.byLabel ["alpha", "beta"])),
           draw (.votesFor "alpha"),
           doIf (.voteLead "beta" true) (exile (allOf (.and [isPermanent, .withMostVotes]))) ])
       = [] := by

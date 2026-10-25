@@ -13,7 +13,7 @@ theorem unqualifiedCostVariantRemainsAvailable :
 /-- "Playercycling" describes no card: typecycling's body searches for a card with the quality,
 so the quality is an object's [CR#702.29e]. -/
 theorem qualifiedCostRequiresObjectQuality :
-    Ability.check (DRS.ofList []) (typecycling .anyPlayer (.mana [generic 2])) =
+    Ability.check (DRS.ofList []) (typecycling .isPlayer (.mana [generic 2])) =
       [.kindMismatch .object .player] := by decide
 
 /-- "Equip player" and "splice onto player" describe no creature and no spell: equip's body
@@ -21,9 +21,9 @@ targets a creature with the quality [CR#702.6c] and splice's reveals a spell wit
 [CR#702.47a], and a conjunction whose conjuncts name kinds that do not overlap describes
 nothing. -/
 theorem equipAndSpliceRequireObjectQuality :
-    Ability.check (DRS.ofList []) (equipQuality .anyPlayer (.mana [generic 1])) =
+    Ability.check (DRS.ofList []) (equipQuality .isPlayer (.mana [generic 1])) =
         [.kindMismatch .player .object] ∧
-      Ability.check (DRS.ofList []) (Ability.splice .anyPlayer (.mana [generic 1])) =
+      Ability.check (DRS.ofList []) (Ability.splice .isPlayer (.mana [generic 1])) =
         [.kindMismatch .object .player] := by decide
 
 /-- "Plainscycling {2}" through the `typecycling` Definition. -/

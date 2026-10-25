@@ -266,7 +266,7 @@ theorem okBlockingThisCreature :
 theorem okDistributivePartWindow :
     Ability.check (DRS.ofList [])
       (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (duringPart .endStep (some (each .anyPlayer))))) = [] := by
+        (some (duringPart .endStep (some (each .isPlayer))))) = [] := by
   decide
 
 /-- "until the beginning of your next upkeep" -/
@@ -275,7 +275,7 @@ theorem okDurationEndYourUpkeep :
 
 /-- "until the beginning of each player's next upkeep" -/
 theorem badDurationEndEachPlayers :
-    Duration.check (DRS.ofList []) (untilEvent (.beginningOf .upkeep (some (each .anyPlayer)) (.next none)))
+    Duration.check (DRS.ofList []) (untilEvent (.beginningOf .upkeep (some (each .isPlayer)) (.next none)))
       = [.durationPossessor] := by
   decide
 
@@ -357,7 +357,7 @@ last of the turn's five phases [CR#500.1]. -/
 theorem okEndingPhaseWindow :
     Ability.check (DRS.ofList [])
       (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
+        (some (duringPart .endingPhase (some (each .isPlayer))))) = [] := by
   decide
 
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/

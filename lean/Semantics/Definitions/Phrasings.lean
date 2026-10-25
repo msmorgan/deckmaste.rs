@@ -59,7 +59,7 @@ semantic_template isHistoric : Predicate :=
   .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype saga]
 /-- "any target" [CR#115.4]. -/
 semantic_template isAnyTarget : Predicate :=
-  .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
+  .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .isPlayer]
 /-- "any other target" -/
 semantic_template isAnyOtherTarget : Predicate := and [isAnyTarget, .other]
 

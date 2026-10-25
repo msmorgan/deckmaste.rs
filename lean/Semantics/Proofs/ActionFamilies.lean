@@ -276,7 +276,7 @@ theorem forgottenNestedAliasIsRefused :
 theorem conditionalShuffleForgetsPrivateOperand :
     Action.check (DRS.ofList []) (.ownScope none (.sequentially [
       .expose .lookAt (.cards (.firstMention (operandKey 0) (a (.and [.isCard, .in_ yourLibrary])))),
-      .doIf (.matches .you .anyPlayer) (.shuffle (libraryOf .actor)) none,
+      .doIf (.matches .you .isPlayer) (.shuffle (libraryOf .actor)) none,
       .move (operand 0) .anyLocation (some graveyard) .arrival []])) =
       [.bindingIdentity (operandKey 0)] := by decide
 

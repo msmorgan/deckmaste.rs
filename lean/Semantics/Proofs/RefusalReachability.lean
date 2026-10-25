@@ -17,7 +17,7 @@ theorem countRequiresACountableGroup :
 /-- An existential clause introduces a plain or counted indefinite ("if there is a player", "if
 two or more creatures are …"), rather than asserting a definite participant. -/
 theorem existentialRequiresAnExistentialMention :
-    Condition.check emptyContext (.exists_ (.described (.a .unmarked) .anyPlayer)) = [] ∧
+    Condition.check emptyContext (.exists_ (.described (.a .unmarked) .isPlayer)) = [] ∧
     Condition.check emptyContext
       (.exists_ (.described (.count (.range (some 2) none) none) (.hasType .creature))) = [] ∧
     Condition.check emptyContext (.exists_ .you) = [.existentialMention] := by decide

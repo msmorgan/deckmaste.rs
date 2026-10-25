@@ -401,7 +401,7 @@ semantic_template hasTypeIgnoringTypeChanges (type : CardType) : Predicate :=
 semantic_template isSource : Predicate := .isSource
 semantic_template isEmblem : Predicate := .isEmblem
 semantic_template isManaAbility : Predicate := .abilityHead .mana
-semantic_template isPlayer : Predicate := .anyPlayer
+semantic_template isPlayer : Predicate := .isPlayer
 /-- "an opponent of <who>" [CR#102.2..102.3]. -/
 semantic_template isOpponentOf (who : NounPhrase) : Predicate := .isOpponentOf who
 /-- "opponent": an opponent of you. -/
@@ -478,7 +478,7 @@ semantic_template youOwn : Predicate := ownedBy you
 /-- "<player>" as the quality of "protection from <player>": each object `player` controls, and
 each object `player` owns that no player controls [CR#702.16k]. -/
 semantic_template objectsOfPlayer (player : NounPhrase) : Predicate :=
-  .or [controlledBy player, .and [ownedBy player, .not (controlledBy (a .anyPlayer))]]
+  .or [controlledBy player, .and [ownedBy player, .not (controlledBy (a .isPlayer))]]
 /-- "your opponents own" -/
 semantic_template opponentsOwn : Predicate := ownedBy yourOpponents
 /-- "in <loc>", as "in your graveyard" or "exiled with this artifact". -/

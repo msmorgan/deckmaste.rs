@@ -149,7 +149,7 @@ theorem conditionSubjectKeepsCreature :
       (firstReach .bare .one (conditionAfter outer)).map (·.id) = some 2 := by decide
 
 private def playerX : NounPhrase :=
-  each (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .eq (.letter .x)])
+  each (.and [.isPlayer, .compare [.playerStat .lifeTotal] .eq (.letter .x)])
 private def libraryCards : NounPhrase := .slice .top 2 (libraryOf playerX)
 private def libraryAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .obj true (.firstMention "scope.library" libraryCards)).1
@@ -175,7 +175,7 @@ theorem implicitChooserDoesNotIgnoreAnotherPlayer :
 /-- An explicit performer determines the chooser despite other players in discourse. -/
 theorem explicitChooserWinsOverOuterPlayers :
     Action.check (DRS.ofList [playerBinding, playerBinding])
-      (instruct (target .anyPlayer) (choose (aTheirChoice isCreature))) = [] := by decide
+      (instruct (target .isPlayer) (choose (aTheirChoice isCreature))) = [] := by decide
 
 theorem agentWithoutOuter :
     Action.check (DRS.ofList [])
@@ -232,7 +232,7 @@ theorem damageOwnPowerWithOuter :
     Action.check outer (dealDamageOwnPower creatureX (target isCreature)) = [] := by decide
 
 private def playerLoop : Action :=
-  .doForEach (each .anyPlayer)
+  .doForEach (each .isPlayer)
     (choose (target (.and [isPermanent, .hasPossessor .controller they])))
 
 theorem loopPlayerRetainsPlayerKind :

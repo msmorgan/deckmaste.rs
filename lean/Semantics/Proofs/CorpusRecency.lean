@@ -44,7 +44,7 @@ private def tahngarthHeader : GameEvent :=
 private def tahngarthAfter : DRS := (stepGameEvent 64 (DRS.ofList []) tahngarthHeader).1
 private def tahngarthDefender : NounPhrase :=
   .firstMention "tahngarth.defender"
-    (a (.and [.or [.anyPlayer, .hasType .planeswalker],
+    (a (.and [.or [.isPlayer, .hasType .planeswalker],
       .inCombat .attackedBy (some (that .player))]))
 
 theorem tahngarthRawModifierSelectsAttackingOpponent :
@@ -59,7 +59,7 @@ theorem tahngarthRawFinalDemonstrativeSelectsDefender :
 
 private def bombshellPlayer : NounPhrase :=
   .firstMention "bombshell.controller"
-    (a (.and [.anyPlayer, .otherThan (ownerOf thisCreature)]))
+    (a (.and [.isPlayer, .otherThan (ownerOf thisCreature)]))
 
 private def bombshellContext : DRS :=
   (stepCondition 64 (DRS.ofList [])
@@ -139,7 +139,7 @@ theorem mangarasEquityRawDemonstrativeSelectsTheDamageSource :
           (instruct thisEnchantment (dealDamage thatMuch (that creature)))) = [] := by decide
 
 private def noeticUpkeep : GameEvent :=
-  .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .anyPlayer))) .current
+  .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .isPlayer))) .current
 /-- "each creature that player controls with power greater than the number of cards in their
 hand", the moved subject. -/
 private def noeticSubject : NounPhrase :=

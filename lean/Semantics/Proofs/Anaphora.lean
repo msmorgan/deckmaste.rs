@@ -28,7 +28,7 @@ theorem identicalModesAllowed :
 /-- "Choose a player or planeswalker." -/
 theorem okChoosePlayerOrPlaneswalker :
     Action.check (DRS.ofList [])
-      (.choose none (a (.or [.hasType .planeswalker, .anyPlayer])) .openly none) =
+      (.choose none (a (.or [.hasType .planeswalker, .isPlayer])) .openly none) =
           [] := by
   decide
 
@@ -189,7 +189,7 @@ theorem badChooseDefinite :
 theorem okUnionAnaphorAfterJoin :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct .this (.dealDamage 3 (target (.or [isCreature, .anyPlayer]))),
+        [ instruct .this (.dealDamage 3 (target (.or [isCreature, .isPlayer]))),
           instruct .this (.dealDamage 1 (that .join)) ]) = [] := by
   decide
 
@@ -421,7 +421,7 @@ card." (Vaevictis Asmadi, the Dire's opening loop): the group survives it, plura
 theorem okLoopGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .doForEach (each .anyPlayer)
+        [ .doForEach (each .isPlayer)
             (choose (target (.and [isPermanent, .hasPossessor .controller they]))),
           instruct (those .player) (draw 1) ]) = [] := by
   decide
@@ -432,7 +432,7 @@ plural. -/
 theorem badLoopElementRead :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .doForEach (each .anyPlayer)
+        [ .doForEach (each .isPlayer)
             (choose (target (.and [isPermanent, .hasPossessor .controller they]))),
           instruct (that .player) (draw 1) ]) = [.anaphor (.word .player) .one 0] := by
   decide
@@ -526,7 +526,7 @@ theorem abilityIsOnTheStack : Payload.zone (.ability none) = some .stack := by d
 
 theorem joinedCreatureTy :
     tyOfReach (.word .join) .one
-      (actionResult (DRS.ofList []) (instruct .this (.dealDamage 3 (target (.or [isCreature, .anyPlayer])))))
+      (actionResult (DRS.ofList []) (instruct .this (.dealDamage 3 (target (.or [isCreature, .isPlayer])))))
       = [.creature] := by
   decide
 
@@ -739,7 +739,7 @@ theorem badExtremeOverFlips :
 
 /-- "When a player doesn't pay this creature's cumulative upkeep, …" -/
 theorem okPayKeywordWithACost :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.pay .anyCost .once .unpaid (some thisCreature) (some (.named "cumulativeUpkeep"))))
+    GameEvent.check (DRS.ofList []) (.does (.actor (a .isPlayer)) (.pay .anyCost .once .unpaid (some thisCreature) (some (.named "cumulativeUpkeep"))))
       = [] := by
   decide
 
@@ -825,7 +825,7 @@ theorem badPlayerDamageDealer :
 theorem joinedDealerDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
       (.did { subj := .actor .which
-              action := .dealDamage .anyAmount (a (.or [isCreature, .anyPlayer]))
+              action := .dealDamage .anyAmount (a (.or [isCreature, .isPlayer]))
               within := some (.duration soFarThisTurn none) })
       = [] := by decide
 

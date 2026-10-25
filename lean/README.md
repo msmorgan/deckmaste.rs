@@ -64,9 +64,9 @@ Event constructors retain their predication forms. Action composition uses `sequ
 lives in `Repetition.fixed`. No action writes its performer: it is
 `actor`, the controller unless an enclosing `act performer body` hands it to
 another player or a permanent; "target player draws a card" is
-`act (target .anyPlayer) (draw 1)`. A choice's chooser and an added
+`act (target .isPlayer) (draw 1)`. A choice's chooser and an added
 turn's taker are the actor too ("target player chooses a creature" is
-`act (target .anyPlayer) (choose (a creature))`). `choose` accepts
+`act (target .isPlayer) (choose (a creature))`). `choose` accepts
 `(disclosure := .secretly)`.
 
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a

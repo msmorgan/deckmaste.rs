@@ -75,7 +75,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .not body => body.kind? n
-  | _ + 1, .anyPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .choseExtreme _ => some .player
+  | _ + 1, .isPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .choseExtreme _ => some .player
   | _ + 1, .qualityNoun q _ => some (.quality q)
   | _ + 1, .counterKindOn _ => some (.quality .counterKind)
   | _ + 1, .hasDesignation d _ => d.holder

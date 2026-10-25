@@ -50,7 +50,7 @@ are checked [CR#111.7,704.5d]. -/
 theorem okThoughtseize :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (target .anyPlayer) revealHand,
+        [ instruct (target .isPlayer) revealHand,
           choose (a (.and [.not isLand, .and [.isCard, .in_ (handOf they)]])),
           instruct they (discard (that .card)),
           loseLife 2 ]) = [] := by
@@ -80,7 +80,7 @@ theorem badDistributedDiscardReadSingular :
 /-- Hymn to Tourach: "Target player discards two cards at random." [CR#701.9b] -/
 theorem okHymnToTourach :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (discard (countedAtRandom (exactly 2) .isCard))) = [] := by
+      (instruct (target .isPlayer) (discard (countedAtRandom (exactly 2) .isCard))) = [] := by
   decide
 
 /-- "Amass Orcs 2" [CR#701.47a]: with no handoff the controller amasses. -/
@@ -440,7 +440,7 @@ theorem okEachOpponentMayPayElseYouDrawUnless :
 (`Choice.okAgentScopedChoice` through the chooser slot). -/
 theorem okHandedScopedChoice :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they]))))
+      (instruct (each .isPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they]))))
       = [] := by
   decide
 
@@ -536,7 +536,7 @@ theorem okDiscardWrapperCarriesActor :
 that player. -/
 theorem okDiscardWrapperWithAgent :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.ownScope (some (.action "discard")) (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival [])))
+      (instruct (target .isPlayer) (.ownScope (some (.action "discard")) (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival [])))
       = [] := by
   decide
 
@@ -544,7 +544,7 @@ theorem okDiscardWrapperWithAgent :
 
 /-- A targeted performer stays published after its handoff, below what the body introduced. -/
 theorem handedTargetStaysBound :
-    shape (actionResult (DRS.ofList []) (instruct (target .anyPlayer) (discard (a .isCard)))) =
+    shape (actionResult (DRS.ofList []) (instruct (target .isPlayer) (discard (a .isCard)))) =
       [(.object, .one, .a), (.player, .one, .target)] := by
   decide
 
@@ -815,9 +815,9 @@ theorem badFightHandedToOpponent :
 /-- "Players can't explore" and "Players can't adapt": the prohibited deed's body is checked
 with the players as the permanent it performs or is about, and refused the same way. -/
 theorem badPlayersCantExploreOrAdapt :
-    StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf .anyPlayer)) explore {})
+    StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf .isPlayer)) explore {})
         = [.possessorKind .controller .player] ∧
-      StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf .anyPlayer)) (adapt 1) {})
+      StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf .isPlayer)) (adapt 1) {})
         = [.kindMismatch .object .player] ∧
       StaticSpec.check (DRS.ofList []) (.cant (.actor (allOf isCreature)) explore {}) = [] := by
   decide
@@ -826,9 +826,9 @@ theorem badPlayersCantExploreOrAdapt :
 explores" is refused by the body's controller read, while a player still bolsters. -/
 theorem exploreEventTakesAPermanent :
     GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) explore) = [] ∧
-      GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) explore)
+      GameEvent.check (DRS.ofList []) (.does (.actor (a .isPlayer)) explore)
         = [.possessorKind .controller .player] ∧
-      GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) (bolster 1))
+      GameEvent.check (DRS.ofList []) (.does (.actor (a .isPlayer)) (bolster 1))
         = [] := by
   decide
 
