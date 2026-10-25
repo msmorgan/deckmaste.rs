@@ -109,14 +109,14 @@ theorem badReplaceCreatureTypeWithLandType :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isCreature)
         (replaceWord [.subtype .creature] none (some (.subtype swamp)))) none)
-      = [.kindMismatch (.quality (.subtype .creature)) (.quality (.subtype .land))] := by decide
+      = [.textWordSort [.subtype .creature] (.subtype .land)] := by decide
 
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
 theorem badReplaceWordSort :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isPermanent)
         (replaceWord [.color] none (some (.subtype swamp)))) none)
-      = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
+      = [.textWordSort [.color] (.subtype .land)] := by decide
 
 /-- "Change the text of target spell or permanent by replacing all instances of one color word
 with another or one basic land type with another." [CR#612.2] -/
@@ -134,7 +134,7 @@ theorem badReplaceAcrossKinds :
 /-- A name is not a word a Text Change replaces [CR#612.2]. -/
 theorem badReplaceWordCardName :
     TextChange.check (DRS.ofList []) (.replaceWord [.cardName] none none)
-      = [.kindMismatch (.quality .color) (.quality .cardName)] := by decide
+      = [.textChangeSort .cardName] := by decide
 
 /-- Cleave's definition: the alternative cost, and the Text Change under its paid cost
 [CR#702.148a]. -/

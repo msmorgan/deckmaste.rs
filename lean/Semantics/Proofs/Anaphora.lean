@@ -1170,4 +1170,12 @@ theorem pluralReadbackAfterMillingAGroup :
     Action.check (DRS.ofList []) (sequentially [mill (letter .x), returnToHand them]) = [] := by
   decide
 
+/-- "Target creature deals 1 damage to itself": a reflexive reads its own clause's subject.
+"Destroy itself" has no subject to read, and is refused as a reflexive, not as a missing "that
+permanent". -/
+theorem reflexiveReadsItsClausesSubject :
+    Action.check (DRS.ofList []) (instruct (target isCreature) (dealDamage 1 itself)) = [] ∧
+      Action.check (DRS.ofList []) (destroy itself) = [.reflexiveAntecedent .one 0] := by
+  decide
+
 end Semantics.Proofs.Anaphora

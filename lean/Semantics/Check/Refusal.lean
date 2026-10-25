@@ -62,6 +62,15 @@ inductive Refusal where
   | eventOrdinalPeriod (period : Period)
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
+  /-- A reflexive ("itself", "themselves") reads the subject of its own clause, of its number
+  `pl`; it found `found`, not exactly one. -/
+  | reflexiveAntecedent (pl : Plurality) (found : Nat)
+  /-- A relative pronoun (`NounPhrase.which`) stands only inside the relative clause that binds
+  it, and this one stands outside every one. -/
+  | whichUnbound
+  /-- A relative clause (`Predicate.did`) names its head by its relative pronoun
+  (`NounPhrase.which`): one that never mentions it says nothing about its head. -/
+  | whichUnused
   /-- A Participial Description ("the exiled card", "each creature destroyed this way", "the
   card returned this way") reads back the objects its deed or its Zone Change acted on in scope,
   and found `found` of them, not exactly one [CR#607.1,607.2a]. -/
@@ -122,7 +131,11 @@ inductive Refusal where
   | predSays
   | amtNonZero
   | tallyOk
-  | lookbackSubject
+  /-- A Text Change replaces color words, land types and creature types [CR#612.2,612.2a];
+  `sort` is none of them. -/
+  | textChangeSort (sort : QualitySort)
+  /-- A Text Change's word is of none of the sorts `sorts` it replaces. -/
+  | textWordSort (sorts : List QualitySort) (found : QualitySort)
   /-- A shuffle names a zone other than a library or exile: what is shuffled is a library or a
   face-down pile, such as exiled cards [CR#701.24a]. -/
   | shuffleZone

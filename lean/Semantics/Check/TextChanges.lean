@@ -18,7 +18,7 @@ def QualitySort.replaceable : QualitySort → Bool
 def TextWord.sortCheck (sorts : List QualitySort) : Option TextWord → List Refusal
   | none => []
   | some w => if sorts.contains w.sort then []
-    else [.kindMismatch (.quality (sorts.headD .color)) (.quality w.sort)]
+    else [.textWordSort sorts w.sort]
 
 def TextWord.sameSort : Option TextWord → Option TextWord → List Refusal
   | some a, some b => if a.sort == b.sort then []
@@ -29,7 +29,7 @@ def TextChange.shape : TextChange → List Refusal
   | .replaceWord sorts from_ to =>
     (if sorts.isEmpty then [.nonEmpty] else []) ++
       (sorts.filter (!·.replaceable)).map
-        (fun sort => .kindMismatch (.quality .color) (.quality sort)) ++
+        (fun sort => .textChangeSort sort) ++
       TextWord.sortCheck sorts from_ ++ TextWord.sortCheck sorts to ++ TextWord.sameSort from_ to
   | _ => []
 

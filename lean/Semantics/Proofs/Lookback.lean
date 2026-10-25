@@ -35,7 +35,7 @@ theorem playerGapCannotStandForObject :
 
 theorem gapRequiresLookback :
     GameEvent.check (DRS.ofList []) (.does (.actor .which) (.draw (.exactlyOf .anyAmount))) =
-      [.anaphor (.word .permanent) .one 0] := by decide
+      [.whichUnbound] := by decide
 
 theorem scopedCreatureDeath :
     relativeCheck .object
@@ -74,7 +74,7 @@ theorem lookbackRequiresBoundParticipant :
     relativeCheck .player { subj := .actor .you
                             action := .draw (.exactlyOf .anyAmount)
                             within := some withinThisTurn } =
-      [.lookbackSubject] := by decide
+      [.whichUnused] := by decide
 
 theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
@@ -87,7 +87,7 @@ theorem innerGapDoesNotSupplyOuterParticipant :
                      action := .move .which (.zone .battlefield none)
                        (some (.zone .graveyard none)) .departure []
                      within := some withinThisTurn }])))))) } =
-      [.lookbackSubject] := by decide
+      [.whichUnused] := by decide
 
 theorem participantCanOccurMoreThanOnce :
     relativeCheck .object

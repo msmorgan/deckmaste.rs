@@ -453,6 +453,14 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   [lean-v3-checker-rules-scope-refusals](../done/lean-v3-checker-rules-scope-refusals.md) §1
   widened `QualitySort.replaceable` to creature types but left the refusal constructor to this
   ticket).
+  **Done 2026-10-24: skyzplml** (new `Refusal.reflexiveAntecedent`, `whichUnbound`, `whichUnused`
+  (replacing `lookbackSubject`, whose only site was the unused `which`), `textChangeSort` and
+  `textWordSort` (the word's sorts listed, no `.color` default). Pin added:
+  `Anaphora.reflexiveReadsItsClausesSubject`. Rewritten to the new constructors, statements
+  otherwise unchanged: `Lookback.gapRequiresLookback`, `lookbackRequiresBoundParticipant`,
+  `innerGapDoesNotSupplyOuterParticipant`, `TextChanges.badReplaceCreatureTypeWithLandType`,
+  `badReplaceWordSort`, `badReplaceWordCardName`. `TextWord.sameSort`'s mismatch between two words
+  stays `kindMismatch`: two constraints on one sort disagree).
 - **Remove one-purpose flags and positional hacks (§2.13):** Clean up
   `DeedFeature.librarySearch` / `Referent.librarySearchResult` (`Check/Words.lean:339`, read
   `:1146,1157`, set `Check/Phrase.lean:596`),

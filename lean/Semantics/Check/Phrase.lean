@@ -1529,7 +1529,7 @@ def stepRelativeDidWith (ops : StepOps) (drs : DRS) (whichRef : Referent) (claus
   let subDrs' := { subDrs.push whichRef .other false with
     relativeBinder := some binderId, relativeUses := 0 }
   let (out, errs) := stepDidClauseWith ops subDrs' clause
-  (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject ++
+  (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .whichUnused ++
     clause.spanRefusals drs)
 
 /-- The referent a conjunct relative clause's `which` binds: the enclosing object predicate's
@@ -3041,14 +3041,14 @@ def stepOps : Nat → StepOps
           | [w] =>
             let drs' := drs.recordMention w.id role inArgSlot
             (drs', [w.id], [])
-          | _ => (drs, [], [.anaphor (.word .permanent) plur winners.length])
+          | _ => (drs, [], [.reflexiveAntecedent plur winners.length])
         | .which =>
           match drs.relativeBinder.bind (fun id =>
               if drs.isVisible id then drs.findById? id else none) with
           | some r =>
             let drs' := drs.recordMention r.id role inArgSlot
             ({ drs' with relativeUses := drs.relativeUses + 1 }, [r.id], [])
-          | none => (drs, [], [.anaphor (.word .permanent) .one 0])
+          | none => (drs, [], [.whichUnbound])
         | .described detP pred =>
           match detP.participialNumber?, pred.participialAnchor? with
           | some plur, some (clause, anchor) =>
