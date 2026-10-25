@@ -37,7 +37,7 @@ private def additionalHiddenGroup : Ability :=
     false .once)
 
 private theorem additionalCostPublishesTheActualGroupIdentity :
-    let initial := DRS.ofList [{ det := .the, plur := .one, payload := .quality .color, id := 7 }]
+    let initial := DRS.ofNumbered [{ det := .the, plur := .one, payload := .quality .color, id := 7 }]
     let actual := (stepCost 64 initial additionalTapGroupCost).1
     let published := Ability.textContext initial additionalTapGroup
     let actualIds := (participialCandidates (.deed (.action "tap")) (some .many) none false actual).map (·.id)
@@ -158,7 +158,7 @@ private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
           [.anaphor .bare .one 0] := by decide
 
 private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=
-  (DRS.ofList [
+  (DRS.ofNumbered [
     { id := 24, det := .the, plur := .one, payload := .player false },
     { id := 23, det := .each, plur := .one, payload := .player false },
     { id := 22, det := .the, plur := .many, payload := .player false } ]).pushPerformer

@@ -483,6 +483,14 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `survivesShuffle` read; `MovementScopes.revealedSearchResultSurvivesShuffleWithSameIdentity` and
   `zoneMoveClearsSearchProvenance` read the stamp instead of the flag, statements otherwise
   unchanged.
+  xsypzvrm: `DRS.ofList` numbers its referents by position, always (no id-0 sentinel), and the
+  contexts written with their own ids use the new `DRS.ofNumbered`
+  (`Check/Queries.lean`'s two caller contexts, `Check/AbilityRules.lean`'s two,
+  `EventPatterns.uniqueCounterpartSurvivesVoiceRoleChange`,
+  `indistinguishableCounterpartsCannotShareOneAlternativeId`,
+  `commonMovedHeaderSuccessorDoesNotResurrectOldIdentity`,
+  `SelectionEvidence.preexistingTargetsAreNotReaggregated`; statements otherwise unchanged); the
+  unused, ambiguous `EmptyCollection DRS` instance is deleted.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?` `Check/Phrase.lean:101-103` → `some .object`,
   `NounPhrase.plur` `:331-332` → `.one`, `Quantity.plur` `:54-56` → `.many`,

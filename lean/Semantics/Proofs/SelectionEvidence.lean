@@ -148,7 +148,7 @@ theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
       countOnes .object out = 0 := by decide
 
 theorem preexistingTargetsAreNotReaggregated :
-    let outer : DRS := DRS.ofList [{
+    let outer : DRS := DRS.ofNumbered [{
       id := 10, det := .target, plur := .one,
       payload := .object [.artifact] (some .battlefield) none none none,
       announcedTargetResult := true }]

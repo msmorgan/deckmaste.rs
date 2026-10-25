@@ -576,18 +576,18 @@ structure DRS where
   participialAnchorRead : Option ParticipialAnchor := none
   deriving DecidableEq, Repr
 
+/-- A context of `rs`, newest first, as stepping would have introduced them: the last is
+referent 0 and the head referent `rs.length - 1`, whatever ids they were written with. -/
 def DRS.ofList (rs : List Referent) : DRS :=
   let n := rs.length
-  let indexed := rs.zipIdx.map fun (r, idx) =>
-    if r.id == 0 && n > 0 then { r with id := n - 1 - idx } else r
-  let maxId := indexed.foldl (fun acc r => Nat.max acc (r.id + 1)) 0
-  { referents := indexed, nextId := maxId }
+  { referents := rs.zipIdx.map fun (r, idx) => { r with id := n - 1 - idx }, nextId := n }
+
+/-- A context of `rs` keeping the ids they were written with, the next id past the greatest. -/
+def DRS.ofNumbered (rs : List Referent) : DRS :=
+  { referents := rs, nextId := rs.foldl (fun acc r => Nat.max acc (r.id + 1)) 0 }
 
 instance : Coe (List Referent) DRS where
   coe := DRS.ofList
-
-instance : EmptyCollection DRS where
-  emptyCollection := {}
 
 /-- A referent is visible if no enclosing `OwnScopeFrame` masks its `ReferentId`. -/
 def DRS.isVisible (drs : DRS) (id : ReferentId) : Bool :=

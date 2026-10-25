@@ -245,8 +245,8 @@ theorem forkedIdsDoNotIdentifyDifferentHeaderParticipants :
 theorem uniqueCounterpartSurvivesVoiceRoleChange :
     let source := headerCreature
     let counterpart := { headerCreature with det := .a, role := .obj, id := 2 }
-    let primary := DRS.ofList [counterpart, source]
-    let alternative := DRS.ofList [{ counterpart with role := .other, id := 1 }, source]
+    let primary := DRS.ofNumbered [counterpart, source]
+    let alternative := DRS.ofNumbered [{ counterpart with role := .other, id := 1 }, source]
     let common := commonHeaderContext (DRS.ofList []) [primary, alternative]
     common.visibleReferents.map (·.id) = [2, 0] ∧
       (firstReach (.word (.type .creature)) .one common).map (·.id) = some 2 := by decide
@@ -254,15 +254,15 @@ theorem uniqueCounterpartSurvivesVoiceRoleChange :
 theorem indistinguishableCounterpartsCannotShareOneAlternativeId :
     let first := { headerCreature with det := .a, role := .obj, id := 1 }
     let second := { headerCreature with det := .a, role := .subj }
-    let primary := DRS.ofList [first, second]
-    let alternative := DRS.ofList [{ first with role := .other, id := 0 }]
+    let primary := DRS.ofNumbered [first, second]
+    let alternative := DRS.ofNumbered [{ first with role := .other, id := 0 }]
     (commonHeaderContext (DRS.ofList []) [primary, alternative]).referents = [] := by decide
 
 theorem commonMovedHeaderSuccessorDoesNotResurrectOldIdentity :
     let before := DRS.ofList [headerCreature]
     let moved := { headerCreature with id := 1, role := .obj, payload := .object [.creature] (some .graveyard) none none none }
-    let primary := DRS.ofList [moved]
-    let alternative := DRS.ofList [{ moved with id := 2 }]
+    let primary := DRS.ofNumbered [moved]
+    let alternative := DRS.ofNumbered [{ moved with id := 2 }]
     let common := commonHeaderContext before [primary, alternative]
     common.findById? 0 = none ∧
       common.visibleReferents.map (fun r => (r.id, r.zone)) = [(1, some .graveyard)] ∧

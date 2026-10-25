@@ -200,7 +200,7 @@ private theorem nestedReplacementUsesItsOwnTokenDescription :
 
 private theorem damageSourceRetainsItsIdentityOutsideTheBattlefield :
     let payload := Payload.object [.artifact] (some .graveyard) none none none
-    let context := nextClause (DRS.ofList [{ det := .the, plur := .one, payload, id := 17 }])
+    let context := nextClause (DRS.ofNumbered [{ det := .the, plur := .one, payload, id := 17 }])
     let source := NounPhrase.pro .bare .one
     let result := stepAction 8 .postEvent .obj context
       (.instruct source (.dealDamage (.lit 2) .you))
@@ -225,7 +225,7 @@ private theorem wildcardBallotIsOnlyAnActionPattern :
       (stepBallotWith (stepOps 8) initial (.byLabel [])).2 = [.ballotLabelsOk] := by decide
 
 private theorem entryRiderReadsItsWholeCallerArgument :
-    let caller := nextClause (DRS.ofList [{ det := .a, plur := .one, payload := .player false, id := 7 }])
+    let caller := nextClause (DRS.ofNumbered [{ det := .a, plur := .one, payload := .player false, id := 7 }])
     let inner := enterOwnScope caller
     let player := NounPhrase.pro (.word .player) .one
     let rider := MoveRider.entersAttacking (some player)
