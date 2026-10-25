@@ -177,6 +177,29 @@ theorem moveCounterPublishesRemovalAndPlacement :
     countOutcomes .countersRemoved after = 1 ∧ countOutcomes .countersPut after = 1 := by
   decide
 
+/-- Star Pupil's "put its counters on target creature you control": the trigger checks that the
+creature left the battlefield, so it doesn't move counters but puts the same number of each kind
+the creature had, read by last known information [CR#122.8,608.2h]: a loop over its counter
+kinds, not a [CR#122.5] move and not one counter of each kind. -/
+theorem starPupilPutsTheSameNumberOfEachKind :
+    (match Cards.starPupil.card with
+      | .singleFaced { characteristics := { text := [_, .triggered _ _ _ _ _ _ _ effect], .. } } =>
+        some effect
+      | _ => none) =
+      some (doForEachKind .counterKind .counterKind
+        (putCounters (statOf .boundCounter it) thatKind (target (and [isCreature, youControl])))
+        (domain := some it)) := rfl
+
+/-- Denry Klin's "put the same number of each kind of counter on that creature", as its Oracle
+text prints it: a loop over the kinds on Denry Klin, putting as many of each. -/
+theorem denryKlinPutsTheSameNumberOfEachKind :
+    (match Cards.denryKlinSameKinds with
+      | .triggered _ _ _ _ _ _ _ effect => some effect
+      | _ => none) =
+      some (doForEachKind .counterKind .counterKind
+        (putCounters (statOf .boundCounter thisCreature) thatKind (that creature))
+        (domain := some thisCreature)) := rfl
+
 /-- "Double the number of each kind of counter on target creature" [CR#701.10e]: counters are
 put, so the doubling publishes that it put counters, as a group of every kind's. -/
 theorem doublingCountersPublishesCountersPut :

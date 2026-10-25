@@ -418,7 +418,9 @@ theorem okCaptainMarvelSameKinds : Ability.check (DRS.ofList []) captainMarvelSa
 def denryKlinSameKinds : Ability :=
   whenever (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
     (if_ := is thisCreature hasCounter)
-    (putCounters 1 (sameKindAs thisCreature) (that creature))
+    (doForEachKind .counterKind .counterKind
+      (putCounters (statOf .boundCounter thisCreature) thatKind (that creature))
+      (domain := some thisCreature))
 theorem okDenryKlinSameKinds : Ability.check (DRS.ofList []) denryKlinSameKinds = [] := by decide
 
 /-- Denry Klin, Editor in Chief -/
@@ -448,7 +450,10 @@ def starPupil : Spelled := spelled <| singleFacedCard
     text :=
       [ static (entersWithCounters thisCreature 1 p1p1Counter),
         when (does thisCreature die)
-            (putCounters 1 (sameKindAs it) (target (and [isCreature, youControl]))) ],
+            (doForEachKind .counterKind .counterKind
+              (putCounters (statOf .boundCounter it) thatKind
+                (target (and [isCreature, youControl])))
+              (domain := some it)) ],
     power := stat 0, toughness := stat 0 }
 
 /-- Tromell, Seymour's Butler -/

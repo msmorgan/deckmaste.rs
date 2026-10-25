@@ -61,7 +61,10 @@ were re-located against the Lean source on 2026-10-24.
     .bound dst)`. *Star Pupil*'s source is read by last known information [CR#608.2h];
     *Denry Klin*'s fix rests on its own Oracle text ("put the same number of each kind of
     counter"), since [CR#122.8] covers only an object that left the battlefield.
-    **Reconciled 2026-10-24: live**
+    **Done** (`uwkwtzpz`): both write `doForEachKind .counterKind .counterKind (putCounters (statOf
+    .boundCounter src) thatKind dst) (domain := some src)` (the Templates of the ticket's raw form;
+    cards may not write `.doForEachKind`). Pins `starPupilPutsTheSameNumberOfEachKind` and
+    `denryKlinPutsTheSameNumberOfEachKind` (`Proofs/Counters.lean`).
 
 ### 2. Keyword & Action Definition Fidelity Fixes (Opus §§1.2, 1.7–1.9, 1.15, 1.17, 3.2)
 
