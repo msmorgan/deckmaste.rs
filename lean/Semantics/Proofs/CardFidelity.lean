@@ -14,12 +14,12 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.CardFidelity
 
 /-- The text of a single-faced card. -/
-def faceText : Card → List Ability
+private def faceText : Card → List Ability
   | .singleFaced face => face.characteristics.text
   | _ => []
 
 /-- The effect of a spell ability. -/
-def spellEffect : Ability → Option Action
+private def spellEffect : Ability → Option Action
   | .spell _ effect => some effect
   | _ => none
 
@@ -125,7 +125,7 @@ theorem purgingScytheChoosesAmongTheLeastThenDeals :
 
 /-- The zone changes an action makes, in order: each move's written origin, its Observation
 Point, and its riders. -/
-def moves : Nat → Action → List (Location × ObservationPoint × List MoveRider)
+private def moves : Nat → Action → List (Location × ObservationPoint × List MoveRider)
   | 0, _ => []
   | _ + 1, .move _ from_ _ at_ riders => [(from_, at_, riders)]
   | n + 1, .sequentially steps => steps.flatMap (moves n)
@@ -136,7 +136,7 @@ def moves : Nat → Action → List (Location × ObservationPoint × List MoveRi
   | _ + 1, _ => []
 
 /-- The zone changes an ability's effect makes. -/
-def abilityMoves : Ability → List (Location × ObservationPoint × List MoveRider)
+private def abilityMoves : Ability → List (Location × ObservationPoint × List MoveRider)
   | .activated _ action .. | .spell _ action | .triggered _ _ _ _ _ _ _ action => moves 64 action
   | _ => []
 
@@ -186,7 +186,7 @@ theorem bareReturnToBattlefieldIsObservedOnArrival :
 /-! ## Card witnesses that dropped or misread a clause -/
 
 /-- The trigger event of a card's triggered abilities, in order. -/
-def triggerEvents (card : Card) : List GameEvent :=
+private def triggerEvents (card : Card) : List GameEvent :=
   (faceText card).filterMap fun
     | .triggered event .. => some event
     | _ => none
@@ -196,15 +196,14 @@ to tapped [CR#603.2e], for mana or not (ruling 2007-05-01). -/
 theorem darksteelGarrisonWatchesBecomingTapped :
     triggerEvents Cards.darksteelGarrison.card = [does (fortified land) (become tapped)] := rfl
 
-/-- Lightmine Field deals damage "equal to the number of attacking creatures", counted as the
-effect applies [CR#608.2h]: a creature removed from combat isn't attacking [CR#506.4]
-(rulings 2010-06-15), so the amount is the attacking creatures, not the triggering group. -/
-theorem lightmineFieldCountsAttackingCreaturesOnResolution :
+/-- Lightmine Field deals damage "equal to the number of attacking creatures", not the number of
+the triggering group. -/
+theorem lightmineFieldCountsAttackingCreatures :
     ((faceText Cards.lightmineField.card).filterMap fun
       | .triggered _ _ _ _ _ _ _ effect => some effect
       | _ => none) =
       [ instruct thisEnchantment
-          (dealDamage (countOf isAttacking) (eachOf (those creature))) ] := rfl
+          (dealDamage (countOf (and [isCreature, isAttacking])) (eachOf (those creature))) ] := rfl
 
 /-- Temple Altisaur: "another Dinosaur you control", the bare "another" contrasting with the
 source of the ability (ADR semantics-v3 §0.1). -/
@@ -243,8 +242,11 @@ Quakebringer leaves in response. -/
 theorem quakebringerRestrictsTriggeringOnly :
     (match Cards.quakebringerDamage with
       | .qualified (.triggered _ _ _ _ _ _ intervening _) _ _ guard _ =>
-        some (intervening.isNone, guard.isSome)
-      | _ => none) = some (true, true) := rfl
+        some (intervening.isNone, guard)
+      | _ => none) =
+      some (true, some (or [ is this_ (in_ battlefield),
+        and [is this_ (cardIn yourGraveyard), exists_ (and [isCreature, giant, youControl])] ])) :=
+  rfl
 
 /-- Cult of the Waxing Moon: "Whenever a permanent you control transforms into a non-Human
 creature": the transform deed, which converting also performs, with the characteristic the

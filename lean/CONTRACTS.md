@@ -1326,7 +1326,7 @@ removed. The move is all or nothing: if either half is impossible (the same obje
 counter on the source, a destination that can't have counters, either object gone from its
 zone), no counter is removed or put [CR#122.5]. The checker reads the two halves for anaphora;
 the engine executes the move whole, as it does an exchange [CR#701.12a]
-(`moveCountersToAGoneDestinationIsOneAction`, `moveCountersOntoTheSameObjectIsOneAction`).
+(`moveCountersIsOneAction`).
 
 ## Rules tables
 

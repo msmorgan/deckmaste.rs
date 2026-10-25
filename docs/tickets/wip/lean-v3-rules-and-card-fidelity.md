@@ -60,9 +60,10 @@ were re-located against the Lean source on 2026-10-24.
     the engine runs all or nothing. The `moveCounters` Template builds it, so the card call sites
     are unchanged; the checker steps it as its two halves, so it still publishes both outcomes
     and keeps the `kind.getD .those` read-back (`moveCounterPublishesRemovalAndPlacement` passes
-    unchanged). `lean/CONTRACTS.md` drops the "not modelled" note. Pins
-    `moveCountersToAGoneDestinationIsOneAction`, `moveCountersOntoTheSameObjectIsOneAction`
-    (`Proofs/Counters.lean`). No v2 mirror: v2 is deletion-bound.
+    unchanged). `lean/CONTRACTS.md` drops the "not modelled" note. Pin `moveCountersIsOneAction`
+    (`Proofs/Counters.lean`; `pxumrkkx` merged the two pins `xwvlrsst` added, whose names described
+    runtime scenarios, a gone destination and the same object, that the tree cannot express). No
+    v2 mirror: v2 is deletion-bound.
   - Fix *Star Pupil* and *Denry Klin* (`lean/Semantics/Cards/Counters.lean:421,391`), which
     put `(.lit 1) (sameKindAs …)`, one of each kind (`CounterKindSource.sameAs`,
     `Abilities.lean:648`; `sameKindAs`, `Templates.lean:2230`). Corrected 2026-10-21 (review #9):
@@ -157,10 +158,13 @@ were re-located against the Lean source on 2026-10-24.
   - `shadow` (`[CR#702.28b]`, `Definitions/Keywords.lean:1432-1434`): bind `thisCreature` rather
     than quantifying over every shadow creature in the second static ability.
     **Done** (`zkzrxmwr`): `cant (.by thisCreature) (.block (allOf (and [isCreature, not shadow])))`;
-    Pin `shadowSecondHalfIsAboutThisCreature`. `shadow.ron` is unchanged: the agent-role
-    `deonticRule` mirror `zkzrxmwr` wrote broke the v2 corpus read of *Spirit en-Dal* (`shadow`
-    inside its own `hasKeyword(The(shadow))` in an `Any` slot reads as a recursive macro call), so
-    it was reverted; v2 is deletion-bound and this item names only the Lean body.
+    Pin `shadowSecondHalfIsAboutThisCreature`. v2's `shadow.ron` keeps the old defect (its second
+    static quantifies over every shadow creature). The agent-role `deonticRule` mirror `zkzrxmwr`
+    wrote was reverted (`rrrusrnr`) because it raises the rate of the v2 corpus suite's false
+    macro cycle, the address-keyed provenance bug of
+    [macro-ron-provenance-address-reuse](../planned/macro-ron-provenance-address-reuse.md)
+    (5 of 30 runs failing with it, against 2 of 40 before), not because the mirror recursed; v2
+    is deletion-bound and this item names only the Lean body.
 - **Copy keywords drop "If the spell has any targets" (added 2026-10-24; storm/replicate moved
   here from `lean-v3-proofs-and-docs-alignment` §2, its only home now):** each of these rules says
   "If the spell has any targets, you may choose new targets for" the copy or copies, but each body
@@ -246,7 +250,8 @@ were re-located against the Lean source on 2026-10-24.
     *Syphon Mind* (`Cards/Counters.lean:1167`), and *Rafter Demon* (`Cards/Keyword.lean:1009`).
     **Done** (`moukpvun`): each writes `instruct <player> (discard (… (cardIn hand)))`; the "each
     player/opponent" sites drop their `choose … , discard them` pair for `instruct each… (discard
-    (a (cardIn hand)))`. Pin `discardIsHandedToTheDiscardingPlayer` (`Proofs/CardFidelity.lean`).
+    (a (cardIn hand)))`. *Cry of Contrition* (`Cards/Damage.lean`), found in review, the same
+    (`pxumrkkx`). Pin `discardIsHandedToTheDiscardingPlayer` (`Proofs/CardFidelity.lean`).
   - Fix `"unless its controller pays"` on *Mana Leak* (`Cards/Anaphora.lean:220-222`),
     *Override*, *Rakshasa's Disdain*, *Rune Snag* (`Cards/Choice.lean:886,892,322`),
     and *Tidal Flats* (`:917-922`) so the spell/ability's controller — not the
@@ -292,7 +297,8 @@ were re-located against the Lean source on 2026-10-24.
     fallback already exists. Same in `madness.ron` (`:28-29`).
     **Done** (`kskwzvou`): the may-arm is `cast thisCard (from_ := some exileZone) (payment :=
     .payingInstead cost)`; `madness.ron` writes `enact(cast, procedure(Cast, this,
-    PayingInstead(Param(0))))`. Pin `madnessCastsDuringTheTriggersResolution`; rewrote
+    PayingInstead(Param(0))))`; it loses the exile origin, since v2's `Procedure` has no `from`,
+    and v2 is deletion-bound. Pin `madnessCastsDuringTheTriggersResolution`; rewrote
     `castPermissionsKeepPayingInstead` (`Proofs/KeywordCastPermissions.lean`), which pinned the
     old durationless permission, to the one-shot cast.
 - **`"Return"` vs `"put"` (§3.4):** moved to
@@ -428,8 +434,8 @@ Where a done ticket recorded the current shape as intended, this section superse
   2010-06-15). Write `dealDamage (countOf isAttacking) (eachOf (those creature))`. This supersedes
   `docs/tickets/done/workbench-bare-plural-det.md:77-80`'s re-spelling as "the number of those
   creatures".
-  **Done** (`ztopqskq`): `dealDamage (countOf isAttacking) (eachOf (those creature))`. Pin
-  `lightmineFieldCountsAttackingCreaturesOnResolution`, on the resolution-time count itself.
+  **Done** (`ztopqskq`, `pxumrkkx`): `dealDamage (countOf (and [isCreature, isAttacking])) (eachOf
+  (those creature))`, the printed "attacking creatures". Pin `lightmineFieldCountsAttackingCreatures`.
 - *Inkshield* (review #11, §3 above; `Cards/Damage.lean:464,468`): the replaced event `would any
   (dealDamage anyAmount you)` needs `(some .combat)` (`lean-v3-damage-composition` retired
   `damageRule`), and the token is

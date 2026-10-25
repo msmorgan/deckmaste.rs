@@ -240,7 +240,7 @@ def lightmineField : Spelled := spelled <| singleFacedCard
     text :=
       [ whenever (does (counted (orMore 1) isCreature) attack)
           (instruct thisEnchantment
-             (dealDamage (countOf isAttacking) (eachOf (those creature)))) ] }
+             (dealDamage (countOf (and [isCreature, isAttacking])) (eachOf (those creature)))) ] }
 
 def ingeniousArtillerist : Spelled := spelled <| singleFacedCard
   { name := "Ingenious Artillerist", cost := [generic 2, pip .red], types := [.creature],
@@ -1431,7 +1431,7 @@ def diabolicEdict : Action := instruct (target isPlayer) (sacrifice (aTheirChoic
 theorem okDiabolicEdict : Action.check (DRS.ofList []) diabolicEdict = [] := by decide
 def innocentBlood : Action := instruct eachPlayer (sacrifice (aTheirChoice isCreature))
 theorem okInnocentBlood : Action.check (DRS.ofList []) innocentBlood = [] := by decide
-def cryOfContrition : Action := discard (a (cardIn (handOf (target isPlayer))))
+def cryOfContrition : Action := instruct (target isPlayer) (discard (a (cardIn hand)))
 theorem okCryOfContrition : Action.check (DRS.ofList []) cryOfContrition = [] := by decide
 def cyclingCost : Action := discard this_
 theorem okCyclingCost : Action.check (DRS.ofList []) cyclingCost = [] := by decide

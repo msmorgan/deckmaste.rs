@@ -26,6 +26,11 @@ until the outermost read ends ("a splice's memory lives as long as its read"), b
 range is then given the stale entry's chain, which can hold the definition being entered: a false
 cycle, depending on the allocator.
 
+Measured rates (2026-10-25, `lean-v3-rules-and-card-fidelity`): the corpus suite failed with a
+false cycle in 2 of 40 runs before that feature's range, and in 5 of 30 runs with its agent-role
+`shadow.ron` mirror, which gave the false cycle one more place to strike (*Spirit en-Dal*:
+`shadow -> shadow`); that mirror was reverted. One green corpus run is no evidence either way.
+
 Fix, proposed: remove a read's `spliced` entries when the `ReadCtx` that owns those splices drops
 (record the keys per read and clear them in its drop), or key provenance by an id the read hands
 out instead of by address. Pin it with a test that frees a nested read's splice and allocates a
