@@ -567,4 +567,22 @@ theorem copyKeywordsGuardNewTargetsOnTheSpellsTargets :
       copyKeywordLastStep conspire = some (guarded (that .copy)) ∧
       copyKeywordLastStep epic = some (guarded (that .copy)) := ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
 
+/-- The deed each step of a keyword's one activated ability's sequence performs. -/
+private def activatedStepDeeds : Ability → List (Option Deed)
+  | .keyword _ _ [.activated _ (.sequentially steps) _ _ _ _] => steps.map (·.ownDeed?)
+  | _ => []
+
+/-- Transmute and transfigure search and shuffle through the `search` and `shuffle` Definitions,
+and aura swap exchanges through `exchangeCards`, so each step keeps its keyword action's deed
+[CR#702.53a,702.71a,702.65a,701.23a,701.24a,701.12d]. -/
+theorem keywordBodiesKeepTheirActionDeeds :
+    activatedStepDeeds (transmute (.mana [generic 1])) =
+        [some search.deed, some reveal.deed, none, some shuffle.deed] ∧
+      activatedStepDeeds (transfigure (.mana [generic 1])) =
+        [some search.deed, none, some shuffle.deed] ∧
+      (match auraSwap (.mana [generic 1]) with
+        | .keyword _ _ [.activated _ (.withContinuation _ exchange _ _) _ _ _ _] =>
+          exchange.ownDeed?
+        | _ => none) = some exchangeCards.deed := by decide
+
 end Semantics.Proofs.Keyword

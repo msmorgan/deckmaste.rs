@@ -260,9 +260,8 @@ semantic_definition auraSwap (cost : Cost) : Ability :=
   .keyword (.named "auraSwap") [.cost (.inCaller cost)]
     [ activated (.inCaller cost)
         (may
-          (.exchange
-            (.cardsAcross thisPermanent
-              (a (and [.isCard, .hasSubtype aura, .in_ yourHand]))))) ]
+          (exchangeCards thisPermanent
+            (a (and [.isCard, .hasSubtype aura, .in_ yourHand])))) ]
 semantic_definition awaken (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "awaken") [.number (.inCaller amount), .cost (.inCaller cost)]
     [ static (altCost this_ (some (.inCaller cost))),
@@ -1638,11 +1637,11 @@ semantic_definition transfigure (cost : Cost) : Ability :=
           [ .inCaller cost,
             .perform (sacrifice thisPermanent) ])
         (sequentially
-          [ .search yourLibrary
+          [ search yourLibrary
               (a (and
                 [.isCard, isCreature, hasManaValue .eq (.statOf (.stat .manaValue) thisPermanent)])),
             putOntoBattlefield (that .card),
-            .shuffle (libraryOf .actor) ])
+            shuffle ])
         asSorcery ]
 semantic_definition transmute (cost : Cost) : Ability :=
   .keyword (.named "transmute") [.cost (.inCaller cost)]
@@ -1651,14 +1650,14 @@ semantic_definition transmute (cost : Cost) : Ability :=
           [ .inCaller cost,
             .perform (discard this_) ])
         (sequentially
-          [ .search yourLibrary
+          [ search yourLibrary
               (a (and
                 [ .isCard,
                   hasManaValue .eq
                     (.statOf (.stat .manaValue) (the (and [was (discard which), isCard]))) ])),
             reveal (that .card),
             putInto it hand,
-            .shuffle (libraryOf .actor) ])
+            shuffle ])
         asSorcery ]
 semantic_definition tribute (amount : Amount) : Ability :=
   .keyword (.named "tribute") [.number (.inCaller amount)]

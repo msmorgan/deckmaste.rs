@@ -177,6 +177,10 @@ were re-located against the Lean source on 2026-10-24.
     with no `.expose .reveal`; transmute, transfigure, auraSwap, ninjutsu and amplify are live. No
     card-exchange Definition exists for auraSwap's `.exchange (.cardsAcross …)`; only
     `exchangeControl`, `Definitions/Actions.lean:304`.)
+    **Done** (`srkrnpok`): transmute and transfigure write `search yourLibrary …` and `shuffle`;
+    aura swap writes `exchangeCards` (`Definitions/Actions.lean:293`, which does exist, over
+    `.cardsAcross`). Ninjutsu, transmute and amplify already revealed through `reveal`. Pin
+    `keywordBodiesKeepTheirActionDeeds` (`Proofs/Keyword.lean`).
 
 ### 3. Card Encoding Fidelity Fixes (Opus §§1.3–1.6, 1.10, 1.12–1.14, 3.4, 4.7)
 
