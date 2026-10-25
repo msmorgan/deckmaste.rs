@@ -262,7 +262,7 @@ def overgrownZealot : Spelled := spelled <| singleFacedCard
       [ activated tapSymbol (addMana 1 (ofAnyColor .sameColor)),
         activated tapSymbol
           (addMana 2 (ofAnyColor .sameColor)
-            [spendOnly [toPay (.ofKeyword morph), toPay (.ofKeyword disguise)]]) ],
+            [spendOnly [toTurnFaceUp isPermanent]]) ],
     power := stat 0, toughness := stat 4 }
 
 /-- Unblinking Observer -/
@@ -279,7 +279,10 @@ def unblinkingObserver : Spelled := spelled <| singleFacedCard
 def qarsiDeceiverMorphSpend : Ability :=
   activated tapSymbol
     (addMana 1 (manaOf [[.colorless]])
-      [spendOnly [ toCast (and [isCreature, isFaceDown]), toPay (.ofKeyword morph) ]])
+      [spendOnly
+        [ toCast (and [isCreature, isFaceDown]),
+          toTurnFaceUp (and [isCreature, was (manifest which) thisObject]),
+          toPay (.ofKeyword morph) ]])
 theorem okQarsiDeceiverMorphSpend : Ability.check (DRS.ofList []) qarsiDeceiverMorphSpend = [] := by decide
 
 /-- Mercadian Bazaar -/

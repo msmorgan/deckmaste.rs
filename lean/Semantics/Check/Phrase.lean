@@ -2159,7 +2159,7 @@ def stepProducedManaWith (ops : StepOps) (drs : DRS) (pm : ProducedMana) : DRS Ã
 
 def stepSpendPurposeWith (ops : StepOps) (drs : DRS) (sp : SpendPurpose) : DRS Ã— List Refusal :=
   match sp with
-  | .toCast p | .toActivate (some p) => ops.pred drs p
+  | .toCast p | .toActivate (some p) | .toTurnFaceUp p => ops.pred drs p
   | .toActivate none => (drs, [])
   | .toPay _ => (drs, [])
 

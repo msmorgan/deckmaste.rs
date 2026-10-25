@@ -380,14 +380,14 @@ semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (sequentially
     [ .turnFaceDown (.firstMention "manifest.subject" (.inCaller subject)) faceDownCreature,
-      .move (that .card) .anyLocation battlefield .arrival
+      .move (.laterMention "manifest.subject" (.inCaller subject)) .anyLocation battlefield .arrival
         [(.faceDown faceDownCreature)] ])
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
 semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (sequentially
     [ .turnFaceDown (.firstMention "cloak.subject" (.inCaller subject)) faceDownWardedCreature,
-      .move (that .card) .anyLocation battlefield .arrival
+      .move (.laterMention "cloak.subject" (.inCaller subject)) .anyLocation battlefield .arrival
         [(.faceDown faceDownWardedCreature)] ])
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
 semantic_definition manifestDread : Action :=

@@ -2371,6 +2371,8 @@ semantic_template toCast (predicate : Predicate) : SpendPurpose := .toCast predi
 semantic_template toActivate (source : Option Predicate) : SpendPurpose := .toActivate source
 /-- "to pay <cost>" -/
 semantic_template toPay (cost : CostNamed) : SpendPurpose := .toPay cost
+/-- "to turn <subject> face up" [CR#116.2b] -/
+semantic_template toTurnFaceUp (subject : Predicate) : SpendPurpose := .toTurnFaceUp subject
 /-- "this mana" -/
 semantic_template thisMana : ManaHeld := .thisMana
 /-- "unspent [<type>] mana" -/

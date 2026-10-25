@@ -305,4 +305,24 @@ theorem squirrelWhackerExchangesWithBasePowerOrToughness :
         (exchange (values (theOutcome .rollResult) (basePowerOf thisCreature)))
         (exchange (values (theOutcome .rollResult) (baseToughnessOf thisCreature))))) := rfl
 
+/-! ## Mana spent to turn a permanent face up [CR#116.2b] -/
+
+/-- Overgrown Zealot: "Spend this mana only to turn permanents face up", the special action
+[CR#116.2b] whatever its cost, morph, disguise, manifest or cloak. -/
+theorem overgrownZealotSpendsToTurnFaceUp :
+    (match faceText Cards.overgrownZealot.card with
+      | [_, .activated _ (.addMana _ _ riders) ..] => riders
+      | _ => []) = [spendOnly [toTurnFaceUp isPermanent]] := rfl
+
+/-- Qarsi Deceiver: "Spend this mana only to cast a face-down creature spell, pay a mana cost to
+turn a manifested creature face up, or pay a morph cost" [CR#701.40b,702.37e]. -/
+theorem qarsiDeceiverSpendsOnManifestAndMorph :
+    (match Cards.qarsiDeceiverMorphSpend with
+      | .activated _ (.addMana _ _ riders) .. => riders
+      | _ => []) =
+      [ spendOnly
+          [ toCast (and [isCreature, isFaceDown]),
+            toTurnFaceUp (and [isCreature, was (manifest which) thisObject]),
+            toPay (.ofKeyword morph) ] ] := rfl
+
 end Semantics.Proofs.CardFidelity

@@ -337,7 +337,13 @@ were re-located against the Lean source on 2026-10-24.
   [lean-v3-compare-over-bound-reads-member](../planned/lean-v3-compare-over-bound-reads-member.md).
   Pins `curieDrawsItsBasePower`, `bairdComparesPowerWithItsOwnBasePower`,
   `squirrelWhackerExchangesWithBasePowerOrToughness` (`Proofs/CardFidelity.lean`).
-  **Live:** *Overgrown Zealot* and *Qarsi Deceiver* (turn-face-up spend purpose; ruled, next).
+  **Done** (`xwvtymus`; owner ruling 2026-10-25): `SpendPurpose.toTurnFaceUp (subject : Predicate)`
+  [CR#116.2b] with the `toTurnFaceUp` Template. *Overgrown Zealot* spends `[toTurnFaceUp
+  isPermanent]`; *Qarsi Deceiver* adds `toTurnFaceUp (and [isCreature, was (manifest which)
+  thisObject])` between its cast and morph purposes. "Manifested" as a look-back needed the
+  `manifest` (and `cloak`) Definition to read its own subject back by mention instead of `that
+  .card`, which nothing grounds in a pattern. Pins `overgrownZealotSpendsToTurnFaceUp`,
+  `qarsiDeceiverSpendsOnManifestAndMorph`.
 
 ### 4. Printed move text dropped by the move-deeds landing (wave review, 2026-10-21)
 

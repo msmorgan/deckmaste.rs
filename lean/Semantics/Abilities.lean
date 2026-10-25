@@ -590,6 +590,10 @@ mutual
     | toCast (predicate : Predicate)
     | toActivate (source : Option Predicate)
     | toPay (cost : CostNamed)
+    /-- To turn a face-down permanent `subject` describes face up: the special action
+    [CR#116.2b] whose cost is paid, a morph or disguise cost [CR#702.37e,702.168d] or a
+    manifested or cloaked permanent's mana cost [CR#701.40b,701.58b]. -/
+    | toTurnFaceUp (subject : Predicate)
 
   inductive AsThough where
     /-- "As though it didn't have defender": the rule applies as though `cond` held, its pronouns
