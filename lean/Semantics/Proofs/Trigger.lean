@@ -22,7 +22,7 @@ theorem okCastsSingularComplement :
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none)) (draw 1))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (bare isSpell) .itsOwnCost none none none)) (draw 1))
       = [.singular] := by
   decide
 

@@ -506,10 +506,10 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
 /-- "You may cast spells from your graveyard.": with no handoff in a static ability the
 permitted player is the controller, and the clause checks as the `you` spelling does. -/
 theorem okStaticActorPermission :
-    Ability.check (DRS.ofList []) (.static (can theActor (cast (allOf isSpell) (from_ := some (graveyardOf theActor))))) = [] ∧
-      Ability.check (DRS.ofList []) (.static (can theActor (cast (allOf isSpell) (from_ := some (graveyardOf theActor))))) =
+    Ability.check (DRS.ofList []) (.static (can theActor (cast (bare isSpell) (from_ := some (graveyardOf theActor))))) = [] ∧
+      Ability.check (DRS.ofList []) (.static (can theActor (cast (bare isSpell) (from_ := some (graveyardOf theActor))))) =
         Ability.check (DRS.ofList [])
-          (.static (can you (cast (allOf isSpell) (from_ := some (graveyardOf .you))))) := by
+          (.static (can you (cast (bare isSpell) (from_ := some (graveyardOf .you))))) := by
   decide
 
 /-- "Exile target creature. Its owner may cast it from exile.": the permission handed to the

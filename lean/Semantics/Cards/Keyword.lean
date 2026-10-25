@@ -558,7 +558,7 @@ def akroanSergeant : Spelled := spelled <| singleFacedCard
     text := [firstStrike, renown 1], power := stat 2, toughness := stat 2 }
 
 def castCreatureSpellsFromTop : StaticSpec :=
-  can you (cast (allOf (and [isSpell, isCreature])) (from_ := onTop))
+  can you (cast (bare (and [isSpell, isCreature])) (from_ := onTop))
 theorem okCastCreatureSpellsFromTop : StaticSpec.check (DRS.ofList []) castCreatureSpellsFromTop = [] := by decide
 
 def garruksHorde : Spelled := spelled <| singleFacedCard

@@ -374,7 +374,7 @@ def sanctumPrelate : Spelled := spelled <| singleFacedCard
       [ static (entersChoosing thisCreature .number),
         static
             (cant any
-               (cast (allOf (and [isSpell, non isCreature, hasManaValue .eq chosenNumber])))) ],
+               (cast (bare (and [isSpell, non isCreature, hasManaValue .eq chosenNumber])))) ],
     power := stat 2, toughness := stat 2 }
 
 def abruptDecay : Spelled := spelled <| singleFacedCard
@@ -440,8 +440,8 @@ def gaddockTeeg : Spelled := spelled <| singleFacedCard
     text :=
       [ static
           (cant any
-             (cast (allOf (and [isSpell, non isCreature, hasManaValue .atLeast 4])))),
-        static (cant any (cast (allOf (and [isSpell, non isCreature, manaCostHas .variable])))) ],
+             (cast (bare (and [isSpell, non isCreature, hasManaValue .atLeast 4])))),
+        static (cant any (cast (bare (and [isSpell, non isCreature, manaCostHas .variable])))) ],
     power := stat 2, toughness := stat 2 }
 
 def shiningShoal : Spelled := spelled <| singleFacedCard

@@ -1654,7 +1654,7 @@ semantic_definition splitSecond : Ability :=
     [ static
         (onlyWhile
           (.conjunction none
-            [ cant (bare isPlayer) (cast (allOf anotherSpell)),
+            [ cant (bare isPlayer) (cast (bare anotherSpell)),
               cant (bare isPlayer)
                 (activate (allOf (and [.abilityHead .anyActivated, non isManaAbility]))) ])
           (is thisSpell (.in_ stack))) ]

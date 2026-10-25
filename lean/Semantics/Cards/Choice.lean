@@ -663,7 +663,7 @@ def meddlingMage : Spelled := spelled <| singleFacedCard
     subtypes := [human, wizard],
     text :=
       [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
-        static (cant any (cast (allOf (and [isSpell, named chosenName])))) ],
+        static (cant any (cast (bare (and [isSpell, named chosenName])))) ],
     power := stat 2, toughness := stat 2 }
 
 /-- Nyxathid -/
@@ -690,7 +690,7 @@ def nevermore : Spelled := spelled <| singleFacedCard
   { name := "Nevermore", cost := [generic 1, pip .white, pip .white], types := [.enchantment],
     text :=
       [ static (entersChoosingFrom thisEnchantment .cardName (nameOfCard (non isLand))),
-        static (cant any (cast (allOf (and [isSpell, named chosenName])))) ] }
+        static (cant any (cast (bare (and [isSpell, named chosenName])))) ] }
 
 def necromentiaChoice : Action :=
   choose (a (qualityFrom .cardName (nameOfCard (not (and [hasSupertype .basic, isLand])))))
@@ -702,7 +702,7 @@ def conjurersBan : Spelled := spelled <| singleFacedCard
       [ spell (sequentially
           [ choose (a (quality .cardName)),
             establishThroughout (conjunction
-                                   [ cant any (cast (allOf (and [isSpell, named chosenName]))),
+                                   [ cant any (cast (bare (and [isSpell, named chosenName]))),
                   cant any (play
                               (allOf (and [isLand, named chosenName]))) ]) untilYourNextTurn ]),
         spell (draw 1) ] }
@@ -721,14 +721,14 @@ def foundingOfOmashu : Spelled := spelled <| singleFacedCard
 def vedalkenOrrery : Spelled := spelled <| singleFacedCard
   { name := "Vedalken Orrery", cost := [generic 4], types := [.artifact],
     text :=
-      [ static (can you (cast (allOf isSpell)) (asThough := asThoughHadFlash them)) ] }
+      [ static (can you (cast (bare isSpell)) (asThough := asThoughHadFlash them)) ] }
 
 def shimmerMyr : Spelled := spelled <| singleFacedCard
   { name := "Shimmer Myr", cost := [generic 3], types := [.artifact, .creature],
     subtypes := [myr],
     text :=
       [ flash,
-        static (can you (cast (allOf (and [isSpell, isArtifact]))) (asThough := asThoughHadFlash them)) ],
+        static (can you (cast (bare (and [isSpell, isArtifact]))) (asThough := asThoughHadFlash them)) ],
     power := stat 2, toughness := stat 2 }
 
 def quickSliver : Spelled := spelled <| singleFacedCard
@@ -736,7 +736,7 @@ def quickSliver : Spelled := spelled <| singleFacedCard
     subtypes := [sliver],
     text :=
       [ flash,
-        static (can (a isPlayer) (cast (allOf (and [isSpell, sliver])))
+        static (can (a isPlayer) (cast (bare (and [isSpell, sliver])))
                   (asThough := asThoughHadFlash them)) ],
     power := stat 1, toughness := stat 1 }
 
@@ -744,7 +744,7 @@ def vernalEquinox : Spelled := spelled <| singleFacedCard
   { name := "Vernal Equinox", cost := [generic 3, pip .green], types := [.enchantment],
     text :=
       [ static
-          (can (a isPlayer) (cast (allOf (and [isSpell, or [isCreature, isEnchantment]])))
+          (can (a isPlayer) (cast (bare (and [isSpell, or [isCreature, isEnchantment]])))
              (asThough := asThoughHadFlash them)) ] }
 
 def borneUponAWind : Spelled := spelled <| singleFacedCard
@@ -752,7 +752,7 @@ def borneUponAWind : Spelled := spelled <| singleFacedCard
     text :=
       [ spell
           (establishThroughout
-             (can you (cast (allOf isSpell)) (asThough := asThoughHadFlash them)) thisTurn),
+             (can you (cast (bare isSpell)) (asThough := asThoughHadFlash them)) thisTurn),
         spell (draw 1) ] }
 
 def gisaAndGeralf : Spelled := spelled <| singleFacedCard
@@ -771,7 +771,7 @@ def playLandsFromTop : StaticSpec :=
   can you (play (allOf isLand) (from_ := onTop))
 /-- "cast <p> spells from the top of your library" -/
 def castFromTop (p : Predicate) : StaticSpec :=
-  can you (cast (allOf p) (from_ := onTop))
+  can you (cast (bare p) (from_ := onTop))
 
 /-- Future Sight; Magus of the Future -/
 def playLandsAndCastSpellsFromTop : StaticSpec :=
@@ -980,7 +980,7 @@ def voidstoneGargoyle : Spelled := spelled <| singleFacedCard
     text :=
       [ flying,
         static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
-        static (cant any (cast (allOf (and [isSpell, named chosenName])))),
+        static (cant any (cast (bare (and [isSpell, named chosenName])))),
         static (cant any (activate (allOf (and [ abilityHead .anyActivated,
                          abilityOf (allOf (and [isSource, named chosenName])) ])))) ],
     power := stat 3, toughness := stat 3 }
@@ -1374,7 +1374,7 @@ def haakonStromgaldScourge : Spelled := spelled <| singleFacedCard
         static (cant you (cast this_ (from_ := some (not yourGraveyard)))),
         static (onlyWhile
                   (can you
-                     (cast (allOf (and [isSpell, knight]))
+                     (cast (bare (and [isSpell, knight]))
                         (from_ := some yourGraveyard))) (is this_ (in_ battlefield))),
         when (does thisCreature die) (loseLife 2) ],
     power := stat 3, toughness := stat 3 }

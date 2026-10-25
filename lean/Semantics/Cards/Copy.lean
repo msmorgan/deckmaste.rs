@@ -194,7 +194,7 @@ def melekIzzetParagon : Spelled := spelled <| singleFacedCard
     text :=
       [ static (visibility .reveal you topOfLibrary),
         static
-          (can you (cast (allOf (and [isSpell, isInstantOrSorcery])) (from_ := onTop))),
+          (can you (cast (bare (and [isSpell, isInstantOrSorcery])) (from_ := onTop))),
         whenever
           (does you (cast (a (and
             [isInstantOrSorcery, isSpell])) (from_ := yourLibrary)))

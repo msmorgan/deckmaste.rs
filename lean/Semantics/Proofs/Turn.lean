@@ -326,7 +326,7 @@ theorem okAdditionalUpkeep :
 /-- "Spells with the chosen name can't be cast." -/
 theorem okCastSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (cant any (cast (allOf (.and [isSpell, .named .chosen]))))
+      (cant any (cast (bare (.and [isSpell, .named .chosen]))))
       = [] := by
   decide
 

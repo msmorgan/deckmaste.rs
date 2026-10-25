@@ -325,7 +325,7 @@ theorem whippoorwillCantIsADeonticOverRedirectDamage :
 /-- "You may cast spells as though they had flash." -/
 theorem okObjectPremiseAtCast :
     StaticSpec.check (DRS.ofList [])
-      (.can (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none) { asThough := (some (.condition (.matches (.pro .bare .many) (.hasKeyword (.the (.named "flash")))))) }) = [] := by
+      (.can (.actor .you) (.procedure .cast (bare isSpell) .itsOwnCost none none none) { asThough := (some (.condition (.matches (.pro .bare .many) (.hasKeyword (.the (.named "flash")))))) }) = [] := by
   decide
 
 /-- "This creature can't be blocked by more than one creature." -/

@@ -480,7 +480,7 @@ theorem playAndCastFromGraveyardThisTurn :
       (.establish
         (.conjunction none
           [ can you (play (allOf isLand) (from_ := some (graveyardOf .you))),
-            can you (cast (allOf isSpell) (from_ := some (graveyardOf .you))) ])
+            can you (cast (bare isSpell) (from_ := some (graveyardOf .you))) ])
         (some untilEndOfTurn)) = [] := by
   decide
 

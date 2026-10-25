@@ -313,7 +313,7 @@ def councilOfTheAbsolute : Spelled := spelled <| singleFacedCard
     text :=
       [ static (entersChoosingFrom thisCreature .cardName
           (nameOfCard (not (or [isCreature, isLand])))),
-        static (cant yourOpponents (cast (allOf (and [isSpell, named chosenName])))),
+        static (cant yourOpponents (cast (bare (and [isSpell, named chosenName])))),
         static (costShift (allOf (and [isSpell, named chosenName, did you (cast which) thisObject]))
           (less 2)) ],
     power := stat 2, toughness := stat 4 }
@@ -323,7 +323,7 @@ def complyNameLock : Action :=
   sequentially
     [ choose (a (quality .cardName)),
       establishThroughout (cant yourOpponents
-                             (cast (allOf (and [isSpell, named chosenName])))) untilYourNextTurn ]
+                             (cast (bare (and [isSpell, named chosenName])))) untilYourNextTurn ]
 theorem okComplyNameLock : Action.check (DRS.ofList []) complyNameLock = [] := by decide
 
 /-- Gideon's Intervention -/
@@ -332,7 +332,7 @@ def gideonsIntervention : Spelled := spelled <| singleFacedCard
     types := [.enchantment],
     text :=
       [ static (entersChoosing thisEnchantment .cardName),
-        static (cant yourOpponents (cast (allOf (and [isSpell, named chosenName])))),
+        static (cant yourOpponents (cast (bare (and [isSpell, named chosenName])))),
         static
           (replace
             (would (by_ (allOf (and [isSource, named chosenName])))
@@ -344,7 +344,7 @@ def academicProbationNameMode : Action :=
   sequentially
     [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
       establishThroughout (cant yourOpponents
-                             (cast (allOf (and [isSpell, named chosenName])))) untilYourNextTurn ]
+                             (cast (bare (and [isSpell, named chosenName])))) untilYourNextTurn ]
 theorem okAcademicProbationNameMode : Action.check (DRS.ofList []) academicProbationNameMode = [] := by
   decide
 
@@ -430,7 +430,7 @@ def grandAbolisher : Spelled := spelled <| singleFacedCard
     subtypes := [human, cleric],
     text :=
       [ static (partScope .turn you
-          (conjunction [ cant yourOpponents (cast (allOf isSpell)),
+          (conjunction [ cant yourOpponents (cast (bare isSpell)),
               cant yourOpponents (activate (allOf (and [ abilityHead .anyActivated,
                                abilityOf (allOf (or [isArtifact, isCreature, isEnchantment])) ]))) ])) ],
     power := stat 2, toughness := stat 2 }
@@ -744,7 +744,7 @@ def arrest : Spelled := spelled <| singleFacedCard
 def conquerorsFlailProhibition : StaticSpec :=
   onlyWhile
     (partScope .turn you
-      (cant yourOpponents (cast (allOf isSpell))))
+      (cant yourOpponents (cast (bare isSpell))))
     (is this_ (attachedTo (a isCreature)))
 theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquerorsFlailProhibition = [] := by
   decide
