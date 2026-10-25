@@ -912,6 +912,11 @@ semantic_template lifeTotalOf (player : NounPhrase) : Amount :=
 semantic_template speedOf (player : NounPhrase) : Amount := .statOf (.playerStat .speed) player
 semantic_template powerOf (subject : NounPhrase) : Amount := .statOf (.stat .power) subject
 semantic_template toughnessOf (subject : NounPhrase) : Amount := .statOf (.stat .toughness) subject
+/-- "<subject>'s base power" [CR#208.4b] -/
+semantic_template basePowerOf (subject : NounPhrase) : Amount := .statOf (.stat .basePower) subject
+/-- "<subject>'s base toughness" [CR#208.4b] -/
+semantic_template baseToughnessOf (subject : NounPhrase) : Amount :=
+  .statOf (.stat .baseToughness) subject
 semantic_template countersOn (kind : CounterKind) (holder : NounPhrase) : Amount :=
   .statOf (.counter kind) holder
 /-- "<saga>'s final chapter number": the greatest of its chapter numbers, 0 with none

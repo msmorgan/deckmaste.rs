@@ -328,10 +328,16 @@ were re-located against the Lean source on 2026-10-24.
   `cycloneDealsDamageIfYouPay`, `purgingScytheChoosesAmongTheLeastThenDeals`. Retired
   `purgingScytheThemReadsTheTiedCreatures` (`Cards/Damage.lean`): it pinned "them" reading the
   tied creatures of the old encoding, which chose after dealing the damage.
-  **Live** (STOPs, 2026-10-25 report): *Vedalken Squirrel-Whacker* needs a base power/toughness
-  value to exchange with (no `Stat` or `ProjAxis` reads base P/T); *Overgrown Zealot* and *Qarsi
-  Deceiver* need the turn-face-up spend purpose, a new `SpendPurpose`/`CostNamed` constructor whose
-  shape the ticket leaves open.
+  **Done** (`swzpvozq`; owner ruling 2026-10-25): `Stat.basePower | baseToughness` [CR#208.4,208.4b]
+  with `basePowerOf`/`baseToughnessOf`; *Vedalken Squirrel-Whacker* may exchange a result with
+  `basePowerOf` or `baseToughnessOf thisCreature`. Witnesses spelled: *Baird, Argivian Recruiter*
+  (`Cards/Trigger.lean`) and *Curie, Emergent Intelligence*'s combat-damage draw
+  (`curieCombatDraw`). Baird is spelled `compareOver … (minus (powerOf ownMember) (basePowerOf
+  ownMember)) .greater 0` only because a comparison's bound cannot read the member yet:
+  [lean-v3-compare-over-bound-reads-member](../planned/lean-v3-compare-over-bound-reads-member.md).
+  Pins `curieDrawsItsBasePower`, `bairdComparesPowerWithItsOwnBasePower`,
+  `squirrelWhackerExchangesWithBasePowerOrToughness` (`Proofs/CardFidelity.lean`).
+  **Live:** *Overgrown Zealot* and *Qarsi Deceiver* (turn-face-up spend purpose; ruled, next).
 
 ### 4. Printed move text dropped by the move-deeds landing (wave review, 2026-10-21)
 

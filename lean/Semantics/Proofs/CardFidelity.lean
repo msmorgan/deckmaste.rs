@@ -277,4 +277,32 @@ theorem orTiedForTheMostIsMembership :
             (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))) ] :=
   ⟨rfl, rfl, rfl, rfl⟩
 
+/-! ## Base power and toughness [CR#208.4] -/
+
+/-- Curie, Emergent Intelligence draws "cards equal to its base power": its power ignoring effects
+and counters that modify it [CR#208.4b]. -/
+theorem curieDrawsItsBasePower :
+    (match Cards.curieCombatDraw with
+      | .triggered _ _ _ _ _ _ _ effect => some effect
+      | _ => none) = some (draw (basePowerOf thisCreature)) := rfl
+
+/-- Baird, Argivian Recruiter: "a creature with power greater than its base power", each creature
+measured against its own base power [CR#208.4b]. -/
+theorem bairdComparesPowerWithItsOwnBasePower :
+    ((faceText Cards.bairdArgivianRecruiter.card).filterMap fun
+      | .triggered _ _ _ _ _ _ intervening _ => intervening
+      | _ => none) =
+      [ exists_ (compareOver (and [isCreature, youControl])
+          (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0) ] := rfl
+
+/-- Vedalken Squirrel-Whacker: "you may exchange one result with this creature's base power or
+base toughness", an exchange of values that sets each to the other [CR#701.12g,208.4]. -/
+theorem squirrelWhackerExchangesWithBasePowerOrToughness :
+    (match Cards.vedalkenSquirrelWhackerReroll with
+      | .establish (.replace _ (.instead (.sequentially [_, exchanging])) ..) _ => some exchanging
+      | _ => none) =
+      some (may (chooseOne
+        (exchange (values (theOutcome .rollResult) (basePowerOf thisCreature)))
+        (exchange (values (theOutcome .rollResult) (baseToughnessOf thisCreature))))) := rfl
+
 end Semantics.Proofs.CardFidelity

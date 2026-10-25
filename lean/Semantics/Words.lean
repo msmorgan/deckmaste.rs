@@ -40,6 +40,10 @@ inductive Stat where
   /-- Defense is read by zone: on the battlefield it is the number of defense counters on the
   battle [CR#310.4c], and elsewhere the number printed on the card [CR#310.4a]. -/
   | defense
+  /-- A creature's base power or base toughness [CR#208.4]: its power or toughness after
+  characteristic-defining abilities and effects that set power and/or toughness, ignoring other
+  effects and counters [CR#208.4b,613.4b]. -/
+  | basePower | baseToughness
   deriving DecidableEq, Repr
 
 /-- A card type [CR#205.2a]: its name and the fields the rules read off it, whether it is a

@@ -977,4 +977,26 @@ def brunaLightOfAlabaster : Spelled := spelled <| singleFacedCard
                 it) ]) ],
     power := stat 5, toughness := stat 5 }
 
+/-- Baird, Argivian Recruiter: "if you control a creature with power greater than its base
+power", each creature measured against its own base power [CR#208.4b]. Spelled as the difference
+of the two measured on the member, because a comparison's bound cannot read the member yet
+(`planned/lean-v3-compare-over-bound-reads-member.md`); the intended spelling is
+`comparesOwnStat .power … .greater (basePowerOf ownMember)`. -/
+def bairdArgivianRecruiter : Spelled := spelled <| singleFacedCard
+  { name := "Baird, Argivian Recruiter", cost := [pip .red, pip .white],
+    supertypes := [.legendary], types := [.creature], subtypes := [human, soldier],
+    text :=
+      [ at_ (beginningOfYour .endStep)
+          (if_ := some (exists_ (compareOver (and [isCreature, youControl])
+            (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0)))
+          (createToken (creatureToken 1 1 [.white] [soldier])) ],
+    power := stat 2, toughness := stat 2 }
+
+/-- Curie, Emergent Intelligence's first ability: "Whenever Curie deals combat damage to a
+player, draw cards equal to its base power" [CR#208.4b]. -/
+def curieCombatDraw : Ability :=
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
+    (draw (basePowerOf thisCreature))
+theorem okCurieCombatDraw : Ability.check (DRS.ofList []) curieCombatDraw = [] := by decide
+
 end Semantics.Cards
