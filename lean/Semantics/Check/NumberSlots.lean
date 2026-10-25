@@ -4,9 +4,10 @@ namespace Semantics
 
 /-- Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
 is clamped unless it sets, doubles, or triples a life total or a power and toughness. Doubling a
-life total is written as its set (`doubleLifeTotal`); doubling or tripling a power or toughness
-as the rules' change by the value's magnitude under its sign [CR#701.10c,701.11c]
-(`getsScaledStats`), whose clamped amounts are never below zero. -/
+life total is written as its set (`doubleLifeTotal`). Doubling or tripling a power or toughness
+is its [CR#701.10b,701.11b] change, +X where X is the value (twice it, tripled), read in the
+signed regime inside the `double` or `triple` deed's own scope (`Action.numberSlots`), so a
+negative value gets −X [CR#701.10c,701.11c]. -/
 inductive NumberRegime where
   | clamped | signed
   deriving DecidableEq, Repr
@@ -109,6 +110,12 @@ def CharacteristicEdit.numberSlots : CharacteristicEdit → List (Amount × Numb
   | .stat _ _ amount => [(amount, .clamped)]
   | _ => []
 
+/-- A stat edit made by doubling or tripling a power or toughness: signed, the exception
+[CR#107.1b] names. -/
+def CharacteristicEdit.scaledStatSlots : CharacteristicEdit → List (Amount × NumberRegime)
+  | .stat _ _ amount => [(amount, .signed)]
+  | _ => []
+
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
@@ -140,6 +147,12 @@ termination_by structural fuel
 def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
+  -- Doubling or tripling a power or toughness is the exception [CR#107.1b] names: the change the
+  -- deed's own Definition makes to the stats stands below zero [CR#701.10c,701.11c]. Only its
+  -- stat edits are signed; another amount under the deed, as `doubleCounters`'s counters, is not.
+  | _n + 1, .ownScope (some (.action "double" _)) (.establish (.characteristicChange _ edits) _)
+  | _n + 1, .ownScope (some (.action "triple" _)) (.establish (.characteristicChange _ edits) _) =>
+    edits.flatMap CharacteristicEdit.scaledStatSlots
   | _n + 1, .inCaller body | _n + 1, .ownScope _ body | _n + 1, .instruct _ body => body.numberSlots _n
   -- You can't deal negative damage [CR#107.1b].
   | _n + 1, .dealDamage amount _ _ | _n + 1, .markDamage _ amount => [(amount, .clamped)]

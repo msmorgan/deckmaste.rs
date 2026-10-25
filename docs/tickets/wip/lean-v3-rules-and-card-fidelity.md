@@ -36,18 +36,15 @@ were re-located against the Lean source on 2026-10-24.
     **Reconciled 2026-10-24: done** (no single landing ticket): `okDoubledDamageClamped`'s
     docstring (`Proofs/Numbers.lean:142-146`) now says [CR#107.1b] exempts doubling only of a life
     total or a power or toughness, damage being doubled by replacement [CR#701.10g].
-  **Done** (`vrlrtwru`): the [CR#701.10c] `.down` expansion per axis. The six `double*`/`triple*`
-  Definitions are `getsScaledStats` (`Definitions/Actions.lean`): per axis, `doIf (… .less 0)`
-  gets `.down (per × differenceBetween 0 value)`, then `doIf (… .atLeast 0)` gets `.up (per ×
-  value)`; scaling keeps the sign, so exactly one fires, and every clamped amount is a magnitude.
-  The `NumberRegime` docstring says how doubling is written. Pins (`Proofs/Numbers.lean`):
-  `negativePowerDoublesBelowZero`, `negativeAxisTriplesBelowZero`,
-  `doublingChangesAreClampedMagnitudes`, `chameleonColossusBoostStaysClamped`. The two guards per
-  axis are a workaround: the intended spelling is one `doIf (… .less 0) … (some …)` per axis, which
-  the checker refuses because an otherwise-branch cannot read a subject first mentioned in the
-  condition; [lean-v3-doif-otherwise-reads-condition-mentions](../planned/lean-v3-doif-otherwise-reads-condition-mentions.md)
-  fixes that and rewrites `getsScaledStats`. v2 has no number regime; its RON helpers
-  (`instructions/doublePower.ron` and kin) were left alone because v2 is deletion-bound.
+  **Done** (`tlwtvyyp`; owner ruling 2026-10-25, replacing the `.down` expansion `vrlrtwru` wrote):
+  each `double*`/`triple*` power or toughness Definition is the plain [CR#701.10b,701.11b] body,
+  one `get` with `.up (powerOf …)`/`(toughnessOf …)` (twice it, tripled), and
+  `Action.numberSlots` reads a stat edit directly inside the `double` or `triple` deed's scope as
+  `.signed`, the exception [CR#107.1b] names; counter amounts under the deed stay clamped. Pins
+  (`Proofs/Numbers.lean`): `doublingPowerIsSigned`, `triplingPowerAndToughnessIsSigned`,
+  `doubleDeedLeavesCounterAmountsClamped`, `chameleonColossusBoostStaysClamped`. v2 has no number
+  regime; its RON helpers (`instructions/doublePower.ron` and kin) were left alone because v2 is
+  deletion-bound.
 - **Counter movement fidelity (Astra §1, Opus §1.11):**
   - Fix `moveCounters` (`lean/Semantics/Templates.lean:1539-1546`, a guardless
     `.sequentially [.removeCounters …, .putCounters …]`) so moving counters

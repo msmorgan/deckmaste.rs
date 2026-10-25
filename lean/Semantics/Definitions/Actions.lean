@@ -445,76 +445,60 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
                 (cast it (from_ := exileZone)
                   (payment := .payingInstead (.mana [generic 2]))))
               (some (.forAsLongAs (is it (.in_ exileZone)))))) ])
-/-- The change doubling (`per` 1) or tripling (`per` 2) makes to `subject`'s power and/or
-toughness, the axes `power` and `toughness` select [CR#701.10b,701.10c,701.11b,701.11c]: an axis
-whose value is less than 0 gets −X, X `per` times the difference between 0 and that value, and
-one whose value is 0 or more gets +X, X `per` times that value, so one negative axis beside a
-nonnegative one gets −X/+Y or +X/−Y. Each change reads its value under its own sign, so the
-amount of a boost or a penalty is never below zero and clamps nothing [CR#107.1b]. `first`
-introduces the subject in the first sign test, `later` reads it back.
-
-The intended spelling is one `doIf (… .less 0) <−X> (some <+X>)` per axis. The checker's
-otherwise-branch cannot read a subject first mentioned in the condition, so each axis is
-instead two complementary guarded changes, which scaling's keeping the sign makes equivalent;
-`planned/lean-v3-doif-otherwise-reads-condition-mentions.md` fixes the checker and rewrites this
-Template. -/
-semantic_template getsScaledStats (first later : NounPhrase) (per : Nat) (power toughness : Bool)
-    (duration : Option Duration) : Action :=
-  let scaled (value : Amount) : Amount := if per = 1 then value else times (.lit per) value
-  let axis (subject : NounPhrase) (stat : NounPhrase → Amount)
-      (test : Comparator → Amount → Predicate) (gets : Delta Amount → Action) : List Action :=
-    [ doIf (is subject (test .less 0))
-        (gets (.down (scaled (arith .differenceBetween 0 (stat later))))),
-      doIf (is later (test .atLeast 0)) (gets (.up (scaled (stat later)))) ]
-  let powerSteps := if power then
-    axis first powerOf hasPower (fun delta => get later delta (.up 0) duration) else []
-  let toughnessSteps := if toughness then
-    axis (if power then later else first) toughnessOf hasToughness
-      (fun delta => get later (.up 0) delta duration) else []
-  sequentially (powerSteps ++ toughnessSteps)
-/-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power,
-or −X/−0, X the difference between 0 and a negative power (`getsScaledStats`). -/
+/-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
 semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "double"))
-    (getsScaledStats (.firstMention "doublePower.subject" (.inCaller subject))
-      (.laterMention "doublePower.subject" (.inCaller subject)) 1 true false duration)
-/-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness, a
-negative axis instead getting −X or −Y (`Definition`, [CR#701.10b,701.10c]). -/
+    (get (.firstMention "doublePower.subject" (.inCaller subject))
+      (.up (powerOf (.laterMention "doublePower.subject" (.inCaller subject)))) (.up 0)
+      duration)
+/-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
+(`Definition`, [CR#701.10b,701.10c]). -/
 semantic_definition doublePowerAndToughness (subject : NounPhrase)
     (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "double"))
-    (getsScaledStats (.firstMention "doublePowerAndToughness.subject" (.inCaller subject))
-      (.laterMention "doublePowerAndToughness.subject" (.inCaller subject)) 1 true true duration)
-/-- "double <subject>'s toughness": it gets +0/+X, X its toughness, or −0/−X for a negative one
-(`Definition`, [CR#701.10b,701.10c]). -/
+    (get (.firstMention "doublePowerAndToughness.subject" (.inCaller subject))
+      (.up (powerOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
+      (.up (toughnessOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
+      duration)
+/-- "double <subject>'s toughness": it gets +0/+X, X its toughness (`Definition`,
+[CR#701.10b,701.10c]). -/
 semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "double"))
-    (getsScaledStats (.firstMention "doubleToughness.subject" (.inCaller subject))
-      (.laterMention "doubleToughness.subject" (.inCaller subject)) 1 false true duration)
-/-- "triple <subject>'s power and toughness": it gets +X/+Y, X and Y twice its power and
-toughness, a negative axis instead getting −X or −Y, twice the difference between 0 and it
-(`Definition`, [CR#701.11b,701.11c]). -/
+    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up 0)
+      (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
+      duration)
+/-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
 semantic_definition triplePowerAndToughness (subject : NounPhrase)
     (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "triple"))
-    (getsScaledStats (.firstMention "triplePowerAndToughness.subject" (.inCaller subject))
-      (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)) 2 true true duration)
-/-- "triple <subject>'s power": it gets +X/+0, X twice its power, or −X/−0 for a negative one
-(`Definition`, [CR#701.11b,701.11c]). -/
+    (get (.firstMention "triplePowerAndToughness.subject" (.inCaller subject))
+      (.up
+        (times 2
+          (powerOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
+      (.up
+        (times 2
+          (toughnessOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
+      duration)
+/-- "triple <subject>'s power": it gets +X/+0, X twice its power (`Definition`,
+[CR#701.11b,701.11c]). -/
 semantic_definition triplePower (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "triple"))
-    (getsScaledStats (.firstMention "triplePower.subject" (.inCaller subject))
-      (.laterMention "triplePower.subject" (.inCaller subject)) 2 true false duration)
-/-- "triple <subject>'s toughness": it gets +0/+X, X twice its toughness, or −0/−X for a negative
-one (`Definition`, [CR#701.11b,701.11c]). -/
+    (get (.firstMention "triplePower.subject" (.inCaller subject))
+      (.up (times 2 (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
+      (.up 0) duration)
+/-- "triple <subject>'s toughness": it gets +0/+X, X twice its toughness (`Definition`,
+[CR#701.11b,701.11c]). -/
 semantic_definition tripleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "triple"))
-    (getsScaledStats (.firstMention "tripleToughness.subject" (.inCaller subject))
-      (.laterMention "tripleToughness.subject" (.inCaller subject)) 2 false true duration)
+    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up 0)
+      (.up
+        (times 2
+          (toughnessOf (.laterMention "tripleToughness.subject" (.inCaller subject)))))
+      duration)
 /-- "double <performer>'s life total" (`Definition`, [CR#701.10d]), written as that total's set
 [CR#119.5]. -/
 semantic_definition doubleLifeTotal : Action :=

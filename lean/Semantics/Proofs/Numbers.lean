@@ -139,53 +139,27 @@ theorem okExchangeValuesSigned :
 
 /-! ## Doubling and tripling a power or toughness -/
 
-/-- The steps of a doubling or tripling Definition: its guarded changes, in order. -/
-private def scaledSteps : Action → List Action
-  | .ownScope _ (.sequentially steps) => steps
-  | _ => []
-
-/-- "Double target creature's power": a power less than 0 gets −X/−0, X the difference between
-0 and it [CR#701.10c], so a −2 power doubles to −4 rather than clamping its +X/+0 to +0/+0
-[CR#107.1b]; a power of 0 or more gets +X/+0 [CR#701.10b]. -/
-theorem negativePowerDoublesBelowZero :
-    let first : NounPhrase := .firstMention "doublePower.subject" (.inCaller (target isCreature))
+/-- "Double target creature's power": it gets +X/+0, X its power [CR#701.10b], and the deed's
+change stands below zero, so a −2 power gets −2/−0 and doubles to −4 [CR#107.1b,701.10c]: the
+Definition's slots are signed. -/
+theorem doublingPowerIsSigned :
     let later : NounPhrase := .laterMention "doublePower.subject" (.inCaller (target isCreature))
-    scaledSteps (doublePower (target isCreature)) =
-      [ doIf (is first (hasPower .less 0))
-          (get later (.down (arith .differenceBetween 0 (powerOf later))) (.up 0)),
-        doIf (is later (hasPower .atLeast 0)) (get later (.up (powerOf later)) (.up 0)) ] := rfl
+    (doublePower (target isCreature)).numberSlots =
+      [(powerOf later, .signed), (.lit 0, .signed)] := by rfl
 
-/-- "Triple target creature's power and toughness": each axis below 0 gets −X, X twice the
-difference between 0 and it, and each of 0 or more +X, X twice it [CR#701.11b,701.11c], so a
-−1/3 creature gets −2/+6 and ends −3/9. -/
-theorem negativeAxisTriplesBelowZero :
-    let first : NounPhrase :=
-      .firstMention "triplePowerAndToughness.subject" (.inCaller (target isCreature))
+/-- "Triple target creature's power and toughness": +X/+Y, X and Y twice its power and toughness
+[CR#701.11b], signed, so a negative axis gets −X or −Y [CR#107.1b,701.11c]. -/
+theorem triplingPowerAndToughnessIsSigned :
     let later : NounPhrase :=
       .laterMention "triplePowerAndToughness.subject" (.inCaller (target isCreature))
-    scaledSteps (triplePowerAndToughness (target isCreature) (some untilEndOfTurn)) =
-      [ doIf (is first (hasPower .less 0))
-          (get later (.down (times 2 (arith .differenceBetween 0 (powerOf later)))) (.up 0)
-            (some untilEndOfTurn)),
-        doIf (is later (hasPower .atLeast 0))
-          (get later (.up (times 2 (powerOf later))) (.up 0) (some untilEndOfTurn)),
-        doIf (is later (hasToughness .less 0))
-          (get later (.up 0) (.down (times 2 (arith .differenceBetween 0 (toughnessOf later))))
-            (some untilEndOfTurn)),
-        doIf (is later (hasToughness .atLeast 0))
-          (get later (.up 0) (.up (times 2 (toughnessOf later))) (some untilEndOfTurn)) ] := rfl
+    (triplePowerAndToughness (target isCreature) (some untilEndOfTurn)).numberSlots =
+      [(times 2 (powerOf later), .signed), (times 2 (toughnessOf later), .signed)] := by rfl
 
-/-- `doublePower`'s guarded changes put magnitudes in clamped slots: the difference between 0 and
-a negative power, and a power of 0 or more, neither ever below zero, so the clamp of [CR#107.1b]
-changes nothing. -/
-theorem doublingChangesAreClampedMagnitudes :
-    let later : NounPhrase := .laterMention "doublePower.subject" (.inCaller thisCreature)
-    (match scaledSteps (doublePower thisCreature) with
-      | [.doIf _ (.establish negative _) _ _, .doIf _ (.establish nonnegative _) _ _] =>
-        negative.numberSlots ++ nonnegative.numberSlots
-      | _ => []) =
-      [ (arith .differenceBetween 0 (powerOf later), .clamped), (.lit 0, .clamped),
-        (powerOf later, .clamped), (.lit 0, .clamped) ] := by rfl
+/-- The `double` deed's scope signs only a power or toughness change: doubling counters puts a
+count of counters, which stays clamped [CR#107.1b,701.10e]. -/
+theorem doubleDeedLeavesCounterAmountsClamped :
+    (Action.ownScope (some doubleCounters.deed) (putCounters 2 p1p1Counter thisCreature)).numberSlots
+      = [(.lit 2, .clamped)] := by rfl
 
 /-- Chameleon Colossus: "This creature gets +X/+X until end of turn, where X is its power." This
 is no doubling: an effect's calculation below zero reads zero [CR#107.1b], so a −2 power gets
