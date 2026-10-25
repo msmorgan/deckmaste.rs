@@ -1349,9 +1349,11 @@ semantic_definition protection (quality : Predicate) : Ability :=
           (would (by_ (allOf (and [.isSource, .inCaller quality]))) (dealDamage anyAmount this_))
           (instead (preventDamage allDamage))),
       static (cant (.by (allOf (and [isCreature, .inCaller quality]))) (.block thisCreature)) ]
-set_option linter.unusedVariables false in
+/-- "Prototype [cost] — [power]/[toughness]": the printed parameters of the inset frame's second
+set [CR#702.160a,718.1]. -/
 semantic_definition prototype (cost : Cost) (power toughness : Amount) : Ability :=
-  keyword (.named "prototype")
+  .keyword (.named "prototype")
+    [.cost (.inCaller cost), .number (.inCaller power), .number (.inCaller toughness)] []
 semantic_definition provoke : Ability :=
   .keyword (.named "provoke") []
     [ whenever (does thisCreature (.attack none))

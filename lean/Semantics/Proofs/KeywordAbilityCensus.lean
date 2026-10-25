@@ -163,4 +163,20 @@ theorem okParadigmDefinition :
       | _ => false) = true ∧
       Ability.check (DRS.ofList []) paradigm = [] := by decide
 
+/-- Whether a keyword Definition's body is empty. -/
+private def bodiless : Ability → Bool
+  | .keyword _ _ [] => true
+  | _ => false
+
+/-- The keywords whose rule the CR states as a rule of the game reading the keyword, not as an
+ability of its object, hold no body (`lean/CONTRACTS.md`, "Keyword abilities with no body"):
+combat procedure [CR#510.4,510.1c,702.22c], rules-table rows [CR#704.5h,502.1,704.5aa,702.164c],
+flying's rule [CR#702.17b], cost payment [CR#601.2g] and Commander deck construction
+[CR#702.124a]. -/
+theorem intentionallyBodiless :
+    [ firstStrike, doubleStrike, trample, deathtouch, banding, bandsWithOther isCreature, reach,
+      phasing, startYourEngines, toxic 1, assist, partner, partnerCharacterSelect,
+      partnerFatherAndSon, partnerFriendsForever, partnerSurvivors, chooseABackground,
+      doctorsCompanion ].all bodiless = true := by decide
+
 end Semantics.Proofs.KeywordAbilityCensus
