@@ -117,7 +117,7 @@ def duskLegionDuelist : Spelled := spelled <| singleFacedCard
     subtypes := [vampire, soldier],
     text :=
       [ vigilance,
-        whenever (countersPut p1p1Counter anyAmount thisCreature)
+        whenever (does any (putCounters anyAmount p1p1Counter thisCreature))
           (draw 1) (limit := oncePerTurn) ],
     power := stat 2, toughness := stat 2 }
 

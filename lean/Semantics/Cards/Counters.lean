@@ -185,7 +185,7 @@ def divineIntervention : Spelled := spelled <| singleFacedCard
       [ static (entersWithCounters thisEnchantment 2 interventionCounter),
         at_ (beginningOfYour .upkeep)
           (removeCounters (exactly 1) interventionCounter thisEnchantment),
-        when (lastCounterRemovedBy interventionCounter thisEnchantment you) drawGame ] }
+        when (does (by_ you) (removeCounters theLast interventionCounter thisEnchantment)) drawGame ] }
 
 def celestialConvergence : Spelled := spelled <| singleFacedCard
   { name := "Celestial Convergence", cost := [generic 2, pip .white, pip .white],
@@ -270,14 +270,14 @@ def herdBaloth : Spelled := spelled <| singleFacedCard
   { name := "Herd Baloth", cost := [generic 3, pip .green, pip .green], types := [.creature],
     subtypes := [beast],
     text :=
-      [ whenever (countersPut p1p1Counter anyAmount thisCreature)
+      [ whenever (does any (putCounters anyAmount p1p1Counter thisCreature))
           (may (createToken (creatureToken 4 4 [.green] [beast]))) ],
     power := stat 4, toughness := stat 4 }
 
 def flourishingDefenses : Spelled := spelled <| singleFacedCard
   { name := "Flourishing Defenses", cost := [generic 4, pip .green], types := [.enchantment],
     text :=
-      [ whenever (countersPut m1m1Counter 1 (a isCreature))
+      [ whenever (does any (putCounters 1 m1m1Counter (a isCreature)))
           (may
             (createToken (creatureToken 1 1 [.green] [elf, warrior]))) ] }
 
@@ -406,13 +406,13 @@ def windingConstrictor : Spelled := spelled <| singleFacedCard
 
 /-- Aragorn, Company Leader -/
 def aragornDistributive : Ability :=
-  whenever (manyBareCountersPutBy you thisCreature)
+  whenever (does (actor you) (putCounters anyAmount anyKind thisCreature))
     (putCounters 1 thoseCounters
        (targets (upTo 1) (and [isCreature, isOther])))
 theorem okAragornDistributive : Ability.check (DRS.ofList []) aragornDistributive = [] := by decide
 /-- Captain Marvel, Apex Avenger -/
 def captainMarvelSameKinds : Ability :=
-  whenever (manyBareCountersPutBy you (a (and [isCreature, isOther])))
+  whenever (does (actor you) (putCounters anyAmount anyKind (a (and [isCreature, isOther]))))
     (if_ := some (not (is it kree)))
     (may (putCounters thatMuch thoseCounters thisCreature))
 theorem okCaptainMarvelSameKinds : Ability.check (DRS.ofList []) captainMarvelSameKinds = [] := by decide
@@ -516,7 +516,7 @@ def shalaiAndHallar : Spelled := spelled <| singleFacedCard
     subtypes := [angel, elf],
     text :=
       [ flying, vigilance,
-        whenever (countersPut p1p1Counter anyAmount (a (and [isCreature, youControl])))
+        whenever (does any (putCounters anyAmount p1p1Counter (a (and [isCreature, youControl]))))
           (instruct thisCreature (dealDamage thatMuch (target isOpponent))) ],
     power := stat 3, toughness := stat 3 }
 
@@ -855,8 +855,8 @@ theorem okViviensTalentTrigger : Ability.check (DRS.ofList []) viviensTalentTrig
 /-- Bioessence Hydra -/
 def bioessenceHydraTrigger : Ability :=
   whenever
-    (countersPut loyaltyCounter anyAmount
-      (allOf (and [isPlaneswalker, youControl])))
+    (does any (putCounters anyAmount loyaltyCounter
+      (allOf (and [isPlaneswalker, youControl]))))
     (putCounters thatMuch p1p1Counter thisCreature)
 theorem okBioessenceHydraTrigger : Ability.check (DRS.ofList []) bioessenceHydraTrigger = [] := by decide
 /-- Vraska, Betrayal's Sting -/

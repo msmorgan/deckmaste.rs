@@ -327,7 +327,7 @@ def afflictedDeserter : Spelled := spelled <| .transforming
     { name := "Werewolf Ransacker", types := [.creature], subtypes := [werewolf],
       text :=
         [ whenever
-            (transformsInto thisCreature "Werewolf Ransacker")
+            (does any (transform thisCreature (into := some (named "Werewolf Ransacker"))))
             (sequentially
               [ may (destroy (target isArtifact)),
                 doIf (did (that artifact) (putInto theActor graveyard) thisWay)

@@ -167,6 +167,8 @@ semantic_template exactlyOf (amount : Amount) : Quantity := .exactlyOf amount
 semantic_template range (low : Option Nat := none) (high : Option Nat := none) : Quantity :=
   .range low high
 semantic_template upToOf (amount : Amount) : Quantity := .upToOf amount
+/-- "the last": the removal that empties the object of counters [CR#702.62a,310.12b]. -/
+semantic_template theLast : Quantity := .theLast
 semantic_template worth (n : Nat) : Quantity := .worth n
 /-- "more than N": the count a prohibition bounds ("can't cast more than one spell"). -/
 semantic_template moreThan (n : Nat) : Quantity := .moreThanOf (.lit n)
@@ -1697,47 +1699,6 @@ semantic_template beginningOfNext (part : TurnPart) : GameEvent :=
   .beginningOf part none (.next none)
 /-- "at the beginning of that turn's <part>" -/
 semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
-/-- "<amount> <kind> counters are put on <subject>": "a +1/+1 counter is put" (`1`),
-"one or more +1/+1 counters are put" (`anyAmount`) or "the twelfth hour counter is put"
-(`theNth (.nth 12)`). -/
-semantic_template countersPut (kind : CounterKind) (amount : Amount) (subject : NounPhrase) :
-    GameEvent :=
-  .does .any (.putCounters amount (.printed kind) subject)
-/-- "<quantity> <kind> counters are removed from <subject>": "a … counter is removed"
-(`exactly 1`) or "one or more … are removed" (`orMore 1`). -/
-semantic_template countersRemoved (kind : CounterKind) (quantity : Quantity)
-    (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters quantity (some (.printed kind)) subject)
-/-- "<amount> counters are put on <subject>", the kind unsaid. -/
-semantic_template bareCountersPut (amount : Amount) (subject : NounPhrase) : GameEvent :=
-  .does .any (.putCounters amount .anyKind subject)
-/-- "<quantity> counters are removed from <subject>", the kind unsaid. -/
-semantic_template bareCountersRemoved (quantity : Quantity) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters quantity none subject)
-/-- "the last <kind> counter is removed from <subject> by <who>" -/
-semantic_template lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) :
-    GameEvent :=
-  .does (.by who) (.removeCounters (some .theLast) (some (.printed kind)) subject)
-/-- "one or more counters are put on <subject> by an effect" -/
-semantic_template manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
-  .causes .anEffect (.does .any (.putCounters .anyAmount .anyKind subject))
-/-- "<who> puts one or more counters on <subject>" -/
-semantic_template manyBareCountersPutBy (who subject : NounPhrase) : GameEvent :=
-  .does (.actor who) (.putCounters .anyAmount .anyKind subject)
-/-- A token-creation event, retaining its creator and controller. -/
-semantic_template tokenCreationEvent (tokens : NounPhrase)
-    (by_ under : Option NounPhrase) : GameEvent :=
-  .does (match by_ with | some creator => .by creator | none => .any)
-    (.createObject .anyAmount (.token (.copyOf tokens []) []) under)
-/-- "one or more tokens would be created" -/
-semantic_template tokensCreated (tokens : NounPhrase) : GameEvent :=
-  tokenCreationEvent tokens none none
-/-- "one or more tokens would be created under <under>'s control by an effect" -/
-semantic_template tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameEvent :=
-  .causes .anEffect (tokenCreationEvent tokens none under)
-/-- "the last <kind> counter is removed from <subject>" -/
-semantic_template lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : GameEvent :=
-  .does .any (.removeCounters (some .theLast) (some (.printed kind)) subject)
 /-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
 semantic_template copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=
   let typeOp := if typesAdded then QualityOp.adds else .sets

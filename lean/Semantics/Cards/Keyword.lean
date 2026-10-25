@@ -1180,7 +1180,7 @@ def containmentPriest : Spelled := spelled <| singleFacedCard
 
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
-  when (lastCounterRemoved timeCounter this_)
+  when (does any (removeCounters theLast timeCounter this_))
     (while_ := whileTrue (is this_ (cardIn exileZone)))
     (establishThroughout (cant any (block (allOf isCreature))) thisTurn)
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide

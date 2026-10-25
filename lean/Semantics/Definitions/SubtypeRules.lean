@@ -26,7 +26,7 @@ from this permanent, exile it, then you may cast it transformed without paying i
 Cast transformed, the resulting spell has its back face up [CR#712.8c]. -/
 def siegeLastCounter : Conferral :=
   .ability
-    (when (lastCounterRemoved defenseCounter thisPermanent)
+    (when (does any (removeCounters theLast defenseCounter thisPermanent))
       (sequentially
         [ exile it,
           may (cast it (payment := withoutPaying) (resulting := some isTransformed)) ]))

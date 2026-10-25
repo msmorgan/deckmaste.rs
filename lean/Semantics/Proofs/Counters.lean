@@ -404,7 +404,7 @@ theorem badCountersHeldByPlayer :
 /-- "When the last +1/+1 counter is removed from this creature, draw a card." -/
 theorem okLastBoostCounterRemoved :
     Ability.check (DRS.ofList [])
-      (when (lastCounterRemoved p1p1Counter thisCreature) (draw 1))
+      (when (does any (removeCounters theLast p1p1Counter thisCreature)) (draw 1))
       = [] := by
   decide
 
@@ -740,25 +740,25 @@ quantity, and "the last counter" is `theLast` [CR#702.62a,310.12b]. -/
 +1/+1 counters are put on this creature" (Herd Baloth) are distinct patterns: only the second
 publishes how many counters were put. -/
 theorem oneCounterAndOneOrMoreCountersAreDistinctPatterns :
-    GameEvent.check (DRS.ofList []) (countersPut p1p1Counter 1 thisCreature) = [] ∧
-      GameEvent.check (DRS.ofList []) (countersPut p1p1Counter anyAmount thisCreature) = [] ∧
+    GameEvent.check (DRS.ofList []) (does any (putCounters 1 p1p1Counter thisCreature)) = [] ∧
+      GameEvent.check (DRS.ofList []) (does any (putCounters anyAmount p1p1Counter thisCreature)) = [] ∧
       countOutcomes .countersPut
-        (GameEvent.extend (DRS.ofList []) (countersPut p1p1Counter 1 thisCreature)) = 0 ∧
+        (GameEvent.extend (DRS.ofList []) (does any (putCounters 1 p1p1Counter thisCreature))) = 0 ∧
       countOutcomes .countersPut
-        (GameEvent.extend (DRS.ofList []) (countersPut p1p1Counter anyAmount thisCreature)) = 1 := by
+        (GameEvent.extend (DRS.ofList []) (does any (putCounters anyAmount p1p1Counter thisCreature))) = 1 := by
   decide
 
 /-- Suspend's "When the last time counter is removed from this card" [CR#702.62a] is the removal
 of `theLast`: a pattern distinct from "a time counter is removed" (`exactly 1`), reading one
 counter and publishing no count. -/
 theorem theLastEncodesSuspendsLastCounterTrigger :
-    lastCounterRemoved timeCounter this_ =
+    does any (removeCounters theLast timeCounter this_) =
         .does .any (.removeCounters (some .theLast) (some (.printed timeCounter)) this_) ∧
-      GameEvent.check (DRS.ofList []) (lastCounterRemoved timeCounter this_) = [] ∧
+      GameEvent.check (DRS.ofList []) (does any (removeCounters theLast timeCounter this_)) = [] ∧
       countOutcomes .countersRemoved
-        (GameEvent.extend (DRS.ofList []) (lastCounterRemoved timeCounter this_)) = 0 ∧
+        (GameEvent.extend (DRS.ofList []) (does any (removeCounters theLast timeCounter this_))) = 0 ∧
       countOutcomes .countersRemoved
-        (GameEvent.extend (DRS.ofList []) (countersRemoved timeCounter (orMore 1) this_)) = 1 :=
+        (GameEvent.extend (DRS.ofList []) (does any (removeCounters (orMore 1) timeCounter this_))) = 1 :=
   ⟨rfl, by decide⟩
 
 /-- Midnight Clock's "When the twelfth hour counter is put on Midnight Clock" [CR#122.7] is a put
@@ -766,13 +766,13 @@ of `theNth`: the put that takes it from fewer than twelve hour counters to twelv
 twelfth occurrence of a one-counter put (`nthOccurrence` over `1`). It is singular, so it
 publishes no count of counters put. -/
 theorem theNthEncodesTheCounterThreshold :
-    countersPut hourCounter (theNth (.nth 12)) thisArtifact =
+    does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact) =
         .does .any (.putCounters (.theNth (.nth 12)) (.printed hourCounter) thisArtifact) ∧
-      GameEvent.check (DRS.ofList []) (countersPut hourCounter (theNth (.nth 12)) thisArtifact)
+      GameEvent.check (DRS.ofList []) (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))
         = [] ∧
       countOutcomes .countersPut
         (GameEvent.extend (DRS.ofList [])
-          (countersPut hourCounter (theNth (.nth 12)) thisArtifact)) = 0 :=
+          (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))) = 0 :=
   ⟨rfl, by decide⟩
 
 /-- Required pin: *Urborg Scavengers*' "This creature has flying as long as a card exiled with it

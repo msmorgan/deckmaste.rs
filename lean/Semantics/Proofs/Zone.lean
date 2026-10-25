@@ -407,7 +407,7 @@ theorem okUntapCapBattlefieldSet :
 /-- "if this creature is attacking" -/
 theorem okMatchesBattlefieldZone :
     Ability.check (DRS.ofList [])
-      (when (lastCounterRemoved (.named "timeCounter") thisCreature)
+      (when (does any (removeCounters theLast (CounterKind.named "timeCounter") thisCreature))
         (if_ := some (.matches thisCreature isAttacking)) (draw 1)) = [] := by
   decide
 

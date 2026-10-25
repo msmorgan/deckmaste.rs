@@ -106,10 +106,6 @@ into" trigger watches, a characteristic the object has immediately after [CR#701
 semantic_definition transform (subject : NounPhrase) (into : Option Predicate := none) : Action :=
   .ownScope (some (.action "transform"))
     (.turnOver (.firstMention "transform.subject" (.inCaller subject)) (into.map .inCaller))
-/-- "<subject> transforms into <name>": the transform deed whose result is the named face, done by
-anyone [CR#701.27a,701.27e]. -/
-semantic_template transformsInto (subject : NounPhrase) (name : NameSource) : GameEvent :=
-  does any (transform subject (into := some (named name)))
 /-- "meld <subject> into <name>" (`Definition`, [CR#701.42]). -/
 semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))

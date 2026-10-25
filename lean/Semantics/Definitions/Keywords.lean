@@ -1738,7 +1738,7 @@ semantic_definition suspend (amount : Amount) (cost : Cost) : Ability :=
         (if_ := some (is thisCard
           (and [in_ exileZone, hasKeyword (.the (.named "suspend")), .hasCounters (some timeCounter)])))
         (removeCounters (oneThrough 1) timeCounter thisCard),
-      when (lastCounterRemoved timeCounter thisCard)
+      when (does any (removeCounters theLast timeCounter thisCard))
         (if_ := some (is thisCard (in_ exileZone)))
         (sequentially
           [ may (play thisCard (payment := withoutPaying)),
@@ -1863,7 +1863,7 @@ semantic_definition vanishing (amount : Amount) : Ability :=
       at_ (beginningOfYour .upkeep)
         (if_ := is thisPermanent (.hasCounters (some timeCounter)))
         (removeCounters (oneThrough 1) timeCounter thisPermanent),
-      when (lastCounterRemoved timeCounter thisPermanent)
+      when (does any (removeCounters theLast timeCounter thisPermanent))
         (sacrifice thisPermanent) ]
 /-- "Vigilance": "Attacking doesn't cause creatures with vigilance to tap." [CR#702.20b] Declaring
 a creature as an attacker taps it [CR#508.1f]; vigilance is a cause-qualified prohibition of
