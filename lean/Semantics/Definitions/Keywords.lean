@@ -226,14 +226,13 @@ semantic_definition amplify (amount : Amount) : Ability :=
     [ static
         (replace (would thisPermanent enter)
           (before
-            (.expose .reveal
-              (.cards
-                (counted anyNumber
-                  (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent]))))
+            (reveal
+              (counted anyNumber
+                (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent])))
             (some
               (alongside
-                (putCounters (times (.inCaller amount) (.countOf them)) p1p1Counter
-                  thisPermanent))))) ]
+                (putCounters (forEach (.inCaller amount) (and [.isCard, was (reveal which) thisWay]))
+                  p1p1Counter thisPermanent))))) ]
 semantic_definition annihilator (amount : Amount) : Ability :=
   .keyword (.named "annihilator") [.number (.inCaller amount)]
     [ whenever (does thisCreature (.attack none))
@@ -1194,7 +1193,7 @@ semantic_definition ninjutsu (cost : Cost) : Ability :=
     [ activated
         (.compound
           [ .inCaller cost,
-            .perform (.expose .reveal (.cards this_)),
+            .perform (reveal this_),
             .perform (returnToHand (a (and [isCreature, isAttacking, isUnblocked, youControl]))) ])
         (putOntoBattlefieldTappedAttacking this_ yourHand returnedCreaturesDefender) ]
 semantic_definition offering (quality : Predicate) : Ability :=
@@ -1646,7 +1645,7 @@ semantic_definition transmute (cost : Cost) : Ability :=
                 [ .isCard,
                   hasManaValue .eq
                     (.statOf (.stat .manaValue) (the (and [was (discard which), isCard]))) ])),
-            .expose .reveal (.cards (that .card)),
+            reveal (that .card),
             putInto it hand,
             .shuffle (libraryOf .actor) ])
         asSorcery ]

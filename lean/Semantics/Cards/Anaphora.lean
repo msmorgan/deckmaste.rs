@@ -778,7 +778,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| singleFacedCard
                               did which (sacrifice (a isPermanent)) thisWay
                                 ]))
                 (sequentially
-                  [ instruct they (expose .reveal (cards (slice .top 1 (libraryOf they)))),
+                  [ instruct they (reveal (slice .top 1 (libraryOf they))),
                     doIf (is itCard isPermanentCard) (putOntoBattlefield itCard) ]) ]) ],
     power := stat 6, toughness := stat 6 }
 

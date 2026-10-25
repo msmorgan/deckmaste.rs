@@ -129,6 +129,19 @@ theorem okIntimidate : Ability.check (DRS.ofList []) intimidate = [] := by decid
 /-- Amplify 1 [CR#702.38a]. -/
 theorem okAmplify : Ability.check (DRS.ofList []) (amplify 1) = [] := by decide
 
+/-- Amplify's "for each card revealed this way" [CR#702.38a] reads the cards the `reveal`
+Definition revealed, by its deed: after the reveal it counts them, and with no reveal before it
+it reads none. -/
+theorem amplifyCountsTheCardsRevealedThisWay :
+    let revealed := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (reveal (counted anyNumber (and [cardIn yourHand, isCreature])))).1
+    (participialCandidates (.deed reveal.deed) none (some .card) true revealed).length = 1 ∧
+      Amount.check (nextClause revealed) (forEach 1 (and [.isCard, was (reveal which) thisWay])) =
+        [] ∧
+      Amount.check (DRS.ofList []) (forEach 1 (and [.isCard, was (reveal which) thisWay])) =
+        [.participialDescription (.deed reveal.deed) 0] := by
+  decide
+
 /-! ## The readbacks (`semantics-v2-linked-readback`) -/
 
 /-- "When this creature enters, draw a card for each creature it devoured." -/
