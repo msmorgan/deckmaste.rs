@@ -520,12 +520,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_english_v4"
+name = "deckmaste_english"
 version = "0.1.0"
 dependencies = [
  "deckmaste_data",
  "deckmaste_lexical",
- "deckmaste_lexical_source_v4",
+ "deckmaste_lexical_source",
  "deckmaste_syntax",
  "dpsi",
  "ron",
@@ -579,7 +579,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_lexical_source_v4"
+name = "deckmaste_lexical_source"
 version = "0.1.0"
 dependencies = [
  "deckmaste_lexical",
@@ -2181,10 +2181,10 @@ dependencies = [
  "deckmaste_catalogs",
  "deckmaste_core",
  "deckmaste_data",
- "deckmaste_english_v4",
+ "deckmaste_english",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
- "deckmaste_lexical_source_v4",
+ "deckmaste_lexical_source",
  "deckmaste_macro_def",
  "deckmaste_migrations",
  "deckmaste_plugin",

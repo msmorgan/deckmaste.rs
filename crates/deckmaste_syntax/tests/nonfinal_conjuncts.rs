@@ -63,7 +63,8 @@ const GRAMMAR: &str = r#"(
     ],
 )"#;
 
-const VERB_PHRASE_SUPPLEMENT: &str = "Adjunct:VerbPhrase+PrepositionPhrase/After/Supplement/,/nonfinal";
+const VERB_PHRASE_SUPPLEMENT: &str =
+    "Adjunct:VerbPhrase+PrepositionPhrase/After/Supplement/,/nonfinal";
 const CLAUSE_SUPPLEMENT: &str = "Adjunct:Clause+PrepositionPhrase/After/Supplement/,";
 
 fn uses(reading: &Reading, production: &str) -> bool {
@@ -99,7 +100,10 @@ fn a_nonfinal_conjunct_takes_the_supplement() {
         "it draws, discards, unlike Zombie, and draws.",
     ] {
         let reading = reading(text);
-        assert!(uses(&reading, VERB_PHRASE_SUPPLEMENT), "{text}: {reading:#?}");
+        assert!(
+            uses(&reading, VERB_PHRASE_SUPPLEMENT),
+            "{text}: {reading:#?}"
+        );
         assert!(!uses(&reading, CLAUSE_SUPPLEMENT), "{text}: {reading:#?}");
     }
 }
@@ -113,6 +117,9 @@ fn after_the_last_conjunct_the_supplement_is_the_clauses() {
     ] {
         let reading = reading(text);
         assert!(uses(&reading, CLAUSE_SUPPLEMENT), "{text}: {reading:#?}");
-        assert!(!uses(&reading, VERB_PHRASE_SUPPLEMENT), "{text}: {reading:#?}");
+        assert!(
+            !uses(&reading, VERB_PHRASE_SUPPLEMENT),
+            "{text}: {reading:#?}"
+        );
     }
 }

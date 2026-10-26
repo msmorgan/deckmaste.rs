@@ -1,8 +1,8 @@
 //! What a derived phrase carries beyond its frame comes from the grammar's
 //! declarations, never from feature or value names in the engine
-//! (`docs/decisions/english-v4.md` §4.4, principle 6): a Valence schema's voice and
-//! passive equations and its `complement_kind`, a Premodification's per-form
-//! equations, the grammar's `slot_equations` and `high_attachment`. A
+//! (`docs/decisions/english-v4.md` §4.4, principle 6): a Valence schema's voice
+//! and passive equations and its `complement_kind`, a Premodification's
+//! per-form equations, the grammar's `slot_equations` and `high_attachment`. A
 //! derivation whose declaration is missing is a load error, never a silent
 //! default.
 

@@ -12,7 +12,7 @@ use std::time::Instant;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
-use deckmaste_english_v4::corpus::card_name_lexeme;
+use deckmaste_english::corpus::card_name_lexeme;
 use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::LexemeId;
@@ -218,7 +218,7 @@ struct Report {
 pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
-    let lexicon = deckmaste_lexical_source_v4::LexicalEnvironment::load()
+    let lexicon = deckmaste_lexical_source::LexicalEnvironment::load()
         .context("loading the v4 lexical environment")?
         .lexicon;
     // The environment loader builds the lexicon index as part of loading, so

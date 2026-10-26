@@ -16,9 +16,9 @@ mod laws;
 mod normal_form;
 mod prediction;
 mod reading;
+mod step;
 #[cfg(feature = "tree-ranking-key")]
 mod tree_key;
-mod step;
 pub mod walk;
 
 pub use chart::ChildRef;

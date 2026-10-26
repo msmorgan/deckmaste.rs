@@ -1601,9 +1601,10 @@ fn added_diff_lines(diff: &str) -> BTreeSet<(String, usize)> {
     let mut new_line = 0;
     for line in diff.lines() {
         if let Some(path) = line.strip_prefix("+++ ") {
-            // A unified diff separates the path from an optional timestamp with a
-            // TAB, so only a TAB ends the path: a plain space is part of it
-            // (`plugins_v2/canon/cards/Luminarch Aspirant.ron`).
+            // A unified diff separates the path from an optional timestamp with
+            // a TAB, so only a TAB ends the path: a plain space is
+            // part of it (`plugins_v2/canon/cards/Luminarch
+            // Aspirant.ron`).
             let path = path.split('\t').next().unwrap_or(path);
             file = Some(path.strip_prefix("b/").unwrap_or(path).to_string());
             continue;

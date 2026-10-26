@@ -1,4 +1,5 @@
-//! CR-rule coverage: scan Mentioned and Bound citations, ratchet the Bound floor.
+//! CR-rule coverage: scan Mentioned and Bound citations, ratchet the Bound
+//! floor.
 
 /// Every rule mentioned in `[CR#…]` brackets in `text`.
 ///
@@ -334,7 +335,8 @@ pub fn parse_out_of_scope(
                 .filter(|r| section_of(r) == Some(sec))
                 .collect()
         } else {
-            // rule or prefix: exact match, plus lettered subrules `key + [a-z]+`
+            // rule or prefix: exact match, plus lettered subrules `key +
+            // [a-z]+`
             extant
                 .iter()
                 .filter(|r| {

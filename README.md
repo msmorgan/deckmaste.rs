@@ -182,8 +182,8 @@ launches the client:
 
 **Language infrastructure**
 
-- **`deckmaste_syntax`**, **`deckmaste_lexical_source_v4`** and
-  **`deckmaste_english_v4`** — the English grammar for Oracle text; its own
+- **`deckmaste_syntax`**, **`deckmaste_lexical_source`** and
+  **`deckmaste_english`** — the English grammar for Oracle text; its own
   section below. (The first-attempt `deckmaste_english` was retired.)
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
   intermediate grammar is built on.
@@ -239,12 +239,12 @@ below.
 
 ---
 
-## The English grammar (`deckmaste_english_v4`)
+## The English grammar (`deckmaste_english`)
 
 The first-attempt `deckmaste_english` crate and its `cargo xtask english` tools
 have been retired; the grammar lives in `deckmaste_syntax`,
-`deckmaste_lexical_source_v4` and `deckmaste_english_v4`, measured by
-`cargo xtask english-v4`. The grammar parses Oracle text into a genuine grammatical syntax tree —
+`deckmaste_lexical_source` and `deckmaste_english`, measured by
+`cargo xtask english`. The grammar parses Oracle text into a genuine grammatical syntax tree —
 constituency structure, not keyword-spotting. A chart parser produces a packed
 forest; parts of speech are selected by the grammar slots they fill rather than
 assigned by a lexer (Magic overloads its vocabulary too heavily for tagging —

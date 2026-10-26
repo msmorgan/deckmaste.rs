@@ -36,7 +36,7 @@ does not infer stress or paradigm classes. An override replaces the default for
 the selected slot. Multiple valid spellings occupy explicit variant indices.
 There is no fallback dictionary or unknown-word POS inference.
 
-`deckmaste_lexical_source_v4` declares the English vocabulary and its
+`deckmaste_lexical_source` declares the English vocabulary and its
 `LexicalEnvironment` loader builds the `Lexicon` from `lexicon/english/*.ron`
 (closed-class vocabulary, pronoun bundles, auxiliary paradigms, irregular
 replacements and frame additions), `catalogs/*.ron` (the Comprehensive Rules'

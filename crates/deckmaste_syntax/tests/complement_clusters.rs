@@ -139,7 +139,10 @@ fn a_cluster_ends_in_a_sequence_of_adjuncts() {
     }
     // Clusters with Adjuncts beside a single Object end in as many: the
     // last *in hand* is the Verb Phrase's.
-    assert_eq!(count("Give card, card in hand, and card in hand in hand."), 1);
+    assert_eq!(
+        count("Give card, card in hand, and card in hand in hand."),
+        1
+    );
 }
 
 #[test]

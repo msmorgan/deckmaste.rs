@@ -10,7 +10,7 @@ use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
 use xtask::derive_cards::DeriveCardsArgs;
-use xtask::english_v4::EnglishV4Args;
+use xtask::english::EnglishArgs;
 use xtask::expansions::ExpansionsArgs;
 use xtask::extract::ExtractArgs;
 use xtask::fidelity::FidelityArgs;
@@ -66,9 +66,8 @@ enum Cmd {
     Graduate(GraduateArgs),
     /// Check / bless / diff / list / show CR citations.
     Cite(CiteArgs),
-    /// Stratify the corpus and run the English v4 census.
-    #[command(name = "english-v4")]
-    EnglishV4(EnglishV4Args),
+    /// Stratify the corpus and run the English census.
+    English(EnglishArgs),
     /// Analyze supported raw Oracle text against the independent lexicon.
     Lexical(LexicalArgs),
     /// The anaphora-soundness gate: re-emit each expanded card as a raw
@@ -99,9 +98,9 @@ fn main() -> anyhow::Result<()> {
         Cmd::Resolve(args) => xtask::resolve::run(&args),
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
-        Cmd::EnglishV4(args) => {
+        Cmd::English(args) => {
             let mut stdout = std::io::stdout().lock();
-            xtask::english_v4::run(&args, &mut stdout)
+            xtask::english::run(&args, &mut stdout)
         }
         Cmd::Lexical(args) => {
             let mut stdout = std::io::stdout().lock();

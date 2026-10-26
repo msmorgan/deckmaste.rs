@@ -100,7 +100,10 @@ fn a_coordination_is_determined_only_when_every_conjunct_is() {
     assert!(!predetermined(RESOLVED, "all card and land"));
     assert!(!predetermined(RESOLVED, "all card and the land"));
     assert!(!predetermined(RESOLVED, "all the card, the land, and land"));
-    assert!(predetermined(RESOLVED, "all the card, the land, and the mana"));
+    assert!(predetermined(
+        RESOLVED,
+        "all the card, the land, and the mana"
+    ));
 }
 
 #[test]

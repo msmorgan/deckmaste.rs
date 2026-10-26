@@ -1402,8 +1402,9 @@ impl Production {
     /// The Complements omitted by the bare non-verbal phrase the phrase so
     /// far ends in, or `None` if the child is a Preposition Phrase right after
     /// one and headed by a preposition it omits: that phrase is the bare
-    /// head's own Complement, which no other host may take. Only a coordination whose
-    /// conjuncts omit unlike Complements may take it as its own dependent.
+    /// head's own Complement, which no other host may take. Only a coordination
+    /// whose conjuncts omit unlike Complements may take it as its own
+    /// dependent.
     fn track_omitted_complement(
         &self,
         grammar: &CompiledGrammar,
@@ -1776,7 +1777,10 @@ impl Production {
     }
 
     /// Adds child `position` to `state`, or `None` if it does not fit.
-    #[expect(clippy::too_many_lines, reason = "one admission gate per Summary field")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one admission gate per Summary field"
+    )]
     pub fn accept(
         &self,
         grammar: &CompiledGrammar,
@@ -2059,7 +2063,8 @@ impl Production {
                 || state.coordinated_head
                 || state.head_coordination,
             hosts,
-            nominal_unhosted: hosts & crate::frames::host_bit(crate::grammar::HostKind::Nominal) == 0
+            nominal_unhosted: hosts & crate::frames::host_bit(crate::grammar::HostKind::Nominal)
+                == 0
                 || (self.rhs.len() == 1 && state.forced),
             fronted: if !self.fronts() {
                 Fronting::None
@@ -2090,7 +2095,10 @@ impl Production {
             bare: if self.cluster.is_some() {
                 Bare::cluster(
                     self.rhs.len(),
-                    self.names.iter().filter(|n| n.as_str() == "adjunct").count(),
+                    self.names
+                        .iter()
+                        .filter(|n| n.as_str() == "adjunct")
+                        .count(),
                     state.forced,
                 )
             } else {

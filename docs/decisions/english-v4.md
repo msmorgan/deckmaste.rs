@@ -1,5 +1,7 @@
 # ADR: English v4 — Data-Driven Syntax Engine, Domain Catalogs, and Stratified Buildout
 
+> 2026-10-26: `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are now `deckmaste_english` and `deckmaste_lexical_source`; the census command is `cargo xtask english`.
+
 - **Status:** Accepted (2026-10-14)
 - **Companion Contract:** [`docs/decisions/english-lexical-analysis.md`](./english-lexical-analysis.md)
 - **Supersedes (archived in `docs/archive/decisions/`):**

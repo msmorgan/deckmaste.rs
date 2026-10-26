@@ -4141,8 +4141,9 @@ const CLUSTER_ADJUNCTS: usize = 2;
 /// a Cleric], [deathtouch if you control a Rogue], and [flying if you control
 /// a Wizard]*; *exiles [the top card of their library], [a card at random
 /// from their graveyard], and …*). A single Slot with no Adjunct is a Cluster
-/// only where it alone breaks parallelism (`step::Bare`). Equations on the Slots move
-/// into the Cluster; those on the head and the mother stay with the head.
+/// only where it alone breaks parallelism (`step::Bare`). Equations on the
+/// Slots move into the Cluster; those on the head and the mother stay with the
+/// head.
 fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Draft> {
     let derived = ["/gap", "/passive", "/adjectival"];
     let Some(frame) = draft.frame else {
@@ -4188,9 +4189,7 @@ fn complement_clusters(draft: &Draft, categories: &ClusterCategories) -> Vec<Dra
         |remnant: Option<usize>, p: &Path| remnant.is_none() || !matches!(p, Path::Child(1, _));
     let mut out = Vec::new();
     let most = if categories.adjunct.is_some() { CLUSTER_ADJUNCTS } else { 0 };
-    for (adjuncts, remnant) in
-        (0..=most).flat_map(|n| remnants.iter().map(move |&r| (n, r)))
-    {
+    for (adjuncts, remnant) in (0..=most).flat_map(|n| remnants.iter().map(move |&r| (n, r))) {
         let tag = match adjuncts {
             0 => "cluster".to_owned(),
             1 => "cluster+adjunct".to_owned(),

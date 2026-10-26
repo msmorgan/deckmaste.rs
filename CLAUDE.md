@@ -49,31 +49,32 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 
 - Authorities: `docs/decisions/english-lexical-analysis.md` and `docs/decisions/english-v4.md`.
   Read them before implementing, planning, reviewing or accounting for the English grammar
-  (`deckmaste_english_v4`), syntax engine (`deckmaste_syntax`), or lexical catalogs
-  (`deckmaste_lexical_source_v4`).
+  (`deckmaste_english`), syntax engine (`deckmaste_syntax`), or lexical catalogs
+  (`deckmaste_lexical_source`).
 - `docs/oracle-style-guide.md` is the authority on Oracle register. Before that same work, read its
   front matter (through "The shortest useful checklist"), then read in full every section your
   change touches, and cite it when a ruling depends on it. Briefs name those sections.
 - No word enumerated by the CR as a catalog item (including all `[CR#701.1]` keyword actions) may
   appear directly in grammar declarations (`schema` or `production`); vocabulary and complement
-  frames live in the domain catalogs of `deckmaste_lexical_source_v4` (and later `plugins_v3/`).
-- v1 `deckmaste_english` and its xtask tools are gone; do not recreate them.
+  frames live in the domain catalogs of `deckmaste_lexical_source` (and later `plugins_v3/`).
+- The v1 English crate and its xtask tools are gone; `deckmaste_english` is now the english-v4
+  grammar. Do not recreate v1.
 
-## Crate fates (semantics_v3 and english_v4)
+## Crate fates (semantics_v3 and english-v4)
 
 Authorities: `docs/decisions/semantics-v3.md` and `docs/decisions/english-v4.md`.
 - `semantics-v3` is executed Lean-first in `lean/Semantics/` and mirrored into
   `deckmaste_semantics_v3` and `plugins_v3/` (deleting `deckmaste_semantics_v2` and
   `plugins_v2/canon/` immediately, and `plugins_v2/builtin/` at `semantics-v3-dsl-and-plugins`).
-- `english-v4` lives in `deckmaste_syntax`, `deckmaste_lexical_source_v4`, and
-  `deckmaste_english_v4`. `english-v4-cutover-v3` deleted `deckmaste_english_v3`,
-  `deckmaste_construction_v3*`, and `deckmaste_lexical_source`.
-- Deletion-bound at parity (`semantics-v1-cutover` and `english-v4-final-suffix-cutover`):
-  `deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
-  (`deck.rs` and `provenance.rs` rehomed), `deckmaste_features`,
-  `idris/`, `plugins/builtin`, `plugins/canon`, after which the `_v4` suffixes on
-  `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are dropped
-  (`english-v4-final-suffix-cutover`). v1 `deckmaste_english`,
+- `english-v4` lives in `deckmaste_syntax`, `deckmaste_lexical_source` and `deckmaste_english`.
+  `english-v4-cutover-v3` deleted `deckmaste_english_v3`, `deckmaste_construction_v3*` and the
+  earlier `deckmaste_lexical_source`; `english-v4-final-suffix-cutover` dropped the `_v4` suffixes
+  and renamed `cargo xtask english-v4` to `cargo xtask english`. What remains of it, gated on
+  `semantics-v1-cutover`, is moving the catalogs into `plugins/` and deleting `deckmaste_features`.
+- Deletion-bound at parity (`semantics-v1-cutover` and the remainder of
+  `english-v4-final-suffix-cutover`): `deckmaste_semantics`, `deckmaste_lowering`,
+  `deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs` rehomed),
+  `deckmaste_features`, `idris/`, `plugins/builtin`, `plugins/canon`. The v1 English crate,
   `deckmaste_construction_compiler`, `deckmaste_constructions_macro` and xtask's v1 `english` and
   `macro` tools are already gone, and `deckmaste_spelling` is a stub crate (no implementation).
   Never copy v2/v3/v4 work back into v1, and add no new v1 registries.

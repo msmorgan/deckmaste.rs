@@ -1,5 +1,7 @@
 # English grammar: lexical analysis, Readings, and how the grammar is kept small
 
+> 2026-10-26: `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are now `deckmaste_english` and `deckmaste_lexical_source`; the census command is `cargo xtask english`.
+
 Updated 2026-10-14 for `deckmaste_syntax` and `deckmaste_english_v4` (paired with [`docs/decisions/english-v4.md`](./english-v4.md)). It has no amendment log: when a rule changes, this text changes. The syntax layer (`deckmaste_syntax` and `deckmaste_english_v4`) has no dependency on Game Model semantics; downstream CxG spelling and `deckmaste_semantics_v3` consume its packed parse forest.
 
 ## 1. The engine contract

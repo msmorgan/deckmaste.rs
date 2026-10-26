@@ -308,7 +308,8 @@ impl Frame {
                     && shape.iter().all(|slot| {
                         matches!(
                             slot,
-                            (Complement, SlotFill::PP(..)) | (PredicativeComplement, SlotFill::Pred)
+                            (Complement, SlotFill::PP(..))
+                                | (PredicativeComplement, SlotFill::Pred)
                         )
                     })
             }

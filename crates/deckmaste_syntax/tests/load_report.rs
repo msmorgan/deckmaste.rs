@@ -1,8 +1,8 @@
 //! Binding reports a feature with no value and a feature value with fewer
 //! than two holders as findings (`english-lexical-analysis.md` §3,
-//! `english-v4.md` §4.4, principle 3), without refusing the grammar. A feature may
-//! declare one, privative, value. A value's holders are counted as they are:
-//! the members of a lifted class, the lexemes that declare a Frame or a
+//! `english-v4.md` §4.4, principle 3), without refusing the grammar. A feature
+//! may declare one, privative, value. A value's holders are counted as they
+//! are: the members of a lifted class, the lexemes that declare a Frame or a
 //! Parameter pattern that gives it, and once across linked features.
 
 use deckmaste_lexical::Category;

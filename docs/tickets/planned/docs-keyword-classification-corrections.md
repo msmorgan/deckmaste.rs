@@ -52,7 +52,7 @@ checkout). All are confirmed at head as of 2026-10-21.
   keyword ability [CR#702.189a]. Remove it from the list. (`earthbend`,
   `waterbend` and `airbend` are keyword actions [CR#701.66,701.67,701.65].)
   The lexical catalog already files firebending as a keyword ability
-  (`crates/deckmaste_lexical_source_v4/catalogs/keyword_abilities.ron`).
+  (`crates/deckmaste_lexical_source/catalogs/keyword_abilities.ron`).
   Only the ADR is wrong.
 
 ## `docs/tickets/census.md` (line 64)

@@ -51,7 +51,7 @@ It has no proc macros and no generated code: a grammar is data.
    hides none of its finite siblings.
    The forest is readable from outside through `PackedForest`'s accessors
    (`roots`, `node_span`, `node_items`, `item_families`, `leaf_span`),
-   `Parse::count_node` and the `walk` memo; `deckmaste_english_v4`'s census
+   `Parse::count_node` and the `walk` memo; `deckmaste_english`'s census
    builds its Segments on them.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
@@ -66,7 +66,7 @@ It has no proc macros and no generated code: a grammar is data.
    from structure, so no quotation punctuation is stored.
    A square bracket is an ordinary punctuation char to the engine. The
    brackets that mark the text a cleave spell removes [CR#702.148a] never
-   reach it: `deckmaste_english_v4::cleave` parses a cleave line without
+   reach it: `deckmaste_english::cleave` parses a cleave line without
    them, and again without the text they enclose.
 6. `parse_analyzed(analyzed)` parses a text already analyzed (for example with a
    card's names in scope); `parse_category(analyzed, category)` parses it as any

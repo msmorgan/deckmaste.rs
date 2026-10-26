@@ -10,7 +10,7 @@
 //! This crate reads a declaration file's params and body. The spelling and
 //! grammar half is opaque here — [`OpaqueMetadata`] accepts and discards any
 //! shape — and nothing reads it now: English vocabulary is declared in
-//! `deckmaste_lexical_source_v4`'s catalogs.
+//! `deckmaste_lexical_source`'s catalogs.
 //!
 //! Nothing here validates. A file that will not read is an error with its path
 //! and the reader's message; a file that reads is taken as written.

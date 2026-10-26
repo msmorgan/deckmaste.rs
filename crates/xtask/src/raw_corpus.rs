@@ -144,7 +144,8 @@ pub(crate) struct SelectedFace {
     pub group_name: String,
     pub face_index: Option<usize>,
     pub name: String,
-    /// Display names of all oracle units belonging to this card, before selection.
+    /// Display names of all oracle units belonging to this card, before
+    /// selection.
     #[serde(skip)]
     pub card_names: BTreeSet<String>,
     pub face_name: Option<String>,

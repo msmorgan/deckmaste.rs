@@ -5,7 +5,7 @@ design: true
 **[port-required: semantics-v3 (contingent on open DSL question in
 `semantics-v3-dsl-and-plugins`)]** Typed cycling `[CR#702.29e]` design note;
 re-evaluate against `plugins_v3/canon/definitions/keyword_abilities/` and
-`deckmaste_english_v4` (`BoundKeywordStemClass` in `deckmaste_lexical_source_v4`).
+`deckmaste_english` (`BoundKeywordStemClass` in `deckmaste_lexical_source`).
 
 Template parameters for keyword macros. **Base goal already satisfied; only typed
 cycling remains, and it is design-gated (rescoped 2026-07-09).**

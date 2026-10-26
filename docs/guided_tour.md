@@ -35,7 +35,7 @@ lowers into the smaller core vocabulary the engine executes. The crate map in
 [Architecture](../README.md#architecture) shows those projections.
 
 The English-side projection is measured by the English-v4 census
-(`cargo xtask english-v4 strata`), which records how much of that text became
+(`cargo xtask english strata`), which records how much of that text became
 structure rather than a preserved unknown span. Recovery coverage and executable-card coverage
 turn “reading the card explains the card” into two card-by-card measurements.
 

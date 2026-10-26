@@ -1,5 +1,7 @@
 # Project decisions
 
+> 2026-10-26: `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are now `deckmaste_english` and `deckmaste_lexical_source`; the census command is `cargo xtask english`.
+
 These documents record durable project contracts for contributors. They describe
 the intended design rather than a dated implementation inventory; current code
 wins if an incidental implementation description drifts. Changing a decision

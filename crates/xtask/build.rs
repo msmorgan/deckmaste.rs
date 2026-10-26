@@ -19,7 +19,8 @@
 // fixture appearing, disappearing or being regenerated re-runs it. With no
 // `data/` at all it declares nothing, and cargo re-runs it whenever a package
 // file changes (CI also runs `touch build.rs` after staging).
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 const DATA: &str = "../../data";
 
