@@ -15,6 +15,12 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Keyword
 
+theorem persistReturnsWithACounter :
+    Ability.check (DRS.ofList []) persist = [] := by decide
+
+theorem undyingReturnsWithACounter :
+    Ability.check (DRS.ofList []) undying = [] := by decide
+
 private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 

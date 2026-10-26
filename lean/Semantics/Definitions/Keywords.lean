@@ -398,7 +398,7 @@ semantic_definition champion (quality : Predicate) : Ability :=
             .once)
           (sacrifice thisPermanent)),
       when (does thisPermanent leave)
-        (returnTo (the (and [was (exile which), isCard])) battlefield
+        (returnToBattlefield (the (and [was (exile which), isCard]))
           [.under (ownerOf it)]) ]
 /-- "Changeling" means "This object is every creature type": a Characteristic-Defining Ability
 of the object, a Kindred instant or sorcery as much as a creature [CR#702.73a,604.3a]. -/
@@ -1363,8 +1363,7 @@ semantic_definition persist : Ability :=
   .keyword (.named "persist") []
     [ when (does thisPermanent die)
         (if_ := some (not (is thisPermanent (.hasCounters (some m1m1Counter)))))
-        (returnTo thisPermanent battlefield
-          [.under (ownerOf thisPermanent), .withCounters 1 m1m1Counter .fresh]) ]
+        (returnToBattlefieldWithCounters thisPermanent (ownerOf thisPermanent) 1 m1m1Counter) ]
 semantic_definition phasing : Ability := keyword (.named "phasing")
 /-- "Plot [cost]": "Any time you have priority during your main phase while the stack is empty,
 you may exile this card from your hand and pay [cost]. It becomes a plotted card." [CR#702.170a]
@@ -1835,8 +1834,7 @@ semantic_definition undying : Ability :=
   .keyword (.named "undying") []
     [ when (does thisPermanent die)
         (if_ := some (not (is thisPermanent (.hasCounters (some p1p1Counter)))))
-        (returnTo thisPermanent battlefield
-          [.under (ownerOf thisPermanent), .withCounters 1 p1p1Counter .fresh]) ]
+        (returnToBattlefieldWithCounters thisPermanent (ownerOf thisPermanent) 1 p1p1Counter) ]
 semantic_definition unearth (cost : Cost) : Ability :=
   .keyword (.named "unearth") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)

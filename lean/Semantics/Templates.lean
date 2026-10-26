@@ -1155,7 +1155,7 @@ semantic_template returnToBattlefield (subject : NounPhrase) (riders : List Move
   zoneChange subject battlefield (from_.getD .anyLocation) riders
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Action :=
-  returnTo subject battlefield [.entersTransformed, (.under controller)]
+  returnToBattlefield subject [.entersTransformed, (.under controller)]
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Action :=

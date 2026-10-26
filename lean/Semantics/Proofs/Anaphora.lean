@@ -579,7 +579,7 @@ theorem okExiledCardsAfterSingularAndPluralConjuncts :
         [ exile (and [target isCreature,
             allOf (and [isCreature, shares .cardName .share (that creature),
               otherThan (that creature)])]),
-          returnTo (thePlural (and [isCard, was (exile which) thisWay])) battlefield [] ]) = [] := by
+          returnToBattlefield (thePlural (and [isCard, was (exile which) thisWay])) [] ]) = [] := by
   decide
 
 /-- "Sacrifice this creature and any number of lands. Search your library for up to that many

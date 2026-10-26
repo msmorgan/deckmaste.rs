@@ -660,7 +660,7 @@ semantic_definition earthbend (amount : Amount) : Action :=
           none,
         putCounters (.inCaller amount) p1p1Counter (that land),
         delay (does (that land) die)
-          (returnTo (that land) battlefield [.entersAs .tapped, .under .actor])
+          (returnToBattlefield (that land) [.entersAs .tapped, .under .actor])
           [does .any (.move (that land) battlefield exileZone .departure [])] ])
 semantic_definition endure (amount : Amount) : Action :=
   .ownScope (some (.action "endure" .performs))

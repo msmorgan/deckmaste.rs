@@ -644,7 +644,7 @@ def animateDead : Spelled := spelled <| singleFacedCard
         when (does thisAura enter)
           (sequentially
             [ swapsEnchantForLinkedEntry,
-              returnTo (enchanted (.ofType .card .creature)) battlefield [under you],
+              returnToBattlefield (enchanted (.ofType .card .creature)) [under you],
               attachTo thisAura it,
               sacrificedWhenItLeaves thisAura ])
           (if_ := some (is it (in_ battlefield))),

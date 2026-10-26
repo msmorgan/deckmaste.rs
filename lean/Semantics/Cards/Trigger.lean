@@ -942,7 +942,7 @@ def scytheOfTheWretched : Spelled := spelled <| singleFacedCard
           (up 2) (up 2)),
         whenever (does (creatureDamagedByAttachedHostThisTurn .equipped) die)
           (sequentially
-            [ returnTo (that card) battlefield
+            [ returnToBattlefield (that card)
                 [(under you)],
               attachTo thisEquipment (that creature) ]),
         equip [generic 4] ] }

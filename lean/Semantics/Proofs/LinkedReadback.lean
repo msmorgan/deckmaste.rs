@@ -50,7 +50,7 @@ def exileGraveyardCards : Ability :=
 
 /-- "When this leaves the battlefield, return <subject> to the battlefield." -/
 def returnToTheBattlefield (subject : NounPhrase) : Ability :=
-  when (does thisPermanent leave) (returnTo subject battlefield [])
+  when (does thisPermanent leave) (returnToBattlefield subject [])
 
 /-- Required pin: "the sacrificed creature's mana value" reads back the creature an additional
 cost sacrificed [CR#702.119a,607.2a]. -/
@@ -150,7 +150,7 @@ theorem okPronounAfterReadBack :
     Ability.checkText (DRS.ofList [])
       [ exileGraveyardCard,
         when (does thisPermanent leave)
-          (returnTo theExiledCard battlefield [.under (ownerOf it)]) ] = [] := by
+          (returnToBattlefield theExiledCard [.under (ownerOf it)]) ] = [] := by
   decide
 
 /-- "With 'this way' written, only the current ability's own deed": "the card exiled this way"
@@ -472,7 +472,7 @@ def timotharBaronOfBats : Ability :=
             (when (does thisToken (dealDamage (to := a isPlayer) (kind := some .combat)))
               (sequentially
                 [ sacrifice it,
-                  returnTo theExiledCard battlefield [.entersAs .tapped] ])) ])))
+                  returnToBattlefield theExiledCard [.entersAs .tapped] ])) ])))
 
 /-- Required pin: the ability the token gains reads back the card Timothar's ability exiled
 [CR#607.1a,607.1d,607.2a]. -/
@@ -585,7 +585,7 @@ theorem badTwoLinkedPuts :
 one exiled before [CR#607.1a,607.2a]. -/
 theorem okGrantReadsLaterExile :
     let grant := establish (abilityGrant it
-      (when (does thisEnchantment leave) (returnTo theExiledCard battlefield [])))
+      (when (does thisEnchantment leave) (returnToBattlefield theExiledCard [])))
     let exileCard := exile (target creatureCardInAGraveyard)
     Ability.check (DRS.ofList []) (entering [grant, exileCard]) = [] ∧
       Ability.check (DRS.ofList []) (entering [exileCard, grant]) = [] := by

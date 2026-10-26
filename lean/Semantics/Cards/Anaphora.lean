@@ -655,10 +655,10 @@ theorem okZidaneTantalusThief : zidaneTantalusThief.card.check = [] := zidaneTan
 
 /-- Open the Vaults -/
 def openTheVaults : Action :=
-  returnTo
+  returnToBattlefield
     (allOf (and [ isCard, or [isArtifact, isEnchantment],
                    in_ (graveyardOf (bare isPlayer)) ]))
-    battlefield [under (ownerOf them)]
+    [under (ownerOf them)] (from_ := some (graveyardOf (bare isPlayer)))
 theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by decide
 
 /-- Codecracker Hound -/

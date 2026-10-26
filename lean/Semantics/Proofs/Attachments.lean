@@ -175,7 +175,7 @@ this Aura to it." -/
 theorem okAnimateDeadReturn :
     Action.check (DRS.ofList [])
       (sequentially
-        [ returnTo (enchanted (.ofType .card .creature)) battlefield [under you],
+        [ returnToBattlefield (enchanted (.ofType .card .creature)) [under you],
           attachTo thisAura it ]) = [] := by
   decide
 
