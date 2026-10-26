@@ -2417,18 +2417,6 @@ semantic_template objects (objects : NounPhrase) : VisibleThing := .objects obje
 semantic_template cards (cards : NounPhrase) : Exposed := .cards cards
 /-- "the chosen <sort>", revealed -/
 semantic_template choiceOf (sort : ChoiceSort) : Exposed := .choice sort
-/-- "exchange life totals [with <parties>]" [CR#701.12c] -/
-semantic_template lifeTotals (parties : NounPhrase) : Exchanged := .lifeTotals parties
-/-- "exchange control of <left> and <right>" [CR#701.12b] -/
-semantic_template controlOf (left right : NounPhrase) : Exchanged := .controlOf left right
-/-- "exchange <left> with <right>" across zones [CR#701.12a] -/
-semantic_template cardsAcross (left right : NounPhrase) : Exchanged := .cardsAcross left right
-/-- "exchange <left> and <right>": the contents of two zones [CR#701.12a] -/
-semantic_template zones (left right : Location) : Exchanged := .zones left right
-/-- "exchange <left> and <right>": two values [CR#701.12g] -/
-semantic_template values (left right : Amount) : Exchanged := .values left right
-/-- "exchange <exchanged>" [CR#701.12] -/
-semantic_template exchange (exchanged : Exchanged) : Action := .exchange exchanged
 /-- "this door" [CR#709.5j] -/
 semantic_template thisDoor : Door := .thisDoor
 /-- "a [<state>] door of <room>" [CR#709.5j] -/
