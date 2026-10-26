@@ -22,7 +22,7 @@ def gabrielAngelfire : Action :=
   sequentially
     [ choose (a (qualityFrom .ability
         (abilitiesAmong [flying, firstStrike, trample, .theWith rampage 3]))),
-      gain thisCreature (thatAbility .theChoice) (untilEvent (beginningOf .upkeep (some you) nextTime)) ]
+      gain thisCreature (thatAbility .theChoice) (untilEvent (beginningOf .upkeep you nextTime)) ]
 theorem okGabrielAngelfire : Action.check (DRS.ofList []) gabrielAngelfire = [] := by decide
 def builtToSmash : Action :=
   sequentially
@@ -91,8 +91,8 @@ def bristlepackSentry : Spelled := spelled <| singleFacedCard
       [ defender,
         static (onlyWhile
           (can thisCreature attack
-             (asThough := some
-                (holds (is it (not (hasKeyword defender))))))
+             (asThough :=
+                holds (is it (not (hasKeyword defender)))))
           (exists_ (and [ isCreature, youControl,
                            hasPower .atLeast 4 ]))) ],
     power := stat 3, toughness := stat 3 }
@@ -209,8 +209,8 @@ def eomerOfTheRiddermark : Spelled := spelled <| singleFacedCard
     text :=
       [ haste,
         whenever (does thisCreature attack)
-          (if_ := some (exists_ (and [ isCreature, youControl,
-                           superlative .max (.stat .power) (and [isCreature, isPermanent]) ])))
+          (if_ := exists_ (and [ isCreature, youControl,
+                           superlative .max (.stat .power) (and [isCreature, isPermanent]) ]))
           (create 1 (creatureToken 1 1 [.white] [human, soldier])) ],
     power := stat 5, toughness := stat 4 }
 
@@ -301,8 +301,8 @@ def adrixAndNev : Spelled := spelled <| singleFacedCard
     subtypes := [merfolk, wizard],
     text :=
       [ ward [generic 2],
-        static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) []) (some
-            you))) (instead (create (times 2 groupSize) asThose []))) ],
+        static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) isToken)) [])
+            you)) (instead (create (times 2 groupSize) asThose []))) ],
     power := stat 2, toughness := stat 2 }
 
 def windZendikon : Spelled := spelled <| singleFacedCard
@@ -781,7 +781,7 @@ def bloodfireEnforcers : Spelled := spelled <| singleFacedCard
 
 def stormOfSouls : Action :=
   sequentially
-    [ returnToBattlefield (allOf (and [isCreature, in_ yourGraveyard])) (from_ := some yourGraveyard),
+    [ returnToBattlefield (allOf (and [isCreature, in_ yourGraveyard])) (from_ := yourGraveyard),
       become them
         { characteristics :=
           { subtypes := [spirit], text := [flying],
@@ -948,8 +948,8 @@ def krosanDruid : Spelled := spelled <| singleFacedCard
     subtypes := [centaur, druid],
     text :=
       [ kicker [generic 4, pip .green],
-        when (does thisCreature enter) (if_ := some (keywordCostPaid kicker
-                                                         thisCreature))
+        when (does thisCreature enter) (if_ := keywordCostPaid kicker
+                                                         thisCreature)
           (gainLife 10) ],
     power := stat 2, toughness := stat 3 }
 
@@ -1018,7 +1018,7 @@ in its place, the shape an "instead" effect takes [CR#614.1a]. Declining the `ma
 echo cost to be paid. -/
 def thickSkinnedGoblinEchoPayment : Ability :=
   static (replace
-    (would you (pay anyCost .once .paid (some (allOf (and [isPermanent, youControl])))
+    (would you (pay anyCost .once .paid (allOf (and [isPermanent, youControl]))
       (some echo)))
     (instead (may (pay [generic 0] .once))))
 theorem okThickSkinnedGoblinEchoPayment :
@@ -1098,8 +1098,8 @@ def tourachDreadCantor : Spelled := spelled <| singleFacedCard
       [ kicker [pip .black, pip .black],
         protection (hasColor .white),
         tourachDiscardTrigger,
-        when (does thisCreature enter) (if_ := some (keywordCostPaid kicker
-                                                         thisCreature))
+        when (does thisCreature enter) (if_ := keywordCostPaid kicker
+                                                         thisCreature)
           (instruct (target isOpponent) (discard (countedAtRandom (exactly 2) isCard))) ],
     power := stat 2, toughness := stat 1 }
 
@@ -1474,7 +1474,7 @@ def spectraWard : Spelled := spelled <| singleFacedCard
           [ getsPt (enchanted creature) (up 2) (up 2),
             retention (abilityGrant (enchanted creature) (protection (eachKind .color)))
               (allOf aura) ]
-          (subject := some (enchanted creature))) ] }
+          (subject := enchanted creature)) ] }
 
 /-- Pledge of Loyalty -/
 def pledgeOfLoyalty : Spelled := spelled <| singleFacedCard
@@ -1484,7 +1484,7 @@ def pledgeOfLoyalty : Spelled := spelled <| singleFacedCard
       [ enchant isCreature,
         static (retention
           (abilityGrant (enchanted creature)
-            (protection (eachKind .color (some (allOf (and [isPermanent, youControl]))))))
+            (protection (eachKind .color (allOf (and [isPermanent, youControl])))))
           thisAura) ] }
 
 /-- Wall of Shards -/
@@ -1615,8 +1615,7 @@ def seraphicGreatsword : Spelled := spelled <| singleFacedCard
         whenever
           (does (equipped creature)
              (attack
-                (some
-                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
+                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))))
           (createTappedAttacking 1
             { characteristics :=
               { colors := [.white], types := [.creature], subtypes := [angel],

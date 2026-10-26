@@ -723,8 +723,8 @@ def latchkeyFaerie : Spelled := spelled <| singleFacedCard
     text :=
       [ flying,
         prowl [generic 2, pip .blue],
-        when (does thisCreature enter) (if_ := some (keywordCostPaid prowl
-                                                         thisCreature))
+        when (does thisCreature enter) (if_ := keywordCostPaid prowl
+                                                         thisCreature)
           (draw 1) ],
     power := stat 3, toughness := stat 1 }
 
@@ -843,7 +843,7 @@ def moxDiamond : Spelled := spelled <| singleFacedCard
       [ static
           (replace (would thisArtifact enter)
             (instead (may (discard (a (and [isLand, in_ yourHand])))
-              (some (putOntoBattlefield thisArtifact)) (some (putInto it graveyard))))),
+              (putOntoBattlefield thisArtifact) (putInto it graveyard)))),
         activated tapSymbol (addMana 1 (ofAnyColor .sameColor)) ] }
 
 /-- Up the Beanstalk -/
@@ -885,8 +885,8 @@ theorem okSoulShatter : Action.check (DRS.ofList []) soulShatter = [] := by deci
 /-- Padeem, Consul of Innovation -/
 def padeemConsulOfInnovation : Ability :=
   at_ (beginningOfYour .upkeep)
-    (if_ := some (exists_ (and [isArtifact, youControl,
-      superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])])))
+    (if_ := exists_ (and [isArtifact, youControl,
+      superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])]))
     (draw 1)
 theorem okPadeemConsulOfInnovation : Ability.check (DRS.ofList []) padeemConsulOfInnovation = [] := by decide
 
@@ -998,7 +998,7 @@ def shimmerwildsGrowth : Spelled := spelled <| singleFacedCard
 
 /-- Gauntlet of Power -/
 def gauntletOfPower : Spelled := spelled <| singleFacedCard
-  { name := "Gauntlet of Power", cost := some [generic 5], types := [.artifact],
+  { name := "Gauntlet of Power", cost := [generic 5], types := [.artifact],
     text :=
       [ static (entersChoosing thisArtifact .color),
         static (getsPt (allOf (and [isCreature, ofChosen .color])) (up 1) (up 1)),

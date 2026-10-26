@@ -19,7 +19,7 @@ namespace Semantics.Cards
 def crovaxTheCursed : Action :=
   may (sacrifice (a isCreature))
     (putCounters 1 p1p1Counter thisCreature)
-    (removeCounters (exactly 1) (some p1p1Counter) thisCreature)
+    (removeCounters (exactly 1) p1p1Counter thisCreature)
 theorem okCrovaxTheCursed : Action.check (DRS.ofList []) crovaxTheCursed = [] := by decide
 def additiveEvolution : Action :=
   sequentially
@@ -199,9 +199,9 @@ def celestialConvergence : Spelled := spelled <| singleFacedCard
                 (doIf (thereAre (counted (orMore 2)
                         (and [isPlayer, tiedFor .max (.playerStat .lifeTotal) isPlayer])))
                   drawGame
-                  (some (instruct
+                  (instruct
                     (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))
-                    winGame))) ]) ] }
+                    winGame)) ]) ] }
 
 def curseOfVengeance : Spelled := spelled <| singleFacedCard
   { name := "Curse of Vengeance", cost := [pip .black], types := [.enchantment],
@@ -255,7 +255,7 @@ def woodlandChampion : Spelled := spelled <| singleFacedCard
     power := stat 2, toughness := stat 2 }
 
 def voraciousBrood : Spelled := spelled <| singleFacedCard
-  { name := "Voracious Brood", cost := some [generic 2, pip .green], types := [.creature],
+  { name := "Voracious Brood", cost := [generic 2, pip .green], types := [.creature],
     subtypes := [alien, insect],
     text :=
       [ static (entersWithCounters thisCreature
@@ -296,7 +296,7 @@ def foeLiage : Spelled := spelled <| singleFacedCard
   { name := "Foe-liage", cost := [generic 3, pip .green], types := [.creature],
     subtypes := [plant, mutant],
     text :=
-      [ whenever (does (a isLand) enter) (during := duringPart .turn (some you))
+      [ whenever (does (a isLand) enter) (during := duringPart .turn you)
           (putCounters 1 p1p1Counter thisCreature) ],
     power := stat 3, toughness := stat 3 }
 
@@ -422,7 +422,7 @@ def denryKlinSameKinds : Ability :=
     (if_ := is thisCreature hasCounter)
     (doForEachKind .counterKind .counterKind
       (putCounters (statOf .boundCounter thisCreature) thatKind (that creature))
-      (domain := some thisCreature))
+      (domain := thisCreature))
 theorem okDenryKlinSameKinds : Ability.check (DRS.ofList []) denryKlinSameKinds = [] := by decide
 
 /-- Denry Klin, Editor in Chief -/
@@ -455,7 +455,7 @@ def starPupil : Spelled := spelled <| singleFacedCard
             (doForEachKind .counterKind .counterKind
               (putCounters (statOf .boundCounter it) thatKind
                 (target (and [isCreature, youControl])))
-              (domain := some it)) ],
+              (domain := it)) ],
     power := stat 0, toughness := stat 0 }
 
 /-- Tromell, Seymour's Butler -/
@@ -565,10 +565,10 @@ def cycloneUpkeepPayment : Ability :=
     (sequentially
       [ putCounters 1 windCounter thisEnchantment,
         may (pay (scaled [pip .green] (times 1 (countersOn windCounter thisEnchantment))) .once)
-          (some (instruct thisEnchantment
+          (instruct thisEnchantment
             (dealDamage (countersOn windCounter thisEnchantment)
-              (each (or [isCreature, isPlayer])))))
-          (some (sacrifice thisEnchantment)) ])
+              (each (or [isCreature, isPlayer]))))
+          (sacrifice thisEnchantment) ])
 theorem okCycloneUpkeepPayment : Ability.check (DRS.ofList []) cycloneUpkeepPayment = [] := by decide
 
 def stormwildCapridor : Spelled := spelled <| singleFacedCard
@@ -838,7 +838,7 @@ def mildManneredLibrarian : Spelled := spelled <| singleFacedCard
     power := stat 1, toughness := stat 1 }
 
 def infernalVessel : Spelled := spelled <| singleFacedCard
-  { name := "Infernal Vessel", cost := some [generic 2, pip .black], types := [.creature],
+  { name := "Infernal Vessel", cost := [generic 2, pip .black], types := [.creature],
     subtypes := [human, cleric],
     text :=
       [ when (does thisCreature die) (if_ := some (not (is it demon)))
@@ -897,10 +897,9 @@ theorem okFontOfAgoniesTrigger : Ability.check (DRS.ofList []) fontOfAgoniesTrig
 /-- Heart of Kiran -/
 def heartOfKiranCrewAltCost : Ability :=
   static (altCost (allOf (and [abilityHead (.keyword crew), abilityOf this_]))
-    (some
        (perform
           (removeCounters (exactly 1) loyaltyCounter
-             (a (and [isPlaneswalker, youControl]))))))
+             (a (and [isPlaneswalker, youControl])))))
 theorem okHeartOfKiranCrewAltCost : Ability.check (DRS.ofList []) heartOfKiranCrewAltCost = [] := by decide
 /-- Tainted Adversary -/
 def taintedAdversaryOffer : Ability :=
@@ -926,7 +925,7 @@ theorem okMirelurkQueenTrigger : Ability.check (DRS.ofList []) mirelurkQueenTrig
 
 /-- Whirling Dervish -/
 def whirlingDervish : Spelled := spelled <| singleFacedCard
-  { name := "Whirling Dervish", cost := some [pip .green, pip .green], types := [.creature],
+  { name := "Whirling Dervish", cost := [pip .green, pip .green], types := [.creature],
     subtypes := [human, monk],
     text :=
       [ protection (hasColor .black),
@@ -1032,7 +1031,7 @@ def stonebindersFamiliar : Spelled := spelled <| singleFacedCard
     subtypes := [spirit, dog],
     text :=
       [ whenever (does any (putInto (counted (orMore 1) isCard) exileZone))
-          (during := duringPart .turn (some you))
+          (during := duringPart .turn you)
           (putCounters 1 p1p1Counter thisCreature) (limit := oncePerTurn) ],
     power := stat 1, toughness := stat 1 }
 
@@ -1084,7 +1083,7 @@ def bewitchingLeechcraft : Spelled := spelled <| singleFacedCard
           (static (replace (would thisCreature (become untapped)) (instead
               (doIfDone
                 (removeCounters (exactly 1) p1p1Counter thisCreature)
-                (untap thisCreature))) (duringPart .untapStep (some you))))) ] }
+                (untap thisCreature))) (duringPart .untapStep you)))) ] }
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=
   whenever (does thisCreature (attack (a isPlayer))) (if_ := some (not

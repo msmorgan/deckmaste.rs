@@ -468,9 +468,8 @@ def bloodFrenzy : Spelled := spelled <| singleFacedCard
             [ get (target (and [isCreature, or [isAttacking, isBlocking]]))
                 (up 4) (up 0) untilEndOfTurn,
               atNext .endStep (destroy (that creature)) ]) (timing :=
-                                                                       some
-                                                                          (beforePart
-                                                                             .combatDamage none)) ] }
+                                                                          beforePart
+                                                                             .combatDamage none) ] }
 
 /-- Berserk -/
 def berserk : Spelled := spelled <| singleFacedCard
@@ -512,7 +511,7 @@ def graveServitude : Spelled := spelled <| singleFacedCard
         static (conjunction
           [ getsPt (enchanted creature) (up 3) (down 1),
             qualityChange it .sets (colored (.some [.black])) ]
-          (subject := some (enchanted creature))) ] }
+          (subject := enchanted creature)) ] }
 
 /-- Lightning Reflexes -/
 def lightningReflexes : Spelled := spelled <| singleFacedCard
@@ -524,7 +523,7 @@ def lightningReflexes : Spelled := spelled <| singleFacedCard
         static (conjunction
           [ getsPt (enchanted creature) (up 1) (up 0),
             abilityGrant (enchanted creature) firstStrike ]
-          (subject := some (enchanted creature))) ] }
+          (subject := enchanted creature)) ] }
 
 /-- Mystic Veil -/
 def mysticVeil : Spelled := spelled <| singleFacedCard
@@ -561,7 +560,7 @@ def soar : Spelled := spelled <| singleFacedCard
         static (conjunction
           [ getsPt (enchanted creature) (up 0) (up 1),
             abilityGrant (enchanted creature) flying ]
-          (subject := some (enchanted creature))) ] }
+          (subject := enchanted creature)) ] }
 
 /-- Spider Climb -/
 def spiderClimb : Spelled := spelled <| singleFacedCard
@@ -573,7 +572,7 @@ def spiderClimb : Spelled := spelled <| singleFacedCard
         static (conjunction
           [ getsPt (enchanted creature) (up 0) (up 3),
             abilityGrant (enchanted creature) reach ]
-          (subject := some (enchanted creature))) ] }
+          (subject := enchanted creature)) ] }
 
 /-- Ward of Lights: its protection doesn't remove it, as Flickering Ward's doesn't
 [CR#702.16n]. -/
@@ -613,7 +612,7 @@ def swapsEnchantForLinkedEntry : Action :=
   establish (conjunction
     [ abilityLoss it [written (enchant creatureCardInAGraveyard)],
       abilityGrant it (enchant (creaturePutOntoTheBattlefieldWith thisAura)) ]
-    (subject := some it))
+    (subject := it))
 
 /-- Necromancy -/
 def necromancy : Spelled := spelled <| singleFacedCard
@@ -625,11 +624,11 @@ def necromancy : Spelled := spelled <| singleFacedCard
             [ establish (conjunction
                 [ addSubtype it aura,
                   abilityGrant it (enchant (creaturePutOntoTheBattlefieldWith this_)) ]
-                (subject := some it)),
+                (subject := it)),
               putOntoBattlefieldUnderYourControl (target creatureCardInAGraveyard),
               attachTo thisEnchantment it,
               sacrificedWhenItLeaves thisEnchantment ])
-          (if_ := some (is it (in_ battlefield))) ] }
+          (if_ := is it (in_ battlefield)) ] }
 
 /-- Animate Dead -/
 def animateDead : Spelled := spelled <| singleFacedCard
@@ -643,7 +642,7 @@ def animateDead : Spelled := spelled <| singleFacedCard
               returnToBattlefield (enchanted (.ofType .card .creature)) [under you],
               attachTo thisAura it,
               sacrificedWhenItLeaves thisAura ])
-          (if_ := some (is it (in_ battlefield))),
+          (if_ := is it (in_ battlefield)),
         static (getsPt (enchanted creature) (down 1) (up 0)) ] }
 
 /-- Dance of the Dead -/
@@ -659,13 +658,13 @@ def danceOfTheDead : Spelled := spelled <| singleFacedCard
                 (riders := [entersAs .tapped, under you]),
               attachTo thisAura it,
               sacrificedWhenItLeaves thisAura ])
-          (if_ := some (is it (in_ battlefield))),
+          (if_ := is it (in_ battlefield)),
         static (conjunction
           [ getsPt (enchanted creature) (up 1) (up 1),
             doesntUntap it (controllerOf it) ]
-          (subject := some (enchanted creature))),
+          (subject := enchanted creature)),
         at_ (beginningOfPossessed .upkeep (controllerOf (enchanted creature)))
           (instruct (that player) (may (pay [generic 1, pip .black] .once)
-            (some (untap (that creature))))) ] }
+            (untap (that creature)))) ] }
 
 end Semantics.Cards

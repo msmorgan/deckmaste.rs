@@ -95,8 +95,8 @@ def vertigoSpawn : Ability :=
 theorem okVertigoSpawn : Ability.check (DRS.ofList []) vertigoSpawn = [] := by decide
 def orneryDilophosaur : Ability :=
   whenever (does thisCreature attack)
-    (if_ := some (exists_ (and [ isCreature, youControl,
-                     hasPower .atLeast 4 ])))
+    (if_ := exists_ (and [ isCreature, youControl,
+                     hasPower .atLeast 4 ]))
     (get thisCreature (up 2) (up 2) untilEndOfTurn)
 theorem okOrneryDilophosaur : Ability.check (DRS.ofList []) orneryDilophosaur = [] := by decide
 def incisorGlider : Ability :=
@@ -389,9 +389,9 @@ def chromeReplicator : Spelled := spelled <| singleFacedCard
     subtypes := [construct],
     text :=
       [ when (does thisCreature enter)
-          (if_ := some (thereAre (withTheSameName
+          (if_ := thereAre (withTheSameName
             (counted (orMore 2)
-              (and [isPermanent, non isLand, isNontoken, youControl])))))
+              (and [isPermanent, non isLand, isNontoken, youControl]))))
           (create 1 (written
             { characteristics :=
               { types := [.artifact, .creature], subtypes := [construct],
@@ -406,7 +406,7 @@ def admiralsOrder : Spelled := spelled <| singleFacedCard
         spell (counter (target isSpell)) ] }
 
 def fyndhornDruid : Spelled := spelled <| singleFacedCard
-  { name := "Fyndhorn Druid", cost := some [generic 2, pip .green], types := [.creature],
+  { name := "Fyndhorn Druid", cost := [generic 2, pip .green], types := [.creature],
     subtypes := [elf, druid],
     text :=
       [ when (does thisCreature die) (if_ := some (was (becomeBlocked it) soFarThisTurn))
@@ -481,7 +481,7 @@ theorem okSkullsporeNexusTrigger : Ability.check (DRS.ofList []) skullsporeNexus
 /-- Wavebreak Hippocamp -/
 def wavebreakHippocamp : Ability :=
   whenever (nthOccurrence (.nth 1) (does you (cast (a isSpell))))
-    (during := duringPart .turn (some eachOpponent)) (draw 1)
+    (during := duringPart .turn eachOpponent) (draw 1)
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
@@ -558,9 +558,9 @@ def commandersInsignia : Spelled := spelled <| singleFacedCard
     types := [.enchantment],
     text :=
       [ static (getsPt (allOf (and [isCreature, youControl]))
-          (up (eventCount (cast (headed .spell yourCommander) (from_ := some
+          (up (eventCount (cast (headed .spell yourCommander) (from_ :=
             commandZone)) you thisGame))
-          (up (eventCount (cast (headed .spell yourCommander) (from_ := some
+          (up (eventCount (cast (headed .spell yourCommander) (from_ :=
             commandZone)) you thisGame)))
             ] }
 
@@ -665,7 +665,7 @@ theorem agencyOutfitterThemIsTheFoundGroup :
     let found := nextClause (stepAction 512 .postEvent .obj (DRS.ofList [])
       (search (andOr [yourGraveyard, yourHand, yourLibrary])
         (andOr [a (named "Magnifying Glass"), a (named "Thinking Cap")]))).1
-    (resolveCandidates .bare .many found).map (fun ref => (ref.plur, ref.groupKey == some ref.id)) =
+    (resolveCandidates .bare .many found).map (fun ref => (ref.plur, ref.groupKey == ref.id)) =
       [(.many, true)] := by decide
 
 /-- Trouble in Pairs' -/
@@ -682,7 +682,7 @@ private def castRank? : Predicate → Option (Ordinal × Option Period)
   | _ => none
 
 private def eventOrdinal? : GameEvent → Option (Ordinal × Option Period)
-  | .nthOccurrence ordinal per _ => some (ordinal, per)
+  | .nthOccurrence ordinal per _ => (ordinal, per)
   | _ => none
 
 private def triggerAlternatives : Ability → List GameEvent
@@ -765,9 +765,9 @@ def brazenBlademaster : Spelled := spelled <| singleFacedCard
     subtypes := [orc, pirate],
     text :=
       [ whenever (does thisCreature attack)
-          (while_ := some (whileTrue
+          (while_ := whileTrue
             (compareAmt (countOf (and [isArtifact, youControl])) .atLeast
-              2)))
+              2))
           (get it (up 2) (up 1) untilEndOfTurn) ],
     power := stat 2, toughness := stat 3 }
 
@@ -786,8 +786,8 @@ theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] :
 /-- Foul Emissary -/
 def foulEmissaryLine : Ability :=
   when (does you (sacrifice thisCreature))
-    (while_ := some (whileDoing (does you (cast (a
-      (and [isSpell, hasKeyword (.the emerge)]))))))
+    (while_ := whileDoing (does you (cast (a
+      (and [isSpell, hasKeyword (.the emerge)])))))
     (create 1 (creatureToken 3 2 [] [eldrazi, horror]))
 theorem okFoulEmissaryLine : Ability.check (DRS.ofList []) foulEmissaryLine = [] := by decide
 
@@ -902,7 +902,7 @@ theorem bioplasmTwoCandidates : countOnes .object bioplasmAfterExile = 2 := by d
 
 /-- "From anywhere" observes Dread after its arrival in the graveyard. -/
 def dread : Spelled := spelled <| singleFacedCard
-  { name := "Dread", cost := some [generic 3, pip .black, pip .black, pip .black],
+  { name := "Dread", cost := [generic 3, pip .black, pip .black, pip .black],
     types := [.creature], subtypes := [elemental, incarnation],
     text :=
       [ fear,
@@ -987,8 +987,8 @@ def bairdArgivianRecruiter : Spelled := spelled <| singleFacedCard
     supertypes := [.legendary], types := [.creature], subtypes := [human, soldier],
     text :=
       [ at_ (beginningOfYour .endStep)
-          (if_ := some (exists_ (compareOver (and [isCreature, youControl])
-            (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0)))
+          (if_ := exists_ (compareOver (and [isCreature, youControl])
+            (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0))
           (create 1 (creatureToken 1 1 [.white] [soldier])) ],
     power := stat 2, toughness := stat 2 }
 

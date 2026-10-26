@@ -221,8 +221,7 @@ def undercoverButler : Spelled := spelled <| singleFacedCard
       [ whenever
           (does thisCreature
              (attack
-                (some
-                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
+                   (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))))
           (establishThroughout (cant any (block it)) thisTurn) ],
     power := stat 2, toughness := stat 3 }
 
@@ -280,7 +279,7 @@ def pinpointAvalanche : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ instruct this_ (dealDamage 4 (target isCreature)),
-            establish (cant any (preventDamage allDamage)) (some modifiesPrecedingAction) ]) ] }
+            establish (cant any (preventDamage allDamage)) modifiesPrecedingAction ]) ] }
 
 def whippoorwillImmunity : Action :=
   sequentially
@@ -440,7 +439,7 @@ def festival : Spelled := spelled <| singleFacedCard
   { name := "Festival", cost := [pip .white], types := [.instant],
     text :=
       [ spell (establishThroughout (cant (allOf isCreature) attack) thisTurn)
-          (timing := duringPart .upkeep (some anOpponent)) ] }
+          (timing := duringPart .upkeep anOpponent) ] }
 
 def demotion : Spelled := spelled <| singleFacedCard
   { name := "Demotion", cost := [pip .white], types := [.enchantment],

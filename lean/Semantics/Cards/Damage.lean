@@ -935,8 +935,8 @@ theorem okSarkhansUnsealingLine : Ability.check (DRS.ofList []) sarkhansUnsealin
 /-- Savage Swipe, both sentences -/
 def savageSwipeLine : Action :=
   sequentially
-    [ doOnlyIf (get (target (and [isCreature, youControl])) (up 2) (up 2) (some
-        untilEndOfTurn))
+    [ doOnlyIf (get (target (and [isCreature, youControl])) (up 2) (up 2)
+        untilEndOfTurn)
         (compareAmt (powerOf it) .eq 2),
       instruct it (fight (target (and [isCreature, youDontControl]))) ]
 theorem okSavageSwipeLine : Action.check (DRS.ofList []) savageSwipeLine = [] := by decide
@@ -1226,8 +1226,8 @@ def tyrantOfValakut : Spelled := spelled <| singleFacedCard
     text :=
       [ surge [generic 3, pip .red, pip .red],
         flying,
-        when (does thisCreature enter) (if_ := some (keywordCostPaid surge
-                                                         thisCreature))
+        when (does thisCreature enter) (if_ := keywordCostPaid surge
+                                                         thisCreature)
           (instruct thisCreature (dealDamage 3 (target isAnyTarget))) ],
     power := stat 5, toughness := stat 4 }
 
@@ -1285,7 +1285,7 @@ def aureliaTheLawAbove : Spelled := spelled <| singleFacedCard
 
 /-- Syr Konrad, the Grim -/
 def syrKonradTheGrim : Spelled := spelled <| singleFacedCard
-  { name := "Syr Konrad, the Grim", cost := some [generic 3, pip .black, pip .black],
+  { name := "Syr Konrad, the Grim", cost := [generic 3, pip .black, pip .black],
     supertypes := [.legendary], types := [.creature],
     subtypes := [human, knight],
     text :=

@@ -124,7 +124,7 @@ theorem okRowansTalentCopy : Ability.check (DRS.ofList []) rowansTalentCopy = []
 
 /-- Rings of Brighthearth -/
 def ringsOfBrighthearth : Spelled := spelled <| singleFacedCard
-  { name := "Rings of Brighthearth", cost := some [generic 3], types := [.artifact],
+  { name := "Rings of Brighthearth", cost := [generic 3], types := [.artifact],
     text :=
       [ whenever (does you (activate (a (abilityHead .anyActivated))))
           (if_ := some (not (is (that .ability) isManaAbility)))

@@ -238,9 +238,9 @@ def bushiTenderfoot : Spelled := spelled <| .flip
 /-- Kitsune Mystic -/
 def kitsuneMysticFlip : Ability :=
   at_ (beginningOfEach .endStep)
-    (if_ := some (is thisCreature
+    (if_ := is thisCreature
       (attachedBy (some .enchanted)
-        (counted (orMore 2) aura))))
+        (counted (orMore 2) aura)))
     (flip thisCreature)
 theorem okKitsuneMysticFlip : Ability.check (DRS.ofList []) kitsuneMysticFlip = [] := by decide
 
@@ -327,13 +327,13 @@ def afflictedDeserter : Spelled := spelled <| .transforming
     { name := "Werewolf Ransacker", types := [.creature], subtypes := [werewolf],
       text :=
         [ whenever
-            (does any (transform thisCreature (into := some (named "Werewolf Ransacker"))))
+            (does any (transform thisCreature (into := named "Werewolf Ransacker")))
             (sequentially
               [ may (destroy (target isArtifact)),
                 doIf (did (that artifact) (putInto theActor graveyard) thisWay)
                   (instruct thisCreature (dealDamage 3 (controllerOf (that artifact)))) ]),
           at_ (beginningOfEach .upkeep)
-            (if_ := some aPlayerCastTwoOrMoreLastTurn)
+            (if_ := aPlayerCastTwoOrMoreLastTurn)
             (transform thisCreature) ],
       power := stat 5, toughness := stat 4 } }
 theorem okAfflictedDeserter : afflictedDeserter.card.check = [] := afflictedDeserter.ok

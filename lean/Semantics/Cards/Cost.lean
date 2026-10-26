@@ -379,8 +379,8 @@ def ersatzGnomes : Spelled := spelled <| singleFacedCard
 def scrapbasket : Spelled := spelled <| singleFacedCard
   { name := "Scrapbasket", cost := [generic 4], types := [.artifact, .creature],
     subtypes := [scarecrow],
-    text := [activated [generic 1] (becomeColor thisCreature .every (some
-        untilEndOfTurn))],
+    text := [activated [generic 1] (becomeColor thisCreature .every
+        untilEndOfTurn)],
     power := stat 3, toughness := stat 2 }
 
 /-- Indigo Faerie -/
@@ -735,7 +735,7 @@ def vorelOfTheHullClade : Spelled := spelled <| singleFacedCard
 theorem prosperityCostLetters : costLetters [.variable, pip .blue] = [letterB .x] := rfl
 def prosperityTextLetter : Amount := letter .x
 theorem prosperityTextReadsCostLetter :
-    let context := DRS.ofList (costLetters (some [.variable, pip .blue]))
+    let context := DRS.ofList (costLetters [.variable, pip .blue])
     let out := (stepAmount 64 context prosperityTextLetter).1
     out.referents.filter (fun ref => ref.id ≥ context.nextId) = [] := by decide
 theorem noVariableSymbolNoLetter : costLetters [generic 1, pip .blue] = [] := by decide
@@ -813,9 +813,8 @@ def embercleave : Spelled := spelled <| singleFacedCard
                 1),
             abilityGrant (equipped creature) doubleStrike,
             abilityGrant (equipped creature) trample ] (subject :=
-                                                                   some
-                                                                      (equipped
-                                                                         creature))),
+                                                                      equipped
+                                                                         creature)),
         equip [generic 3] ] }
 
 /-- Tattoo Ward -/
@@ -827,7 +826,7 @@ def tattooWard : Spelled := spelled <| singleFacedCard
         static (conjunction
           [ getsPt (enchanted creature) (up 1) (up 1),
             retention (abilityGrant (enchanted creature) (protection isEnchantment)) thisAura ]
-          (subject := some (enchanted creature))),
+          (subject := enchanted creature)),
         activated (sacrifice thisAura) (destroy (target isEnchantment)) ]
             }
 
@@ -843,8 +842,8 @@ def floatingShield : Spelled := spelled <| singleFacedCard
               (ofChosen .color)))
           thisAura),
         activated (sacrifice thisAura)
-          (gain (target isCreature) (protection (ofChosen .color)) (some
-              untilEndOfTurn)) ] }
+          (gain (target isCreature) (protection (ofChosen .color))
+              untilEndOfTurn) ] }
 
 /-- Flickering Ward -/
 def flickeringWard : Spelled := spelled <| singleFacedCard

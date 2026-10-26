@@ -75,7 +75,7 @@ def tailSwipe : Spelled := spelled <| singleFacedCard
       [ spell (sequentially
           [ chooseFightPair,
             doIf (did you (cast thisSpell)
-                (within soFarThisTurn (some (duringPart .mainPhase (some you)))))
+                (within soFarThisTurn (duringPart .mainPhase you)))
               (get (the (and [isCreature, youControl])) (up 1) (up 1) untilEndOfTurn),
             fightEachOther (those creature) ]) ] }
 
@@ -238,8 +238,8 @@ theorem okPhantomBlade : Ability.check (DRS.ofList []) phantomBlade = [] := by d
 
 /-- Braids's Frightful Return -/
 def braidsFrightfulReturn : Action :=
-  may (sacrifice (a isCreature)) (some
-                                    (instruct eachOpponent (discard (a (cardIn hand)))))
+  may (sacrifice (a isCreature))
+                                    (instruct eachOpponent (discard (a (cardIn hand))))
 theorem okBraidsFrightfulReturn : Action.check (DRS.ofList []) braidsFrightfulReturn = [] := by decide
 /-- Daretti, Ingenious Iconoclast -/
 def darettisMinusOne : Action :=
@@ -1137,7 +1137,7 @@ theorem okPanglacialWurmCast : Ability.check (DRS.ofList []) panglacialWurmCast 
 
 /-- Shah of Naar Isle -/
 def shahOfNaarIsle : Spelled := spelled <| singleFacedCard
-  { name := "Shah of Naar Isle", cost := some [generic 3, pip .red], types := [.creature],
+  { name := "Shah of Naar Isle", cost := [generic 3, pip .red], types := [.creature],
     subtypes := [efreet],
     text :=
       [ trample,
@@ -1149,7 +1149,7 @@ def shahOfNaarIsle : Spelled := spelled <| singleFacedCard
 /-- Memory Plunder -/
 def memoryPlunder : Spelled := spelled <| singleFacedCard
   { name := "Memory Plunder",
-    cost := some [hybridPip .blue .black, hybridPip .blue .black, hybridPip .blue .black,
+    cost := [hybridPip .blue .black, hybridPip .blue .black, hybridPip .blue .black,
                   hybridPip .blue .black],
     types := [.instant],
     text :=
@@ -1280,17 +1280,17 @@ theorem okNautiloidShipTrigger : Ability.check (DRS.ofList []) nautiloidShipTrig
 def summonEsperValigarmandaCast : StaticSpec :=
   conjunction [ can you (cast (a (and [isInstantOrSorcery, in_ (exiledWith thisSaga)]))),
       can you (pay anyCost .once)
-          (asThough := some
-             (spendManaAs none .anyType
-                (toCast (and [isInstantOrSorcery, in_ (exiledWith thisSaga)])))) ]
+          (asThough :=
+             spendManaAs none .anyType
+                (toCast (and [isInstantOrSorcery, in_ (exiledWith thisSaga)]))) ]
 theorem okSummonEsperValigarmandaCast :
     StaticSpec.check (DRS.ofList []) summonEsperValigarmandaCast = [] := by decide
 /-- Rogue Class's level-3 body -/
 def rogueClassLevelThree : StaticSpec :=
   conjunction [ can you (play (allOf (in_ (exiledWith thisClass)))),
       can you (pay anyCost .once)
-          (asThough := some
-             (spendManaAs none .anyColor (toCast (in_ (exiledWith thisClass))))) ]
+          (asThough :=
+             spendManaAs none .anyColor (toCast (in_ (exiledWith thisClass)))) ]
 theorem okRogueClassLevelThree : StaticSpec.check (DRS.ofList []) rogueClassLevelThree = [] := by decide
 
 /-- Soul Ransom -/
@@ -1350,8 +1350,8 @@ def danithaNewBenaliasLight : Spelled := spelled <| singleFacedCard
     text :=
       [ vigilance, trample, lifelink,
         static (can you (cast (counted (exactly 1) (and [ isSpell, or [ aura,
-                                  equipment ] ])) (from_ := some
-                                                                yourGraveyard)) (timing := some
+                                  equipment ] ])) (from_ :=
+                                                                yourGraveyard)) (timing :=
                                                                                    onEachOfYourTurns)) ],
     power := stat 2, toughness := stat 2 }
 
@@ -1366,16 +1366,16 @@ theorem okNahiriExtraLands : StaticSpec.check (DRS.ofList [letterB .x]) nahiriEx
 
 /-- Haakon, Stromgald Scourge -/
 def haakonStromgaldScourge : Spelled := spelled <| singleFacedCard
-  { name := "Haakon, Stromgald Scourge", cost := some [generic 1, pip .black, pip .black],
+  { name := "Haakon, Stromgald Scourge", cost := [generic 1, pip .black, pip .black],
     supertypes := [.legendary], types := [.creature],
     subtypes := [zombie, knight],
     text :=
-      [ static (can you (cast this_ (from_ := some yourGraveyard))),
+      [ static (can you (cast this_ (from_ := yourGraveyard))),
         static (cant you (cast this_ (from_ := some (not yourGraveyard)))),
         static (onlyWhile
                   (can you
                      (cast (bare (and [isSpell, knight]))
-                        (from_ := some yourGraveyard))) (is this_ (in_ battlefield))),
+                        (from_ := yourGraveyard))) (is this_ (in_ battlefield))),
         when (does thisCreature die) (loseLife 2) ],
     power := stat 3, toughness := stat 3 }
 
@@ -1418,7 +1418,7 @@ theorem okSummoningMateriaTopCast : Ability.check (DRS.ofList []) summoningMater
 /-- Vizier of the Menagerie -/
 def vizierOfTheMenagerieSpend : StaticSpec :=
   can you (pay anyCost .once)
-      (asThough := spendManaAs none .anyType (some (toCast (and [isCreature, isSpell]))))
+      (asThough := spendManaAs none .anyType (toCast (and [isCreature, isSpell])))
 theorem okVizierOfTheMenagerieSpend : StaticSpec.check (DRS.ofList []) vizierOfTheMenagerieSpend = [] := by
   decide
 

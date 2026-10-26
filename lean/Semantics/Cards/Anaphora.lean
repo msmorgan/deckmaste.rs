@@ -50,7 +50,7 @@ theorem okMillACardReturnIt : Action.check (DRS.ofList []) millACardReturnIt = [
 def bondOfRevival : Action :=
   sequentially
     [ returnToBattlefield (target (and [isCreature, in_ yourGraveyard]))
-        (from_ := some yourGraveyard),
+        (from_ := yourGraveyard),
       gainHaste it untilYourNextTurn ]
 theorem okBondOfRevival : Action.check (DRS.ofList []) bondOfRevival = [] := by decide
 
@@ -231,7 +231,7 @@ def oust : Spelled := spelled <| singleFacedCard
 def riseFromTheGrave : Action :=
   sequentially
     [ putOntoBattlefieldUnderYourControl (target (and [isCreature, in_ graveyard]))
-        (from_ := some graveyard),
+        (from_ := graveyard),
       become (that creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } } ]
 theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] := by decide
@@ -239,7 +239,7 @@ theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] 
 def everAfter : Action :=
   sequentially
     [ returnToBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard]))
-        (from_ := some yourGraveyard),
+        (from_ := yourGraveyard),
       become (those creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } },
       putInto this_ onBottom ]
@@ -825,8 +825,8 @@ def sawInHalfBody : Action :=
           (create 2
             (copyOf (that creature)
               (copyCharacteristics
-                { power := some (half .up (powerOf (that creature))),
-                  toughness := some (half .up (toughnessOf (that creature))) } false))
+                { power := half .up (powerOf (that creature)),
+                  toughness := half .up (toughnessOf (that creature)) } false))
             [])) ]
 def sawInHalf : Spelled := spelled <| singleFacedCard
   { name := "Saw in Half", cost := [generic 2, pip .black], types := [.instant],
@@ -867,8 +867,8 @@ def insatiableAppetite : Spelled := spelled <| singleFacedCard
   { name := "Insatiable Appetite", cost := [generic 1, pip .green], types := [.instant],
     text :=
       [ spell (may (sacrifice (a food))
-          (some (get (target isCreature) (up 5) (up 5) untilEndOfTurn))
-          (some (get (that creature) (up 3) (up 3) untilEndOfTurn))) ] }
+          (get (target isCreature) (up 5) (up 5) untilEndOfTurn)
+          (get (that creature) (up 3) (up 3) untilEndOfTurn)) ] }
 theorem okInsatiableAppetite : insatiableAppetite.card.check = [] := insatiableAppetite.ok
 
 /-- Pippin's Bravery: "You may sacrifice a Food. If you do, target creature gets +4/+4 until end of
@@ -878,8 +878,8 @@ def pippinsBravery : Spelled := spelled <| singleFacedCard
   { name := "Pippin's Bravery", cost := [pip .green], types := [.instant],
     text :=
       [ spell (may (sacrifice (a food))
-          (some (get (target isCreature) (up 4) (up 4) untilEndOfTurn))
-          (some (get (that creature) (up 2) (up 2) untilEndOfTurn))) ] }
+          (get (target isCreature) (up 4) (up 4) untilEndOfTurn)
+          (get (that creature) (up 2) (up 2) untilEndOfTurn)) ] }
 theorem okPippinsBravery : pippinsBravery.card.check = [] := pippinsBravery.ok
 
 /-! ## A spell's later spell abilities read its targets
