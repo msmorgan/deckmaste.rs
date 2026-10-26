@@ -176,9 +176,8 @@ outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
     let caller : DRS :=
       (DRS.ofList [{ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    ((Action.check caller (.ownScope none (destroy it))).contains
-        (.anaphor .bare .one 0),
-     Action.check caller (destroy it)) = (true, []) := by
+    Action.check caller (.ownScope none (destroy it)) = [.anaphor .bare .one 0] ∧
+      Action.check caller (destroy it) = [] := by
   decide
 
 /-- A keyword ability's body is read in its own scope too: the card's mentions are not in view
@@ -186,9 +185,9 @@ of its abilities (`Ability.check` reads the body from an empty context), so a bo
 "it" finds nothing, while the same ability written on the card reads the card's mention. -/
 theorem keywordAbilityBodyCannotReadItsCard :
     let card : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    ((Ability.check card (.keyword (.named "flying") [] [Primitives.Ability.spell none (destroy it)])).contains
-        (.anaphor .bare .one 0),
-     Ability.check card (Primitives.Ability.spell none (destroy it))) = (true, []) := by
+    Ability.check card (.keyword (.named "flying") [] [Primitives.Ability.spell none (destroy it)]) =
+        [.anaphor .bare .one 0] ∧
+      Ability.check card (Primitives.Ability.spell none (destroy it)) = [] := by
   decide
 
 /-! ## The actor outside a handoff is the controller -/

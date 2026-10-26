@@ -191,18 +191,6 @@ def m1m1CounterDefinition : Definition :=
 theorem m1m1CounterDefinitionZone :
     Definition.check m1m1CounterDefinition = [] := by decide
 
-/-- The retired spelling of `p1p1Counter`'s conferral, which multiplied each stat by the count of
-its own kind on the bearer, in two single-stat changes. Nothing is refused for reading its own
-count or for not reading it, because multiplicity is the model's reading of a counter definition
-and the checker computes none. -/
-def ownCount : Amount := .statOf (.counter (.named "p1p1Counter")) .this
-def p1p1CounterCountMultiplied : Definition :=
-  .counter (.named "p1p1Counter")
-    [ .property (Templates.modification .this .power (.up ownCount)),
-      .property (Templates.modification .this .toughness (.up ownCount)) ]
-theorem p1p1CounterCountMultipliedTwin :
-    Definition.check p1p1CounterCountMultiplied = [] := by decide
-
 /-- [CR#122.1f] "If a player has ten or more poison counters, that player loses the game." A
 poison counter is a player's. -/
 theorem okPoisonCounter : Definition.check (.counter (.named "poison" .player) []) = [] := by

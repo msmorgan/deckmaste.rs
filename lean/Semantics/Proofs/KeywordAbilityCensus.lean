@@ -97,7 +97,8 @@ theorem okIndestructibleDefinition :
 /-- What is destroyed is a permanent [CR#701.8a]: a player can't be named in the destroy deed's
 patient role. -/
 theorem badDestroyedPlayer :
-    (StaticSpec.check (DRS.ofList []) (cant any (destroy .you))).isEmpty = false := by
+    StaticSpec.check (DRS.ofList []) (cant any (destroy .you)) =
+      [.kindLte .player (.join .object .pile)] := by
   decide
 
 /-- Haste's body checks: its creature can attack, and its controller can activate its
@@ -306,7 +307,7 @@ theorem optionalTextChoiceIsPublished :
     Ability.checkText (DRS.ofList [])
         [ static (asEvent (does you (cast thisSpell)) (may (choose (a (and [isPlayer, isOther]))))),
           substitute ] = [] ∧
-      Ability.checkText (DRS.ofList []) [substitute] ≠ [] := by decide
+      Ability.checkText (DRS.ofList []) [substitute] = [.choiceRef .theChoice .player 0] := by decide
 
 /-- Assist's optional choice stays inside assist: no printed ability of the card reads "the chosen
 player" from it, though assist's own Mana Substitute does [CR#702.132a,607.2d]. -/

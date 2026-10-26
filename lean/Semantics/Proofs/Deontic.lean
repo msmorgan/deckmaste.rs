@@ -573,6 +573,21 @@ theorem okIndicativeCrewAsThough :
       StaticSpec.check (DRS.ofList []) Cards.cloudspireCaptainCrewLine = [] :=
   ⟨Cards.hotshotMechanic.ok, Cards.okCloudspireCaptainCrewLine⟩
 
+/-- Hotshot Mechanic: "… as though its power were 2 greater." -/
+theorem okLiteralAsThoughAmount :
+    StaticSpec.check (DRS.ofList [])
+      (asThough thisCreature (crew (allOf (hasSubtype vehicle))) (greaterBy .power 2)) = [] := by
+  decide
+
+/-- "… as though its power were greater by target creature's power.": an as-though amount reads
+a value and introduces no referent; a static ability is none of the targeted spells and abilities
+[CR#115.1a..115.1d,609.4]. -/
+theorem badAnnouncingAsThoughAmount :
+    StaticSpec.check (DRS.ofList [])
+      (asThough thisCreature (crew (allOf (hasSubtype vehicle)))
+        (greaterBy .power (.statOf (.stat .power) (target isCreature)))) = [.bindingless] := by
+  decide
+
 /-! ## Modal boxes close (`semantics-v3.md` §1.3, box 3) -/
 
 private def castFromGraveyard : Action :=

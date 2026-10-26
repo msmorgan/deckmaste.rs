@@ -136,4 +136,17 @@ theorem comparisonScopeIgnoresEveryEarlierOuterContext (rs : List Referent) (c i
     (some .object) normalizedOlder]
   rfl
 
+private def creatureCountAboveZero (domain : Predicate) : Predicate :=
+  .compareOver domain (.countOf (.described .all (.hasType .creature))) .greater (.lit 0)
+
+/-- A comparison whose domain writes no kind ranges over its head's kind: an object. -/
+theorem okComparisonOverAnObjectHead :
+    Predicate.checkAt .object (DRS.ofList []) (creatureCountAboveZero .isSource) = [] := by decide
+
+/-- A comparison binds one member of its domain, which a phrase denotes (`Kind.phrasal`): an
+object, a player or a quality, never a pile [CR#700.3b]. -/
+theorem badComparisonOverAPileHead :
+    Predicate.checkAt .pile (DRS.ofList []) (creatureCountAboveZero .isSource) =
+      [.phrasal .pile] := by decide
+
 end Semantics.Proofs.ComparisonBox

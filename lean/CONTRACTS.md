@@ -1390,7 +1390,7 @@ model applies it once per counter held: the +1/+1 counter's conferral is
 (`grants`). No conferral reads the count of its own kind. That reading is the
 model's: `Definition.check` checks each conferral once in the empty
 context and computes no multiplicity, so nothing in the checker depends on it
-(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`, which checks clean).
+(`p1p1CounterDefinitionZone`, `Proofs/Rules.lean`, states one counter's conferral).
 
 A definition's conferral is checked as the same syntax is inside a card
 (`Conferral.check`, `Check/Rules.lean`). There is no bearer exemption: since

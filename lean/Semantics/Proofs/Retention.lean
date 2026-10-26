@@ -192,8 +192,8 @@ color" as the creatures a grant reaches). Its axis may be open, with a domain or
 "each possible quality the listed characteristic could have" is any characteristic's
 [CR#702.16h,702.16i]: "protection from each mana value among artifacts you control". -/
 theorem eachKindLaws :
-    (let refusals := Ability.check emptyContext (protection (and [eachKind .color, isCreature]))
-     !refusals.isEmpty && refusals.all (· == .eachKindPlacement)) = true ∧
+    (Ability.check emptyContext (protection (and [eachKind .color, isCreature]))).eraseDups =
+      [.eachKindPlacement] ∧
     StaticSpec.check emptyContext (abilityGrant (allOf (eachKind .color)) flying)
       = [.eachKindPlacement] ∧
     Ability.check emptyContext

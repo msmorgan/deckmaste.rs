@@ -154,7 +154,9 @@ theorem staticSpecsAcceptTemplateValues :
 theorem amountTemplatesAcceptSubjects : (subjectPower (target isCreature)).check (DRS.ofList []) = [] := by decide
 theorem amountTemplatesIntroduceSelectionOnce :
     countOnes .object ((stepAmount 64 (DRS.ofList []) (subjectPower (target isCreature))).1) = 1 := by decide
-theorem amountTemplatesRejectMissingSubjects : (subjectPower it).check (DRS.ofList []) ≠ [] := by decide
+theorem amountTemplatesRejectMissingSubjects :
+    (subjectPower it).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
+
 theorem predicateTemplatesAcceptValues :
     Predicate.checkAt .object (DRS.ofList [outcomeB .damageDealt]) (powerEquals .thatMuch) = [] := by decide
 

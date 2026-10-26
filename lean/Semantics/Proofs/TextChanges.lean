@@ -35,7 +35,10 @@ end
 
 /-- The refusal a bracketed mismatch shares with its bare form is a real one. -/
 theorem bracketedKindMismatchIsRefused :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (bracketed isCreature)) ≠ [] := by
+    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (bracketed isCreature)) =
+        [.kindMismatch .player .object] ∧
+      NounPhrase.checkAt (some .player) (DRS.ofList []) (target isCreature) =
+        [.kindMismatch .player .object] := by
   decide
 
 /-- "Counter target spell [that wasn't cast from a hand]." -/

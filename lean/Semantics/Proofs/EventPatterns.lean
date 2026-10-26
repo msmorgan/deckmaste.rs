@@ -101,8 +101,8 @@ theorem entryAndAttachmentChoicesPublishTheirSort :
           [.static (entersChoosingPlayerSecretly thisCreature anOpponent), playerReader] = [] ∧
       Ability.checkText (DRS.ofList [])
           [.static (attachmentChoice thisCreature anOpponent), playerReader] = [] ∧
-      Ability.checkText (DRS.ofList []) [colorReader] ≠ [] ∧
-      Ability.checkText (DRS.ofList []) [playerReader] ≠ [] := by
+      Ability.checkText (DRS.ofList []) [colorReader] = [.choiceRef .theChoice (.quality .color) 0] ∧
+      Ability.checkText (DRS.ofList []) [playerReader] = [.choiceRef .theChoice .player 0] := by
   decide
 
 theorem entryAndAttachmentChoicesCheckTheirDomain :

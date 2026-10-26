@@ -35,6 +35,28 @@ theorem badRepeatedBallotOption :
 /-- "Starting with you, each player votes for death." -/
 theorem badSingletonBallot : Ballot.check (DRS.ofList []) (.byLabel ["death"]) = [.ballotLabelsOk] := by decide
 
+/-- Council's Judgment: "each player votes for a nonland permanent you don't control": a
+candidate ballot names one object each voter chooses [CR#701.38a,701.38b]. -/
+theorem okCandidateBallot :
+    Ballot.check (DRS.ofList []) (byCandidate (a (and [isPermanent, non isLand, youDontControl])))
+      = [] := by decide
+
+/-- "each player votes for all nonland permanents you don't control": a vote is for one choice
+[CR#701.38a], so a candidate ballot's phrase is an indefinite, a target or a counted mention, never
+a set-naming determiner. -/
+theorem badSetNamingCandidateBallot :
+    Ballot.check (DRS.ofList []) (byCandidate (allOf (and [isPermanent, non isLand, youDontControl])))
+      = [.choosable] := by decide
+
+/-- "Whenever a player votes": a vote watched as an event pattern needs no ballot written. -/
+theorem okWildcardBallotInAPattern :
+    GameEvent.check (DRS.ofList []) (does (a isPlayer) vote) = [] := by decide
+
+/-- "Each player votes.": a performed vote names the choices it is for [CR#701.38a]; only a
+pattern may leave its ballot open. -/
+theorem badWildcardBallotPerformed :
+    Action.check (DRS.ofList []) (instruct eachPlayer vote) = [.concreteBallot] := by decide
+
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
     Action.check (DRS.ofList [])
@@ -165,6 +187,38 @@ theorem okShuffleTheChosenPile :
       (.sequentially
         [ instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 [.faceDown, .faceDown]),
           choose onePile, .shuffle (.pile (.pro (.word .pile) .one)) ]) = [] := by
+  decide
+
+/-- "An opponent separates all creatures into two face-down piles." -/
+theorem okOneFacePerPile :
+    Action.check (DRS.ofList [])
+      (instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 [.faceDown, .faceDown])) = [] := by
+  decide
+
+/-- "An opponent separates all creatures into two piles" with one face written: a written face
+list gives each pile its face, so it names as many faces as piles. -/
+theorem badFaceCountMismatch :
+    Action.check (DRS.ofList [])
+      (instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 [.faceDown])) = [.facesFit] := by
+  decide
+
+/-- "An opponent separates all creatures into two piles. That player deals 1 damage to target
+creature.": a handoff names a player. -/
+theorem okHandoffAfterPartition :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ instruct anOpponent (separateIntoPiles (allOf isCreature) 2),
+          instruct (that .player) (dealDamage 1 (target isCreature)) ]) = [] := by
+  decide
+
+/-- "An opponent separates all creatures into two piles. Those piles deal 1 damage to target
+creature.": a handoff's performer is a player or an object, and a pile is not an object
+[CR#700.3b]. -/
+theorem badPileAsHandoffPerformer :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ instruct anOpponent (separateIntoPiles (allOf isCreature) 2),
+          instruct (those .pile) (dealDamage 1 (target isCreature)) ]) = [.handoffPerformer] := by
   decide
 
 /-- Cascade [CR#702.85a]: "cards exiled this way that weren't cast" reads the exiled run. -/

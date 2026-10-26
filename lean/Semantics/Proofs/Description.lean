@@ -409,6 +409,23 @@ theorem badNestedConjunction :
               exists_ (.and [isLand, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
   decide
 
+/-- "If you control a creature, a land, or an artifact, …" -/
+theorem okFlatConditionDisjunction :
+    Condition.check (DRS.ofList [])
+      (.or [ exists_ (.and [isCreature, .hasPossessor .controller .you]),
+             exists_ (.and [isLand, .hasPossessor .controller .you]),
+             exists_ (.and [isArtifact, .hasPossessor .controller .you]) ]) = [] := by
+  decide
+
+/-- "If you control a creature or a land, or you control an artifact, …": a disjunction is
+flat, its disjuncts written in one list, as a conjunction is (`badNestedConjunction`). -/
+theorem badNestedDisjunction :
+    Condition.check (DRS.ofList [])
+      (.or [ .or [exists_ (.and [isCreature, .hasPossessor .controller .you]),
+                  exists_ (.and [isLand, .hasPossessor .controller .you])],
+             exists_ (.and [isArtifact, .hasPossessor .controller .you]) ]) = [.flatDisjuncts] := by
+  decide
+
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Action.check (DRS.ofList [])

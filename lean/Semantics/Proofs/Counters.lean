@@ -38,6 +38,26 @@ theorem badChosenCounterKindRead :
       (ofChosen .counterKind) = [.chosenQualityRead .counterKind] := by
   decide
 
+/-- "An opponent separates all creatures into two piles. Put a +1/+1 counter on each creature
+in the pile of your choice." -/
+theorem okCountersOnCreaturesInAPile :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ instruct anOpponent (separateIntoPiles (allOf isCreature) 2),
+          putCounters 1 p1p1Counter (each (and [isCreature, .in_ (.pile (pileOfChoice .you))])) ])
+      = [] := by
+  decide
+
+/-- "An opponent separates all creatures into two piles. Put a +1/+1 counter on the pile of your
+choice.": a counter is placed on an object or a player [CR#122.1], and a pile is not an object
+[CR#700.3b]. -/
+theorem badCountersOnAPile :
+    Action.check (DRS.ofList [])
+      (.sequentially
+        [ instruct anOpponent (separateIntoPiles (allOf isCreature) 2),
+          putCounters 1 p1p1Counter (pileOfChoice .you) ]) = [.counterHolderKind] := by
+  decide
+
 /-- "this creature" -/
 theorem okAscribedSelf :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (.headed (.type .creature) .this) = [] := by decide

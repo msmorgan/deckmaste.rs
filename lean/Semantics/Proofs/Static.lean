@@ -202,10 +202,10 @@ private def nestCallers : Nat → Replacement → Replacement
 /-- A condition over a replacement nested more deeply than the checker reads is refused, rather
 than read as a replacement that does nothing. -/
 theorem conditionOverTooDeepReplacementIsRefused :
-    (StaticSpec.check (DRS.ofList [])
+    StaticSpec.check (DRS.ofList [])
       (replace (would you (draw 1))
         (doIf (is you (hasDesignation citysBlessing))
-          (nestCallers 9 (instead (draw 2)))))).contains .recursionLimit = true := by
+          (nestCallers 9 (instead (draw 2))))) = [.recursionLimit] := by
   decide
 
 /-! ### What a replacement makes of its event

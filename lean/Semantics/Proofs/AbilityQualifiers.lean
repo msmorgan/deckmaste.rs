@@ -64,7 +64,8 @@ theorem okYourSpeedIsFour :
 
 /-- Speed is a player's: an object's speed is refused. -/
 theorem badSpeedOfAnObject :
-    (Condition.check (DRS.ofList []) (.compareAmt (speedOf thisCreature) .eq 4)).isEmpty = false := by
+    Condition.check (DRS.ofList []) (.compareAmt (speedOf thisCreature) .eq 4) =
+      [.kindMismatch .player .object] := by
   decide
 
 /-! ## Printed-position selection -/

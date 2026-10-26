@@ -70,7 +70,8 @@ theorem okSharesColorWithThisCreature :
 /-- "creatures that share a color with target player": the other relatum is not an object. -/
 theorem badSharesWithAPlayer :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (allOf (.and [isCreature, .shares .color .share (target .isPlayer)])) ≠ [] := by
+      (allOf (.and [isCreature, .shares .color .share (target .isPlayer)])) =
+        [.kindMismatch .object .player] := by
   decide
 
 /-- "two creatures that share a creature type": an Agreement over a plural group. -/

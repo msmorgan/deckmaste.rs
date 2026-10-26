@@ -478,6 +478,14 @@ theorem badSingularNameAgreement :
       = [.plural] := by
   decide
 
+/-- "… all nonland cards in your hand with the same name": an Agreement's group is a counted or
+targeted mention ("two cards with the same name", `okPluralNameAgreement`), not every member of
+a set. -/
+theorem badUncountedNameAgreement :
+    NounPhrase.checkAt (some .object) (DRS.ofList [])
+      (.agree .cardName .share (allOf (.and [.not isLand, .in_ hand]))) = [.countedMention] := by
+  decide
+
 /-- "This spell can't be countered." -/
 theorem okCantBeCountered :
     StaticSpec.check (DRS.ofList []) (cant any (counter thisSpell)) = [] := by decide

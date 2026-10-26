@@ -743,4 +743,23 @@ theorem badChosenObjectNotUnique :
         [.chosenObjectRef .theChoice 0] := by
   decide
 
+/-- "As this creature enters, choose a color. Creatures are the chosen color in addition to their
+other colors." -/
+theorem okChosenColorEdit :
+    Ability.checkText (DRS.ofList [])
+      [ .static (entersChoosing thisCreature .color),
+        .static (.characteristicChange .any [.quality .adds (.chosen (.ofChosen .theChoice .color))]) ]
+      = [] := by
+  decide
+
+/-- "… Creatures are color in addition to their other colors.": a chosen quality is written as
+a chosen one ("the chosen color", "the color of your choice", a name, or a shared quality), not as
+the bare quality noun. -/
+theorem badUnchosenColorEdit :
+    Ability.checkText (DRS.ofList [])
+      [ .static (entersChoosing thisCreature .color),
+        .static (.characteristicChange .any [.quality .adds (.chosen (.qualityNoun .color none))]) ]
+      = [.qualityRead] := by
+  decide
+
 end Semantics.Proofs.Choice

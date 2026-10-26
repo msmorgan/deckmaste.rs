@@ -381,4 +381,21 @@ theorem eachPlayerAnchorsOnTheMember :
     Action.check (DRS.ofList []) action = [] ∧ anchorsOf action = [.member 0] := by
   decide
 
+/-- "Return another target creature card from your graveyard to your hand." on a creature: its
+Source's zone is unknown, so the Source anchors "another". -/
+theorem okOtherCardOnACreature :
+    Action.check (framed [.creature])
+        (returnToHand (target (and [isCreature, isOther, cardIn yourGraveyard]))) = [] ∧
+      anchorsOf (returnToHand (target (and [isCreature, isOther, cardIn yourGraveyard])))
+        (framed [.creature]) = [.source] := by
+  decide
+
+/-- The same line on an instant: the Source is a spell on the stack, never in a graveyard, and
+nothing earlier is a creature card in a graveyard, so "another" has no Contrast Anchor. -/
+theorem badOtherCardOnAnInstant :
+    Action.check (framed [.instant])
+      (returnToHand (target (and [isCreature, isOther, cardIn yourGraveyard]))) =
+      [.contrastAnchor .object] := by
+  decide
+
 end Semantics.Proofs.ContrastAnchor

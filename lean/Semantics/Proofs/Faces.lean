@@ -43,6 +43,13 @@ theorem okSpellAbilityOnInstant :
           text := [spell (draw 1)] }) = [] := by
   decide
 
+/-- A face is named [CR#201.1]: an instant with no name line is refused. `okSpellAbilityOnInstant`
+is its named twin. -/
+theorem badUnnamedFace :
+    Card.check (one { name := none, cost := some [pip .blue], types := [.instant], text := [spell (draw 1)] })
+      = [.cardName] := by
+  decide
+
 /-- "Cast this spell only during the declare attackers step. Draw a card." -/
 theorem okCastWindowOnSpell :
     Card.check

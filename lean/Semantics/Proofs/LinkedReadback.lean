@@ -593,4 +593,21 @@ theorem okGrantReadsLaterExile :
 
 end LinkedEntry
 
+/-- Stormscape Battlemage: "When this creature enters, if it was kicked with its first kicker,
+you gain 3 life." [CR#702.33f]. -/
+theorem okFirstKickerRead :
+    Ability.check (DRS.ofList [])
+      (when (does thisCreature enter)
+        (if_ := costWasPaid (.byNthKeyword (.nth 1) kicker) none thisCreature) (gainLife 3)) = [] := by
+  decide
+
+/-- "… if it was kicked with its zeroth kicker …": a Link Source's ordinal counts from the first
+of its keyword's costs [CR#702.33f], so the zeroth names none. -/
+theorem badZerothKickerRead :
+    Ability.check (DRS.ofList [])
+      (when (does thisCreature enter)
+        (if_ := costWasPaid (.byNthKeyword (.nth 0) kicker) none thisCreature) (gainLife 3)) =
+      [.linkedFacetNamed] := by
+  decide
+
 end Semantics.Proofs.LinkedReadback
