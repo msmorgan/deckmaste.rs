@@ -1076,14 +1076,13 @@ semantic_template Status.become (status : Status) : Action := .setStatus status 
 `destination` with `riders` [CR#400.7]. "Put" and "return" name no deed, so the two verbs expand
 to the same move; each Template keeps its own wording. The written origin, not the verb, decides
 the Observation Point (`Location.observedOnDeparture`): observation follows the pattern, not an
-individual occurrence's origin, so a move from the battlefield or a graveyard (or, to a hand or
-library, from exile, the stack or the command zone), or from a list naming one of them, is observed
-on its departure, and "from anywhere" is not a leaves-the-battlefield trigger
-[CR#603.6c,603.10a]. -/
+individual occurrence's origin, so a move from the battlefield, or from a list naming it, is
+observed on its departure, and "from anywhere" is not a leaves-the-battlefield trigger
+[CR#603.6c]. -/
 private semantic_template zoneChange (subject : NounPhrase) (destination : Location)
     (from_ : Location) (riders : List MoveRider) : Action :=
   .move subject from_ destination
-    (if from_.observedOnDeparture destination then .departure else .arrival) riders
+    (if from_.observedOnDeparture then .departure else .arrival) riders
 /-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
 its owner's control". -/
 semantic_template putInto (subject : NounPhrase) (destination : Location)

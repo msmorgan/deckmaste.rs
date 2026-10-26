@@ -1560,23 +1560,16 @@ def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
   | _ + 1, .coord _ [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
 termination_by structural fuel
 
-/-- Whether a move from `from_` to `destination`, as a pattern, is observed on its departure.
-Some zone-change triggers look back in time: leaves-the-battlefield abilities, abilities that
-trigger when a card leaves a graveyard, and abilities that trigger when an object all players can
-see (here, from exile, the stack or the command zone) is put into a hand or library [CR#603.10a].
-The pattern's written origin decides, not an individual occurrence's: a positive origin list is
-observed on its departure when any of its origins is, since an ability that triggers when a
-permanent moves from the battlefield is a leaves-the-battlefield ability whatever else it watches
-[CR#603.6c]. A move from anywhere is never a leaves-the-battlefield ability [CR#603.6c]; it, and a
-move from a complement, is observed on its arrival.
-The put and return Templates write this classification into the move, and the checker reads a
-departure-observed move's battlefield patient as the permanent it was. -/
-def Location.observedOnDeparture (from_ destination : Location) : Bool :=
+/-- Whether a move from `from_`, as a pattern, is observed on its departure.
+A move is observed on its departure when any positive origin it writes is the battlefield, since an
+ability that triggers when a permanent moves from the battlefield is a leaves-the-battlefield
+ability whatever else it watches [CR#603.6c]. A move from anywhere is never a
+leaves-the-battlefield ability [CR#603.6c]; it, and a move from a complement, is observed on its
+arrival. The put and return Templates write this classification into the move, and the checker
+reads a departure-observed move's battlefield patient as the permanent it was. -/
+def Location.observedOnDeparture (from_ : Location) : Bool :=
   match from_.positiveZones? with
-  | some zones => zones.any fun zone =>
-      zone.sort == some .battlefield || zone.sort == some .graveyard ||
-        ((destination.sort == some .hand || destination.sort == some .library) &&
-          (zone.sort == some .exile || zone.sort == some .stack || zone.sort == some .command))
+  | some zones => zones.any fun zone => zone.sort == some .battlefield
   | none => false
 
 end Semantics

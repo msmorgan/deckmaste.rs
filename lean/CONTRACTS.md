@@ -1463,7 +1463,7 @@ In particular, graveyard arrival from anywhere is not a battlefield-departure
 pattern [CR#603.6c,603.10a]. The raw observation point retains the distinction.
 The put and return Templates take it from `Location.observedOnDeparture`, which
 classes a written origin list as departure-observed when any of its origins is
-(an ability that watches a permanent leave the battlefield is a
+the battlefield (an ability that watches a permanent leave the battlefield is a
 leaves-the-battlefield ability whatever else it watches [CR#603.6c]), and the
 checker reads a move's own observation point: only a departure-observed move
 from the battlefield reads its patient as the permanent it was, so a mixed

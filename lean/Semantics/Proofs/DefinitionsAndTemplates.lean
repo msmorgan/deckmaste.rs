@@ -132,14 +132,11 @@ theorem bareAndAllOfExpandToOneTree (p : Predicate) :
         getsPt (allOf (and [isCreature, youControl])) (up 1) (up 1) :=
   ⟨rfl, rfl⟩
 
-/-- A move from a graveyard to a hand is observed on its departure, whichever verb writes it: an
-ability that triggers when a card leaves a graveyard looks back in time [CR#603.10a]. -/
-theorem graveyardToHandObservedOnDeparture :
+/-- "Return <subject> from your graveyard to your hand" and "put <subject> into your hand from
+your graveyard" name no deed and expand to the same move, its written origin kept [CR#400.7]. -/
+theorem graveyardToHandVerbsExpandToOneMove :
     returnToHand (target isCreature) yourGraveyard =
-      .move (target isCreature) yourGraveyard (some hand) .departure [] ∧
-    putInto (target isCreature) hand (some yourGraveyard) =
-      .move (target isCreature) yourGraveyard (some hand) .departure [] :=
-  ⟨rfl, rfl⟩
+      putInto (target isCreature) hand (some yourGraveyard) := rfl
 
 /-- "X and Y", "X or Y" and "X and/or Y" are three encodings of a noun phrase. -/
 theorem nounPhraseCoordinatorsAreDistinct :

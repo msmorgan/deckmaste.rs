@@ -151,33 +151,36 @@ theorem returnsUnderTheOwnersControl :
       moves 64 Cards.gracefulReprieve = [(.anyLocation, .arrival, [(under (ownerOf it))])] :=
   ⟨rfl, rfl, rfl⟩
 
-/-- A move from a graveyard written with its printed origin is observed on departure, so a
-"leaves a graveyard" trigger sees it [CR#603.6c,603.10a]; the target keeps its own
-`in_ <graveyard>` for target legality [CR#115.1] (owner ruling 2026-10-24), and the checker
-accepts the pair. -/
-theorem graveyardOriginsAreDepartureObserved :
-    abilityMoves Cards.hammerOfBogardan = [(yourGraveyard, .departure, [])] ∧
-      moves 64 Cards.stormOfSouls = [(yourGraveyard, .departure, []), (.anyLocation, .arrival, [])] ∧
-      (moves 64 Cards.bondOfRevival).head? = some (yourGraveyard, .departure, []) ∧
-      (moves 64 Cards.everAfter).head? = some (yourGraveyard, .departure, []) ∧
-      (moves 64 Cards.riseFromTheGrave).head? = some (graveyard, .departure, [(.under .you)]) ∧
-      moves 64 Cards.hymnOfRebirth = [(graveyard, .departure, [(.under .you)])] ∧
-      (moves 64 Cards.theLastRoninII).getLast? = some (yourGraveyard, .departure, []) ∧
+/-- The written origin and riders of each zone change, without its Observation Point. -/
+private def written (ms : List (Location × ObservationPoint × List MoveRider)) :
+    List (Location × List MoveRider) :=
+  ms.map fun (origin, _, riders) => (origin, riders)
+
+/-- A move from a graveyard keeps its printed origin, "from your graveyard", on the move; the
+target keeps its own `in_ <graveyard>` for target legality [CR#115.1] (owner ruling 2026-10-24),
+and the checker accepts the pair. -/
+theorem graveyardOriginsAreWrittenOnTheMove :
+    written (abilityMoves Cards.hammerOfBogardan) = [(yourGraveyard, [])] ∧
+      written (moves 64 Cards.stormOfSouls) = [(yourGraveyard, []), (.anyLocation, [])] ∧
+      (written (moves 64 Cards.bondOfRevival)).head? = some (yourGraveyard, []) ∧
+      (written (moves 64 Cards.everAfter)).head? = some (yourGraveyard, []) ∧
+      (written (moves 64 Cards.riseFromTheGrave)).head? = some (graveyard, [(.under .you)]) ∧
+      written (moves 64 Cards.hymnOfRebirth) = [(graveyard, [(.under .you)])] ∧
+      (written (moves 64 Cards.theLastRoninII)).getLast? = some (yourGraveyard, []) ∧
       Action.check (DRS.ofList []) Cards.bondOfRevival = [] ∧
       Action.check (DRS.ofList []) Cards.hymnOfRebirth = [] := by
   refine ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, by decide, by decide⟩
 
 /-- The same on the spelled cards: Eerie Ultimatum, Rogues' Gallery, Blood Spatter Analysis's
 reflexive return, and Midnight Scavengers' front face, each "from your graveyard". -/
-theorem spelledGraveyardOriginsAreDepartureObserved :
-    (faceText Cards.eerieUltimatum.card).flatMap abilityMoves = [(yourGraveyard, .departure, [])] ∧
-      (faceText Cards.roguesGallery.card).flatMap abilityMoves =
-        [(yourGraveyard, .departure, [])] ∧
-      ((faceText Cards.bloodSpatterAnalysis.card).flatMap abilityMoves).getLast? =
-        some (yourGraveyard, .departure, []) ∧
-      (match Cards.midnightScavengers.card with
+theorem spelledGraveyardOriginsAreWrittenOnTheMove :
+    written ((faceText Cards.eerieUltimatum.card).flatMap abilityMoves) = [(yourGraveyard, [])] ∧
+      written ((faceText Cards.roguesGallery.card).flatMap abilityMoves) = [(yourGraveyard, [])] ∧
+      (written ((faceText Cards.bloodSpatterAnalysis.card).flatMap abilityMoves)).getLast? =
+        some (yourGraveyard, []) ∧
+      written (match Cards.midnightScavengers.card with
         | .transforming front _ => front.characteristics.text.flatMap abilityMoves
-        | _ => []) = [(yourGraveyard, .departure, [])] := ⟨rfl, rfl, rfl, rfl⟩
+        | _ => []) = [(yourGraveyard, [])] := ⟨rfl, rfl, rfl, rfl⟩
 
 /-- A bare "return it to the battlefield", with no rider and no origin, stays observed on
 arrival [CR#603.6a]. -/

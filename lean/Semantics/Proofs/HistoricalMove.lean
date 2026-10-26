@@ -60,7 +60,7 @@ private def mixedOrigin : Location := .coord .or [.zone .battlefield none, .zone
 from the battlefield or a hand reads the permanent the creature was [CR#603.6c,603.10a], as
 `Location.observedOnDeparture` classes it; the same move observed on arrival does not. -/
 theorem mixedOriginReadsThePermanentOnlyOnDeparture :
-    Location.observedOnDeparture mixedOrigin (.zone .graveyard none) = true ∧
+    Location.observedOnDeparture mixedOrigin = true ∧
     Condition.check context (.did { subj := .any
                                     action := .move creatureRead mixedOrigin
                                       (some (.zone .graveyard none)) .departure []
