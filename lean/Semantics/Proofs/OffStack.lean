@@ -292,7 +292,7 @@ writes. The host an effect names is an object or a player [CR#303.4b,701.3a]: a 
 be one, a color may not. -/
 theorem riderNegationIsOnlyAPattern :
     Action.check (DRS.ofList [])
-        (putWith (target isCreature) battlefield [.not (.entersAs .tapped)]) =
+        (put (target isCreature) battlefield [.not (.entersAs .tapped)]) =
       [.riderNegationPattern] ∧
     Action.check (DRS.ofList [])
         (putOntoBattlefieldAttachedTo (a (and [hasSubtype aura, cardIn yourHand]))

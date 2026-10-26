@@ -1142,12 +1142,8 @@ semantic_template rollDice (count : Amount := 1)
 /-- A card exiled face down: no characteristics [CR#406.3a]. -/
 semantic_template exiledFaceDown : FaceDown := ⟨none⟩
 /-- "put <subject> <destination>" -/
-semantic_template put (subject : NounPhrase) (destination : Location) : Action :=
-  zoneChange subject destination .anyLocation []
-/-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
-bottom") -/
-semantic_template putWith (subject : NounPhrase) (destination : Location)
-    (riders : List MoveRider) : Action :=
+semantic_template put (subject : NounPhrase) (destination : Location)
+    (riders : List MoveRider := []) : Action :=
   zoneChange subject destination .anyLocation riders
 /-- "return <subject> to <zone>" -/
 semantic_template returnTo (subject : NounPhrase) (destination : Location)

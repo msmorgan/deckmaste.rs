@@ -677,7 +677,7 @@ def elspethsTalent : Spelled := spelled <| singleFacedCard
 
 /-- Void Maw -/
 def voidMawPutCost : Ability :=
-  activated (put (a (in_ (exiledWith thisCreature))) graveyard)
+  activated (putInto (a (in_ (exiledWith thisCreature))) graveyard)
     (get thisCreature (up 2) (up 2) untilEndOfTurn)
 theorem okVoidMawPutCost : Ability.check (DRS.ofList []) voidMawPutCost = [] := by decide
 /-- Ghor-Clan Rampager -/
