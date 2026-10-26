@@ -1,4 +1,4 @@
-//! CR-rule coverage: scan citations, tier by binding strength, ratchet.
+//! CR-rule coverage: scan Mentioned and Bound citations, ratchet the Bound floor.
 
 /// Every rule mentioned in `[CR#…]` brackets in `text`.
 ///
@@ -76,12 +76,11 @@ use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Binding strength of a citation site. Ordered `Mentioned < Bound < Tested`.
+/// Binding strength of a citation site. Ordered `Mentioned < Bound`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Tier {
     Mentioned,
     Bound,
-    Tested,
 }
 
 /// Dirs never walked: VCS/build/generated/fixture trees. Repo-specific source
@@ -98,7 +97,9 @@ const SKIP_DIRS: &[&str] = &[
 ];
 const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr", "lean"];
 
-/// Classify a repo-relative path into its citation tier.
+/// Classify a repo-relative path into its citation tier: prose (anything
+/// under `docs/`, any `.md`) is `Mentioned`; every other scanned file,
+/// test files included, is `Bound`.
 #[must_use]
 #[expect(
     clippy::case_sensitive_file_extension_comparisons,
@@ -107,14 +108,13 @@ const EXTENSIONS: &[&str] = &["rs", "md", "ron", "idr", "lean"];
 )]
 pub fn tier_for_path(rel: &str) -> Tier {
     if rel.starts_with("docs/") || rel.ends_with(".md") {
-        return Tier::Mentioned;
+        Tier::Mentioned
+    } else {
+        Tier::Bound
     }
-    let is_test =
-        rel.contains("/tests/") || rel.contains("/Proofs/") || rel.starts_with("plugins/testing/");
-    if is_test { Tier::Tested } else { Tier::Bound }
 }
 
-/// Walk `root`, extracting every cited rule and keeping the strongest tier.
+/// Walk `root`, extracting every cited rule and keeping the highest tier.
 ///
 /// `excludes` are repo-relative path prefixes to skip (from
 /// `cite-config.json`'s `sources.exclude`, e.g. `crates/xtask/`).
@@ -168,49 +168,35 @@ fn starts_with_prefix(rel: &str, prefix: &str) -> bool {
     rel == p || rel.starts_with(&format!("{p}/"))
 }
 
-/// The committed coverage floor. Sets, not counts — each named rule is pinned
-/// at its tier and may not regress.
+/// The committed coverage floor. A set, not a count: each named rule is
+/// pinned at Bound and may not regress.
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Lock {
-    pub tested: Vec<String>,
-    pub strong: Vec<String>,
+    pub bound: Vec<String>,
 }
 
-/// Split a scan into the ratcheted tiers (`strong` = Tested ∪ Bound).
+/// Collect the ratcheted rules (those cited at `Bound`).
 #[must_use]
 pub fn lock_from_scan(scan: &BTreeMap<String, Tier>) -> Lock {
-    let mut tested: Vec<String> = scan
-        .iter()
-        .filter(|(_, t)| **t == Tier::Tested)
-        .map(|(r, _)| r.clone())
-        .collect();
-    let mut strong: Vec<String> = scan
+    let mut bound: Vec<String> = scan
         .iter()
         .filter(|(_, t)| **t >= Tier::Bound)
         .map(|(r, _)| r.clone())
         .collect();
-    tested.sort();
-    tested.dedup();
-    strong.sort();
-    strong.dedup();
-    Lock { tested, strong }
+    bound.sort();
+    bound.dedup();
+    Lock { bound }
 }
 
 /// Rules in `baseline` that `current` no longer covers at their tier.
 /// Empty result = the ratchet passes.
 #[must_use]
 pub fn check_ratchet(current: &Lock, baseline: &Lock) -> Vec<String> {
-    let cur_tested: BTreeSet<&String> = current.tested.iter().collect();
-    let cur_strong: BTreeSet<&String> = current.strong.iter().collect();
+    let cur_bound: BTreeSet<&String> = current.bound.iter().collect();
     let mut out = Vec::new();
-    for rule in &baseline.tested {
-        if !cur_tested.contains(rule) {
-            out.push(format!("{rule}: lost Tested coverage"));
-        }
-    }
-    for rule in &baseline.strong {
-        if !cur_strong.contains(rule) {
-            out.push(format!("{rule}: lost Strong coverage"));
+    for rule in &baseline.bound {
+        if !cur_bound.contains(rule) {
+            out.push(format!("{rule}: lost Bound coverage"));
         }
     }
     out
@@ -233,11 +219,7 @@ pub fn run(args: &[String]) -> anyhow::Result<()> {
         let json = serde_json::to_string_pretty(&current)?;
         std::fs::write(&path, format!("{json}\n"))
             .with_context(|| format!("writing {}", path.display()))?;
-        println!(
-            "blessed {LOCK_FILE}: {} tested, {} strong",
-            current.tested.len(),
-            current.strong.len()
-        );
+        println!("blessed {LOCK_FILE}: {} bound", current.bound.len());
         return Ok(());
     }
 
@@ -246,9 +228,8 @@ pub fn run(args: &[String]) -> anyhow::Result<()> {
         let regressions = check_ratchet(&current, &baseline);
         if regressions.is_empty() {
             println!(
-                "coverage ratchet OK: {} tested, {} strong (>= floor)",
-                current.tested.len(),
-                current.strong.len()
+                "coverage ratchet OK: {} bound (>= floor)",
+                current.bound.len()
             );
             return Ok(());
         }
@@ -317,8 +298,7 @@ fn chapter_name(chapter: u32) -> Option<&'static str> {
 #[derive(Default)]
 struct ChapterCounts {
     extant: usize,
-    strong: usize,
-    tested: usize,
+    bound: usize,
 }
 
 /// Expand `coverage.out_of_scope` to the concrete set of excluded rules.
@@ -400,13 +380,9 @@ fn report(root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
 
     let in_scope: Vec<&String> = extant.iter().filter(|r| !oos.contains(*r)).collect();
     let denom = in_scope.len().max(1);
-    let tested = in_scope
+    let bound = in_scope
         .iter()
-        .filter(|r| scan.get(**r) == Some(&Tier::Tested))
-        .count();
-    let strong = in_scope
-        .iter()
-        .filter(|r| matches!(scan.get(**r), Some(Tier::Tested | Tier::Bound)))
+        .filter(|r| scan.get(**r) == Some(&Tier::Bound))
         .count();
 
     println!(
@@ -414,12 +390,8 @@ fn report(root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
         oos.len()
     );
     println!(
-        "  Strong (Tested ∪ Bound): {strong:>5}  {:>3}%",
-        100 * strong / denom
-    );
-    println!(
-        "  Tested (gold):           {tested:>5}  {:>3}%",
-        100 * tested / denom
+        "  Bound (cited in code or tests): {bound:>5}  {:>3}%",
+        100 * bound / denom
     );
 
     // Group in-scope rules by chapter (leading section / 100); BTreeMap keeps
@@ -431,13 +403,8 @@ fn report(root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
         };
         let counts = chapters.entry(chapter).or_default();
         counts.extant += 1;
-        match scan.get(rule) {
-            Some(Tier::Tested) => {
-                counts.strong += 1;
-                counts.tested += 1;
-            }
-            Some(Tier::Bound) => counts.strong += 1,
-            _ => {}
+        if let Some(Tier::Bound) = scan.get(rule) {
+            counts.bound += 1;
         }
     }
 
@@ -446,12 +413,10 @@ fn report(root: &Path, scan: &BTreeMap<String, Tier>) -> anyhow::Result<()> {
         let label = chapter_name(*chapter)
             .map_or_else(|| chapter.to_string(), |name| format!("{chapter} {name}"));
         let chapter_denom = counts.extant.max(1);
-        let strong_ratio = format!("{}/{}", counts.strong, counts.extant);
+        let bound_ratio = format!("{}/{}", counts.bound, counts.extant);
         println!(
-            "  {label:<32} {strong_ratio:>9} ({:>3}%)   {:>5} ({:>3}%)",
-            100 * counts.strong / chapter_denom,
-            counts.tested,
-            100 * counts.tested / chapter_denom
+            "  {label:<32} {bound_ratio:>9} ({:>3}%)",
+            100 * counts.bound / chapter_denom
         );
     }
     Ok(())
@@ -529,9 +494,10 @@ mod tests {
     fn tier_by_path() {
         assert_eq!(
             tier_for_path("crates/deckmaste_engine/tests/activate.rs"),
-            Tier::Tested
+            Tier::Bound
         );
-        assert_eq!(tier_for_path("plugins/testing/cards/Foo.ron"), Tier::Tested);
+        assert_eq!(tier_for_path("plugins/testing/cards/Foo.ron"), Tier::Bound);
+        assert_eq!(tier_for_path("lean/Proofs/Foo.lean"), Tier::Bound);
         assert_eq!(
             tier_for_path("crates/deckmaste_engine/src/step/mod.rs"),
             Tier::Bound
@@ -544,6 +510,7 @@ mod tests {
         assert_eq!(tier_for_path("docs/tickets/done/foo.md"), Tier::Mentioned);
         // any markdown is prose regardless of dir
         assert_eq!(tier_for_path("README.md"), Tier::Mentioned);
+        assert_eq!(tier_for_path("crates/e/tests/notes.md"), Tier::Mentioned);
     }
 
     #[test]
@@ -557,22 +524,21 @@ mod tests {
 
     #[test]
     fn tier_ordering() {
-        assert!(Tier::Tested > Tier::Bound);
         assert!(Tier::Bound > Tier::Mentioned);
     }
 
     #[test]
-    fn scan_tree_strongest_tier_wins() {
+    fn scan_tree_bound_beats_mentioned() {
         let dir = tempdir_with(&[
             ("crates/e/src/a.rs", "// [CR#100.1] bound here"),
-            ("crates/e/tests/a.rs", "// [CR#100.1] also tested"),
+            ("crates/e/tests/a.rs", "// [CR#100.1] also bound"),
             ("docs/x.md", "[CR#200.2] only mentioned"),
             ("crates/e/tests/b.rs", r#"#[cr("300.3")]"#),
         ]);
         let scan = scan_tree(dir.path(), &[]);
-        assert_eq!(scan.get("100.1"), Some(&Tier::Tested)); // test beats src
+        assert_eq!(scan.get("100.1"), Some(&Tier::Bound)); // both paths are Bound
         assert_eq!(scan.get("200.2"), Some(&Tier::Mentioned));
-        assert_eq!(scan.get("300.3"), Some(&Tier::Tested)); // attribute counts
+        assert_eq!(scan.get("300.3"), Some(&Tier::Bound)); // attribute counts
     }
 
     #[test]
@@ -590,25 +556,28 @@ mod tests {
     }
 
     #[test]
-    fn lock_from_scan_partitions_tiers() {
+    fn lock_from_scan_keeps_bound_only() {
         let mut scan = BTreeMap::new();
-        scan.insert("100.1".to_string(), Tier::Tested);
+        scan.insert("100.1".to_string(), Tier::Bound);
         scan.insert("200.2".to_string(), Tier::Bound);
         scan.insert("300.3".to_string(), Tier::Mentioned);
         let lock = lock_from_scan(&scan);
-        assert_eq!(lock.tested, vec!["100.1"]);
-        assert_eq!(lock.strong, vec!["100.1", "200.2"]); // sorted, Mentioned excluded
+        assert_eq!(lock.bound, vec!["100.1", "200.2"]); // sorted, Mentioned excluded
+        let json = serde_json::to_value(&lock).unwrap();
+        let object = json.as_object().unwrap();
+        assert_eq!(
+            object.keys().map(String::as_str).collect::<Vec<_>>(),
+            vec!["bound"]
+        );
     }
 
     #[test]
     fn ratchet_passes_on_superset() {
         let base = Lock {
-            tested: vec!["100.1".into()],
-            strong: vec!["100.1".into(), "200.2".into()],
+            bound: vec!["100.1".into(), "200.2".into()],
         };
         let cur = Lock {
-            tested: vec!["100.1".into(), "400.4".into()],
-            strong: vec!["100.1".into(), "200.2".into(), "400.4".into()],
+            bound: vec!["100.1".into(), "200.2".into(), "400.4".into()],
         };
         assert_eq!(check_ratchet(&cur, &base), [] as [std::string::String; 0]);
     }
@@ -616,25 +585,15 @@ mod tests {
     #[test]
     fn ratchet_fails_and_names_regression() {
         let base = Lock {
-            tested: vec!["100.1".into()],
-            strong: vec!["100.1".into(), "200.2".into()],
+            bound: vec!["100.1".into(), "200.2".into()],
         };
         let cur = Lock {
-            tested: vec![],
-            strong: vec!["100.1".into()],
+            bound: vec!["100.1".into()],
         };
         let regressions = check_ratchet(&cur, &base);
-        assert_eq!(regressions.len(), 2); // 100.1 lost Tested, 200.2 lost Strong
-        assert!(
-            regressions
-                .iter()
-                .any(|r| r.contains("100.1") && r.contains("Tested"))
-        );
-        assert!(
-            regressions
-                .iter()
-                .any(|r| r.contains("200.2") && r.contains("Strong"))
-        );
+        assert_eq!(regressions.len(), 1);
+        assert!(regressions[0].contains("200.2"));
+        assert!(regressions[0].contains("lost Bound coverage"));
     }
 
     #[test]
@@ -645,17 +604,16 @@ mod tests {
         ]);
         let scan = scan_tree(dir.path(), &[]);
         let lock = lock_from_scan(&scan);
-        assert_eq!(lock.tested, vec!["100.1"]);
-        assert_eq!(lock.strong, vec!["100.1", "200.2"]);
+        assert_eq!(lock.bound, vec!["100.1", "200.2"]);
 
-        // Remove the test citation -> ratchet must flag 100.1 losing Tested.
+        // Remove the test citation -> ratchet must flag 100.1 losing Bound.
         std::fs::write(dir.path().join("crates/e/tests/a.rs"), "// no cite").unwrap();
         let scan2 = scan_tree(dir.path(), &[]);
         let regressions = check_ratchet(&lock_from_scan(&scan2), &lock);
         assert!(
             regressions
                 .iter()
-                .any(|r| r.contains("100.1") && r.contains("Tested"))
+                .any(|r| r.contains("100.1") && r.contains("lost Bound coverage"))
         );
     }
 
