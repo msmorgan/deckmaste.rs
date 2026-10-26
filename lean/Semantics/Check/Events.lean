@@ -101,10 +101,6 @@ termination_by structural fuel
 
 def NounPhrase.isYou := NounPhrase.isYouFuel 64
 
-def distinctDeeds : List Deed → Bool
-  | [] => true
-  | d :: ds => !ds.elem d && distinctDeeds ds
-
 /-- A definite referent of one entity of kind `k`: a player, or an object. -/
 def kindBinding (k : Kind) : Referent :=
   if k == .player then { det := .the, plur := .one, payload := .player false }

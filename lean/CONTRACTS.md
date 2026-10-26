@@ -937,7 +937,7 @@ expected child kinds in the incoming `DRS`.
 |---|---|
 | `OptOk` | Optional consumers step a present value and skip an absent one; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kind?` and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
-| `KnownAct` | The authoring boundary: a card names a keyword action through its Action Definition's generated deed constant (`elabDeedName`), and `Deed.action` is an internal expansion `spelled` refuses. The Definition is trusted to supply the corresponding expansion. |
+| `KnownAct` | The authoring boundary: a card names a keyword action through its Action Definition's generated deed constant (`elabDeedName`), and `Deed.action` is an internal expansion `spelled` refuses. Action Definitions sharing a keyword-action label must agree on `DeedPermanent` at declaration (`sharedDeedsAgree` and the mismatch refusals in `Proofs/Authoring.lean`); the Definition is trusted to supply the corresponding expansion. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Referent` has no separate kind field that can disagree. A handoff's performer is no `Payload` and no referent: it lives in `DRS.performers` (owner ruling 2026-10-24), so no reflexive, resolution, count or published referent sees it. |
 | `HeadTy` | No Lean type: `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |

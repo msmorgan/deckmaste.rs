@@ -97,7 +97,7 @@ theorem controlGrantRecordsItsPatientIdentity :
 theorem controlGrantRecordsItsCausedEvent :
     (stepAction 64 .postEvent .obj (DRS.ofList [])
         (gainControl (target isCreature) (some untilEndOfTurn))).1.causedEvents =
-      [{ deed := some (.core .gainControl), zoneChange := none, verbs := [.controlChanged],
+      [{ deed := some (.core .gainControl), zoneChange := none, verbs := [],
          performer := some .player, patient := some .object }] := by decide
 
 theorem thisWayReadsOnlyTheDeedWritten :

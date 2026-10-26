@@ -286,6 +286,45 @@ example : Spelled := spelled <| .singleFaced
 theorem deedIsGenerated : exile.deed = .action "exile" ∧ searchZonesOf.deed = search.deed ∧
     explore.deed = .action "explore" .performs := by decide
 
+-- The checker cannot import Definitions; pin its raw literals against generated deeds.
+theorem checkerDeedLiteralsMatchDefinitions :
+    (.action "cast" : Deed) = cast.deed ∧
+    (.action "play" : Deed) = play.deed ∧
+    searchDeed = search.deed ∧
+    (.action "tap" : Deed) = tap.deed := by decide
+
+-- Shared labels are allowed when their permanence agrees, even across modules and aliases.
+private semantic_definition tapAgain (subject : NounPhrase) : Action := tap subject
+private semantic_definition exploreAgain : Action := explore
+private semantic_definition adaptAgain : Action := adapt 1
+private semantic_definition localDeed : Action :=
+  .ownScope (some (.action "authoringWitness" .performs)) (.draw (.exactlyOf 1))
+private semantic_definition localDeedAgain : Action := localDeed
+
+theorem sharedDeedsAgree :
+    tapAgain.deed = tap.deed ∧ exploreAgain.deed = explore.deed ∧
+    adaptAgain.deed = adapt.deed ∧ localDeedAgain.deed = localDeed.deed := by decide
+
+/-- error: Action Definitions for deed "tap" must agree on DeedPermanent -/
+#guard_msgs in
+private semantic_definition tapMismatch : Action :=
+  .ownScope (some (.action "tap" .performs)) (.draw (.exactlyOf 1))
+
+/-- error: Action Definitions for deed "explore" must agree on DeedPermanent -/
+#guard_msgs in
+private semantic_definition exploreMismatch : Action :=
+  .ownScope (some (.action "explore" .isAbout)) (.draw (.exactlyOf 1))
+
+/-- error: Action Definitions for deed "adapt" must agree on DeedPermanent -/
+#guard_msgs in
+private semantic_definition adaptMismatch : Action :=
+  .ownScope (some (.action "adapt")) (.draw (.exactlyOf 1))
+
+/-- error: Action Definitions for deed "authoringWitness" must agree on DeedPermanent -/
+#guard_msgs in
+private semantic_definition localDeedMismatch : Action :=
+  .ownScope (some (.action "authoringWitness")) (.draw (.exactlyOf 1))
+
 /-- A Definition's name stands for its deed wherever a `Deed` is expected (`elabDeedName`). -/
 example : (exile : Deed) = exile.deed := rfl
 

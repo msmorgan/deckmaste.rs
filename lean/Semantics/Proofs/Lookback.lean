@@ -6,6 +6,29 @@ namespace Semantics.Proofs.Lookback
 open Semantics Semantics.Templates Semantics.Definitions
 
 
+-- These seven heads always identify their event by a Deed, with no fallback class needed.
+private def deedHeads : List (Action × Deed) :=
+  [ (.target .any, .core .target), (.draw (.exactlyOf 1), .core .draw), (.trigger, .core .trigger),
+    (.changeControl .any none, .core .gainControl), (.fullyUnlock .any, .core .fullyUnlock),
+    (.crew .any, .ofAbility (.named "crew")), (.saddle .any, .ofAbility (.named "saddle")) ]
+
+theorem deedHeadsReadBackWithoutEventClasses :
+    deedHeads.all (fun (action, deed) =>
+      action.namedDeed == some deed && action.eventVerbs.isEmpty &&
+      (action.causedEvent none none).readBy (some (.deed deed)) []) = true := by decide
+
+-- Bare heads remain in Core pins and Templates, so each still needs its event class.
+private def bareHeads : List (Action × EventVerb) :=
+  [ (.search yourLibrary .any, .searched), (.shuffle yourLibrary, .shuffled),
+    (.exchange (.zones hand graveyard), .exchanged),
+    (.vote none .openly (.byLabel ["alpha", "beta"]) none, .voted),
+    (.createObject 1 (.emblem none []) none, .created) ]
+
+theorem bareHeadsReadBackByEventClass :
+    bareHeads.all (fun (action, verb) =>
+      action.namedDeed.isNone &&
+      (action.causedEvent none none).readBy none [verb]) = true := by decide
+
 private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=
   Predicate.checkAt kind (DRS.ofList []) (.did clause)
 

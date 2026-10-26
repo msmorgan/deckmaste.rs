@@ -170,10 +170,9 @@ inductive EventVerb where
   | damageDealt | damageMarked | damageCleared | damagePrevented | damageRedirected
   | status (status : Status)
   | turnedOver | turnedFaceDown | combat | attacked | blocked | attackedUnblocked
-  | targeted | tappedForMana | crimeCommitted | attachment (move : AttachMove)
-  | controlChanged | designationGained | unlocked | fullyUnlocked | concluded
-  | triggered | crewed | saddled
-  | chose | voted | copied | life (sort : OutcomeSort) | exchanged | manaAdded | drew
+  | tappedForMana | crimeCommitted | attachment (move : AttachMove)
+  | designationGained | unlocked | concluded
+  | chose | voted | copied | life (sort : OutcomeSort) | exchanged | manaAdded
   | exposed (verb : ExposeVerb) | searched | shuffled | coinsFlipped | diceRolled
   | created | countersPut | countersRemoved | moved | paid
   | procedure (kind : Procedure) | related | merged

@@ -252,6 +252,17 @@ def actionDefinitionDeed? (name : Name) : MetaM (Option Expr) := do
       return none
     return some (mkApp2 (mkConst `Semantics.Deed.action) label permanent)
 
+/-- Definitions sharing a keyword-action label must agree on what the deed says of a
+Permanent, including Definitions imported from other modules. -/
+private def checkActionDeed (declaration : Name) (deed : Expr) : MetaM Unit := do
+  let env ← getEnv
+  for (name, _) in env.constants.toList do
+    if name != declaration && definitionAttribute.hasTag env name then
+      if let some other ← actionDefinitionDeed? name then
+        if (← isDefEq deed.appFn!.appArg! other.appFn!.appArg!) &&
+            !(← isDefEq deed.appArg! other.appArg!) then
+          throwError "Action Definitions for deed {deed.appFn!.appArg!} must agree on DeedPermanent"
+
 /-- The authored `Deed` an Action Definition generates: `exile.deed` is the keyword action
 `exile` performs. A card names a deed through it (`elabDeedName`), never by the internal
 `Deed.action`. -/
@@ -289,6 +300,7 @@ elab_rules : command
       }
       definitionAttribute.setTag labelName
     if let some deed ← liftTermElabM (actionDefinitionDeed? declaration) then
+      liftTermElabM <| checkActionDeed declaration deed
       let deedName := deedConstant declaration
       liftCoreM <| addAndCompile <| .defnDecl {
         name := deedName
