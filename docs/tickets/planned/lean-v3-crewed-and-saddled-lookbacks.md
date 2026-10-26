@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Pin "that crewed it this turn" and "that saddled it this turn"
 

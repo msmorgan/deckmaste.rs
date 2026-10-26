@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-spell-abilities-share-targets]
+needs: [lean-v3-spell-abilities-share-targets, semantics-v3-peer-files-and-toposort]
 ---
 # "If at least three [color] mana was spent to cast this spell"
 

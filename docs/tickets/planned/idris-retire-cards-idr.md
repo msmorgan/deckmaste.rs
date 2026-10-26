@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-dsl-and-plugins]
+needs: [semantics-v3-dsl-and-plugins, semantics-v3-peer-files-and-toposort]
 ---
 **[port-required: semantics-v3] Retire `idris/src/Cards.idr` by migrating its
 71-card coverage inventory into `lean/Semantics/Cards/` and `plugins_v3/`.**

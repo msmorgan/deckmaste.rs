@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # "When you lose control of <object>" has no event
 

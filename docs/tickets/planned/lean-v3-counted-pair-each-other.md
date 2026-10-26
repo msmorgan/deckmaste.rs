@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-reciprocal-each-other]
+needs: [lean-v3-reciprocal-each-other, semantics-v3-peer-files-and-toposort]
 ---
 # "Two target creatures … fight each other": a counted pair
 

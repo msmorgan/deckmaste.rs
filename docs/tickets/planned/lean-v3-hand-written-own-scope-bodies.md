@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Audit hand-written `ownScope` bodies in the proof suites
 

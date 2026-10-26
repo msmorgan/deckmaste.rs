@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-proofs-and-cards, lean-v3-authoring-surface, lean-v3-checker-and-drt-fixes, lean-v3-rules-and-card-fidelity, lean-v3-keyword-bodies-and-catalog-sync, lean-v3-proofs-and-docs-alignment, lean-v3-template-twins, lean-v3-exchange-through-definitions, lean-v3-authoring-default-leaks]
+needs: [lean-v3-proofs-and-cards, lean-v3-authoring-surface, lean-v3-checker-and-drt-fixes, lean-v3-rules-and-card-fidelity, lean-v3-keyword-bodies-and-catalog-sync, lean-v3-proofs-and-docs-alignment, lean-v3-template-twins, lean-v3-exchange-through-definitions, lean-v3-authoring-default-leaks, lean-v3-registry-definition-rename, lean-v3-definition-parameter-identities, lean-v3-deontic-head-gate, lean-v3-control-grant-caused-event, lean-v3-text-word-sort, lean-v3-departure-observation-battlefield-only, lean-v3-partitive-rest-reads-its-kind, lean-v3-bare-pronoun-consuming-verb, lean-v3-shuffle-keeps-last-known, lean-v3-deed-duplicates, lean-v3-checker-fuel-and-flags, lean-v3-checker-runtime-state-audit, lean-v3-doif-otherwise-reads-condition-mentions, lean-v3-compare-over-bound-reads-member]
 ---
 # Create deckmaste_semantics_v3 and plugins_v3 mirroring the proven Lean v3 specification
 
@@ -42,13 +42,15 @@ Standard constraints apply.
     `any`, `which`, bare numerals, and positional/named arguments parse and
     format directly without RON's one-embed-per-enum and struct/vec injection
     restrictions.
-- **`xtask lean` gates on `v3` and `v2` retirement:**
-  - Point `cargo xtask lean check`, `cargo xtask lean definitions`,
-    `cargo xtask lean macros`, and `cargo xtask facts check` at
-    `crates/deckmaste_semantics_v3` and `plugins_v3/` with `--deny-drift`
-    enforced.
+- **`xtask lean` gates on `v3` and `v2` retirement (completed with [`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md)):**
+  - All `Template(...)` and `Definition(...)` declarations in `plugins_v3/` live
+    as loose peer files and are topologically sorted by declaration dependency
+    to emit Lean declarations in proving order for `cargo xtask lean check`
+    ([`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md);
+    `cargo xtask lean definitions` is retired per `docs/decisions/semantics-v3.md`
+    §2).
   - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
-    this ticket (the pre-v4 `deckmaste_lexical_source` was deleted in
+    this cutover (the pre-v4 `deckmaste_lexical_source` was deleted in
     `english-v4-cutover-v3`, and the MTG lexical catalogs move into
     `plugins_v3/` metadata in `english-v4-final-suffix-cutover`).
   - Delete `plugins_v2/builtin/` and its reader `crates/deckmaste_macro_def`

@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Restore the printed head nouns that card spellings drop
 

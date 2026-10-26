@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # "Those spells" after a cast permission, and Ice Cauldron's noted mana
 

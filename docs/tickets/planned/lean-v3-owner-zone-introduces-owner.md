@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-checker-and-drt-fixes]
+needs: [lean-v3-checker-and-drt-fixes, semantics-v3-peer-files-and-toposort]
 ---
 # "Its owner's hand" introduces the owner
 

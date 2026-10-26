@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Venture into the dungeon, dungeon cards and the initiative's venture triggers
 

@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-colored-mana-spent-count]
+needs: [lean-v3-colored-mana-spent-count, semantics-v3-peer-files-and-toposort]
 ---
 # "At least three mana of the same color was spent to cast it"
 

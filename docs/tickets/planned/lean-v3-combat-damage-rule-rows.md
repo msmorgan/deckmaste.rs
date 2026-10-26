@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Combat damage rules as rows: first strike, double strike, trample, banding, deathtouch
 
