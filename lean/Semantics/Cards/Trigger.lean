@@ -175,7 +175,7 @@ def youngPyromancer : Spelled := spelled <| singleFacedCard
     text :=
       [ whenever (does you (cast (a
         (and [isInstantOrSorcery, isSpell]))))
-          (createToken (creatureToken 1 1 [.red] [elemental]))
+          (create 1 (creatureToken 1 1 [.red] [elemental]))
                 ],
     power := stat 2, toughness := stat 1 }
 
@@ -392,10 +392,10 @@ def chromeReplicator : Spelled := spelled <| singleFacedCard
           (if_ := some (thereAre (withTheSameName
             (counted (orMore 2)
               (and [isPermanent, non isLand, isNontoken, youControl])))))
-          (createToken
+          (create 1 (written
             { characteristics :=
               { types := [.artifact, .creature], subtypes := [construct],
-                power := stat 4, toughness := stat 4 } }) ],
+                power := stat 4, toughness := stat 4 } })) ],
     power := stat 4, toughness := stat 4 }
 
 def admiralsOrder : Spelled := spelled <| singleFacedCard
@@ -474,7 +474,7 @@ def defilingDaemogothDrain : Action :=
 theorem okDefilingDaemogothDrain : Action.check (DRS.ofList []) defilingDaemogothDrain = [] := by decide
 def skullsporeNexusTrigger : Ability :=
   whenever (does (counted (orMore 1) (and [isNontoken, and [isCreature, youControl]])) die)
-    (createToken (creatureTokenOf (totalOf (.stat .power) (those card))
+    (create 1 (creatureTokenOf (totalOf (.stat .power) (those card))
         (totalOf (.stat .power) (those card))
         [.green] [fungus, dinosaur]))
 theorem okSkullsporeNexusTrigger : Ability.check (DRS.ofList []) skullsporeNexusTrigger = [] := by decide
@@ -647,7 +647,7 @@ def ferociousPup : Spelled := spelled <| singleFacedCard
     subtypes := [wolf],
     text :=
       [ when (does thisCreature enter)
-          (createToken (creatureToken 2 2 [.green] [wolf])) ],
+          (create 1 (creatureToken 2 2 [.green] [wolf])) ],
     power := stat 0, toughness := stat 1 }
 
 /-- Agency Outfitter's search -/
@@ -776,7 +776,7 @@ def autarchMammothLine : Ability :=
   when (does thisCreature enter)
     (joins := [ joinedHeadWhile (does thisCreature attack)
         (whileTrue (is thisCreature (hasDesignation saddled))) ])
-    (createToken (creatureToken 3 3 [.green] [elephant]))
+    (create 1 (creatureToken 3 3 [.green] [elephant]))
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
@@ -788,7 +788,7 @@ def foulEmissaryLine : Ability :=
   when (does you (sacrifice thisCreature))
     (while_ := some (whileDoing (does you (cast (a
       (and [isSpell, hasKeyword (.the emerge)]))))))
-    (createToken (creatureToken 3 2 [] [eldrazi, horror]))
+    (create 1 (creatureToken 3 2 [] [eldrazi, horror]))
 theorem okFoulEmissaryLine : Ability.check (DRS.ofList []) foulEmissaryLine = [] := by decide
 
 /-- Bramble Elemental -/
@@ -797,7 +797,7 @@ def brambleElemental : Spelled := spelled <| singleFacedCard
     types := [.creature], subtypes := [elemental],
     text :=
       [ whenever (does any (attachment .attached (a aura) thisCreature))
-          (createToken (creatureToken 1 1 [.green] [saproling]) (count := 2)) ],
+          (create 2 (creatureToken 1 1 [.green] [saproling])) ],
     power := stat 4, toughness := stat 4 }
 
 /-- Stone Haven Outfitter -/
@@ -854,7 +854,7 @@ def promiseOfBunrei : Spelled := spelled <| singleFacedCard
     text :=
       [ when (does (a (and [isCreature, youControl])) die)
           (doIfDone (sacrifice thisEnchantment)
-            (createToken (creatureToken 1 1 [] [spirit]) (count := 4))) ] }
+            (create 4 (creatureToken 1 1 [] [spirit]))) ] }
 
 /-- Grave Peril -/
 def gravePeril : Spelled := spelled <| singleFacedCard
@@ -989,7 +989,7 @@ def bairdArgivianRecruiter : Spelled := spelled <| singleFacedCard
       [ at_ (beginningOfYour .endStep)
           (if_ := some (exists_ (compareOver (and [isCreature, youControl])
             (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0)))
-          (createToken (creatureToken 1 1 [.white] [soldier])) ],
+          (create 1 (creatureToken 1 1 [.white] [soldier])) ],
     power := stat 2, toughness := stat 2 }
 
 /-- Curie, Emergent Intelligence's first ability: "Whenever Curie deals combat damage to a

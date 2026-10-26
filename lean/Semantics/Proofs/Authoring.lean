@@ -347,6 +347,9 @@ private def coldStorageWritten : Spelled := spelled <| .singleFaced
             (returnToBattlefield (each (and [isCreature, exiledWithThisArtifact]))
               [(under you)]) ] } }
 
+theorem tokenBundleCoercionIsWritten (t : CharacteristicBundle) (n : Amount) :
+    create n t = create n (written t) := rfl
+
 theorem costCoercionsKeepTheCard : Cards.coldStorage.card = coldStorageWritten.card := rfl
 
 theorem costCoercionsKeepTheAuthoring :

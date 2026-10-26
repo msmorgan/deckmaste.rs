@@ -37,7 +37,7 @@ def thopterToken : CharacteristicBundle :=
     { types := [.artifact, .creature], subtypes := [thopter],
       text := [flying], power := stat 1, toughness := stat 1 } }
 
-def aviationPioneer : Action := createToken thopterToken
+def aviationPioneer : Action := create 1 thopterToken
 theorem okAviationPioneer : Action.check (DRS.ofList []) aviationPioneer = [] := by decide
 def fireNavyTrebuchet : Action :=
   createTappedAttacking 1
@@ -72,9 +72,9 @@ def lightningBlow : Action :=
   gain (target isCreature) firstStrike untilEndOfTurn
 theorem okLightningBlow : Action.check (DRS.ofList []) lightningBlow = [] := by decide
 def deathByDragons : Action :=
-  instruct (each (and [isPlayer, otherThan (target isPlayer)])) (createToken { characteristics :=
+  instruct (each (and [isPlayer, otherThan (target isPlayer)])) (create 1 (written { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [dragon],
-          text := [flying], power := stat 5, toughness := stat 5 } })
+          text := [flying], power := stat 5, toughness := stat 5 } }))
 theorem okDeathByDragons : Action.check (DRS.ofList []) deathByDragons = [] := by decide
 
 /-- Concordant Crossroads -/
@@ -211,7 +211,7 @@ def eomerOfTheRiddermark : Spelled := spelled <| singleFacedCard
         whenever (does thisCreature attack)
           (if_ := some (exists_ (and [ isCreature, youControl,
                            superlative .max (.stat .power) (and [isCreature, isPermanent]) ])))
-          (createToken (creatureToken 1 1 [.white] [human, soldier])) ],
+          (create 1 (creatureToken 1 1 [.white] [human, soldier])) ],
     power := stat 5, toughness := stat 4 }
 
 def angelicGift : Spelled := spelled <| singleFacedCard
@@ -289,12 +289,11 @@ def divineVisitation : Spelled := spelled <| singleFacedCard
   { name := "Divine Visitation", cost := [generic 3, pip .white, pip .white],
     types := [.enchantment],
     text :=
-      [ static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) (and [isCreature, isToken]))) []) you)) (instead (createToken
+      [ static (replace (would any (createObject anyAmount (token (copyOf (counted (orMore 1) (and [isCreature, isToken]))) []) you)) (instead (create groupSize (written
             { characteristics :=
               { colors := [.white], types := [.creature], subtypes := [angel],
                 text := [flying,
-                         vigilance], power := stat 4, toughness := stat 4 } } (count :=
-                                                                                 groupSize)))) ] }
+                         vigilance], power := stat 4, toughness := stat 4 } })))) ] }
 
 def adrixAndNev : Spelled := spelled <| singleFacedCard
   { name := "Adrix and Nev, Twincasters", cost := [generic 2, pip .green, pip .blue],
@@ -452,7 +451,7 @@ def livingHive : Spelled := spelled <| singleFacedCard
     text :=
       [ trample,
         whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
-          (createToken (creatureToken 1 1 [.green] [insect]) (count := thatMuch)) ],
+          (create thatMuch (creatureToken 1 1 [.green] [insect])) ],
     power := stat 6, toughness := stat 6 }
 
 def giantCindermaw : Spelled := spelled <| singleFacedCard
@@ -543,10 +542,10 @@ def historyOfBenalia : Spelled := spelled <| singleFacedCard
     types := [.enchantment], subtypes := [saga],
     text :=
       [ when (chapterMark [1, 2])
-          (createToken
+          (create 1 (written
             { characteristics :=
               { colors := [.white], types := [.creature], subtypes := [knight],
-                text := [vigilance], power := stat 2, toughness := stat 2 } }),
+                text := [vigilance], power := stat 2, toughness := stat 2 } })),
         when (chapterMark [3])
           (get (allOf (and [knight, youControl]))
             (up 2) (up 1) untilEndOfTurn) ] }
@@ -816,9 +815,9 @@ def descentOfTheDragons : Action :=
   sequentially
     [ destroy (targets anyNumber isCreature),
       doForEach (each (and [isCreature, was (destroy which) thisWay]))
-        (instruct (controllerOf it) (createToken { characteristics :=
+        (instruct (controllerOf it) (create 1 (written { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [dragon],
-                text := [flying], power := stat 4, toughness := stat 4 } })) ]
+                text := [flying], power := stat 4, toughness := stat 4 } }))) ]
 theorem okDescentOfTheDragons : Action.check (DRS.ofList []) descentOfTheDragons = [] := by decide
 /-- Brimaz, King of Oreskos -/
 def brimazAttackToken : Ability :=
@@ -880,7 +879,7 @@ def ragavanNimblePilferer : Spelled := spelled <| singleFacedCard
     text :=
       [ whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
           (sequentially
-            [ createToken treasureToken,
+            [ create 1 treasureToken,
               exile (slice .top 1 (libraryOf (that player))),
               establishThroughout (can you (cast (that card))) untilEndOfTurn ]),
         dash [generic 1, pip .red] ],
@@ -1075,7 +1074,7 @@ def conquerorsPledge : Spelled := spelled <| singleFacedCard
     text :=
       [ kicker [generic 6],
         spell (replace
-          (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := 6))
+          (create 6 (creatureToken 1 1 [.white] [kor, soldier]))
           (doIf (keywordCostPaid kicker this_)
             (instead (create 12 asThose [])))) ] }
 
@@ -1085,9 +1084,9 @@ def soulOfEmancipation : Ability :=
     (sequentially
       [ destroy (targets (upTo 3) (and [isPermanent, non isLand, isOther])),
         doForEach (those permanent)
-          (instruct (controllerOf (that permanent)) (createToken { characteristics :=
+          (instruct (controllerOf (that permanent)) (create 1 (written { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
-                  text := [flying], power := stat 3, toughness := stat 3 } })) ])
+                  text := [flying], power := stat 3, toughness := stat 3 } }))) ])
 theorem okSoulOfEmancipation : Ability.check (DRS.ofList []) soulOfEmancipation = [] := by decide
 
 /-- Tourach, Dread Cantor -/
@@ -1106,10 +1105,10 @@ def tourachDreadCantor : Spelled := spelled <| singleFacedCard
 
 /-- Talrand's Invocation -/
 def talrandsInvocation : Action :=
-  createToken
+  create 2 (written
     { characteristics :=
       { colors := [.blue], types := [.creature], subtypes := [drake],
-        text := [flying], power := stat 2, toughness := stat 2 } } (count := 2)
+        text := [flying], power := stat 2, toughness := stat 2 } })
 theorem okTalrandsInvocation : Action.check (DRS.ofList []) talrandsInvocation = [] := by decide
 
 /-- Predatory Wurm -/
@@ -1146,7 +1145,7 @@ def aimHigh : Spelled := spelled <| singleFacedCard
 
 /-- Harried Dronesmith -/
 def harriedDronesmithToken : Action :=
-  sequentially [createToken thopterToken, gainHaste thatToken untilEndOfTurn]
+  sequentially [create 1 thopterToken, gainHaste thatToken untilEndOfTurn]
 theorem okHarriedDronesmithToken : Action.check (DRS.ofList []) harriedDronesmithToken = [] := by decide
 
 /-- Archfiend's Vessel -/
@@ -1160,10 +1159,10 @@ def archfiendsVessel : Spelled := spelled <| singleFacedCard
             [ did it (enter (from_ := yourGraveyard)) triggering,
               is it (did you (cast which (from_ := yourGraveyard)) thisObject) ]))
           (doIfDone (exile it)
-            (some <| createToken
+            (some <| create 1 (written
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [demon],
-                  text := [flying], power := stat 5, toughness := stat 5 } })) ],
+                  text := [flying], power := stat 5, toughness := stat 5 } }))) ],
     power := stat 1, toughness := stat 1 }
 
 /-- Containment Priest -/
@@ -1322,7 +1321,7 @@ def ancestralBlade : Spelled := spelled <| singleFacedCard
     text :=
       [ when (does thisEquipment enter)
           (sequentially
-            [ createToken (creatureToken 1 1 [.white] [soldier]),
+            [ create 1 (creatureToken 1 1 [.white] [soldier]),
               attachTo thisEquipment thatToken ]),
         static (getsPt (equipped creature) (up 1) (up 1)),
         equip [generic 1] ] }
@@ -1564,12 +1563,12 @@ def tuktukTheExplorer : Spelled := spelled <| singleFacedCard
     text :=
       [ haste,
         when (does thisCreature die)
-          (createToken
+          (create 1 (written
             { characteristics :=
               { name := "Tuktuk the Returned", supertypes := [.legendary],
                 types := [.artifact, .creature],
                 subtypes := [goblin, golem],
-                power := stat 5, toughness := stat 5 } }) ],
+                power := stat 5, toughness := stat 5 } })) ],
     power := stat 1, toughness := stat 1 }
 
 /-- Artificer's Assistant -/
@@ -1593,10 +1592,10 @@ def ayaOfAlexandria : Spelled := spelled <| singleFacedCard
         whenever
           (does (a (and [isHistoric, isCreature, youControl]))
              (dealDamage (to := a isPlayer) (kind := some .combat)))
-          (createToken
+          (create 1 (written
             { characteristics :=
               { colors := [.black], types := [.creature], subtypes := [assassin],
-                text := [menace], power := stat 1, toughness := stat 1 } }) ],
+                text := [menace], power := stat 1, toughness := stat 1 } })) ],
     power := stat 4, toughness := stat 3 }
 
 /-- Indestructibility -/
@@ -1618,12 +1617,11 @@ def seraphicGreatsword : Spelled := spelled <| singleFacedCard
              (attack
                 (some
                    (a (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
-          (create 1
-            (written
-              { characteristics :=
-                { colors := [.white], types := [.creature], subtypes := [angel],
-                  text := [flying], power := stat 4, toughness := stat 4 } })
-            [entersAs .tapped, entersAttacking (that player)]),
+          (createTappedAttacking 1
+            { characteristics :=
+              { colors := [.white], types := [.creature], subtypes := [angel],
+                text := [flying], power := stat 4, toughness := stat 4 } }
+            (some (that player))),
         equip [generic 4] ] }
 
 def giantGrowth : Action :=
@@ -1804,7 +1802,7 @@ def nissaAscendedAnimist : Spelled := spelled <| singleFacedCard
       [ compleated,
         activated (loyaltySymbol (up 1))
           (sequentially
-            [ createToken (creatureTokenOf (letter .x) (letter .x) [.green] [phyrexian, horror]),
+            [ create 1 (creatureTokenOf (letter .x) (letter .x) [.green] [phyrexian, horror]),
               define .x (statOf (.stat .loyalty) thisPlaneswalker) ]),
         activated (loyaltySymbol (down 1)) (destroy (target (or [isArtifact, isEnchantment]))),
         activated (loyaltySymbol (down 7))

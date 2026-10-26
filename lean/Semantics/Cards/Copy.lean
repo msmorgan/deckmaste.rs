@@ -43,10 +43,10 @@ def frontlineHeroismCopy : Ability :=
                    youControl]))
                    .soleTarget ]))))
     (sequentially
-      [ createToken
+      [ create 1 (written
           { characteristics :=
             { colors := [.red], types := [.creature], subtypes := [soldier],
-              text := [haste], power := stat 1, toughness := stat 1 } },
+              text := [haste], power := stat 1, toughness := stat 1 } }),
         copyOnStack (that .spell),
         copyTargets (that .copy) thatToken ])
 theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismCopy = [] := by decide

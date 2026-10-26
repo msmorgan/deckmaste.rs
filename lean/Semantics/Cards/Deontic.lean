@@ -721,12 +721,12 @@ def harriedSpearguard : Spelled := spelled <| singleFacedCard
     text :=
       [ haste,
         when (does thisCreature die)
-          (createToken
+          (create 1 (written
             { characteristics :=
               { colors := [.black], types := [.creature], subtypes := [rat],
                 text :=
                   [ static (cant thisToken block) ],
-                power := stat 1, toughness := stat 1 } }) ],
+                power := stat 1, toughness := stat 1 } })) ],
     power := stat 1, toughness := stat 1 }
 
 /-- Arrest -/

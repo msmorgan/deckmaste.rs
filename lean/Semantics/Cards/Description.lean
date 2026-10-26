@@ -132,7 +132,7 @@ def timelyReinforcements : Spelled := spelled <| singleFacedCard
               (gainLife 6),
             doIf (compareAmt (countOf (and [isCreature, youControl])) .less
                     (countOf (and [isCreature, anOpponentControls])))
-              (createToken (creatureToken 1 1 [.white] [soldier]) (count := 3)) ]) ] }
+              (create 3 (creatureToken 1 1 [.white] [soldier])) ]) ] }
 
 /-- Survival Cache -/
 def survivalCache : Action :=
@@ -219,10 +219,10 @@ def phyrexianRebirth : Spelled := spelled <| singleFacedCard
     text :=
       [ spell (sequentially
           [ destroy (allOf isCreature),
-            createToken { characteristics :=
+            create 1 (written { characteristics :=
                   { types := [.artifact, .creature],
                     subtypes := [phyrexian, horror],
-                    power := letter .x, toughness := (letter .x) } },
+                    power := letter .x, toughness := (letter .x) } }),
             define .x
                 (countOf (and [isCreature, was (destroy which) thisWay])) ]) ] }
 
@@ -504,7 +504,7 @@ theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOf
 /-- Squad Commander -/
 def squadCommanderTokens : Ability :=
   when (does thisCreature enter)
-    (createToken (creatureToken 1 1 [.white] [kor, warrior]) (count := partySize))
+    (create partySize (creatureToken 1 1 [.white] [kor, warrior]))
 theorem okSquadCommanderTokens : Ability.check (DRS.ofList []) squadCommanderTokens = [] := by decide
 
 /-- At Knifepoint -/
@@ -512,7 +512,7 @@ def atKnifepointOutlaws : Ability :=
   static (partScope .turn you
             (abilityGrant (allOf (and [isOutlaw, youControl])) firstStrike))
 def atKnifepointCrime : Ability :=
-  whenever (does you commitCrime) (createToken
+  whenever (does you commitCrime) (create 1 (written
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [mercenary],
           text :=
@@ -520,7 +520,7 @@ def atKnifepointCrime : Ability :=
                 (get (target (and [isCreature, youControl])) (up 1) (up 0)
                   untilEndOfTurn)
                 asSorcery ],
-          power := stat 1, toughness := stat 1 } }) (limit := oncePerTurn)
+          power := stat 1, toughness := stat 1 } })) (limit := oncePerTurn)
 def atKnifepoint : Spelled := spelled <| singleFacedCard
   { name := "At Knifepoint", cost := [generic 1, pip .black, pip .red],
     types := [.enchantment], text := [atKnifepointOutlaws, atKnifepointCrime] }

@@ -159,7 +159,7 @@ def orochiEggwatcher : Spelled := spelled <| .flip
       text :=
         [ activated (compound [[generic 2, pip .green], tapSymbol])
             (sequentially
-              [ createToken (creatureToken 1 1 [.green] [snake]),
+              [ create 1 (creatureToken 1 1 [.green] [snake]),
                 doIf (compareAmt (countOf (and [isCreature, youControl])) .atLeast 10)
                   (flip thisCreature) ]) ],
       power := stat 1, toughness := stat 1 } }
@@ -353,7 +353,7 @@ def arlinnKord : Spelled := spelled <| .transforming
               untilEndOfTurn),
           activated (loyaltySymbol (up 0))
             (sequentially
-              [ createToken (creatureToken 2 2 [.green] [wolf]),
+              [ create 1 (creatureToken 2 2 [.green] [wolf]),
                 transform thisPlaneswalker ]) ],
       loyalty := stat 3 } }
   { characteristics :=
@@ -417,7 +417,7 @@ def cultOfTheWaxingMoon : Spelled := spelled <| singleFacedCard
       [ whenever
           (does any (transform (a (and [isPermanent, youControl]))
             (into := some (and [isCreature, not (hasSubtype human)]))))
-          (createToken (creatureToken 2 2 [.green] [wolf])) ],
+          (create 1 (creatureToken 2 2 [.green] [wolf])) ],
     power := stat 5, toughness := stat 4 }
 
 /-- Chittering Host's face, as both melding cards carry it. -/
@@ -603,17 +603,17 @@ def garrukRelentless : Spelled := spelled <| .transforming
         [ garrukRelentlessFlip,
           activated (loyaltySymbol (up 0)) garrukRelentlessFight,
           activated (loyaltySymbol (up 0))
-            (createToken (creatureToken 2 2 [.green] [wolf])) ],
+            (create 1 (creatureToken 2 2 [.green] [wolf])) ],
       loyalty := stat 3 } }
   { characteristics :=
     { name := "Garruk, the Veil-Cursed", supertypes := [.legendary], types := [.planeswalker],
       subtypes := [garruk],
       text :=
         [ activated (loyaltySymbol (up 1))
-            (createToken
+            (create 1 (written
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [wolf],
-                  text := [deathtouch], power := stat 1, toughness := stat 1 } }),
+                  text := [deathtouch], power := stat 1, toughness := stat 1 } })),
           activated (loyaltySymbol (down 1))
             (doIfDone (sacrifice (a isCreature))
               (sequentially

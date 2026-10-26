@@ -123,8 +123,10 @@ nested in printed-data records.
 The authoring coercions expand before `inspect` reads the term, so `spelled` sees the Template
 they stand for and the retained Form is the one the written-out call gives: core's `α → Option α`
 (`untilEndOfTurn` for `some untilEndOfTurn`), a written mana cost as a `Cost` (`[generic 1]` for
-`mana [generic 1]`), an `Action` as a `Cost` (`sacrifice thisArtifact` for `perform (…)`), and a
-catalog `Subtype` as a `Predicate` (`goblin` for `hasSubtype goblin`). A leading-dot name resolves
+`mana [generic 1]`), an `Action` as a `Cost` (`sacrifice thisArtifact` for `perform (…)`), a
+catalog `Subtype` as a `Predicate` (`goblin` for `hasSubtype goblin`), and a
+`CharacteristicBundle` as a `TokenSpec` (`t` for `written t`). An anonymous record cannot use
+that coercion: write `create n (written { … })`. A leading-dot name resolves
 against the expected type before any coercion applies, so `some .combat`, `mana [.snow]` and
 `hasColor .white` keep their heads. A numeral is an `Amount` (`3` for `.lit 3`): it stays an
 `OfNat.ofNat` term that `inspect` reads through to its `Amount.lit` leaf, naming the same Templates

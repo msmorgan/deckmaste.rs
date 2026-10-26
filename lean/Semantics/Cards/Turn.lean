@@ -131,10 +131,10 @@ def ivoryTower : Spelled := spelled <| singleFacedCard
 def ajanisEmblem : Action :=
   getEmblem
     [ at_ (beginningOfYour .endStep)
-        (createToken
+        (create 3 (written
           { characteristics :=
             { colors := [.white], types := [.creature], subtypes := [cat],
-              text := [lifelink], power := stat 1, toughness := stat 1 } } (count := 3)) ]
+              text := [lifelink], power := stat 1, toughness := stat 1 } })) ]
 theorem okAjanisEmblem : Action.check (DRS.ofList []) ajanisEmblem = [] := by decide
 
 /-- Saheeli Rai -/

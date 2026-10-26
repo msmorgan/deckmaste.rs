@@ -569,19 +569,15 @@ semantic_template untapDuring (subject : NounPhrase) (whose : Option NounPhrase)
 role [CR#701.3a,301.5]. -/
 semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
   can any (attachTo subject host)
-/-- "create <count> <token>" -/
-semantic_template createToken (token : CharacteristicBundle) (count : Amount := 1) : Action :=
-  create count (.written token)
 /-- "create <count> tapped <token>" -/
 semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := 1) :
     Action :=
-  create count (.written token) [.entersAs .tapped]
+  create count token [entersAs .tapped]
 /-- "create <count> <token> tapped and attacking" -/
-semantic_template createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Action :=
-  create count (.written token) [.entersAs .tapped, .entersAttacking none]
-/-- "create a token that's a copy of <source> [riders]" -/
-semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider := []) : Action :=
-  create 1 (.copyOf source []) riders
+semantic_template createTappedAttacking (count : Amount) (token : CharacteristicBundle)
+    (defender : Option NounPhrase := none) : Action :=
+  create count token [entersAs .tapped, entersAttacking defender]
+
 
 
 /-- A resolving regeneration action installs a single-use shield for this turn;
@@ -667,7 +663,7 @@ semantic_definition endure (amount : Amount) : Action :=
     (instruct (controllerOf (.firstMention "endure.permanent" .actor))
       (chooseOne
         (putCounters (.inCaller amount) p1p1Counter (.laterMention "endure.permanent" .actor))
-        (createToken (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit]))))
+        (create 1 (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit]))))
 semantic_definition exert (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exert"))
     (.skipUntap (.firstMention "exert.subject" (.inCaller subject)) 1)
@@ -697,19 +693,19 @@ semantic_definition heal (subject : NounPhrase) : Action :=
   .ownScope (some (.action "heal"))
     (clearDamage (.firstMention "heal.subject" (.inCaller subject)))
 semantic_definition investigate : Action :=
-  .ownScope (some (.action "investigate")) (createToken clueToken)
+  .ownScope (some (.action "investigate")) (create 1 clueToken)
 semantic_definition populate : Action :=
   .ownScope (some (.action "populate"))
     (sequentially
       [ choose (a (and [.isToken, isCreature, isPermanent, actorControls])),
-        createTokenCopy thatToken ])
+        create 1 (copyOf thatToken) ])
 semantic_definition recruit : Action :=
   .ownScope (some (.action "recruit"))
     (sequentially
       [ draw 1,
         discard (a (cardIn (handOf .actor))),
         doIf (not (is (the (and [isCard, was (discard which) thisWay])) isLand))
-          (createToken (creatureToken 1 1 [.white] [human, soldier]))
+          (create 1 (creatureToken 1 1 [.white] [human, soldier]))
           none ])
 /-- "search <scope>", or "search <scope> for <for_>" (`Definition`, [CR#701.23a]). -/
 semantic_definition search (scope : Location) (for_ : NounPhrase := any) : Action :=
@@ -781,13 +777,13 @@ semantic_definition empowerJace (amount : Amount) : Action :=
   .ownScope (some (.action "empowerJace"))
     (sequentially
       [ doIf (not (exists_ jaceToken))
-          (createToken
+          (create 1 (written
             { characteristics :=
                 { colors := [.blue], types := [.planeswalker], subtypes := [jace],
                   loyalty := some 0,
                   text :=
                     [ activated (loyaltySymbol (.down 1)) (surveil 1),
-                      activated (loyaltySymbol (.down 3)) (draw 1) ] } })
+                      activated (loyaltySymbol (.down 3)) (draw 1) ] } }))
           none,
         choose (a jaceToken),
         putCounters (.inCaller amount) loyaltyCounter it ])

@@ -213,7 +213,7 @@ semantic_definition afflict (amount : Amount) : Ability :=
 semantic_definition afterlife (amount : Amount) : Ability :=
   .keyword (.named "afterlife") [.number (.inCaller amount)]
     [ when (does thisPermanent die)
-        (createToken (creatureToken 1 1 [.white, .black] [spirit] [flying]) (.inCaller amount)) ]
+        (create (.inCaller amount) (creatureToken 1 1 [.white, .black] [spirit] [flying])) ]
 /-- "Aftermath": "You may cast this half of this split card from your graveyard," "This half of
 this split card can't be cast from any zone other than a graveyard," and "If this spell was cast
 from a graveyard, exile it instead of putting it anywhere else any time it would leave the stack"
@@ -682,7 +682,7 @@ semantic_definition encore (cost : Cost) : Ability :=
         (sequentially
           [ .doForEach (each isOpponent)
               (sequentially
-                [ createTokenCopy this_,
+                [ create 1 (copyOf this_),
                   establishThroughout (must thatToken (.attack (some (that player)))) thisTurn ]),
             gain thoseTokens (keyword (.named "haste")),
             atNext .endStep (sacrifice thoseTokens) ])
@@ -771,7 +771,7 @@ semantic_definition fabricate (amount : Amount) : Ability :=
   .keyword (.named "fabricate") [.number (.inCaller amount)]
     [ when (does thisPermanent enter)
         (mayOrElse (putCounters (.inCaller amount) p1p1Counter thisPermanent)
-          (createToken (artifactCreatureToken 1 1 [] [servo]) (.inCaller amount))) ]
+          (create (.inCaller amount) (artifactCreatureToken 1 1 [] [servo]))) ]
 semantic_definition fading (amount : Amount) : Ability :=
   .keyword (.named "fading") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) fadeCounter),
@@ -833,7 +833,7 @@ semantic_definition forMirrodin : Ability :=
   .keyword (.named "forMirrodin") []
     [ when (does thisEquipment enter)
         (sequentially
-          [ createToken (creatureToken 2 2 [.red] [rebel]),
+          [ create 1 (creatureToken 2 2 [.red] [rebel]),
             attachTo thisEquipment thatToken ]) ]
 semantic_definition forecast (ability : Ability) : Ability :=
   .keyword (.named "forecast") [.ability (.inCaller ability)]
@@ -902,13 +902,13 @@ semantic_definition gift (promise : Action) : Ability :=
 tapped Fish"), so each is a Template over `gift` [CR#702.174a,702.174d..702.174i]. -/
 
 semantic_template giftACard : Ability := gift (draw 1)
-semantic_template giftAFood : Ability := gift (createToken foodToken)
+semantic_template giftAFood : Ability := gift (create 1 foodToken)
 semantic_template giftATappedFish : Ability :=
   gift (createTappedToken (creatureToken 1 1 [.blue] [fish]))
-semantic_template giftATreasure : Ability := gift (createToken treasureToken)
+semantic_template giftATreasure : Ability := gift (create 1 treasureToken)
 semantic_template giftAnExtraTurn : Ability := gift (extraTurn 1)
 semantic_template giftAnOctopus : Ability :=
-  gift (createToken (creatureToken 8 8 [.blue] [octopus]))
+  gift (create 1 (creatureToken 8 8 [.blue] [octopus]))
 semantic_definition graft (amount : Amount) : Ability :=
   .keyword (.named "graft") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) p1p1Counter),
@@ -1096,7 +1096,7 @@ semantic_definition jobSelect : Ability :=
   .keyword (.named "jobSelect") []
     [ when (does thisEquipment enter)
         (sequentially
-          [ createToken (creatureToken 1 1 [] [hero]),
+          [ create 1 (creatureToken 1 1 [] [hero]),
             attachTo thisEquipment thatToken ]) ]
 /-- "Jump-start": "You may cast this card from your graveyard if the resulting spell is an
 instant or sorcery spell by discarding a card as an additional cost to cast it" and "If this
@@ -1140,7 +1140,7 @@ semantic_definition livingWeapon : Ability :=
   .keyword (.named "livingWeapon") []
     [ when (does thisEquipment enter)
         (sequentially
-          [ createToken (creatureToken 0 0 [.black] [phyrexian, germ]),
+          [ create 1 (creatureToken 0 0 [.black] [phyrexian, germ]),
             attachTo thisEquipment thatToken ]) ]
 semantic_definition madness (cost : Cost) : Ability :=
   .keyword (.named "madness") [.cost (.inCaller cost)]
@@ -1261,7 +1261,7 @@ semantic_definition myriad : Ability :=
         (sequentially
           [ .doForEach (each (and [isOpponent, .otherThan defendingPlayer]))
               (may
-                (createTokenCopy thisCreature
+                (create 1 (copyOf thisCreature)
                   [ .entersAs .tapped,
                     .entersAttacking
                       (some (or [they, a (and [isPlaneswalker, controlledBy they])])) ])),

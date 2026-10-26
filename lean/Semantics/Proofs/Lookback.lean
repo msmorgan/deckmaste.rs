@@ -299,7 +299,7 @@ theorem okEachLandCardExiledThisWay :
       (sequentially
         [ exile (topSlice (letter .x)),
           doForEach (each (and [isLand, isCard, was (exile which) thisWay]))
-            (createToken treasureToken) ]) = [] := by
+            (create 1 treasureToken) ]) = [] := by
   decide
 
 /-- Rally the Horde: "Exile the top card of your library. Exile the top card of your library.
@@ -310,7 +310,7 @@ theorem okEachCardOfSeveralExiles :
       (sequentially
         [ exile (topSlice 1), exile (topSlice 1), exile (topSlice 1),
           doForEach (each (and [non isLand, isCard, was (exile which) thisWay]))
-            (createToken (creatureToken 1 1 [.red] [warrior])) ]) = [] := by
+            (create 1 (creatureToken 1 1 [.red] [warrior])) ]) = [] := by
   decide
 
 /-- Sinister Concierge: "When this creature dies, you may exile it and put three time counters on
@@ -753,7 +753,7 @@ theorem otherArmReadsTheTargetUnderItsEscapedId :
 is that arm's own, and "that artifact" in the other arm finds nothing. -/
 theorem otherArmDoesNotReadNonTargets :
     Action.check (DRS.ofList [])
-      (may (sacrifice (a isCreature)) (some (createToken foodToken))
+      (may (sacrifice (a isCreature)) (some (create 1 foodToken))
         (some (sacrifice (that artifact)))) = [.anaphor (.word artifact) .one 0] ∧
     Action.check (DRS.ofList [])
       (may (sacrifice (a food)) (some (destroy (a isArtifact)))

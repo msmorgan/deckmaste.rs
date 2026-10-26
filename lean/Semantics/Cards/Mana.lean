@@ -192,10 +192,10 @@ def saheeliFiligreeMaster : Spelled := spelled <| singleFacedCard
                 (draw 1) ]),
         activated (loyaltySymbol (down 2))
           (sequentially
-            [ createToken
+            [ create 2 (written
                 { characteristics :=
                   { types := [.artifact, .creature], subtypes := [thopter],
-                    text := [flying], power := stat 1, toughness := stat 1 } } (count := 2),
+                    text := [flying], power := stat 1, toughness := stat 1 } }),
               gainHaste them untilEndOfTurn ]),
         activated (loyaltySymbol (down 4))
           (getEmblem
@@ -783,7 +783,7 @@ def prismariPianist : Spelled := spelled <| singleFacedCard
       [ whenever (does you (cast (a
         (and [isInstantOrSorcery, isSpell]))))
           (replace
-            (createToken (creatureToken 1 1 [.blue, .red] [elemental]))
+            (create 1 (creatureToken 1 1 [.blue, .red] [elemental]))
             (doIf (compareAmt (statOf (.stat .manaValue) (that .spell)) .atLeast 5)
               (instead (create 3 asThose [])))) ],
     power := stat 2, toughness := stat 1 }
@@ -1058,7 +1058,7 @@ theorem okPsychicVortexUpkeep : Ability.check (DRS.ofList []) psychicVortexUpkee
 /-- Varchild's War-Riders -/
 def varchildsWarRidersUpkeep : Ability :=
   cumulativeUpkeep
-    (instruct anOpponent (createToken (creatureToken 1 1 [.red] [survivor])))
+    (instruct anOpponent (create 1 (creatureToken 1 1 [.red] [survivor])))
 theorem okVarchildsWarRidersUpkeep : Ability.check (DRS.ofList []) varchildsWarRidersUpkeep = [] := by decide
 
 end Semantics.Cards

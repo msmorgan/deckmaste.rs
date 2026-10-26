@@ -23,7 +23,7 @@ def crovaxTheCursed : Action :=
 theorem okCrovaxTheCursed : Action.check (DRS.ofList []) crovaxTheCursed = [] := by decide
 def additiveEvolution : Action :=
   sequentially
-    [ createToken (creatureToken 0 0 [.green, .blue] [fractal]),
+    [ create 1 (creatureToken 0 0 [.green, .blue] [fractal]),
       putCounters 3 p1p1Counter it ]
 theorem okAdditiveEvolution : Action.check (DRS.ofList []) additiveEvolution = [] := by decide
 def battlegrowth : Action := putCounters 1 p1p1Counter (target isCreature)
@@ -271,7 +271,7 @@ def herdBaloth : Spelled := spelled <| singleFacedCard
     subtypes := [beast],
     text :=
       [ whenever (does any (putCounters anyAmount p1p1Counter thisCreature))
-          (may (createToken (creatureToken 4 4 [.green] [beast]))) ],
+          (may (create 1 (creatureToken 4 4 [.green] [beast]))) ],
     power := stat 4, toughness := stat 4 }
 
 def flourishingDefenses : Spelled := spelled <| singleFacedCard
@@ -279,7 +279,7 @@ def flourishingDefenses : Spelled := spelled <| singleFacedCard
     text :=
       [ whenever (does any (putCounters 1 m1m1Counter (a isCreature)))
           (may
-            (createToken (creatureToken 1 1 [.green] [elf, warrior]))) ] }
+            (create 1 (creatureToken 1 1 [.green] [elf, warrior]))) ] }
 
 def rakshasaVizier : Spelled := spelled <| singleFacedCard
   { name := "Rakshasa Vizier", cost := [generic 2, pip .black, pip .green, pip .blue],
@@ -1169,7 +1169,7 @@ def darkDepths : Spelled := spelled <| singleFacedCard
         activated [generic 3]
           (removeCounters (exactly 1) iceCounter thisLand),
         when (stateHolds (not (is thisLand (hasCounter iceCounter))))
-          (doIfDone (sacrifice thisLand) (createToken maritLage))
+          (doIfDone (sacrifice thisLand) (create 1 maritLage))
               ] }
 
 /-- Thallid -/
@@ -1181,7 +1181,7 @@ def thallid : Spelled := spelled <| singleFacedCard
           (putCounters 1 sporeCounter thisCreature),
         activated
           (removeCounters (exactly 3) sporeCounter thisCreature)
-          (createToken (creatureToken 1 1 [.green] [saproling])) ],
+          (create 1 (creatureToken 1 1 [.green] [saproling])) ],
     power := stat 1, toughness := stat 1 }
 
 /-- Aether Chaser -/

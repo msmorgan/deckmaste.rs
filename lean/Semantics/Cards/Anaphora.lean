@@ -307,11 +307,11 @@ def contrabandLivestock : Action :=
       rollDice 1 (.sides 20),
       applyResultsTable
         [ rollRow (oneThrough 9)
-            (instruct (controllerOf it) (createToken (creatureToken 4 4 [.green] [ox]))),
+            (instruct (controllerOf it) (create 1 (creatureToken 4 4 [.green] [ox]))),
           rollRow (fromTo 10 19)
-            (instruct (controllerOf it) (createToken (creatureToken 2 2 [.green] [boar]))),
+            (instruct (controllerOf it) (create 1 (creatureToken 2 2 [.green] [boar]))),
           rollRow (exactly 20)
-            (instruct (controllerOf it) (createToken (creatureToken 0 1 [.white] [goat]))) ] ]
+            (instruct (controllerOf it) (create 1 (creatureToken 0 1 [.white] [goat]))) ] ]
 theorem okContrabandLivestock : Action.check (DRS.ofList []) contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
@@ -649,7 +649,7 @@ def zidaneTantalusThief : Spelled := spelled <| singleFacedCard
               establishFor it [abilityGrant it lifelink, abilityGrant it haste]
                 untilEndOfTurn ]),
         whenever (does anOpponent (gainControlOf (a isPermanent) you))
-          (createToken treasureToken) ],
+          (create 1 treasureToken) ],
     power := stat 3, toughness := stat 3 }
 theorem okZidaneTantalusThief : zidaneTantalusThief.card.check = [] := zidaneTantalusThief.ok
 
@@ -708,7 +708,7 @@ def factOrFiction : Spelled := spelled <| singleFacedCard
 def unsummon : Action := returnToHand (target isCreature)
 theorem okUnsummon : Action.check (DRS.ofList []) unsummon = [] := by decide
 def grismold : Action :=
-  instruct eachPlayer (createToken (creatureToken 1 1 [.green] [plant]))
+  instruct eachPlayer (create 1 (creatureToken 1 1 [.green] [plant]))
 theorem okGrismold : Action.check (DRS.ofList []) grismold = [] := by decide
 /-- Grenzo, Dungeon Warden -/
 def grenzoBottomCard : Action := putInto bottomCard graveyard
@@ -797,7 +797,7 @@ def kalitasBloodchiefOfGhet : Spelled := spelled <| singleFacedCard
           (sequentially
             [ destroy (target isCreature),
               doIf (did (that creature) die thisWay)
-                (createToken (creatureTokenOf (powerOf (that creature))
+                (create 1 (creatureTokenOf (powerOf (that creature))
                   (toughnessOf (that creature)) [.black] [vampire])) ]) ],
     power := stat 5, toughness := stat 5 }
 

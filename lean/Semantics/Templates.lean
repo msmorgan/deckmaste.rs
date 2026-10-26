@@ -2094,6 +2094,8 @@ semantic_template withSubstitute (cost : Cost) (substitute : ManaSubstitute) : C
   .withSubstitute cost substitute
 semantic_template written (characteristics : CharacteristicBundle) : TokenSpec :=
   .written characteristics
+
+instance [AuthoringContext] : Coe CharacteristicBundle TokenSpec := ⟨written⟩
 /-! ## Cards -/
 
 /-- A printed power, toughness, loyalty, or defense. -/

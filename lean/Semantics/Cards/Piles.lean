@@ -134,8 +134,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| singleFacedCard
               [ instruct eachPlayer (voteStartingWith you .openly
                   (byLabel ["strength", "numbers"])),
                 putCounters (votesFor "strength") p1p1Counter thisCreature,
-                createToken (creatureToken 1 1 [.white] [soldier]) (count :=
-                                                                      votesFor "numbers") ])) ],
+                create (votesFor "numbers") (creatureToken 1 1 [.white] [soldier]) ])) ],
     power := stat 2, toughness := stat 2 }
 
 /-- Truth or Consequences: the secret-council ability alone, as the Idris bench holds it. -/

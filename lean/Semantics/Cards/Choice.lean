@@ -21,7 +21,7 @@ theorem okCarefulStudy : Action.check (DRS.ofList []) carefulStudy = [] := by de
 
 def zombieInfestation : Ability :=
   activated (discard (counted (exactly 2) (cardIn yourHand)))
-    (createToken (creatureToken 2 2 [.black] [zombie]))
+    (create 1 (creatureToken 2 2 [.black] [zombie]))
 theorem okZombieInfestation : Ability.check (DRS.ofList []) zombieInfestation = [] := by decide
 
 def fulgentDistraction : Action :=
@@ -712,7 +712,7 @@ def foundingOfOmashu : Spelled := spelled <| singleFacedCard
     subtypes := [saga],
     text :=
       [ when (chapterMark [1])
-          (createToken (creatureToken 1 1 [.white] [ally]) (count := 2)),
+          (create 2 (creatureToken 1 1 [.white] [ally])),
         when (chapterMark [2])
           (may (discard (a (cardIn yourHand))) (draw 1)),
         when (chapterMark [3])

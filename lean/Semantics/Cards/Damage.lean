@@ -332,7 +332,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| singleFacedCard
                     (some .planeswalker))) untilEndOfTurn,
               preventAll it thisTurn ]),
         activated (loyaltySymbol (up 0))
-          (createToken (creatureToken 2 2 [.white] [knight, ally])),
+          (create 1 (creatureToken 2 2 [.white] [knight, ally])),
         activated (loyaltySymbol (down 4))
           (getEmblem
             [static (getsPt (allOf (and [isCreature, youControl])) (up 1) (up 1))]) ],
@@ -452,8 +452,7 @@ def inkshieldRider : Action :=
       (instead
         (preventDamage allDamage
           (also :=
-            createToken (creatureToken 2 1 [.white, .black] [inkling] [flying])
-              (count := preventedThisWay)))))
+            create preventedThisWay (creatureToken 2 1 [.white, .black] [inkling] [flying])))))
     thisTurn
 theorem okInkshieldRider : Action.check (DRS.ofList []) inkshieldRider = [] := by decide
 
@@ -853,7 +852,7 @@ def darienKingOfKjeldor : Spelled := spelled <| singleFacedCard
     subtypes := [human, soldier],
     text :=
       [ whenever (does any (dealDamage (to := you)))
-          (may (createToken (creatureToken 1 1 [.white] [soldier]) (count := thatMuch))) ],
+          (may (create thatMuch (creatureToken 1 1 [.white] [soldier]))) ],
     power := stat 3, toughness := stat 3 }
 
 def screamingNemesis : Spelled := spelled <| singleFacedCard
@@ -1436,7 +1435,7 @@ theorem okCryOfContrition : Action.check (DRS.ofList []) cryOfContrition = [] :=
 def cyclingCost : Action := discard this_
 theorem okCyclingCost : Action.check (DRS.ofList []) cyclingCost = [] := by decide
 def raiseTheAlarm : Action :=
-  createToken (creatureToken 1 1 [.white] [soldier]) (count := 2)
+  create 2 (creatureToken 1 1 [.white] [soldier])
 theorem okRaiseTheAlarm : Action.check (DRS.ofList []) raiseTheAlarm = [] := by decide
 def actOfTreason : Action := gainControl (target isCreature) untilEndOfTurn (controller :=
     you)

@@ -47,7 +47,7 @@ def baskingRootwalla : Ability :=
 theorem okBaskingRootwalla : Ability.check (DRS.ofList []) baskingRootwalla = [] := by decide
 def securityDetail : Ability :=
   activatedOnlyOnceIf [pip .white, pip .white]
-    (createToken (creatureToken 1 1 [.white] [soldier])) oncePerTurn
+    (create 1 (creatureToken 1 1 [.white] [soldier])) oncePerTurn
     (not (exists_ (and [isCreature, youControl])))
 theorem okSecurityDetail : Ability.check (DRS.ofList []) securityDetail = [] := by decide
 def aphettoAlchemist : Ability :=
@@ -101,14 +101,14 @@ theorem okGoadTargetCreature : Ability.check (DRS.ofList []) goadTargetCreature 
 def krenko : Ability :=
   activated tapSymbol
     (sequentially
-      [ createToken (creatureToken 1 1 [.red] [goblin]) (letter .x),
+      [ create (letter .x) (creatureToken 1 1 [.red] [goblin]),
         define .x (countOf (and [goblin, youControl])) ])
 theorem okKrenko : Ability.check (DRS.ofList []) krenko = [] := by decide
 /-- Dokai, Weaver of Life -/
 def dokai : Ability :=
   activated (compound [[generic 4, pip .green, pip .green], tapSymbol])
     (sequentially
-      [ createToken (creatureTokenOf (letter .x) (letter .x) [.green] [elemental]),
+      [ create 1 (creatureTokenOf (letter .x) (letter .x) [.green] [elemental]),
         define .x (countOf (and [isLand, youControl])) ])
 theorem okDokai : Ability.check (DRS.ofList []) dokai = [] := by decide
 
@@ -258,7 +258,7 @@ def elspethSunsChampion : Spelled := spelled <| singleFacedCard
     supertypes := [.legendary], types := [.planeswalker], subtypes := [elspeth],
     text :=
       [ activated (loyaltySymbol (up 1))
-          (createToken (creatureToken 1 1 [.white] [soldier]) (count := 3)),
+          (create 3 (creatureToken 1 1 [.white] [soldier])),
         activated (loyaltySymbol (down 3))
           (destroy (allOf (and [isCreature, hasPower .atLeast 4]))),
         activated (loyaltySymbol (down 7))
@@ -271,7 +271,7 @@ def elspethSunsChampion : Spelled := spelled <| singleFacedCard
 def elspethsTalentGrant : StaticSpec :=
   abilityGrant (enchanted planeswalker)
     (activated (loyaltySymbol (up 1))
-      (createToken (creatureToken 1 1 [.white] [soldier]) (count := 3)))
+      (create 3 (creatureToken 1 1 [.white] [soldier])))
 theorem okElspethsTalentGrant : StaticSpec.check (DRS.ofList []) elspethsTalentGrant = [] := by decide
 
 def crystalBall : Spelled := spelled <| singleFacedCard
@@ -361,9 +361,9 @@ def volrathsLaboratory : Spelled := spelled <| singleFacedCard
     text :=
       [ static volrathsLaboratoryChoice,
         activated (compound [[generic 5], tapSymbol])
-          (createToken
+          (create 1 (written
             { characteristics := { types := [.creature], power := stat 2, toughness := stat 2 },
-              qualities := [withQuality (ofChosen .color), withQuality (ofChosen (.subtype .creature))] }) ] }
+              qualities := [withQuality (ofChosen .color), withQuality (ofChosen (.subtype .creature))] })) ] }
 
 /-- Ersatz Gnomes -/
 def ersatzGnomes : Spelled := spelled <| singleFacedCard
@@ -634,7 +634,7 @@ def idolOfOblivion : Spelled := spelled <| singleFacedCard
       [ activatedOnlyIf tapSymbol (draw 1)
           (did you (createObject anyAmount (token (copyOf (a isToken)) [])) soFarThisTurn),
         activated (compound [[generic 8], tapSymbol, sacrifice thisArtifact])
-          (createToken (creatureToken 10 10 [] [eldrazi])) ] }
+          (create 1 (creatureToken 10 10 [] [eldrazi])) ] }
 
 def patricianGeist : Spelled := spelled <| singleFacedCard
   { name := "Patrician Geist", cost := [generic 2, pip .blue], types := [.creature],

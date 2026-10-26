@@ -1247,8 +1247,7 @@ theorem inkshieldPreventsCombatDamageForFlyingInklings :
           (instead
             (preventDamage allDamage
               (also :=
-                createToken (creatureToken 2 1 [.white, .black] [inkling] [flying])
-                  (count := preventedThisWay)))))
+                create preventedThisWay (creatureToken 2 1 [.white, .black] [inkling] [flying])))))
         thisTurn := rfl
 
 /-- Phyrexian Infiltrator's "Exchange control of this creature and target creature" is the

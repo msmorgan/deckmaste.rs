@@ -465,9 +465,9 @@ def timotharBaronOfBats : Ability :=
   whenever (does (a (and [vampire, isNontoken, youControl, isOther])) die)
     (may (sequentially [pay [generic 1] .once, exile it])
       (some (sequentially
-        [ createToken { characteristics :=
+        [ create 1 (written { characteristics :=
             { colors := [.black], types := [.creature], subtypes := [bat],
-              text := [flying], power := stat 1, toughness := stat 1 } },
+              text := [flying], power := stat 1, toughness := stat 1 } }),
           gain it
             (when (does thisToken (dealDamage (to := a isPlayer) (kind := some .combat)))
               (sequentially
