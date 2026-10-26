@@ -471,7 +471,7 @@ def ironMastiffIgnore : Action :=
   sequentially
     [ rollDice
         (countOf (and [isPlayer, inCombat .attackedBy (combatPlayer .attacking)]))
-        (.sides 20) .anyResult,
+        (.sides 20),
       ignoreOutcomes (allBut .highest) ]
 theorem okIronMastiffIgnore : Action.check (DRS.ofList []) ironMastiffIgnore = [] := by decide
 

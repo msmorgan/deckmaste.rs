@@ -323,7 +323,7 @@ theorem okHypnoticSpecterDiscard :
 def wyllExtraDie : Action :=
   replaceEvent (would you (rollDice anyAmount .anyDie))
     (instead (sequentially
-      [ rollDice (plus thatMuch 1) .thoseDice .anyResult,
+      [ rollDice (plus thatMuch 1) .thoseDice,
         ignoreOutcomes (extreme .lowest) ]))
     none
 theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by decide
@@ -332,7 +332,7 @@ theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by de
 def vedalkenSquirrelWhackerReroll : Action :=
   replaceEvent (would you (rollDice anyAmount (.sides 6)))
     (instead (sequentially
-      [ rollDice thatMuch .thoseDice .anyResult,
+      [ rollDice thatMuch .thoseDice,
         may
           (chooseOne
             (exchangeValues (theOutcome .rollResult) (basePowerOf thisCreature))

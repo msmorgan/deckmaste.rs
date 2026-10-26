@@ -702,7 +702,7 @@ def bamboozlingBeebleIgnore : Ability :=
   activated (compound [[generic 1], tapSymbol])
     (replaceNextEvent (would (target isPlayer) (rollDice anyAmount .anyDie))
       (instead (sequentially
-        [ instruct they (rollDice (plus thatMuch 1) .thoseDice .anyResult),
+        [ instruct they (rollDice (plus thatMuch 1) .thoseDice),
           ignoreOutcomes (chosenResults you 1) ]))
       thisTurn)
 theorem okBamboozlingBeebleIgnore : Ability.check (DRS.ofList []) bamboozlingBeebleIgnore = [] := by decide
