@@ -25,7 +25,8 @@ Vintage-legal cards printed in Conspiracy or Planechase products must parse like
   `@` is somewhere you cannot account for, or a refusal makes no sense.
 - **Never track session scratch.** `.superpowers/` and `docs/superpowers/` stay untracked, and no
   per-task evidence, progress TSVs or plan-scoped verifier code enters `crates/`. Gates read such
-  evidence from gitignored paths at runtime; the coverage lock is the only tracked gate authority.
+  evidence from gitignored paths at runtime; the citation-coverage lock (`cr-coverage.lock`, a
+  Bound floor) is the only tracked gate authority.
 
 ## Feature workflow
 

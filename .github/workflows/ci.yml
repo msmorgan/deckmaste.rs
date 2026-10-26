@@ -129,8 +129,8 @@ jobs:
       # 50-game matchup in the same test target is ignored and stays opt-in.
       - name: noncanon WC99 fixed-seed gate
         run: cargo test -p deckmaste_noncanon --features noncanon_tests --test wc99
-      # The coverage ratchet self-scans committed sources and compares them to
-      # the committed cr-coverage.lock.
+      # The coverage ratchet self-scans committed sources and compares the set
+      # of Bound rules to the floor in the committed cr-coverage.lock.
       - name: cr coverage ratchet
         run: cargo xtask cite coverage --check
       # Both checks use the freshly revalidated cr.txt above: the first pins
