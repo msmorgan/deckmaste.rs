@@ -1,4 +1,5 @@
 import Semantics.Definitions
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
@@ -20,37 +21,6 @@ private def artifactX : NounPhrase :=
 private def powerAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
     (.establish (Templates.modification (target isCreature) .power (.up (.letter .x))) none)).1
-
-private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
-    rs.foldl (fun acc r => Nat.max acc r.clause) clause = clause := by
-  induction rs with
-  | nil => rfl
-  | cons r rs ih =>
-    have hr := older r (by simp)
-    have ht : ∀ r ∈ rs, r.clause < clause := by
-      intro r h
-      exact older r (by simp [h])
-    simp only [List.foldl_cons, Nat.max_eq_left (Nat.le_of_lt hr)]
-    exact ih ht
-
-private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
-    rs.filter (fun r => r.clause == clause) = [] := by
-  induction rs with
-  | nil => rfl
-  | cons r rs ih =>
-    have hr := older r (by simp)
-    have ht : ∀ r ∈ rs, r.clause < clause := by
-      intro r h
-      exact older r (by simp [h])
-    simp [Nat.ne_of_lt hr, ih ht]
-
-/-- With no direct-argument mention buffered in the current clause, `D′` ranks every referent by
-the clause and role it was introduced or last foregrounded in. -/
-private theorem rankingWithoutPending (drs : DRS) (h : drs.pendingRoles = []) :
-    drs.rankingClause = (·.clause) ∧ drs.rankingRole = (·.role.rank) := by
-  constructor <;> funext ref <;> simp [DRS.rankingClause, DRS.rankingRole, DRS.isClauseMate, h]
 
 /-- A newly introduced subject wins over every referent from an earlier clause. -/
 theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)

@@ -4,6 +4,7 @@ import Semantics.Cards.Deontic
 import Semantics.Cards.Damage
 import Semantics.Cards.Cost
 import Semantics.Cards.Mana
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Deontic
@@ -15,13 +16,6 @@ theorem form, each closed by `decide`. The names and the sentences are the Idris
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Deontic
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
-
-/-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (action : Action) : Ability :=
-  .activated cost action none none none none
 
 /-- A cause qualifier narrows the ordinary loss prohibition. -/
 theorem okStateBasedLossGate :
@@ -97,7 +91,7 @@ life-lost amount and no repeat count, as `perform (loseLife 2)` does, and "that 
 theorem payLifeInACostSlotCountsOnce :
     [costResult (payLife 2), costResult (perform (loseLife 2))].map (fun after =>
       (countOutcomes .lifeLost after, countOutcomes .repeatCount after)) = [(1, 0), (1, 0)] ∧
-      Ability.check (DRS.ofList []) (activatedAbility (payLife 2) (gainLife thatMuch)) = [] := by
+      Ability.check (DRS.ofList []) (activated (payLife 2) (gainLife thatMuch)) = [] := by
   decide
 
 /-- Paying a cost that is itself a payment of life pays that life once, never a payment of a
@@ -129,21 +123,21 @@ theorem cantPayLifeIsNotCantLoseLife :
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
+    Ability.check (DRS.ofList []) (activated (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- a reflexive trigger written as a cost: the reflexive trigger's enclosure law fails on the
 term. -/
 theorem badReflexiveAsCost :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (.triggerReflexively (gainLife 2) none (draw 1)))
+      (activated (.perform (.triggerReflexively (gainLife 2) none (draw 1)))
         (draw 1)) = [.reflexEnclosure] := by
   decide
 
 /-- "Discard a card, Sacrifice a creature: Draw a card." -/
 theorem okCompoundCost :
     Ability.check (DRS.ofList [])
-      (activatedAbility
+      (activated
         (.compound
           [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))])
         (draw 1)) = [] := by
@@ -151,7 +145,7 @@ theorem okCompoundCost :
 
 /-- a compound cost of no components -/
 theorem badEmptyCompound :
-    Ability.check (DRS.ofList []) (activatedAbility (.compound []) (draw 1)) = [.nonEmpty] := by decide
+    Ability.check (DRS.ofList []) (activated (.compound []) (draw 1)) = [.nonEmpty] := by decide
 
 /-- "Creatures can't attack." -/
 theorem okStaticUntargeting :
@@ -489,12 +483,6 @@ theorem mustBeBlockedIsNotLure :
       must (by_ (allOf isCreature)) (block thisCreature) := by
   intro h
   cases h
-
-/-- A card's printed abilities (a single-faced card). -/
-private def printedText (card : Spelled) : List Ability :=
-  match card.card with
-  | .singleFaced face => face.characteristics.text
-  | _ => []
 
 /-- "Destroy target creature. It can't be regenerated.": the prohibition's duration is
 `some .modifiesPrecedingAction`, neither `none` nor `restOfGame`, so it binds the destroy's event

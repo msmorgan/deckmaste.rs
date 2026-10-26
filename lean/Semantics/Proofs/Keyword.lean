@@ -3,6 +3,7 @@ import Semantics.Check.Card
 import Semantics.Cards.Cost
 import Semantics.Cards.Counters
 import Semantics.Cards.Turn
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Keyword
@@ -21,16 +22,9 @@ theorem persistReturnsWithACounter :
 theorem undyingReturnsWithACounter :
     Ability.check (DRS.ofList []) undying = [] := by decide
 
-private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false noun).1
-
-/-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (action : Action) : Ability :=
-  .activated cost action none none none none
-
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okSacrificeAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
+    Ability.check (DRS.ofList []) (activated (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- "Target creature gains flying." -/
@@ -122,7 +116,7 @@ theorem okTokenKeywordAbility :
 
 /-- "Creatures you control have '{T}: Draw a card.'" -/
 theorem okQuotedGrantOnPermanent :
-    StaticSpec.check (DRS.ofList []) (Templates.abilityGrant (allOf (and [isCreature, youControl])) (activatedAbility .tapSymbol (draw 1)))
+    StaticSpec.check (DRS.ofList []) (Templates.abilityGrant (allOf (and [isCreature, youControl])) (activated .tapSymbol (draw 1)))
       = [] := by
   decide
 
@@ -134,10 +128,6 @@ theorem okYourChoiceCreatureType :
 theorem badYourChoiceNumber :
     Predicate.checkAt .object (DRS.ofList []) (.ofYourChoice .number none) = [.chosenQualityRead .number] := by
   decide
-
-/-- An enchantment with the given text. -/
-def enchantmentWith (text : List Ability) : Card :=
-  .singleFaced { characteristics := { name := "", types := [.enchantment], text } }
 
 /-- "As this enchantment enters, choose a creature type." -/
 def choosesCreatureType : Ability :=
@@ -296,7 +286,7 @@ theorem badSharedSubjectEmptyDelta :
   decide
 
 /-- "Pay 2 life: Draw a card." -/
-theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLife 2) (draw 1)) =
+theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activated (payLife 2) (draw 1)) =
     [] := by
   decide
 

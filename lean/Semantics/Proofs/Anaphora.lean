@@ -1,6 +1,7 @@
 import Semantics.Check
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Anaphora
@@ -14,10 +15,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Anaphora
 
-private def actionResult (drs : DRS) (i : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs i).1
-private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .obj true n).1
 
 /-- "Choose two — Draw a card; draw a card." [CR#700.2d] -/
 theorem identicalModesAllowed :
@@ -612,7 +609,7 @@ theorem okTheOtherAfterCoordinatedParts :
 
 /-- "you and this creature" publishes both participants and the group they make up. -/
 theorem youAndPublishesBothParticipants :
-    (nounResult (DRS.ofList []) (youAnd thisCreature)).referents.map (fun ref => (ref.kind, ref.plur)) =
+    (nounResult (DRS.ofList []) (youAnd thisCreature) .obj true).referents.map (fun ref => (ref.kind, ref.plur)) =
       [(.join .player .object, .many), (.object, .one), (.player, .one)] := by decide
 
 /-- "If a player is dealt damage this way, you draw a card." -/

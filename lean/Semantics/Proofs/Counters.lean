@@ -2,6 +2,7 @@ import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
 import Semantics.Cards.Counters
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Counters
@@ -682,11 +683,6 @@ theorem okGreaterOf :
 
 A pronoun after "put … counters on <target>" reads the ordinary DRS: the counters introduce no
 competing referent, so the printed card needs no card-private first/later mention. -/
-
-private def printedText (card : Spelled) : List Ability :=
-  match card.card with
-  | .singleFaced face => face.characteristics.text
-  | _ => []
 
 /-- A spell ability's body, or an (ability-word headed) triggered ability's header and body, run
 from the empty DRS. -/

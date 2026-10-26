@@ -1,5 +1,6 @@
 import Semantics.Cards.Deontic
 import Semantics.Cards.Keyword
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Retention
@@ -18,8 +19,6 @@ of Loyalty*).
 open Semantics Semantics.Templates Semantics.Definitions Semantics.Cards
 
 namespace Semantics.Proofs.Retention
-
-private def emptyContext : DRS := DRS.ofList []
 
 /-- "Enchanted creature has protection from black." -/
 private def protectionFromBlack : StaticSpec :=

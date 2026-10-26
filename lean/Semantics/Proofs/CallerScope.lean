@@ -3,15 +3,12 @@ import Semantics.Check.Card
 import Semantics.Definitions
 import Semantics.Check.NumberSlots
 import Semantics.Check.LocalShape
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.CallerScope
 
-private def actionResult (drs : DRS) (body : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs body).1
-private def nounResult (drs : DRS) (body : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false body).1
 private def selected (drs : DRS) (body : NounPhrase) : List Referent :=
   let result := stepNounPhrase 64 drs .other false body
   result.2.1.filterMap result.1.findById?

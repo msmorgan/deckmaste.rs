@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.DuringResolution
@@ -20,13 +21,6 @@ look-back zone changes, so it is observed on arrival [CR#603.10a].
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.DuringResolution
-
-/-- The halves of a keyword declaration's body, a `byCardClass` pair as both of its halves. -/
-def halves : Ability → List Ability
-  | .keyword _ _ body => body.flatMap fun
-    | .byCardClass onPermanent onInstantOrSorcery => [onPermanent, onInstantOrSorcery]
-    | ab => [ab]
-  | _ => []
 
 /-- The trigger events of a keyword's triggered halves, in order. -/
 def triggerEvents (a : Ability) : List GameEvent :=

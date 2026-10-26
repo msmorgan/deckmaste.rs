@@ -8,13 +8,11 @@ import Semantics.Cards.Cost
 import Semantics.Cards.Faces
 import Semantics.Cards.Description
 import Semantics.Cards.Turn
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GetsBothDeltas
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
 
 /-- "<subject> gets +P/+T" is one characteristic change, the subject written once, with one
 stat edit per delta: a change by an amount raises or lowers, a set sets [CR#613.4b,613.4c]. -/

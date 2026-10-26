@@ -160,26 +160,21 @@ theorem okPhasingTurnBased : ConferralRule.check phasingTurnBased = [] := by dec
 
 /-- [CR#122.1] "A counter is a marker placed on an object or player." A charge counter is a
 marker and nothing else: the CR gives it no behavior of its own, so it confers nothing. -/
-def chargeCounter : Definition := .counter (.named "chargeCounter") []
-theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
+def chargeCounterDefinition : Definition := .counter chargeCounter []
+theorem okChargeCounter : Definition.check chargeCounterDefinition = [] := by decide
 
 /-- [CR#122.1b] "A keyword counter on a permanent … causes that object to gain that keyword."
 The counter is not an ability, so its conferral is the ability-free `property` flavor; but its
 bearer gains the keyword in layer 6 [CR#613.1f], and that gained ability can be removed by
 another effect [CR#113.12], applied in timestamp order [CR#613.7,613.7c]. -/
-def flyingCounter : Definition :=
-  .counter (.named "flyingCounter") [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
-theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
+def flyingCounterDefinition : Definition :=
+  .counter flyingCounter [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
+theorem okFlyingCounter : Definition.check flyingCounterDefinition = [] := by decide
 
-/-- The conferral helpers are the raw conferrals: `grants` is `flyingCounter`'s, and `boost` is
-the one stat change carrying both deltas. -/
+/-- A keyword counter's conferral written with `grants` is the one `flyingCounterDefinition`
+writes, the keyword gained by its bearer [CR#122.1b,613.1f]. -/
 theorem grantsIsTheKeywordConferral :
-    grants (.named "flying") =
-      .property (.characteristicChange .this [.addedAbilities [keyword (.named "flying")]]) := rfl
-theorem boostIsOneStatChange :
-    boost (.up 1) (.up 1) =
-      .property (.characteristicChange .this
-        [.stat .adds .power 1, .stat .adds .toughness 1]) := rfl
+    flyingCounterDefinition = .counter flyingCounter [grants (.named "flying")] := rfl
 
 /-- [CR#122.1a] "A +X/+Y counter on a creature … adds X to that object's power and Y to that
 object's toughness." The definition states what ONE counter confers, "+1/+1" in layer 7c

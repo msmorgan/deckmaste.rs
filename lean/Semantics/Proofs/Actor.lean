@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Actor
@@ -12,11 +13,6 @@ performs the action it is part of: by default, the player addressed by the text
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Actor
-
-private def actionResult (drs : DRS) (i : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs i).1
-private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .obj true n).1
 
 private def handoff (drs : DRS) (subject : NounPhrase) : DRS :=
   let (after, ids, _) := stepNounPhrase 64 drs .subj true subject
@@ -32,10 +28,6 @@ private def performerIsYou (drs : DRS) : Bool :=
 
 private def products (drs : DRS) : List Payload :=
   (drs.referents.filter (fun r => r.kind != .player)).map (·.payload)
-
-/-- Kind, number and determiner of each binding, newest first. -/
-private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
-  bs.referents.map fun b => (b.kind, b.plur, b.det)
 
 /-- One player already named, for "they". -/
 private def onePlayer : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .player false }])

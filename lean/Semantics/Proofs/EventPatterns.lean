@@ -1,17 +1,10 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.EventPatterns
-
-private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
-  let result := stepNounPhrase 64 drs .other false noun
-  result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
-
-
-private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false noun).1
 
 theorem unrestrictedDamageEventIsWellFormed :
     GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount .any)) = [] := by decide

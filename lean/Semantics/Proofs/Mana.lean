@@ -1,6 +1,7 @@
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Mana
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Mana
@@ -13,13 +14,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Mana
 
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
-
-/-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost action timing none none none
-
 /-- "your hand" -/
 theorem okOwnedHand : Location.check (DRS.ofList []) (.zone .hand (some .you)) = [] := by decide
 
@@ -27,14 +21,14 @@ theorem okOwnedHand : Location.check (DRS.ofList []) (.zone .hand (some .you)) =
 target." -/
 theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
+      (activated (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
           (the (and [was (discard which), isCard]))) (target isAnyTarget)))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
+      (activated (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
             (the (and [was (discard which), isCreature]))) (target isAnyTarget))))
       = [.participialDescription (.deed (.action "discard")) 0] := by
@@ -42,17 +36,17 @@ theorem badDiscardedCreatureWord :
 
 /-- "{1}, {T}: Draw a card." -/
 theorem okSingleTapCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.compound [.mana [generic 1], .tapSymbol]) (draw 1))
+    Ability.check (DRS.ofList []) (activated (.compound [.mana [generic 1], .tapSymbol]) (draw 1))
       = [] := by
   decide
 
 /-- "{1}: Draw a card." -/
 theorem okNonEmptyManaCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.mana [generic 1]) (draw 1)) = [] := by decide
+    Ability.check (DRS.ofList []) (activated (.mana [generic 1]) (draw 1)) = [] := by decide
 
 /-- ": Draw a card.": an empty mana run is no cost at all, refused as an empty list is. -/
 theorem badEmptyManaCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.mana []) (draw 1)) = [.nonEmpty] := by decide
+    Ability.check (DRS.ofList []) (activated (.mana []) (draw 1)) = [.nonEmpty] := by decide
 
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
@@ -76,16 +70,15 @@ theorem okUnlessManaCost :
 /-- "Activate only before the combat damage step." -/
 theorem okBeforeCombatDamage :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw 1) (some (beforePart .combatDamage
-          none)))
+      (activatedOnlyDuring (.mana [generic 2]) (draw 1) (beforePart .combatDamage none))
       = [] := by
   decide
 
 /-- "Activate only before each player's attackers are declared." -/
 theorem okDistributiveAttackWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (beforePart .declareAttackers (some (each .isPlayer))))) = [] := by
+      (activatedOnlyDuring (.mana [generic 2]) (draw 1)
+        (beforePart .declareAttackers (some (each .isPlayer)))) = [] := by
   decide
 
 /-- "Cast this spell only before the combat damage step." -/
@@ -127,13 +120,9 @@ theorem badPurposelessSpend :
       = [.nonEmpty] := by
   decide
 
-/-- An enchantment with the given text. -/
-def enchantmentWith (text : List Ability) : Card :=
-  .singleFaced { characteristics := { name := "", types := [.enchantment], text } }
-
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  activatedAbility (.mana [pip .blue]) (counter (target (.and [isSpell, .named .chosen])))
+  activated (.mana [pip .blue]) (counter (target (.and [isSpell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :
@@ -180,7 +169,7 @@ def landWith (text : List Ability) : Card :=
   .singleFaced { characteristics := { name := "", types := [.land], text } }
 
 /-- "{T}: Add one mana of the chosen color." -/
-def tapForChosenColor : Ability := activatedAbility .tapSymbol (.addMana 1 (.ofChosenColor none) [])
+def tapForChosenColor : Ability := activated .tapSymbol (.addMana 1 (.ofChosenColor none) [])
 
 /-- "…choose a color. {T}: Add one mana of the chosen color." -/
 theorem okChosenColorAfterChooser :

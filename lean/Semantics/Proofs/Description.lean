@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Description
@@ -16,9 +17,6 @@ The pins keep the Idris names and docstrings (the sentence each refuses).
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Description
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
 
 /-- "a creature target opponent controls" -/
 theorem okControlledByOne :

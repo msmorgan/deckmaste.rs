@@ -1,6 +1,7 @@
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Turn
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Turn
@@ -12,16 +13,6 @@ form, each closed by `decide`. The names and the sentences are the Idris ones.
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Turn
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
-
-private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false noun).1
-
-/-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost action timing none none none
 
 /-- "at the beginning of the end step" -/
 def atTheEndStep : GameEvent := .beginningOf .endStep none (.each none)
@@ -51,7 +42,7 @@ theorem badStaleCarrier :
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okActivatedCostAndEffect :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
+    Ability.check (DRS.ofList []) (activated (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
 /-- "Return a creature to its owner's hand: Tap it." The effect reads the returned creature
@@ -59,7 +50,7 @@ theorem okActivatedCostAndEffect :
 hand is not one (§1.5 `J1` item 4). -/
 theorem badHiddenCost :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (putInto (a isCreature) hand)) (.setStatus .tapped itPermanent))
+      (activated (.perform (putInto (a isCreature) hand)) (.setStatus .tapped itPermanent))
       = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
@@ -84,7 +75,7 @@ theorem okTwoCostMentionsItReadsTheNearer :
       [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))]
     let after := (stepAction 64 .postEvent .obj
       (nextClause (stepCost 64 (DRS.ofList []) cost).1) (exile it)).1
-    Ability.check (DRS.ofList []) (activatedAbility cost (exile it)) = [] ∧
+    Ability.check (DRS.ofList []) (activated cost (exile it)) = [] ∧
       (after.referents.filter (·.zone == some .exile)).map (·.ty) = [[.creature]] := by
   decide
 
@@ -93,7 +84,7 @@ sacrificed: a compound cost opens a clause per member (`lean/CONTRACTS.md`, "Enc
 traversals"), so the sacrificed creature is no clause-mate of "it". -/
 theorem okLaterCostMemberReadsAnEarlierOne :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.compound [.perform (sacrifice (a isCreature)), .perform (exile it)])
+      (activated (.compound [.perform (sacrifice (a isCreature)), .perform (exile it)])
         (draw 1)) = [] := by
   decide
 
@@ -114,7 +105,7 @@ theorem badDeadCreatureRead :
 /-- "Discard a card: Return the discarded card to the battlefield." -/
 theorem okParticipialDiscardedCard :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
+      (activated (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
         (returnToBattlefield (the (and [was (discard which), isCard])))) = [] := by
   decide
 
@@ -136,7 +127,7 @@ theorem deedsAccumulateOnAReferent :
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badParticipialWrongVerb :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
+      (activated (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
         (returnToBattlefield (the (and [was (sacrifice which), isCard]))))
       = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
@@ -144,14 +135,14 @@ theorem badParticipialWrongVerb :
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
 theorem badParticipialWrongNoun :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (sacrifice (a isArtifact)))
+      (activated (.perform (sacrifice (a isArtifact)))
         (returnToBattlefield (the (and [was (sacrifice which), isCreature]))))
       = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
 
 theorem badParticipialAmbig :
     Ability.check (DRS.ofList [])
-      (activatedAbility
+      (activated
         (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
             isCreature))])
         (returnToBattlefield (the (and [was (sacrifice which), isCard]))))
@@ -160,7 +151,7 @@ theorem badParticipialAmbig :
 
 theorem okBareCardRead :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (sacrifice (a isCreature)))
+      (activated (.perform (sacrifice (a isCreature)))
         (.sequentially
           [exile (target isCreature), delay atTheEndStep (returnToBattlefield (that .card))]))
       = [] := by
@@ -265,8 +256,8 @@ theorem okBlockingThisCreature :
 /-- "Activate only during each player's end step." -/
 theorem okDistributivePartWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (duringPart .endStep (some (each .isPlayer))))) = [] := by
+      (activatedOnlyDuring (.mana [generic 2]) (draw 1)
+        (duringPart .endStep (some (each .isPlayer)))) = [] := by
   decide
 
 /-- "until the beginning of your next upkeep" -/
@@ -356,8 +347,8 @@ theorem okBeginningOfCombatPossessor :
 last of the turn's five phases [CR#500.1]. -/
 theorem okEndingPhaseWindow :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.mana [generic 2]) (draw 1)
-        (some (duringPart .endingPhase (some (each .isPlayer))))) = [] := by
+      (activatedOnlyDuring (.mana [generic 2]) (draw 1)
+        (duringPart .endingPhase (some (each .isPlayer)))) = [] := by
   decide
 
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/

@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.KeywordByCardClass
@@ -16,13 +17,6 @@ context the abilities before it leave, and no ability is checked against the car
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.KeywordByCardClass
-
-/-- The halves of a keyword declaration's body, a `byCardClass` pair as both of its halves. -/
-def halves : Ability → List Ability
-  | .keyword _ _ body => body.flatMap fun
-    | .byCardClass onPermanent onInstantOrSorcery => [onPermanent, onInstantOrSorcery]
-    | ab => [ab]
-  | _ => []
 
 /-- A single-faced card with power and toughness on a creature. -/
 def card (types : List CardType) (text : List Ability) : Card :=

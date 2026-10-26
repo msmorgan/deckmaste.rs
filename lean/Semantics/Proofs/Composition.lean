@@ -1,12 +1,10 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Composition
-
-private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false noun).1
 
 theorem okThreeConjunctsShareEarlierMention :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (.and [target isCreature, it, it]) = [] := by decide

@@ -1,4 +1,5 @@
 import Semantics.Check.AbilityRules
+import Semantics.Proofs.Helpers
 
 namespace Semantics.Proofs.ComparisonBox
 
@@ -31,37 +32,6 @@ theorem comparisonCandidateDoesNotEscapeIntoTheBoundOrEnclosingContext :
         (.compareOver (.hasType .creature) ownPower .atLeast
           (.statOf (.stat .power) (.pro (.word (.type .creature)) .one))) =
         [.anaphor (.word (.type .creature)) .one 0] := by decide
-
-private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
-    rs.foldl (fun acc r => Nat.max acc r.clause) clause = clause := by
-  induction rs with
-  | nil => rfl
-  | cons r rs ih =>
-    have hr := older r (by simp)
-    have ht : ∀ r ∈ rs, r.clause < clause := by
-      intro r h
-      exact older r (by simp [h])
-    simp only [List.foldl_cons, Nat.max_eq_left (Nat.le_of_lt hr)]
-    exact ih ht
-
-private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
-    (older : ∀ r ∈ rs, r.clause < clause) :
-    rs.filter (fun r => r.clause == clause) = [] := by
-  induction rs with
-  | nil => rfl
-  | cons r rs ih =>
-    have hr := older r (by simp)
-    have ht : ∀ r ∈ rs, r.clause < clause := by
-      intro r h
-      exact older r (by simp [h])
-    simp [Nat.ne_of_lt hr, ih ht]
-
-/-- With no direct-argument mention buffered in the current clause, `D′` ranks every referent by
-the clause and role it was introduced or last foregrounded in. -/
-private theorem rankingWithoutPending (drs : DRS) (h : drs.pendingRoles = []) :
-    drs.rankingClause = (·.clause) ∧ drs.rankingRole = (·.role.rank) := by
-  constructor <;> funext ref <;> simp [DRS.rankingClause, DRS.rankingRole, DRS.isClauseMate, h]
 
 private def candidate (clause id : Nat) : Referent := {
   det := .the, plur := .one, clause, id, role := .other,

@@ -2,10 +2,9 @@ import Semantics.Check.AbilityRules
 import Semantics.Definitions.Subtypes
 import Semantics.Templates
 import Semantics.Definitions.Phrasings
+import Semantics.Proofs.Helpers
 
 namespace Semantics.Proofs.RefusalReachability
-
-private def emptyContext : DRS := DRS.ofList []
 
 /-- "The number of …" counts a group: a plural universal ("the number of creatures"), not one
 indefinite object. -/

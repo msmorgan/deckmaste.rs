@@ -1,13 +1,10 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Attachments
-
-private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
-  let result := stepNounPhrase 64 drs .other false noun
-  result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
 
 private def nounTypes (drs : DRS) (noun : NounPhrase) : List CardType :=
   let result := stepNounPhrase 64 drs .other false noun

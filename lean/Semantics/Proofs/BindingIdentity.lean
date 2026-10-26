@@ -1,4 +1,5 @@
 import Semantics.Definitions
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.BindingIdentity
@@ -15,15 +16,6 @@ is closed by `decide`.
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.BindingIdentity
-
-private def actionResult (i : Action) (drs : DRS) : DRS :=
-  (stepAction 64 .postEvent .obj drs i).1
-private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .obj true n).1
-
-/-- Kind, number and determiner of each binding, newest first. -/
-private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
-  bs.referents.map fun b => (b.kind, b.plur, b.det)
 
 /-- How many targets a context holds. -/
 private def targets (bs : DRS) : Nat := bs.referents.countP (·.det == .target)
@@ -48,25 +40,25 @@ theorem okTwoMentionsByIdentity : Action.check (DRS.ofList []) (tapThenUntap (ta
   decide
 
 /-- Both mentions are one binding: the body introduces one target. -/
-theorem twoMentionsOneTarget : targets ((tapThenUntap (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 1 := by
+theorem twoMentionsOneTarget : targets (actionResult (DRS.ofList []) (tapThenUntap (target isCreature))) = 1 := by
   decide
 
 /-- Copying the argument into both mentions selects twice, which the identity spelling
 does not. -/
 theorem copiedArgumentTargetsTwice :
-    targets ((tapThenUntapCopied (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 2 := by
+    targets (actionResult (DRS.ofList []) (tapThenUntapCopied (target isCreature))) = 2 := by
   decide
 
 /-- The later mention reads the very binding the first mention introduced. -/
 theorem laterMentionReadsTheFirstMention :
-    let after := nounResult (DRS.ofList []) (.firstMention "m.0" (target isCreature))
+    let after := nounResult (DRS.ofList []) (.firstMention "m.0" (target isCreature)) .obj true
     (stepNounPhrase 64 after .obj true (.laterMention "m.0" (target isCreature))).2.1 == [0] := by
   decide
 
 /-- A binding pushed between the mentions does not move the read: the later mention still
 reads the artifact the first mention targeted, not the creature targeted after it. -/
 theorem interveningBindingDoesNotShiftTheRead :
-    let after := nounResult (nounResult (DRS.ofList []) (.firstMention "m.0" (target isArtifact))) (target isCreature)
+    let after := nounResult (nounResult (DRS.ofList []) (.firstMention "m.0" (target isArtifact)) .obj true) (target isCreature) .obj true
     (identityBinding "m.0" after).map (·.ty) =
       some [.artifact] := by
   decide
@@ -107,7 +99,7 @@ theorem okFightByIdentity :
 /-- Each `target creature` is one targeting: the handoff selects the first once, and the body
 mentions the second three times. -/
 theorem fightTargetsEachArgumentOnce :
-    targets ((fightByIdentity (target isCreature) (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 2 := by
+    targets (actionResult (DRS.ofList []) (fightByIdentity (target isCreature) (target isCreature))) = 2 := by
   decide
 
 /-- "This creature fights target creature you don't control." -/
@@ -149,7 +141,7 @@ theorem groupHandoffRefusesPreMoveIdentity :
 /-- What the members' bodies introduced is published as a group, as for a one-mention body
 (`Actor.handedGroupPublishesPlurals`): the choice is not hoisted out of the handoff. -/
 theorem groupHandoffByIdentityPublishesPlurals :
-    shape (actionResult (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard))) (DRS.ofList [])) =
+    shape (actionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard)))) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
@@ -262,11 +254,11 @@ theorem regenerateTargetsOnce :
     (match (regenerateBy (target isCreature)).scopeBody with
       | .establish (.replace event (.instead body) _ _ _) _ =>
         let context := (stepWouldClause 64 (DRS.ofList []) event).1
-        targets (actionResult body context)
+        targets (actionResult context body)
       | _ => 0) = 1 := by decide
 
 theorem regenerationPatternDoesNotLeakIntoFollowingText :
-    targets (actionResult (regenerateBy (target isCreature)) (DRS.ofList [])) = 0 := by decide
+    targets (actionResult (DRS.ofList []) (regenerateBy (target isCreature))) = 0 := by decide
 
 /-- The application alone, as a static regeneration ability applies it [CR#701.19b]. -/
 theorem okRegenerationApplication :

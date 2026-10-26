@@ -57,8 +57,7 @@ are ([CR#601.2c])" (`docs/decisions/semantics-v3.md` §0.1 item 2, step 2).
 ## Pins
 
 - Rewritten: `regenerationPatternDoesNotLeakIntoFollowingText` →
-  `regeneratedTargetIsReadBack`, asserting `targets (actionResult (regenerateBy (target
-  isCreature)) (DRS.ofList [])) = 1`, because the old claim is the defect.
+  `regeneratedTargetIsReadBack`, asserting `targets (actionResult (DRS.ofList []) (regenerateBy (target isCreature))) = 1`, because the old claim is the defect.
 - Added: `debtOfLoyalty` (spelled). Every fixture must be a Vintage-legal card (owner,
   2026-10-25), so no invented "Regenerate target creature. Tap it." pin is added.
 - Must stay green: `regenerateTargetsOnce`, `okRegenerationApplication`

@@ -1,5 +1,6 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 /-!
 # Semantics.Proofs.Choice
@@ -11,9 +12,6 @@ form, each closed by `decide`. The names and the sentences are the Idris ones.
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Choice
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
 
 /-- "the chosen number", one number choice standing -/
 theorem okChosenNumberOneStanding : Amount.check [qualityB .number] chosenNumber = [] := by decide

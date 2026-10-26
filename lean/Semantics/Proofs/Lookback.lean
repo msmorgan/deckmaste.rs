@@ -5,10 +5,6 @@ namespace Semantics.Proofs.Lookback
 
 open Semantics Semantics.Templates Semantics.Definitions
 
-/-- "this turn", as a lookback reads it (`Templates.soFarThisTurn`). -/
-def soFarThisTurn : Duration := .between (some (.beginningOf .turn none .current)) (some .now)
-/-- "this game" (`Templates.thisGame`). -/
-def thisGame : Duration := .between none (some .now)
 
 private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=
   Predicate.checkAt kind (DRS.ofList []) (.did clause)

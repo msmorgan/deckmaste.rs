@@ -1,19 +1,10 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ActionFamilies
-
-private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
-  let result := stepNounPhrase 64 drs .other false noun
-  result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
-
-private def actionResult (drs : DRS) (action : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs action).1
-
-private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
-  (stepNounPhrase 64 drs .other false noun).1
 
 private def outcomeReferents (drs : DRS) : List Referent :=
   drs.referents.filter fun ref => match ref.payload with | .outcome _ => true | _ => false

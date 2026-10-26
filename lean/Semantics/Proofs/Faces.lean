@@ -16,10 +16,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Faces
 
-/-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost action timing none none none
-
 /-- A single-faced card. -/
 def one (face : Characteristics) : Card := .singleFaced { characteristics := face }
 
@@ -232,7 +228,7 @@ def jace : Characteristics :=
 theorem okLoyaltyOnPlaneswalker :
     Card.check
       (one
-        { jace with text := [activatedAbility (.loyaltySymbol (.up 1)) (draw 1)],
+        { jace with text := [activated (.loyaltySymbol (.up 1)) (draw 1)],
                     loyalty := stat 3 }) = [] := by
   decide
 
