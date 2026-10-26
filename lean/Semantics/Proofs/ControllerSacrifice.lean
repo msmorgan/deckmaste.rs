@@ -106,6 +106,12 @@ theorem thisWayReadsOnlyTheDeedWritten :
         [ gainControl (target isCreature) untilEndOfTurn,
           doIf (did you (draw anyAmount) thisWay) (tap it) ]) = [.thisWayUngrounded] := by decide
 
+theorem aModeArmPublishesItsCausedEvent :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ chooseOne (sacrifice (a isCreature)) (gainControl (target isCreature) untilEndOfTurn),
+          doIf (did you (gainControlOf (a isCreature)) thisWay) (tap it) ]) = [] := by decide
+
 private def existingTarget : Referent :=
   { det := .target, plur := .one,
     payload := .object [.creature, .artifact] (some .battlefield) none none (some 1) }

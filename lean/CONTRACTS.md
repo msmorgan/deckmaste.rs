@@ -295,7 +295,8 @@ this way, …" [CR#608.2c]; `thisWayReadsItsCostsEvent`), and is refused `thisWa
 otherwise, so "Draw a card. If you search your library this way, shuffle" is refused
 (`thisWayNamesNoEarlierEvent`). Each resolving or paid action a lookback can name
 (`Action.eventHeadOk`) records its event (`DRS.withCaused`, `DRS.causedEvents`); a control grant,
-which is an `establish` and no event head, records its own (`controlGrantRecordsItsCausedEvent`):
+which is an `establish` and no event head, records its own (`controlGrantRecordsItsCausedEvent`);
+the arms of a choice publish theirs (`aModeArmPublishesItsCausedEvent`):
 the Deed that
 names it, the Zone Change it writes, its classes (`EventVerb`, for an event that names neither:
 damage dealt, life gained apart from life lost [CR#119.3]), its Actor's kind and the kind of what

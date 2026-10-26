@@ -2142,7 +2142,10 @@ def stepModeListWith (ops : StepOps) (drs : DRS)
       | some cost => ops.cost branch cost
       | none => (branch, [])
     let (afterBody, bodyErrors) := ops.inst .postEvent .obj (nextClause afterCost) action
-    ({ drs with nextId := max out.nextId afterBody.nextId }, errors ++ costErrors ++ bodyErrors)) (drs, [])
+    ({ drs with
+        nextId := max out.nextId afterBody.nextId
+        causedEvents := newlyCaused branch afterBody ++ out.causedEvents },
+      errors ++ costErrors ++ bodyErrors)) (drs, [])
 
 def actorPlurality (drs : DRS) : Plurality :=
   ((actorShape? drs).map (·.plur)).getD .one
