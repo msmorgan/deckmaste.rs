@@ -141,7 +141,7 @@ def sacrificeDrawActivated : Ability :=
 theorem sacrifice_draw_activated_sound :
     sacrificeDrawActivated.check = [] := by decide
 
-/-- Closed event and deontic head-gating (`semantics-v3.md` §3.6–3.7):
+/-- Closed head-gating (`semantics-v3.md` §3.6):
 compound actions (`sequentially`) are refused inside `does`, `would`, `did`, and `cant` with
 `Refusal.eventHead`, while a Definition's `ownScope` header is admitted. -/
 theorem compound_event_head_refused :

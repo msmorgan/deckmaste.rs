@@ -272,7 +272,7 @@ theorem badTheDamageUnannounced :
 /-- *Excruciator*: "Damage that would be dealt by this creature can't be prevented." A
 prohibition over the prevention of the damage it names, `cant any (preventDamage .all (damage :=
 …))`: prevention effects still apply to that damage, and their additional effects still happen
-[CR#615.12]. The prevention is a deontic head; a self-replacement is not. -/
+[CR#615.12]. The prevention is an event head; a self-replacement is not. -/
 theorem cantBePreventedIsADeonticOverPreventDamage :
     let cantBePrevented : StaticSpec :=
       cant any
@@ -283,13 +283,13 @@ theorem cantBePreventedIsADeonticOverPreventDamage :
             subtypes := [avatar], text := [static cantBePrevented],
             power := stat 7, toughness := stat 7 } ∧
       StaticSpec.check (DRS.ofList []) cantBePrevented = [] ∧
-      (Action.preventDamage .all none none).deonticHeadOk = true :=
+      (Action.preventDamage .all none none).eventHeadOk = true :=
   ⟨rfl, by decide, rfl⟩
 
 /-- *Whippoorwill*: "Damage that would be dealt to that creature this turn can't be prevented or
 dealt instead to another permanent or player." Its redirection half is `cant any (redirectDamage
 …)`, a prohibition over the redirection [CR#614.9]; the redirect target is one permanent or
-player, so a plural one is refused. `redirectDamage` is a deontic head, and the self-replacement
+player, so a plural one is refused. `redirectDamage` is an event head, and the self-replacement
 `Action.replace` is not [CR#614.15]. -/
 theorem whippoorwillCantIsADeonticOverRedirectDamage :
     let toThatCreature : WouldClause := would any (dealDamage anyAmount (that creature))
@@ -303,8 +303,8 @@ theorem whippoorwillCantIsADeonticOverRedirectDamage :
         (cant any
           (redirectDamage allDamage (allOf (or [isPermanent, isPlayer]))
             (damage := toThatCreature))) = [.singular] ∧
-      (Action.redirectDamage .all .you none).deonticHeadOk = true ∧
-      Action.deonticHeadOk
+      (Action.redirectDamage .all .you none).eventHeadOk = true ∧
+      Action.eventHeadOk
           (.replace (.dealDamage .anyAmount .any none) (.instead (.draw (.exactlyOf 1))))
         = false := by
   decide
@@ -681,13 +681,12 @@ theorem drawRefusesANonPlayerOnceInEveryClause :
         [.kindMismatch .player .object] := by
   decide
 
-/-- A deontic clause constrains any Zone Change, as an event clause watches one (owner ruling
-2026-10-24): "can't be returned to its owner's hand" and "can't be put into exile" are admitted,
-as "can't enter" is. -/
+/-- A deontic clause constrains any Zone Change, as an event clause watches one:
+"can't be returned to its owner's hand" and "can't be put into exile" are admitted, as "can't enter"
+is. -/
 theorem prohibitionAdmitsAnyZoneChange :
     StaticSpec.check (DRS.ofList []) (.cant .any (returnToHand thisCreature) {}) = [] ∧
-      StaticSpec.check (DRS.ofList []) (.cant .any (putInto thisCreature exileZone) {}) = [] ∧
-      (returnToHand thisCreature).deonticHeadOk = (returnToHand thisCreature).eventHeadOk := by
+      StaticSpec.check (DRS.ofList []) (.cant .any (putInto thisCreature exileZone) {}) = [] := by
   decide
 
 end Semantics.Proofs.Deontic

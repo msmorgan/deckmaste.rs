@@ -1215,8 +1215,8 @@ mutual
     | inCaller (body : Action)
     /-- A `Definition` body read in its own Reference Scope (`enterOwnScope` / `leaveOwnScope`),
     carrying its optional `Deed` identity (`some (.action name)`), the one deed of the action: a
-    resolving or paid step stamps it on what the body acts on, the event and deontic head gates
-    admit it, and `does`/`would`/`did`/`cant` and composite action lowering read it
+    resolving or paid step stamps it on what the body acts on, the head gate
+    admits it, and `does`/`would`/`did`/`cant` and composite action lowering read it
     [CR#701.22b]. A deed a permanent performs, written with no Handoff to a Permanent, is
     performed by the source permanent [CR#701.14a,701.44a]. -/
     | ownScope (deed : Option Deed) (body : Action)

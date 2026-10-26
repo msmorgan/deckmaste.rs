@@ -47,29 +47,6 @@ def Action.eventHead : Action → Bool
 Action Definition by its header and otherwise only an event-capable head (`Action.eventHead`). -/
 def Action.eventHeadOk (e : Action) : Bool := e.headGate Action.eventHead
 
-/-- The closed action heads a deontic clause can constrain (`semantics-v3.md` §3.7): a narrower
-set than the event heads, a status only tapped, untapped or phased, and any Zone Change, as the
-event gate admits it (owner ruling 2026-10-24): "put", "return" and "leave" are Templates over the
-move. -/
-def Action.deonticHead : Action → Bool
-  | .attack .. | .block .. | .target .. | .attachment ..
-  | .procedure .. | .copy .. | .draw .. | .changeLife ..
-  | .dealDamage .. | .putCounters .. | .removeCounters ..
-  | .preventDamage .. | .redirectDamage ..
-  | .search .. | .turnOver .. | .conclude ..
-  | .changeControl .. | .tapForMana .. | .unlock ..
-  | .trigger | .crew .. | .saddle .. | .fullyUnlock ..
-  | .vote .. | .pay .. => true
-  | .setStatus .tapped _ | .setStatus .untapped _
-  | .setStatus .phasedIn _ | .setStatus .phasedOut _ => true
-  | .move .. => true
-  | _ => false
-
-/-- Closed deontic head-gating: `cant`, `must`, `can`, `gatedBy` and `asThough` admit an Action
-Definition by its header, as the event gate does, and otherwise only a deontic head
-(`Action.deonticHead`). -/
-def Action.deonticHeadOk (e : Action) : Bool := e.headGate Action.deonticHead
-
 /-- Whether an event-capable action carries a quantity or magnitude that `TallyMode.quantity`
 can sum (`semantics-v3.md` §3.8). -/
 def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=

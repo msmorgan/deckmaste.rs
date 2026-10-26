@@ -4576,7 +4576,7 @@ def stepOps : Nat → StepOps
             | some cause => stepCausingWith ops drs cause
             | none => (drs, [])
           let (out, errors) := stepActionClauseWith ops drs0 subj action .preEvent
-            Action.deonticHeadOk false (between := (stepDeonticModsWith ops · mods))
+            Action.eventHeadOk false (between := (stepDeonticModsWith ops · mods))
           (closeModalBox drs out, e0 ++ errors ++ refuse mods.rider.isNone .deonticRider)
         | .must subj action mods | .can subj action mods =>
           let modErrors := refuse mods.cause.isNone .deonticCause ++
@@ -4594,7 +4594,7 @@ def stepOps : Nat → StepOps
                 | .any | .by _ => none)).map ({ · with permitted := true })
             ({ d with causedEvents := permitted ++ d.causedEvents }, errors)
           let (permitted, errors) := stepActionClauseWith ops drs subj action .preEvent
-            Action.deonticHeadOk false (between := permitting)
+            Action.eventHeadOk false (between := permitting)
           -- A rider modifies the permitted act, so it reads the permission's clause back
           -- [CR#608.2c].
           let (out, e5) := match mods.rider with
@@ -4606,7 +4606,7 @@ def stepOps : Nat → StepOps
           -- describes how the act happens, so it writes no act for a later "this way" to read.
           -- The agent of a passive ("all damage is dealt [by a source]") is a participant of the
           -- event, so the condition reads it: "as though its source had wither".
-          stepActionClauseWith ops drs subj action .preEvent Action.deonticHeadOk false
+          stepActionClauseWith ops drs subj action .preEvent Action.eventHeadOk false
             (finish := (stepAsThoughWith ops · cond))
         | .gatedBy cost subj action mods =>
           let modErrors := refuse mods.cause.isNone .deonticCause ++
@@ -4624,7 +4624,7 @@ def stepOps : Nat → StepOps
                 pendingRoles := paid.pendingRoles.filter (fun mention => mention.1 != payerId) },
               e3 ++ costErrors)
           let (out, errors) := stepActionClauseWith ops drs subj action .preEvent
-            Action.deonticHeadOk false (between := gated)
+            Action.eventHeadOk false (between := gated)
           (closeModalBox drs out, modErrors ++ errors)
         | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
