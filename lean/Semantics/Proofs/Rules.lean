@@ -95,7 +95,10 @@ no body of its own, and the one row reads the total toxic value [CR#702.164b,702
 theorem toxicIsOneResultReadingTheTotal :
     (match toxic 2 with
       | .keyword (.named "toxic") [.number _] body => body.isEmpty
-      | _ => false) = true := rfl
+      | _ => false) = true ∧
+      (match toxicPoison.confer with
+        | .property (.asEvent _ (.putCounters count _ _)) => some count
+        | _ => none) = some (totalToxicValue this_) := ⟨rfl, rfl⟩
 
 /-- The results of damage to a planeswalker are no ability of it: they are a property the rules
 confer, so an effect that makes a permanent lose all abilities leaves them [CR#120.3c,113.12]. -/

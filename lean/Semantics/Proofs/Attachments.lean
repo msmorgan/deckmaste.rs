@@ -115,7 +115,11 @@ theorem okAuraMayBeAttachedToAPlayer :
     StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .isPlayer)) = [] := by decide
 
 theorem passiveAgentAndAttachmentHostAreDistinct :
-    (.by (allOf isCreature) : Subject).patientRole = .subj := rfl
+    (.by (allOf isCreature) : Subject).patientRole = .subj ∧
+      mayBeAttachedTo thisEquipment (allOf isCreature) =
+        .can .any (attachTo thisEquipment (allOf isCreature))
+          {} := by
+  constructor <;> rfl
 
 /-! ## The chapter axis (ruling 2026-10-10) -/
 

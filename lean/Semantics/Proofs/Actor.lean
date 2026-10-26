@@ -241,9 +241,7 @@ private def drawOne : Action := draw 1
 
 /-- Wall of Shards: "Cumulative upkeep—An opponent gains 1 life." -/
 theorem wallOfShardsHandoffTwin :
-    Ability.check (DRS.ofList []) (cumulativeUpkeep (.perform (instruct anOpponent (gainLife 1)))) = [] ∧
-      Ability.check (DRS.ofList []) (cumulativeUpkeep (.perform (instruct anOpponent (gainLife 1)))) =
-        Ability.check (DRS.ofList []) (cumulativeUpkeep (.perform (instruct anOpponent (gainLife 1)))) := by
+    Ability.check (DRS.ofList []) (cumulativeUpkeep (.perform (instruct anOpponent (gainLife 1)))) = [] := by
   decide
 
 /-- Varchild's War-Riders: "Cumulative upkeep—Have an opponent create a 1/1 red Survivor creature
@@ -268,13 +266,7 @@ opponent gain 3 life." -/
 theorem invigorateHandoffTwin :
     Ability.check (DRS.ofList [])
         (.static (onlyWhile (.altCost .this (some (.perform (instruct anOpponent (gainLife 3)))))
-          controlsForest)) = [] ∧
-      Ability.check (DRS.ofList [])
-          (.static (onlyWhile (.altCost .this (some (.perform (instruct anOpponent (gainLife 3)))))
-            controlsForest)) =
-        Ability.check (DRS.ofList [])
-          (.static (onlyWhile (.altCost .this (some (.perform (instruct anOpponent (gainLife 3)))))
-            controlsForest)) := by
+          controlsForest)) = [] := by
   decide
 
 private def blockersTheyControl : Amount :=
@@ -286,15 +278,7 @@ theorem heatWaveHandoffTwin :
     Ability.check (DRS.ofList [])
         (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
             (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
-            (.block (allOf (and [isCreature, youControl]))) {})) = [] ∧
-      Ability.check (DRS.ofList [])
-          (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
-            (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
-            (.block (allOf (and [isCreature, youControl]))) {})) =
-        Ability.check (DRS.ofList [])
-          (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
-            (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
-            (.block (allOf (and [isCreature, youControl]))) {})) := by
+            (.block (allOf (and [isCreature, youControl]))) {})) = [] := by
   decide
 
 /-- Killing Wave: "For each creature, its controller sacrifices it unless they pay X life." -/
@@ -309,31 +293,21 @@ theorem killingWaveHandoffTwin :
 `Keyword.badForeignSacrificeCost`, retired with `costPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem foreignSacrificeCostHandoffTwin :
     Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
-        none none none none) = [] ∧
-      Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
-          none none none none) =
-        Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
-          none none none none) := by
+        none none none none) = [] := by
   decide
 
 /-- "An opponent pays 2 life: Draw a card." (the pin `Keyword.badForeignPayerCost`,
 retired with `costPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem foreignPayerCostHandoffTwin :
     Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (loseLife 2))) drawOne
-        none none none none) = [] ∧
-      Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (loseLife 2))) drawOne
-          none none none none) =
-        Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (loseLife 2))) drawOne none none none
-          none) := by
+        none none none none) = [] := by
   decide
 
 /-- "Cumulative upkeep—An opponent loses 1 life." (the pin
 `Mana.badOpponentPaysYourCost`, retired with `keywordCostPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem opponentPaysYourCostHandoffTwin :
     Ability.check (DRS.ofList []) (keywordCosting (.named "cumulativeUpkeep") (.perform (instruct anOpponent (loseLife 1))))
-        = [] ∧
-      Ability.check (DRS.ofList []) (keywordCosting (.named "cumulativeUpkeep") (.perform (instruct anOpponent (loseLife 1)))) =
-        Ability.check (DRS.ofList []) (keywordCosting (.named "cumulativeUpkeep") (.perform (instruct anOpponent (loseLife 1)))) := by
+        = [] := by
   decide
 
 /-- "You may pay an opponent's 1 life. If you do, draw a card." (the pin
@@ -341,13 +315,7 @@ theorem opponentPaysYourCostHandoffTwin :
 theorem mismatchedPayerHandoffTwin :
     Action.check (DRS.ofList [])
         (may (.pay (.perform (instruct anOpponent (loseLife 1))) .once .paid none none)
-          none (some drawOne)) = [] ∧
-      Action.check (DRS.ofList [])
-          (may (.pay (.perform (instruct anOpponent (loseLife 1))) .once .paid none none)
-            none (some drawOne)) =
-        Action.check (DRS.ofList [])
-          (may (.pay (.perform (instruct anOpponent (loseLife 1))) .once .paid none none)
-            none (some drawOne)) := by
+          none (some drawOne)) = [] := by
   decide
 
 /-- "Pay 2 life: Draw a card." handed to "you" (`Keyword.okOwnPayerCost`). -/

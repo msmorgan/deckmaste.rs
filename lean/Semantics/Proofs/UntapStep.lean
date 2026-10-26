@@ -31,8 +31,11 @@ end
 
 /-- "<subject> doesn't untap during [<whose>] untap step" forbids the `untap` Definition's Deed,
 so it and a "can't untap" pattern constrain the same Deed. -/
-theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) :
-    (untap subject).namedDeed = some (.action "untap") := rfl
+theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) (whose : Option NounPhrase) :
+    (match doesntUntap subject whose with
+      | .conditional (.cant _ action _) _ _ => action.namedDeed
+      | _ => none) = (untap subject).namedDeed ∧
+      (untap subject).namedDeed = some (.action "untap") := ⟨rfl, rfl⟩
 
 /-- The stun counter's replacement effect [CR#122.1d]: "If a permanent with a stun counter on it
 would become untapped, instead remove a stun counter from it." -/
@@ -46,8 +49,10 @@ counter's replacement watches, so on a tapped permanent with both the untap can'
 stun replacement can't apply to it [CR#614.17c], and the stun counter stays; as a replacement
 it would instead be ordered against the stun counter's [CR#616.1]. -/
 theorem doesntUntapIsNoStunReplacement :
-    (untap thisPermanent).namedDeed =
-        (untap (a (and [isPermanent, hasCounter (some stunCounter)]))).namedDeed ∧
+    (match doesntUntap thisPermanent none, stunReplacement with
+      | .conditional (.cant _ forbidden _) _ _, .static (.replace (.would _ watched) _ _ _ _) =>
+          forbidden.namedDeed = watched.namedDeed
+      | _, _ => False) ∧
       Ability.check (DRS.ofList []) stunReplacement = [] :=
   ⟨rfl, by decide⟩
 
