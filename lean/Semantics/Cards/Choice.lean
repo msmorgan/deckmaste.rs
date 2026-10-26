@@ -1656,10 +1656,10 @@ def juxtapose : Spelled := spelled <| singleFacedCard
   { name := "Juxtapose", cost := [generic 3, pip .blue], types := [.sorcery],
     text :=
       [ spell (sequentially
-          [ exchange (controlOf (greatestManaValue isCreature you)
-              (greatestManaValue isCreature (target isPlayer))),
-            exchange (controlOf (greatestManaValue isArtifact you)
-              (greatestManaValue isArtifact (that player))),
+          [ exchangeControl (greatestManaValue isCreature you)
+              (greatestManaValue isCreature (target isPlayer)),
+            exchangeControl (greatestManaValue isArtifact you)
+              (greatestManaValue isArtifact (that player)),
             juxtaposeTie ]) ] }
 theorem okJuxtapose : juxtapose.card.check = [] := juxtapose.ok
 

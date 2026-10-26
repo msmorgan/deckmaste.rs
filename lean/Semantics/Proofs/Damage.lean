@@ -3,6 +3,11 @@ import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Damage
 import Semantics.Cards.Faces
+import Semantics.Cards.Choice
+import Semantics.Cards.Cost
+import Semantics.Cards.Keyword
+import Semantics.Cards.Piles
+import Semantics.Cards.Turn
 
 /-!
 # Semantics.Proofs.Damage
@@ -1255,5 +1260,54 @@ exchange keyword action [CR#701.12a,701.12b], which happens as a whole or not at
 independent control changes. -/
 theorem phyrexianInfiltratorExchangesControl :
     Cards.phyrexianInfiltrator.ownDeed? == some exchangeControl.deed := by decide
+
+theorem mirrorUniverseExchangesLifeTotals :
+    (match Cards.mirrorUniverse.card with
+      | .singleFaced face =>
+        match face.characteristics.text with
+        | [.activated _ exchanging ..] =>
+          exchanging.ownDeed? == some exchangeLifeTotals.deed
+        | _ => false
+      | _ => false : Bool) := by decide
+
+theorem juxtaposeExchangesControl :
+    (match Cards.juxtapose.card with
+      | .singleFaced face =>
+        match face.characteristics.text with
+        | [.spell _ (.sequentially [creatures, artifacts, _])] =>
+          creatures.ownDeed? == some exchangeControl.deed &&
+            artifacts.ownDeed? == some exchangeControl.deed
+        | _ => false
+      | _ => false : Bool) := by decide
+
+theorem soulConduitExchangesLifeTotals :
+    (match Cards.soulConduitExchange with
+      | .activated _ exchanging .. => exchanging.ownDeed? == some exchangeLifeTotals.deed
+      | _ => false : Bool) := by decide
+
+theorem vedalkenSquirrelWhackerExchangesValues :
+    (match Cards.vedalkenSquirrelWhackerReroll with
+      | .establish (.replace _ (.instead (.sequentially
+          [_, .withContinuation .optional (.chooseModes _
+            [(_, _, power), (_, _, toughness)]) none none])) ..) _ =>
+        power.ownDeed? == some exchangeValues.deed &&
+          toughness.ownDeed? == some exchangeValues.deed
+      | _ => false : Bool) := by decide
+
+theorem avariceTotemExchangesControl :
+    Cards.avariceTotemExchange.ownDeed? == some exchangeControl.deed := by decide
+
+theorem harnessInfinityExchangesZones :
+    Cards.harnessInfinityExchange.ownDeed? == some exchangeZones.deed := by decide
+
+theorem deadpoolTradingCardExchangesTextBoxes :
+    (match Cards.deadpoolTradingCard.card with
+      | .singleFaced face =>
+        match face.characteristics.text with
+        | .static (.replace _ (.alongside
+            (.withContinuation .optional exchanging none none)) ..) :: _ =>
+          exchanging.ownDeed? == some exchangeTextBoxes.deed
+        | _ => false
+      | _ => false : Bool) := by decide
 
 end Semantics.Proofs.Damage

@@ -305,8 +305,8 @@ theorem squirrelWhackerExchangesWithBasePowerOrToughness :
       | .establish (.replace _ (.instead (.sequentially [_, exchanging])) ..) _ => some exchanging
       | _ => none) =
       some (may (chooseOne
-        (exchange (values (theOutcome .rollResult) (basePowerOf thisCreature)))
-        (exchange (values (theOutcome .rollResult) (baseToughnessOf thisCreature))))) := rfl
+        (exchangeValues (theOutcome .rollResult) (basePowerOf thisCreature))
+        (exchangeValues (theOutcome .rollResult) (baseToughnessOf thisCreature)))) := rfl
 
 /-! ## Mana spent to turn a permanent face up [CR#116.2b] -/
 

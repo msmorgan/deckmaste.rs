@@ -772,7 +772,7 @@ theorem okObeliskOfUndoing : Ability.check (DRS.ofList []) obeliskOfUndoing = []
 /-- Soul Conduit -/
 def soulConduitExchange : Ability :=
   activated (compound [[generic 6], tapSymbol])
-    (exchange (lifeTotals (targets (exactly 2) isPlayer)))
+    (exchangeLifeTotals (targets (exactly 2) isPlayer))
 theorem okSoulConduitExchange : Ability.check (DRS.ofList []) soulConduitExchange = [] := by decide
 
 /-- Death-Mask Duplicant -/

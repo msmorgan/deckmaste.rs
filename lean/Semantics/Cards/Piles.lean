@@ -197,7 +197,7 @@ def lilianaOfTheVeil : Spelled := spelled <| singleFacedCard
     loyalty := stat 3 }
 
 /-- Harness Infinity: the exchange action alone, as the Idris bench holds it. -/
-def harnessInfinityExchange : Action := exchange (zones hand graveyard)
+def harnessInfinityExchange : Action := exchangeZones hand graveyard
 theorem okHarnessInfinityExchange : Action.check (DRS.ofList []) harnessInfinityExchange = [] := by decide
 
 theorem countedAtRandomIsPlural : NounPhrase.plur twoCardsAtRandom = .many := by decide

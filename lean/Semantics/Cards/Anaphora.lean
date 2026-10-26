@@ -335,8 +335,8 @@ def vedalkenSquirrelWhackerReroll : Action :=
       [ rollDice thatMuch .thoseDice .anyResult,
         may
           (chooseOne
-            (exchange (values (theOutcome .rollResult) (basePowerOf thisCreature)))
-            (exchange (values (theOutcome .rollResult) (baseToughnessOf thisCreature)))) ]))
+            (exchangeValues (theOutcome .rollResult) (basePowerOf thisCreature))
+            (exchangeValues (theOutcome .rollResult) (baseToughnessOf thisCreature))) ]))
     none
 theorem okVedalkenSquirrelWhackerReroll :
     Action.check (DRS.ofList []) vedalkenSquirrelWhackerReroll = [] := by decide

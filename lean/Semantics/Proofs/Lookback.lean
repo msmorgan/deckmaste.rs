@@ -852,7 +852,7 @@ theorem thisWayClassesTheEvent :
       [.thisWayUngrounded] ∧
     Action.check (DRS.ofList [])
       (sequentially
-        [may (exchange (lifeTotals (youAnd (target isOpponent)))),
+        [may (exchangeLifeTotals (youAnd (target isOpponent))),
           doIf (did you (loseLife anyAmount) thisWay) (draw 1)]) = [] ∧
     Ability.check (DRS.ofList [])
       (activated (compound [tapSymbol, payLife 2])

@@ -1631,14 +1631,11 @@ def amassZombiesTwo : Action := amass zombie 2
 theorem okAmassZombiesTwo : Action.check (DRS.ofList []) amassZombiesTwo = [] := by decide
 /-- Avarice Totem -/
 def avariceTotemExchange : Action :=
-  exchange (controlOf thisArtifact (target (and [isPermanent, non isLand])))
+  exchangeControl thisArtifact (target (and [isPermanent, non isLand]))
 theorem okAvariceTotemExchange : Action.check (DRS.ofList []) avariceTotemExchange = [] := by decide
 /-- Arcanum Wings -- aura swap [CR#702.65a] -/
 def arcanumWingsAuraSwap : Ability :=
-  activated [generic 2, pip .blue]
-    (may
-      (exchange (cardsAcross thisAura (a (and [aura, in_
-          hand])))))
+  auraSwap [generic 2, pip .blue]
 theorem okArcanumWingsAuraSwap : Ability.check (DRS.ofList []) arcanumWingsAuraSwap = [] := by decide
 /-- Tovolar, Dire Overlord -/
 def tovolarNightfall : Action := setGameDesignation night
@@ -1712,10 +1709,7 @@ def deadpoolTradingCard : Spelled := spelled <| singleFacedCard
       [ static
           (replace (would thisCreature enter)
             (alongside
-              (may
-                (establish
-                  (textChange thisCreature
-                    (exchangeWith (a (and [isCreature, isOther])))))))),
+              (may (exchangeTextBoxes thisCreature (a (and [isCreature, isOther])))))),
         at_ (beginningOfYour .upkeep) (loseLife 3),
         activated (compound [[generic 3], sacrifice thisCreature])
           (instruct (each isOtherPlayer) (draw 1)) ],

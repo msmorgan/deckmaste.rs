@@ -371,7 +371,7 @@ def mirrorUniverse : Spelled := spelled <| singleFacedCard
   { name := "Mirror Universe", cost := [generic 6], types := [.artifact],
     text :=
       [ activatedOnlyDuring (compound [tapSymbol, sacrifice thisArtifact])
-          (exchange (lifeTotals (youAnd (target isOpponent))))
+          (exchangeLifeTotals (youAnd (target isOpponent)))
           (duringPart .upkeep you) ] }
 
 /-- Concerted Effort -/
