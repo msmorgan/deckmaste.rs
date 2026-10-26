@@ -131,9 +131,6 @@ inductive Refusal where
   | predSays
   | amtNonZero
   | tallyOk
-  /-- A Text Change replaces color words, land types and creature types [CR#612.2,612.2a];
-  `sort` is none of them. -/
-  | textChangeSort (sort : QualitySort)
   /-- A Text Change's word is of none of the sorts `sorts` it replaces. -/
   | textWordSort (sorts : List QualitySort) (found : QualitySort)
   /-- A shuffle names a zone other than a library or exile: what is shuffled is a library or a

@@ -1657,7 +1657,7 @@ semantic_template targetToEach : TextChange := .targetToEach
 semantic_template appendTextOf (source : NounPhrase) : TextChange := .appendTextOf source
 /-- "Replace all instances of one <sort> word with another", the kind one of `sorts` [CR#612.2];
 an absent word is the performer's choice. -/
-semantic_template replaceWord (sorts : List QualitySort) (from_ : Option TextWord := none)
+semantic_template replaceWord (sorts : List TextWordSort) (from_ : Option TextWord := none)
     (to : Option TextWord := none) : TextChange :=
   .replaceWord sorts from_ to
 /-- Exchange the subject's rules text with `other`'s [CR#612.5,701.12h]. -/

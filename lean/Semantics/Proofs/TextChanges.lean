@@ -83,7 +83,7 @@ theorem okRemoveBracketedWithoutBrackets :
 another." [CR#612.2] -/
 theorem okReplaceLandTypeWord :
     Action.check (DRS.ofList [])
-      (.establish (textChange (target isPermanent) (replaceWord [.subtype .land])) none) = [] := by
+      (.establish (textChange (target isPermanent) (replaceWord [.landType])) none) = [] := by
   decide
 
 /-- Artificial Evolution: "Change the text of target spell or permanent by replacing all instances
@@ -92,7 +92,7 @@ like a color word or a land type [CR#612.2]. -/
 theorem okReplaceCreatureTypeWord :
     Action.check (DRS.ofList [])
       (.establish (textChange (target (.or [isSpell, isPermanent]))
-        (replaceWord [.subtype .creature])) none) = [] := by
+        (replaceWord [.creatureType])) none) = [] := by
   decide
 
 /-- New Blood: "Change the text of that creature by replacing all instances of one creature type
@@ -100,14 +100,14 @@ with Vampire." [CR#612.2] -/
 theorem okReplaceCreatureTypeWithVampire :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isCreature)
-        (replaceWord [.subtype .creature] none (some (.subtype vampire)))) none) = [] := by
+        (replaceWord [.creatureType] none (some (.subtype vampire)))) none) = [] := by
   decide
 
 /-- "… one creature type with Swamp": a land type is not a creature type. -/
 theorem badReplaceCreatureTypeWithLandType :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isCreature)
-        (replaceWord [.subtype .creature] none (some (.subtype swamp)))) none)
+        (replaceWord [.creatureType] none (some (.subtype swamp)))) none)
       = [.textWordSort [.subtype .creature] (.subtype .land)] := by decide
 
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
@@ -122,18 +122,13 @@ with another or one basic land type with another." [CR#612.2] -/
 theorem okReplaceColorOrLandTypeWord :
     Action.check (DRS.ofList [])
       (.establish (textChange (target (.or [isSpell, isPermanent]))
-        (replaceWord [.color, .subtype .land])) none) = [] := by decide
+        (replaceWord [.color, .landType])) none) = [] := by decide
 
 /-- "… one color word with Swamp": a word replaced by a word of another kind is refused. -/
 theorem badReplaceAcrossKinds :
-    TextChange.check (DRS.ofList []) (.replaceWord [.color, .subtype .land] (some (.color .black))
+    TextChange.check (DRS.ofList []) (.replaceWord [.color, .landType] (some (.color .black))
       (some (.subtype swamp)))
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
-
-/-- A name is not a word a Text Change replaces [CR#612.2]. -/
-theorem badReplaceWordCardName :
-    TextChange.check (DRS.ofList []) (.replaceWord [.cardName] none none)
-      = [.textChangeSort .cardName] := by decide
 
 /-- Cleave's definition: the alternative cost, and the Text Change under its paid cost
 [CR#702.148a]. -/

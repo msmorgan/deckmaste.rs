@@ -34,6 +34,12 @@ inductive TextWord where
   | subtype (subtype : Subtype)
   deriving DecidableEq, Repr
 
+/-- The kinds of word a Text Change replaces: a color word, a land type or a creature type, each
+used in its rules sense [CR#612.2,612.2a]. -/
+inductive TextWordSort where
+  | color | landType | creatureType
+  deriving DecidableEq, Repr
+
 inductive QualityOp where
   | adds | sets | loses
   deriving DecidableEq, Repr
@@ -638,7 +644,7 @@ mutual
     of the same kind, the kind one of `sorts`; `none` is a word of the performer's choice, made
     as the effect applies [CR#612.2] ("one color word with another or one basic land type with
     another"). -/
-    | replaceWord (sorts : List QualitySort) (from_ : Option TextWord) (to : Option TextWord)
+    | replaceWord (sorts : List TextWordSort) (from_ : Option TextWord) (to : Option TextWord)
     /-- Exchanges the rules text of the subject and `other`: each one's rules text becomes the
     other's previous rules text [CR#612.5,701.12h]. -/
     | exchangeWith (other : NounPhrase)

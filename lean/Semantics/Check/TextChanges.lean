@@ -8,12 +8,11 @@ def TextWord.sort : TextWord → QualitySort
   | .subtype (.of host _) => .subtype host
   | .subtype (.spell _) => .subtype .instant
 
-/-- The sorts of word a Text Change replaces: color words, land types and creature types
-[CR#612.2,612.2a]. -/
-def QualitySort.replaceable : QualitySort → Bool
-  | .color => true
-  | .subtype host => host == .land || host == .creature
-  | _ => false
+/-- The quality sort a word of a Text Change's sort is of. -/
+def TextWordSort.quality : TextWordSort → QualitySort
+  | .color => .color
+  | .landType => .subtype .land
+  | .creatureType => .subtype .creature
 
 def TextWord.sortCheck (sorts : List QualitySort) : Option TextWord → List Refusal
   | none => []
@@ -27,10 +26,10 @@ def TextWord.sameSort : Option TextWord → Option TextWord → List Refusal
 
 def TextChange.shape : TextChange → List Refusal
   | .replaceWord sorts from_ to =>
+    let qualities := sorts.map TextWordSort.quality
     (if sorts.isEmpty then [.nonEmpty] else []) ++
-      (sorts.filter (!·.replaceable)).map
-        (fun sort => .textChangeSort sort) ++
-      TextWord.sortCheck sorts from_ ++ TextWord.sortCheck sorts to ++ TextWord.sameSort from_ to
+      TextWord.sortCheck qualities from_ ++ TextWord.sortCheck qualities to ++
+      TextWord.sameSort from_ to
   | _ => []
 
 end Semantics
