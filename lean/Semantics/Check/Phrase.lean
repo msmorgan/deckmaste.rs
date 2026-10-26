@@ -4330,15 +4330,19 @@ def stepOps : Nat → StepOps
             ({ drs2 with referents := drs2.referents.filter fun ref =>
                 !ref.existentialDomain || drs.referents.any (·.id == ref.id) }, e1 ++ e2)
           | some el =>
-            -- The other branch reads the targets and the amounts the branch names, nothing the
-            -- branch would choose as it resolves.
+            -- The other branch reads what the condition mentioned (except an existential's
+            -- domain, which does not hold in the otherwise-branch), together with the targets and
+            -- the amounts the then-branch names, nothing the then-branch would choose as it
+            -- resolves [CR#608.2c].
             let amounts := fresh.filter fun ref => match ref.plur, ref.payload with
               | .one, .outcome s => s.isAmount
               | _, _ => false
+            let conditionReferents := drs1.referents.filter fun ref =>
+              !ref.existentialDomain || withTargets.referents.any (·.id == ref.id)
             let (alternative, e3) := ops.inst phase .obj
-              (nextClause { withTargets with
-                referents := amounts ++ withTargets.referents
-                nextId := max withTargets.nextId drs2.nextId }) el
+              (nextClause { drs1 with
+                referents := amounts ++ conditionReferents
+                nextId := max drs1.nextId drs2.nextId }) el
             -- Either branch's events are read back by a later "this way". What the branches
             -- leave the text after the `doIf` (`semantics-v3.md` §1.3, box 2) are the referents
             -- in scope before it and the targets the then-branch announced, as either branch

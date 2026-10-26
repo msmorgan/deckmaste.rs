@@ -361,6 +361,27 @@ theorem badOtherwiseReadsLeadingArm :
       = [.anaphor .bare .one 0] := by
   decide
 
+/-- "If the creature with the greatest power is a Knight, it gets +2/+2 until end of turn;
+otherwise, it gets +1/+1 until end of turn": the condition is checked before either branch acts
+[CR#608.2c], so both branches read the subject the condition introduced, both by `laterMention` and
+by `it`. -/
+theorem otherwiseReadsSubjectIntroducedByCondition :
+    Action.check (DRS.ofList [])
+      (doIf (is (.firstMention "knight.subj"
+                  (the (and [isCreature, .superlative .max (.stat .power) isCreature])))
+                (hasSubtype knight))
+        (get (.laterMention "knight.subj"
+               (the (and [isCreature, .superlative .max (.stat .power) isCreature])))
+          (up 2) (up 2) untilEndOfTurn)
+        (some (get (.laterMention "knight.subj"
+                     (the (and [isCreature, .superlative .max (.stat .power) isCreature])))
+          (up 1) (up 1) untilEndOfTurn))) = [] ∧
+    Action.check (DRS.ofList [])
+      (doIf (is (the (and [isCreature, .superlative .max (.stat .power) isCreature]))
+                (hasSubtype knight))
+        (get it (up 2) (up 2) untilEndOfTurn)
+        (some (get it (up 1) (up 1) untilEndOfTurn))) = [] := by decide
+
 /-- "Tap target creature. If you control an artifact, exile that creature. Otherwise, sacrifice
 it. Return the exiled card to the battlefield." Whichever branch is taken, what it did to a
 referent in scope before the `doIf` stands after it (`semantics-v3.md` §1.3, box 2): "the exiled
