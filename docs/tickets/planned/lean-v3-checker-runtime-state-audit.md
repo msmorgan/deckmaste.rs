@@ -181,5 +181,7 @@ what cards can say; a gameplay distinction stays only where reference resolution
   `exiledAbilityIsNotASpellOrCard`, `badRevealedAsAPlayerIsCast`). Update the stamped-word rule in
   `lean/CONTRACTS.md:415-418`.
 - **K4 no longer exists under that name** (`lookbackLocus` is gone); nothing to classify.
-- **K6** (`Check/Rules.lean`) follows the owner's pending answer on rules rows; do not act on it
-  here.
+- **K6** (`Check/Rules.lean`) stays as it is: rules rows stay as DSL items (decided 2026-10-25), so
+  `SbaRule.check`, `ConferralRule.check` and `Definition.check` are neither removed nor reshaped here.
+  `lean-v3-registry-definition-rename` renames `Definition` to `RegistryDefinition`; this ticket
+  does not touch that name.
