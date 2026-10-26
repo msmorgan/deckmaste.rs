@@ -298,8 +298,8 @@ theorem bairdComparesPowerWithItsOwnBasePower :
     ((faceText Cards.bairdArgivianRecruiter.card).filterMap fun
       | .triggered _ _ _ _ _ _ intervening _ => intervening
       | _ => none) =
-      [ exists_ (compareOver (and [isCreature, youControl])
-          (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0) ] := rfl
+      [ exists_ (comparesOwnStat .power (and [isCreature, youControl])
+          .greater (basePowerOf ownMember)) ] := rfl
 
 /-- Vedalken Squirrel-Whacker: "you may exchange one result with this creature's base power or
 base toughness", an exchange of values that sets each to the other [CR#701.12g,208.4]. -/

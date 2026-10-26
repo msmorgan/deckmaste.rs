@@ -353,11 +353,11 @@ theorem okComparisonBoundOutsideTheMember :
   decide
 
 /-- "an opponent who controls more lands than they control" -/
-theorem badMemberInComparisonBound :
+theorem okMemberInComparisonBound :
     Predicate.checkAt .player (DRS.ofList [])
       (.compareOver (.isOpponentOf .you) (countOf (.and [isLand, .hasPossessor .controller .you])) .greater
         (countOf (.and [isLand, .hasPossessor .controller they])))
-      = [.anaphor (.word .player) .one 0] := by
+      = [] := by
   decide
 
 /-- "Target creature gets +3/+3 until end of turn." -/

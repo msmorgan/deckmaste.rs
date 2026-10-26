@@ -1,5 +1,8 @@
 import Semantics.Check.AbilityRules
 import Semantics.Proofs.Helpers
+import Semantics.Definitions.Phrasings
+
+open Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ComparisonBox
 
@@ -21,8 +24,8 @@ theorem comparisonReadsItsCandidateRatherThanTheOuterArtifact :
       (resolveCandidates .bare .one localContext).map (·.ty) = [[.creature]] ∧
       (localContext.findById? 1).map (·.clause) = some (outerArtifact.currentClause + 1) := by decide
 
-/-- The candidate closes before the bound and does not escape the comparison box. -/
-theorem comparisonCandidateDoesNotEscapeIntoTheBoundOrEnclosingContext :
+/-- The candidate is available in the bound and closes on exit from the comparison box. -/
+theorem comparisonCandidateClosesAfterTheBound :
     let out := (stepPredicate 64 outerArtifact comparison).1
     (out.findById? 1) = none ∧
       (out.findById? 0).map (·.payload) = (outerArtifact.findById? 0).map (·.payload) ∧
@@ -30,8 +33,23 @@ theorem comparisonCandidateDoesNotEscapeIntoTheBoundOrEnclosingContext :
       countOnes .object out = 1 ∧
       Predicate.checkAt .object outerArtifact
         (.compareOver (.hasType .creature) ownPower .atLeast
-          (.statOf (.stat .power) (.pro (.word (.type .creature)) .one))) =
-        [.anaphor (.word (.type .creature)) .one 0] := by decide
+          (.statOf (.stat .power) (.pro (.word (.type .creature)) .one))) = [] := by decide
+
+/-- "Power greater than its base power" reads the candidate in both amounts, even with an
+outer artifact in scope. Literal and count bounds still check without reading the member. -/
+theorem comparisonBoundReadsOwnBasePower :
+    let domain := and [isCreature, youControl]
+    let memberId := (stepPredicate 63 outerArtifact domain).1.nextId
+    let predicate := comparesOwnStat .power domain .greater (basePowerOf ownMember)
+    let result := stepPredicate 64 outerArtifact predicate
+    Predicate.checkAt .object outerArtifact predicate = [] ∧
+      Predicate.checkAt .object outerArtifact (comparesOwnStat .power domain .greater 3) = [] ∧
+      Predicate.checkAt .object outerArtifact
+        (comparesOwnStat .power domain .greater (countOf domain)) = [] ∧
+      result.2 = [] ∧
+      result.1.findById? memberId = none ∧
+      result.1.currentClause = outerArtifact.currentClause ∧
+      countOnes .object result.1 = 1 := by decide
 
 private def candidate (clause id : Nat) : Referent := {
   det := .the, plur := .one, clause, id, role := .other,

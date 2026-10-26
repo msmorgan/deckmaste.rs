@@ -2916,14 +2916,17 @@ def stepOps : Nat → StepOps
           let member := bindFor .the .one kind dom
           let candidateContext := (nextClause domainDrs).push member .other false
           let (measured, measureErrors) := ops.amt candidateContext m
-          let boundContext := { domainDrs with
-            referents := domainDrs.referents.filter (fun ref => ref.id < drs.nextId)
-            nextId := measured.nextId }
+          -- Both amounts read the candidate; measure-local introductions stay closed, and
+          -- reserving their identities prevents the bound from reusing them.
+          let boundContext := { candidateContext with nextId := measured.nextId }
           let (bounded, boundErrors) := ops.amt boundContext b
           let boundAdditions := bounded.referents.filter (fun ref => ref.id ≥ boundContext.nextId)
           let domainAdditions := domainDrs.referents.filter (fun ref => ref.id ≥ drs.nextId)
           let inherited := bounded.referents.filter (fun ref => ref.id < drs.nextId)
-          let out := { bounded with referents := boundAdditions ++ domainAdditions ++ inherited }
+          let out := { bounded with
+            referents := boundAdditions ++ domainAdditions ++ inherited
+            currentClause := domainDrs.currentClause
+            pendingRoles := domainDrs.pendingRoles }
           (out.push differenceB .other false, refuse kind.phrasal (.phrasal kind) ++
             domainErrors ++ measureErrors ++ boundErrors)
         | .attachment side word counterpart =>

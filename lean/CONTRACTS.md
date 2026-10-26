@@ -449,6 +449,9 @@ ordinary phrases now: `attachToIt` writes `it`; `dealDamageOwnPower` and
 `controllerSacrifices` bind their subject with `firstMention` and read it back with
 `laterMention`; `comparesOwnStat` measures `ownMember`, a bare pronoun that the
 comparison's own clause box resolves to its candidate (`Predicate.compareOver`);
+the bound reads the same candidate, so "power greater than its base power" writes
+`comparesOwnStat .power isCreature .greater (basePowerOf ownMember)`. The candidate
+closes after both amounts and is unavailable to the enclosing text.
 `aTheirChoice` is a determiner mode (`ChoiceMode.theirChoice`) checked by
 `choiceModeChecks`; "gets +P/+T" is one `StaticSpec.characteristicChange` with a
 power and a toughness `CharacteristicEdit.stat`, which steps its subject once and its

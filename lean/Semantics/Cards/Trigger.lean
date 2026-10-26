@@ -978,17 +978,14 @@ def brunaLightOfAlabaster : Spelled := spelled <| singleFacedCard
     power := stat 5, toughness := stat 5 }
 
 /-- Baird, Argivian Recruiter: "if you control a creature with power greater than its base
-power", each creature measured against its own base power [CR#208.4b]. Spelled as the difference
-of the two measured on the member, because a comparison's bound cannot read the member yet
-(`planned/lean-v3-compare-over-bound-reads-member.md`); the intended spelling is
-`comparesOwnStat .power … .greater (basePowerOf ownMember)`. -/
+power", each creature measured against its own base power [CR#208.4b]. -/
 def bairdArgivianRecruiter : Spelled := spelled <| singleFacedCard
   { name := "Baird, Argivian Recruiter", cost := [pip .red, pip .white],
     supertypes := [.legendary], types := [.creature], subtypes := [human, soldier],
     text :=
       [ at_ (beginningOfYour .endStep)
-          (if_ := exists_ (compareOver (and [isCreature, youControl])
-            (minus (powerOf ownMember) (basePowerOf ownMember)) .greater 0))
+          (if_ := exists_ (comparesOwnStat .power (and [isCreature, youControl])
+            .greater (basePowerOf ownMember)))
           (create 1 (creatureToken 1 1 [.white] [soldier])) ],
     power := stat 2, toughness := stat 2 }
 
