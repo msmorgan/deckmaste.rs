@@ -17,7 +17,7 @@ consistency, not compatibility with previous checker behavior. Tests that encode
 obsolete shapes or incorrect laws must be corrected with an explanation and
 meaningful replacement coverage (user clarification, 2026-09-06).
 
-The checker's charter (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06)
+The checker's charter (`docs/archive/decisions/semantics-v2.md` §7, ruling 2026-10-06)
 is that a written term is a faithful reading of the card's English: its
 references resolve (anaphora, outcomes, choices, stamps, reference scopes,
 plurality, the handoff performer) and its terms are well-kinded. It is not a
@@ -80,12 +80,13 @@ ability's subject), `manaSymbolOk` (a hybrid or Phyrexian symbol's halves), `col
 and `colorCountOk` (how many colors an object has), `rolesOk` (distinct party roles; an
 empty role list is `nonEmpty`), `subtypeType` (a creature-type exclusion names a creature
 type), `twoParties` (an exchange of life totals names two parties), `kindAmountOk` (the
-amount beside "the same kinds of counters") and `verbBecomesOk` (with the deed table's
+amount beside "the same kinds of counters") and `verbBecomesOk` (which read the deed table's
 `intransitive` column). So are the keyword-definition checks (`keywordBodyFits`: a
-definition part's category, stack regime and card-class guard against the keyword's row)
+definition part's category, stack regime and card-class guard against the keyword's facts row)
 and the card face's joint choices (`jointChoices`): a later ability on a face reads a choice
-an earlier one makes through the threaded text context, as any reference does. The deed
-table's role columns are gone, and
+an earlier one makes through the threaded text context, as any reference does. The keyword
+and deed facts tables are deleted (`lean-v3-keyword-facts-deleted`,
+`lean-v3-action-facts-deleted`), and
 with them `deedFits` and `deedNounOk`: no deed asks whether its performer or its patient is a
 player or an object, which card types or object classes it is, or which zone it is in. A
 keyword action a permanent performs is refused on a player by its own Definition body, whose
@@ -284,9 +285,9 @@ that whole predicate binds its head (`relativeSeed`: the sibling conjuncts' type
 so "creature that blocked" reads a creature on the battlefield); elsewhere `which` is a bare
 referent of the enclosing predicate's kind. The `which` template writes `which`
 (`NounPhrase.which`). A `which` with no enclosing relative clause is refused
-(`anaphor`); a nested relative clause binds its own `which`, and `Condition.did`
+(`whichUnbound`); a nested relative clause binds its own `which`, and `Condition.did`
 clears the binder, so a nested lookback cannot read its parent's participant; and a relative clause that never reads its own `which` is refused
-`lookbackSubject`. Repeated reads within one clause name the same participant.
+`whichUnused`. Repeated reads within one clause name the same participant.
 
 A `thisWay` lookback is grounded in its own text: it reads back an event the earlier text of the
 same spell or ability caused, its costs included ("Counter target spell. If that spell is countered
@@ -395,7 +396,7 @@ for a plural pronoun (`D′` and `AC>R1`) and for the groups "the rest" and "the
 from (`preferOrdinary` in `resolveCandidates`, `countGroups`, `countedGroupSize`): it is read only
 where no ordinary candidate is in scope (`flowStateThemAndTheRestReadTheCardsLookedAt`). Any
 other existential's domain ranks as an ordinary mention, the nearest
-(`okJuxtaposeThemReadsTheTiedPermanents`, `purgingScytheThemReadsTheTiedCreatures`). A
+(`okJuxtaposeThemReadsTheTiedPermanents`, `loxodonPeacekeeperThemReadsTheTiedPlayers`). A
 self-replacement's replacement (`Action.replace`) starts from what the replaced action read,
 without the referents it introduced but its targets (`replacementStart`;
 `selfReplacementReadsWhatTheReplacedActionRead`, `okFblthpSelfReplacement`); after it, later text reads the replacement's referents first, then
@@ -753,7 +754,7 @@ An artifact creature supports both type words [CR#205.2b]. `[]` means no known
 card type, not a claim that the referent has no types. Explicit card-type evidence
 is retained before the existing subtype-derived fallback; a creature subtype does
 not add a creature fact to an explicitly Kindred description. The separate
-`Predicate.seedType` presupposition calculation is not stored type evidence.
+`Predicate.seedTy` presupposition calculation is not stored type evidence.
 
 A same-kind disjunction retains only facts common to every alternative. Joined
 kinds keep separate evidence in each `Payload` half, with intersection
@@ -1086,8 +1087,8 @@ the look-back zone changes [CR#603.10a].
   the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
   `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are
   retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`),
-  and the facts table no longer carries a definition, a regime, `functionsOnStack`,
-  `counterEligible` or a card-class column.
+  and the keyword facts table that carried a definition, a regime, `functionsOnStack`,
+  `counterEligible` and a card-class column is deleted (`lean-v3-keyword-facts-deleted`).
 - Pins: `Semantics/Proofs/KeywordByCardClass.lean` (gift's, haunt's and ascend's
   halves on both card classes, both halves checked, ascend's tree),
   `Semantics/Proofs/GiftVariants.lean` (gift's spelled variants on both card classes)
@@ -1112,7 +1113,7 @@ one player choice in scope (`countChoice .player`), refused
 ### Linked Facets of a Link Source, linked objects, and declared Relations
 
 `PaidFacet` and `PaidCostName` are `LinkedFacet` and `LinkSource`
-(`semantics-v2.md` §7, ruling 2026-10-09, "A linked ability reads back a
+(`docs/archive/decisions/semantics-v2.md` §7, ruling 2026-10-09, "A linked ability reads back a
 Linked Facet of a Link Source"). A Link Source names a cost; the facets read its
 payment, among them `LinkedFacet.taken which`, whether the choice `which` offered
 was taken ("if tribute wasn't paid" [CR#702.104b]), an amount facet named when its
@@ -1159,8 +1160,9 @@ Pins: `Semantics/Proofs/LinkedReadback.lean`.
 The ability a keyword is printed with ("Boast — [Cost]: [Effect]") is the
 keyword's parameter, `KeywordParam.ability`, and the restriction the keyword
 adds is a qualifier on it, `Ability.qualified ability timing limit guard
-from_` (`semantics-v2.md` §7, ruling 2026-10-09) [CR#113.10a,113.6b]. A
-qualified ability keeps the wrapped ability's category (`Ability.category`).
+from_` (`docs/archive/decisions/semantics-v2.md` §7, ruling 2026-10-09)
+[CR#113.10a,113.6b]. A qualified ability keeps the wrapped ability's category
+(`Ability.category`).
 
 - The guard reads "as long as", "this ability triggers only if" or "activate
   only if" by the wrapped ability's category [CR#702.169b..702.169d]; the
@@ -1191,7 +1193,7 @@ game rules the checker does not assert (`lean-checker-sweep-zone`). There is
 no destinationless movement action.
 
 "Put" and "return" name no deed: each is ordinary English for a Zone Change
-[CR#400.7]. The put and return Templates (`putInto`, `put`, `putWith`,
+[CR#400.7]. The put and return Templates (`putInto`, `put`,
 `putOntoBattlefield*`, `returnTo`, `returnToBattlefield*`, `returnToHand`) keep
 their wordings and expand through one helper to a bare `.move`, so a put and a
 return with the same subject, origin, destination and riders are one tree

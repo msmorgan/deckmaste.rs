@@ -57,22 +57,23 @@ phrasings live in `Templates`: for example, "permanent", "colorless", "spell" an
 expand into shared predicates.
 
 Actions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
-static-spec constructors use nouns (`modification`, `abilityGrant`), except that a replacement
-effect is `replace`, the word it shares with a self-replacement action, its replacement marked
-`instead` where the text says so (`replace (would you (draw 1)) (instead (draw 2))`).
+static-spec templates use nouns (`modification`, `abilityGrant`), except that the deontic
+templates use their modal (`cant`, `can`, `must`, `gatedBy`) and a replacement effect is
+`replace`, the word it shares with a self-replacement action, its replacement marked `instead`
+where the text says so (`replace (would you (draw 1)) (instead (draw 2))`).
 Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
 lives in `Repetition.fixed`. No action writes its performer: it is
-`actor`, the controller unless an enclosing `act performer body` hands it to
+`actor`, the controller unless an enclosing `instruct performer body` hands it to
 another player or a permanent; "target player draws a card" is
-`act (target .isPlayer) (draw 1)`. A choice's chooser and an added
+`instruct (target isPlayer) (draw 1)`. A choice's chooser and an added
 turn's taker are the actor too ("target player chooses a creature" is
-`act (target .isPlayer) (choose (a creature))`). `choose` accepts
+`instruct (target isPlayer) (choose (a isCreature))`). `choose` accepts
 `(disclosure := .secretly)`.
 
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a
 `ProjAxis`; arithmetic takes an `ArithOp`; `Predicate.or` joins alternatives
-with their own kinds. Designations are open labels whose declared scope
-feeds the checker tables. `Characteristics` is flat and follows
+with their own kinds. A designation is a catalog value whose declared scope the checker reads
+off the value (see "Registry facts"). `Characteristics` is flat and follows
 [CR#109.3]. Printed stat slots use `Option Amount`: `none` represents a printed
 `*`, with a Characteristic-Defining Ability (`StaticSpec.characteristicDefining`)
 supplying its value. `CardFace`
@@ -87,9 +88,8 @@ catalog entry [CR#111.10]. The results of damage [CR#120.3] are conferrals
 of a property, not an ability: to a player, a table row; to a creature,
 planeswalker or battle, on that card type's `Definition.cardType` row. Each row is scoped by a `Predicate`
 instead of printed on a face, and `Check/Rules` checks it with the same
-functions a card's text obeys — the row's own obligations are only what the
-scope adds: the kind it may bind, and that a damage result's counter is a
-declared one. A conferral is an ordinary `Ability` or `StaticSpec` and a
+functions a card's text obeys — the row's own obligation is only what the scope adds:
+the kind it may bind. A conferral is an ordinary `Ability` or `StaticSpec` and a
 catalog entry an ordinary `CharacteristicBundle`, checked through
 `TokenSpec.written`; neither is a twin type. The pins are `Proofs/Rules`, whose
 bench items are the rows `plugins/builtin/rules` and `plugins/builtin/tokens`
@@ -134,16 +134,18 @@ also used when a deck condition tests mana values.
 ## The checker
 
 1. **Syntax** (`Semantics/*.lean`) supplies the card-language terms.
-2. **Attributes** (`Check/Words`, `Check/Phrase`, `Check/Triggers`,
-   `Check/Abilities`) compute bindings and projections such as kind, number,
-   zone and type. Field contexts determine which earlier introductions each
-   child can read.
-3. **Rules** (`Check/Phrase`, `Check/AbilityRules`,
-   `Check/Card`) check those projections and return named `Refusal` values.
-   Laws read structural or declared features; labels are table keys.
+2. **Attributes** (among them `Check/Words`, `Check/PredicateShape`, `Check/Selections` and
+   `Check/Queries`) hold the discourse state (`DRS`), the anaphor resolver, and projections such
+   as kind, number, zone and type. The stepper (`Check/Phrase`, whose action, cost, static and
+   ability entry points `Check/Abilities` re-exports) threads the `DRS` through each term in
+   reading order, so field contexts determine which earlier introductions each child can read.
+3. **Rules** (`Check/Phrase`, `Check/Events`, `Check/Keywords`, `Check/AbilityRules`,
+   `Check/Card`) check those projections and return named `Refusal` values (`Check/Refusal`);
+   `Check/Rules` checks the rules-as-data rows. Laws read structural features and the columns
+   a catalog value carries.
 4. **Entry point**: `Card.check : Card → List Refusal`. A `Spelled` value
    combines a card with a proof of `card.check = []`; `spelled` asks `decide`
-   to construct that proof.
+   to construct that proof (see "The authoring boundary").
 
 `Predicate.kind?` and `NounPhrase.kind?` infer kinds. A context expecting a
 kind refuses a `kindMismatch` when they disagree. Each disjunct of a joined
@@ -158,13 +160,16 @@ proves the exact expected list. For example, `Proofs/Anaphora.lean` contains:
 
 ```lean
 theorem badChooseYou :
-    Action.check [] (.choose none .you .openly none) = [.choiceClause] := by decide
+    Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] := by
+  decide
 ```
 
 `okX` / `badX` names and card sentences are retained when a term is re-spelled.
 Changing the syntax does not authorize weakening the asserted result or
-removing its twin. `Proofs/Tables.lean` also checks table uniqueness and
-conferral boundaries. `decide` evaluates these laws in the kernel.
+removing its twin. `Proofs/Tables.lean` reads catalog declarations back through the
+accessors the checker uses (a counter's holder, a designation's scope, the keyword actions a
+permanent performs, a card type's permanence and stats). `decide` evaluates these laws in the
+kernel.
 
 ## Cards
 
@@ -179,22 +184,49 @@ regression. Keep its sentence and assertion while repairing that boundary.
 The bench follows the repository's Vintage-playable scope; out-of-scope
 formats are not reserved in the syntax.
 
-## Structural recursion is load-bearing
+## The authoring boundary
+
+A bench card is `spelled <| card`. The `spelled` elaborator (`Check/Card.lean`) reads the
+elaborated term before reduction erases its Template and Definition calls, and records it as an
+`Authoring.Form` tree (`Semantics/Authoring.lean`): the named calls, data constructors,
+literals and parameters it was written with, and a `raw` leaf for any semantic constructor
+written directly. It refuses the card unless the tree is `onlyAuthored` (it names the raw
+constructors) and `card.check = []`; the resulting `Spelled` carries both proofs, closed by
+`decide`, and its constructor is private, so no record syntax builds one without them. A
+semantic expression in a card is therefore written through a `semantic_template` or a
+`semantic_definition`; `Semantics.Primitives` wraps the syntax constructors as Templates. The
+catalog items (card types, subtypes, counters, designations, relations, keyword labels and
+deeds) are `internal_expansion`, so an undeclared one in a card is refused here, as a raw
+constructor, not by the checker. Authored declarations are trusted: the checker checks a
+Definition's expanded body wherever a card calls it, but nothing proves that the body means
+what the rules say, and an Action Definition is refused at declaration unless its body
+establishes its own Reference Scope (`Action.ownScope`). Card fragments and `Proofs/` terms that
+call the checker directly are fixtures and are not inspected. The full contract is
+[Card authoring and trusted expansion](CONTRACTS.md#card-authoring-and-trusted-expansion); the
+pins are `Proofs/Authoring`.
+
+## Fuel is load-bearing
 
 `decide` asks the kernel to evaluate the checker, and the kernel cannot unfold
-well-founded recursion. Lean falls back to well-founded recursion *silently*,
-so every recursive definition in `Check/*` carries `termination_by structural`
-and a build error, not a slow proof, is what a non-structural definition
-produces. The traps, all hit once:
+well-founded recursion. The phrase, trigger and ability grammar is one mutual block in
+`Abilities.lean`, elaborated by the scoped `mutual` elaborator `open scoped Semantics.Authoring`
+installs, which omits the eager `brecOn`, `SizeOf` and injectivity theorems the block's nested
+occurrences would make expensive. Without `brecOn` nothing recurses structurally on a spine
+type, so every recursive function over the syntax, in `Check/*` and beside the syntax
+(`Location.positiveZones?`), takes a `fuel : Nat` and carries `termination_by structural fuel`;
+a function that would fall back to well-founded recursion is a build error, not a slow proof.
+The block also derives no instances: `Amount`, `Predicate`, `Action` and the rest have no
+`DecidableEq`, `BEq` or `Repr`, so a pin equating two terms closes by `rfl`, not `decide`
+(`Proofs/Numbers`).
 
-- a call on the *same* argument (`sliceTy d g` calling `NounPhrase.ty g`):
-  pass the computed attribute in instead (`sliceTyOf d (NounPhrase.ty bs g)`);
-- a projection of a structure argument matched as a variable (`c.text`):
-  match the constructor (`⟨_, _, _, _, _, _, _, text, qualities, …⟩`);
-- a standalone function recursing through a nested list (`flatten`): make it
-  a `mutual` pair with the per-element function.
-
-`#print axioms f` showing `Quot.sound` means `f` fell back.
+Fuel bounds nesting depth, not the length of a card's text. The stepper (`stepOps`,
+`Check/Phrase.lean`) spends one unit per level of nested phrase, action, cost or ability, and
+when it runs out refuses `recursionLimit` rather than admitting what it did not read
+(`exhaustedTraversalRefuses`, `conditionOverTooDeepReplacementIsRefused`). The entry points
+pass 64; a pin over a deep fixture may pass more (`stepAction 512 …`). An attribute reader
+(`Predicate.seedTy` and its kin) returns its no-information value when its fuel runs out: no
+card types, no zone, `false`. A term the bench needs read deeper raises the entry point's
+fuel; it never moves a function to well-founded recursion.
 
 ## Conventions
 
@@ -210,5 +242,6 @@ produces. The traps, all hit once:
 - Syntax is unindexed. Contexts and inferred attributes are explicit inputs
   and results of the checker. Sort-specific constructors retain the
   distinctions needed to check their fields.
-- Types derive `Repr` and `BEq`, and `DecidableEq` where derivation supports
-  their recursive shape. Rules-bearing docstrings use bracketed Comprehensive Rules citations.
+- Types outside the spine's mutual block derive `Repr` and `BEq`, and `DecidableEq` where
+  derivation supports their shape; the block derives none (see "Fuel is load-bearing").
+  Rules-bearing docstrings use bracketed Comprehensive Rules citations.

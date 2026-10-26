@@ -12,7 +12,7 @@ result below zero reads as zero and `signed` where the negative stands.
 
 There is no Idris original for this suite. The face pins close by `decide`, as every other
 suite does. The slot pins close by `rfl`: `Amount` derives no `DecidableEq` (it sits in the
-nested mutual block of `Phrase`, see the README), so an equation over
+mutual block of `Abilities.lean`; see the README's "Fuel is load-bearing"), so an equation over
 `List (Amount × NumberRegime)` has no `Decidable` instance to run — `rfl` asks the kernel for
 the same evaluation without one.
 -/

@@ -5,7 +5,7 @@ import Semantics.Abilities
 /-!
 # Semantics.Check.Events
 
-The event facts table, closed event head-gating (`does`, `would`, `did`), and the lookback,
+Closed event head-gating (`does`, `would`, `did`) and the lookback,
 deed, and play-window rules (`docs/decisions/semantics-v3.md` §3.6–§3.8).
 -/
 

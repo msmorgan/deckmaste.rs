@@ -746,16 +746,6 @@ refers back by Binding Identity.
 _Avoid_: stack position or depth for the identity — a position shifts as
 bindings are pushed and removed; capture for the binding rule
 
-**Binding Possessor** (project term):
-The Player an Object binding's referent belongs to, as far as the text fixes it,
-recorded relative to the Controller of the text ("you" [CR#109.5]): for a card
-in a hand, graveyard or library, that zone's Owner ([CR#400.1,400.3]); for a
-Permanent, its Controller ([CR#108.4]). It is "you", another Player than you,
-or unknown. A move between one Player's own zones keeps it; a move to or from a
-shared zone, or a change of control, leaves it unknown ([CR#110.2]).
-_Avoid_: owner or controller alone for the field — which of the two it is
-depends on the zone the referent is in
-
 **Referent Sort** (project term):
 The domain classification required of an Entity denoted by a Reference or
 contained in a Selection. It is two axes, not one: the Entity domain — Player,

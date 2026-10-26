@@ -218,7 +218,7 @@ def harshSustenance : Spelled := spelled <| singleFacedCard
             define .x (countOf (and [isCreature, youControl])) ]) ] }
 
 /-- Purging Scythe: "If two or more creatures are tied for least toughness, you choose one of
-them." A counted existential, whose domain "them" reads (`semantics-v3.md` §1.3, box 2). -/
+them." The tie-break is written as the choice of one creature with the least toughness, which "that creature" reads. -/
 def purgingScythe : Ability :=
   at_ (beginningOfYour .upkeep)
     (sequentially
