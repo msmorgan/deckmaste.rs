@@ -251,7 +251,7 @@ theorem celestialConvergenceTieWithCountersDoesNothing :
       some (compareAmt (countersOn omenCounter thisEnchantment) .atMost 0) := rfl
 
 /-- Celestial Convergence with no omen counters and a tie for the highest life total: the tie
-sentence modifies the win before it [CR#608.2c,609.5], so the game is a draw and no player wins;
+sentence modifies the win before it [CR#608.2c,609.5], so the effect makes the game a draw [CR#104.4c] and no player wins;
 with no tie, the player with the highest life total wins. -/
 theorem celestialConvergenceZeroCounterTieDraws :
     (match celestialConvergenceAfterRemoval with

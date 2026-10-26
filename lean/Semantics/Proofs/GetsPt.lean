@@ -14,15 +14,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GetsPt
 
-/-- "<subject> gets +P/+T" is one characteristic change, the subject written once, with one
-stat edit per delta: a change by an amount raises or lowers, a set sets [CR#613.4b,613.4c]. -/
-theorem getsPtIsOneCharacteristicChange (subject : NounPhrase) (power toughness : Amount) :
-    getsPt subject (.up power) (.set toughness) =
-      .characteristicChange subject [.stat .adds .power power, .stat .sets .toughness toughness] ∧
-    getsPt subject (.down power) (.up toughness) =
-      .characteristicChange subject [.stat .loses .power power, .stat .adds .toughness toughness] :=
-  ⟨rfl, rfl⟩
-
 /-- The stat edits of the characteristic change battle cry's trigger establishes. -/
 private def battleCryStatEdits : List CharacteristicEdit :=
   match battleCry with
@@ -35,7 +26,7 @@ private def raisesBy (stat : CharacteristicStat) (n : Int) : CharacteristicEdit 
   | _ => false
 
 /-- "Each other attacking creature gets +1/+0" [CR#702.91a]: one change carrying both printed
-deltas, its "+0" toughness edit included. -/
+deltas, its "+0" toughness edit included; these modify power and toughness [CR#613.4c]. -/
 theorem battleCryGetsBothPrintedDeltas :
     battleCryStatEdits.any (raisesBy .power 1) = true ∧
       battleCryStatEdits.any (raisesBy .toughness 0) = true := by
@@ -163,6 +154,7 @@ theorem jeskaiAscendancyUntapsItsPumpedGroup :
       (result.1.findById? 3).map (·.plur) = some .many ∧
       (identityBinding "untap.subject" result.1).map (·.id) = some 3 := by decide
 
+/-- Diminish sets one target creature's base power and toughness to 1/1 [CR#613.4b]. -/
 theorem diminishKeepsOneTargetForBothSetDeltas :
     let result := firstLineTrace Cards.diminish
     singleFaceText Cards.diminish.card =

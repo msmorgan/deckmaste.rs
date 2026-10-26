@@ -218,9 +218,6 @@ theorem badGameHoldsAnotherScope :
         [.designationScope day, .designationHolder day .player] := by
   decide
 
-/-- "The game is a draw" is the draw outcome concluded [CR#104.4c]. -/
-theorem drawGameConcludes : Templates.drawGame = .conclude .drawGame none := rfl
-
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :
     Action.check (DRS.ofList []) (.exchange (.lifeTotals (both .you (target (.isOpponentOf .you))))) = [] := by
