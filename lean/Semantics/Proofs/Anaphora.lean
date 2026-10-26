@@ -1044,20 +1044,22 @@ theorem singularSpellReadHasCopyIdentity :
       (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) 1 [])
     let selected := resolveCandidates (.word .spell) .one (nextClause after)
     selected.map (·.payload.orig) = [some .copy] ∧
-      selected.map (·.id) = [after.nextId - 1] := by decide
+      selected.map (·.id) = (after.referents.filter (·.payload.orig == some .copy)).map (·.id) := by decide
 
 theorem singularAbilityReadHasCopyIdentity :
     let after := actionResult (DRS.ofList [])
       (.copy .fromStack (target (.abilityHead .anyActivated)) 1 [])
     let selected := resolveCandidates (.word .ability) .one (nextClause after)
     selected.map (·.payload.orig) = [some .copy] ∧
-      selected.map (·.id) = [after.nextId - 1] := by decide
+      selected.map (·.id) = (after.referents.filter (·.payload.orig == some .copy)).map (·.id) := by decide
 
 theorem chosenPlayerDemonstrativeHasNewMentionIdentity :
     let before := DRS.ofList [ChoiceSort.binding .player]
     let after := actionResult before (instruct .this (.dealDamage 3 (a isChosenPlayer)))
-    (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) =
-      [after.nextId - 2] := by decide
+    let selected := resolveCandidates (.word .player) .one (nextClause after)
+    selected.length = 1 ∧
+      selected.map (·.id) =
+        ((headerFreshReferents before after).filter (·.kind == .player)).map (·.id) := by decide
 
 theorem possessiveItHasCurrentSubjectIdentity :
     let after := actionResult (DRS.ofList [])

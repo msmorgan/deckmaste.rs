@@ -190,7 +190,7 @@ theorem scytheDeathAndReturnCheck :
 theorem scytheRawDemonstrativeSelectsReturnedCreature :
     let selected := resolveCandidates (.word (.type .creature)) .one (nextClause scytheAfterReturn)
     selected.map (·.zone) = [some .battlefield] ∧
-      selected.map (·.id) = [scytheAfterReturn.nextId - 1] := by decide
+      selected.map (·.id) = ((headerFreshReferents (nextClause scytheAfterDeath) scytheAfterReturn).filter (·.kind == .object)).map (·.id) := by decide
 
 private def vampiricDeath : GameEvent :=
   does (damagedVictim .enchanted) die
@@ -238,6 +238,6 @@ theorem unpredictableCycloneTerminalCardDescriptionChecks :
 theorem unpredictableCycloneRawDemonstrativeSelectsNewlyExiledCard :
     let refs := resolveCandidates (.word .card) .one (nextClause cycloneAfter)
     refs.map (·.zone) = [some .exile] ∧
-      refs.map (·.id) = [cycloneAfter.nextId - 1] := by decide
+      refs.map (·.id) = ((headerFreshReferents (nextClause cycledContext) cycloneAfter).filter (·.zone == some .exile)).map (·.id) := by decide
 
 end Semantics.Proofs.CorpusRecency

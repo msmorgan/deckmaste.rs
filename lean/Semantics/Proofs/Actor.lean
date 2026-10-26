@@ -793,7 +793,7 @@ theorem amassBareItSelectsChosenArmy :
     let after := actionResult (DRS.ofList [])
       (.sequentially [destroy (target isCreature), stepsBeforeRead])
     let selected := resolveCandidates .bare .one (nextClause after)
-    selected.map (·.id) = [after.nextId - 1] ∧
+    selected.map (·.id) = (after.referents.filter (·.chosenObject)).map (·.id) ∧
       selected.map (·.ty) = [[.creature]] := by decide
 
 /-! ## The Source and "you" are self-referents (owner ruling 2026-10-24) -/

@@ -163,8 +163,10 @@ private def bareCardReadContext : DRS :=
     (exile (target isCreature))).1
 
 theorem bareCardReadSelectsExiledTarget :
+    let afterCost := (stepCost 64 (DRS.ofList []) (.perform (sacrifice (a isCreature)))).1
     (firstReach (.word .card) .one bareCardReadContext).map (·.id) =
-      some (bareCardReadContext.nextId - 1) ∧
+      ((headerFreshReferents (nextClause afterCost) bareCardReadContext).filter
+        (·.zone == some .exile)).head?.map (·.id) ∧
       (firstReach (.word .card) .one bareCardReadContext).bind (·.zone) = some .exile := by decide
 
 /-- "Tap target creature." -/

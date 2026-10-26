@@ -44,9 +44,9 @@ theorem nestedDescriptionPreservesEveryOuterContextBeforeSacrifice
 
 theorem nestedSubjectPublishesExactlyItsFourParticipants :
     (stepNounPhrase 64 (DRS.ofList []) .subj true (controllerOf nestedSubject)).1.referents.map
-      (fun ref => (ref.id, ref.kind, ref.zone, ref.ty)) =
-      [(3, .player, none, []), (2, .object, some .battlefield, [.creature]),
-        (1, .player, none, []), (0, .object, some .battlefield, [.artifact])] := by decide
+      (fun ref => (ref.kind, ref.zone, ref.ty)) =
+      [(.player, none, []), (.object, some .battlefield, [.creature]),
+        (.player, none, []), (.object, some .battlefield, [.artifact])] := by decide
 
 theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
     (stepAction 64 .postEvent .obj (DRS.ofList []) nestedAction).1.referents.countP
@@ -108,8 +108,8 @@ theorem existingReferenceIsNotIntroducedAgain :
     after.visibleReferents.countP (fun ref => ref.kind == .object) = 1 ∧
       after.visibleReferents.countP (fun ref => ref.det == .target) = 1 ∧
       (after.findById? 0).isNone = true ∧
-      (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 2 ∧
-      (after.findById? 2).bind (·.zone) = some .graveyard := by decide
+      (firstReach (.word .card) .one (nextClause after)).map (fun ref => (ref.movedFrom, ref.zone)) =
+        some ([0], some .graveyard) := by decide
 
 theorem reflexiveFollowUpRemainsAvailable :
     action.reflexEncloseUse = .reflexive := by decide
@@ -119,17 +119,18 @@ theorem riderReadsTheStampedPatient :
     let (after, ids, errors) := stepNounPhrase 64 (nextClause afterSacrifice) .obj true patient
     Action.check (DRS.ofList [])
       (.withContinuation .required action (some (.expose .reveal (.cards patient))) none) = [] ∧
-      errors = [] ∧ ids = [2] ∧
+      errors = [] ∧ ids = (afterSacrifice.referents.filter (·.det == .target)).map (·.id) ∧
       (ids.filterMap after.findById?).map (fun ref => (ref.zone, ref.ty)) =
         [(some .graveyard, [.creature, .artifact])] := by decide
 
 theorem repeatedControllerSacrificesKeepDistinctPatients :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (.sequentially [action, action])
+    let patients := after.referents.filter (fun ref => ref.kind == .object)
     errors = [] ∧
-      (after.referents.filter (fun ref => ref.kind == .object)).map
-        (fun ref => (ref.id, ref.zone, ref.idents)) =
-        [(5, some .graveyard, []), (2, some .graveyard, [])] := by decide
+      patients.map (fun ref => (ref.zone, ref.idents)) =
+        [(some .graveyard, []), (some .graveyard, [])] ∧
+      (patients.map (·.id)).Nodup := by decide
 
 theorem duplicatingThePatientWouldIntroduceTwoTargets :
     (stepAction 64 .postEvent .obj (DRS.ofList [])
@@ -138,13 +139,13 @@ theorem duplicatingThePatientWouldIntroduceTwoTargets :
 
 theorem laterPlayerIsTheController :
     (firstReach (.word .player) .one afterSacrifice).map
-      (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
-      some (1, .the, .one, .player false) := by decide
+      (fun ref => (ref.det, ref.plur, ref.payload, ref.role)) =
+      some (.the, .one, .player false, .subj) := by decide
 
 theorem laterCardIsTheSacrificedObject :
     (firstReach (.word .card) .one afterSacrifice).map
-      (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
-      some (2, .target, .one,
+      (fun ref => (ref.det, ref.plur, ref.payload)) =
+      some (.target, .one,
         .object [.creature, .artifact] (some .graveyard)
           (some ⟨[.action "sacrifice"], true, some ⟨some .battlefield, some .graveyard⟩, false⟩)
           none none) := by decide
@@ -155,7 +156,8 @@ theorem outerArtifactDoesNotStealThePatient :
          payload := .object [.artifact] (some .battlefield) none none (some 1) }]
     let (after, errors) := stepAction 64 .postEvent .obj outer action
     errors = [] ∧ after.findById? 0 = outer.findById? 0 ∧
-      (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 3 := by decide
+      (firstReach (.word .card) .one (nextClause after)).map (·.id) =
+        ((headerFreshReferents outer after).filter (·.kind == .object)).head?.map (·.id) := by decide
 
 private def universallySelectedPatient (id : ReferentId) : Referent :=
   { id, det := .target, plur := .one,
@@ -932,7 +934,7 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
 
 /-- The complete action moves only its selected new creature and preserves every outer
 referent, unrelated named referents included. -/
-theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : ReferentId)
+private theorem nestedDescriptionReferents (rs : List Referent) (fresh : ReferentId)
     (older : ∀ ref ∈ rs, ref.id < fresh)
     (nameFresh : ∀ ref ∈ rs, ref.idents.elem "controllerSacrifices.subject" = false) :
     (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
@@ -943,5 +945,30 @@ theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : R
   change (dropActorFrame (stepAction 63 .postEvent .obj (prepared fresh rs)
     (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents = _
   exact actualFullTail 53 fresh rs older nameFresh
+
+/-- The complete action moves only its selected new creature and preserves every outer
+referent, unrelated named referents included: of its four participants only the creature target
+moves, to the graveyard, and the creature it was before is gone; the artifact target stays on
+the battlefield. -/
+theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : ReferentId)
+    (older : ∀ ref ∈ rs, ref.id < fresh)
+    (nameFresh : ∀ ref ∈ rs, ref.idents.elem "controllerSacrifices.subject" = false) :
+    let after := (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
+      nestedAction).1
+    let published := after.referents.take 4
+    after.referents.drop 4 = rs ∧
+      published.map (fun ref => (ref.kind, ref.det, ref.zone, ref.ty)) =
+        [(.player, .the, none, []), (.object, .target, some .graveyard, [.creature]),
+          (.player, .the, none, []), (.object, .target, some .battlefield, [.artifact])] ∧
+      (published.filter (·.zone == some .graveyard)).all (fun moved =>
+        moved.movedFrom.all (fun id => (after.referents.find? (·.id == id)).isNone)) := by
+  intro after published
+  have h := nestedDescriptionReferents rs fresh older nameFresh
+  simp only [after, published, h, afterPrefix]
+  refine ⟨rfl, rfl, ?_⟩
+  have absent : ∀ ref ∈ rs, ref.id ≠ fresh + 2 := fun ref mem => by
+    exact Nat.ne_of_lt (Nat.lt_of_lt_of_le (older ref mem) (Nat.le_add_right _ _))
+  simp
+  exact Or.inr absent
 
 end Semantics.Proofs.ControllerSacrifice

@@ -232,7 +232,7 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
       (.not (.matches thisEnchantment isCreature))).1
     let selected := resolveCandidates .bare .one (nextClause after)
     selected.map (·.ty) = [[.enchantment]] ∧
-      selected.map (·.id) = [after.nextId - 1] := by decide
+      selected.map (·.id) = (headerFreshReferents before after).map (·.id) := by decide
 
 theorem optionalBodyReadsItsEnclosingPlayer :
     Action.check (DRS.ofList [])

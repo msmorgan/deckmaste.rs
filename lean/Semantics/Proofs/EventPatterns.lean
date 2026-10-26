@@ -228,7 +228,7 @@ theorem alternativeHeaderKeepsSourceIdentityAndClosesExtra :
     let alternative := DRS.ofList [headerCreature, headerArtifact]
     let common := commonHeaderContext (DRS.ofList []) [primary, alternative]
     common.visibleReferents.map (fun r => (r.id, r.ty)) = [(0, [.creature])] ∧
-      common.nextId = 2 := by decide
+      common.nextId = alternative.nextId := by decide
 
 theorem forkedIdsDoNotIdentifyDifferentHeaderParticipants :
     let creatureBranch := DRS.ofList [headerCreature]
@@ -259,7 +259,7 @@ theorem commonMovedHeaderSuccessorDoesNotResurrectOldIdentity :
     let common := commonHeaderContext before [primary, alternative]
     common.findById? 0 = none ∧
       common.visibleReferents.map (fun r => (r.id, r.zone)) = [(1, some .graveyard)] ∧
-      common.nextId = 3 := by decide
+      common.nextId = alternative.nextId := by decide
 
 /-! ## Control changes
 

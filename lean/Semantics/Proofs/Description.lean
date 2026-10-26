@@ -289,9 +289,9 @@ theorem badDefiniteTwoMatchingMentions :
 creature you don't control": the superlative makes it unique, so it describes afresh and never
 reads back an earlier creature mention. -/
 theorem okSuperlativeDescribesAfresh :
-    (stepNounPhrase 64 chosenFightPair .other false
-        (the (and [isCreature, superlative .max (.stat .power) isCreature]))).2 =
-      ([chosenFightPair.nextId], []) := by
+    let (out, ids, errors) := stepNounPhrase 64 chosenFightPair .other false
+        (the (and [isCreature, superlative .max (.stat .power) isCreature]))
+    errors = [] ∧ ids.length = 1 ∧ ids = (headerFreshReferents chosenFightPair out).map (·.id) := by
   decide
 
 /-- "the monarch draws a card": only one player can be the monarch at a time [CR#725.3]. -/

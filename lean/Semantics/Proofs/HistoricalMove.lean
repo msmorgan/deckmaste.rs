@@ -31,7 +31,7 @@ theorem historicalDeathPreservesTheCurrentObject :
     let out := (stepDidClause 64 context deathLookback).1
     Condition.check context (.did deathLookback) = [] ∧
       (out.findById? 7).map (·.payload) = some departedCreature.payload ∧
-      out.nextId = 8 ∧ out.readsLastKnown = false ∧ out.handedOrigin = none ∧
+      out.nextId = context.nextId ∧ out.readsLastKnown = false ∧ out.handedOrigin = none ∧
       out.historicalReferentIds = [] := by decide
 
 /-- Historical source eligibility is confined to the movement patient read. -/
