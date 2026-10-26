@@ -6,7 +6,7 @@ import Semantics.Words
 The card types [CR#205.2a]: each declaration's name is its `CardType`, a value carrying its own
 fields. A leaf catalog over `Semantics.Words` alone, below the checker, which compares card types
 by these values and reads their fields; it never matches on a card type. What a card type confers
-on its objects is its `Definition.cardType` row (`Semantics.Definitions.CardTypeRules`), not a
+on its objects is its `RegistryDefinition.cardType` row (`Semantics.Definitions.CardTypeRules`), not a
 field of the value.
 
 The declarations live in `namespace Semantics`, as `CardType.creature` and the rest, so that

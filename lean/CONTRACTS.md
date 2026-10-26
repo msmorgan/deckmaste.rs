@@ -145,9 +145,9 @@ re-exported by `Semantics.Definitions`. Templates name no catalog item and no ca
 types (`Semantics.Definitions.CardTypes`) are the one catalog below the stack: each is a
 `semantic_definition` in `namespace Semantics` (`CardType.creature`) over `Semantics.Words`
 alone, because the checker compares card types by value and reads their fields (`permanent`,
-`stats`, `instantOrSorcery`); what a card type confers is its `Definition.cardType` row
+`stats`, `instantOrSorcery`); what a card type confers is its `RegistryDefinition.cardType` row
 (`Semantics.Definitions.CardTypeRules`), above Templates, and what a rules-defined subtype
-confers is its `Definition.subtype` row (`Semantics.Definitions.SubtypeRules`, Siege and Saga),
+confers is its `RegistryDefinition.subtype` row (`Semantics.Definitions.SubtypeRules`, Siege and Saga),
 beside it. The other leaf
 catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are
 spelled over primitives only, except that `.Subtypes` is spelled over the raw `Subtype`
@@ -938,7 +938,7 @@ expected child kinds in the incoming `DRS`.
 | `BasicLandType` | The Idris reference's `basicLandLine` helper has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `stepDeltaWith` steps a `Delta Amount`'s carried amount. |
-| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder (`designationScope`, `designationHolder`). Whether an action may confer it is not checked (`lean-checker-sweep-game-rules`), and nothing records it: the facts table that carried an `effectful` column is deleted with `Check/Facts.lean` (`lean-v3-card-type-composite-definition`), and `Definition.designation` no longer has the field (`lean-v3-keyword-bodies-and-catalog-sync`). |
+| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder (`designationScope`, `designationHolder`). Whether an action may confer it is not checked (`lean-checker-sweep-game-rules`), and nothing records it: the facts table that carried an `effectful` column is deleted with `Check/Facts.lean` (`lean-v3-card-type-composite-definition`), and `RegistryDefinition.designation` no longer has the field (`lean-v3-keyword-bodies-and-catalog-sync`). |
 | `DesignationHolder` | `designationHolderOk` (the designation is held by a player or an object) and the declared designation scope checks at designation consumers; where the holder is is not checked. |
 | `AxesAt` | `axesAt` in the `compare` predicate case requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | The status is the value; no separate category argument can disagree. Consumers retain the status-holder checks; a description holding two contradictory statuses is not refused. |
@@ -1145,7 +1145,7 @@ checker's.
 
 A Relation (`RelationLabel`) is declared in
 `Semantics/Definitions/Relations.lean`, as a designation is in
-`Designations.lean`, and `Definition.relation label` (`Rules.lean`) is its record. A card names a
+`Designations.lean`, and `RegistryDefinition.relation label` (`Rules.lean`) is its record. A card names a
 declared relation or none: the constructor is an `internal_expansion`, so the authoring boundary
 refuses an undeclared one. `Action.relate` checks both operands as objects, so a player operand is
 refused `kindMismatch`; every relation links two objects, and neither the label nor its record
@@ -1386,11 +1386,11 @@ says a player). Each kind is a declaration in `Semantics/Definitions/Counters.le
 counter [CR#122.1a] and a keyword counter [CR#122.1b] included, and the constructor is an
 `internal_expansion`, so a card names a declared kind or none; `CounterKind.scope` reads the
 value's own holder. A counter definition
-(`Definition.counter`, `Rules.lean`) states what ONE counter confers, and the
+(`RegistryDefinition.counter`, `Rules.lean`) states what ONE counter confers, and the
 model applies it once per counter held: the +1/+1 counter's conferral is
 "+1/+1" (`boost`, one `characteristicChange`), a keyword counter's is its keyword
 (`grants`). No conferral reads the count of its own kind. That reading is the
-model's: `Definition.check` checks each conferral once in the empty
+model's: `RegistryDefinition.check` checks each conferral once in the empty
 context and computes no multiplicity, so nothing in the checker depends on it
 (`p1p1CounterDefinitionZone`, `Proofs/Rules.lean`, states one counter's conferral).
 
@@ -1403,8 +1403,8 @@ narrowing to count on a creature card in any zone [CR#122.1a]. The +1/+1 and
 `m1m1CounterDefinitionZone`).
 
 The registry-definition emitter (`cargo xtask lean definitions`) is retired
-(`lean/README.md`); `Proofs/Rules.lean` proves `Definition.check = []` by
-`decide` for the Registry Definitions it writes. `Definition.check` has a rule
+(`lean/README.md`); `Proofs/Rules.lean` proves `RegistryDefinition.check = []` by
+`decide` for the Registry Definitions it writes. `RegistryDefinition.check` has a rule
 for every constructor, an exhaustive match, so there is no definition the
 checker ignores.
 
@@ -1417,7 +1417,7 @@ reaches the checker. The label also carries its `scope` (who holds it), which gi
 `Semantics/Definitions/Designations.lean`, and the constructor is an `internal_expansion`, so a
 card names a declared designation or none. A designation
 declaration's bare name means its label, so it reads at a designation
-position; its definition (`Definition.designation`) is a separate record the
+position; its definition (`RegistryDefinition.designation`) is a separate record the
 registry holds under the name (ruling 2026-10-10).
 
 The lethal-damage state-based action [CR#704.5g] is a `stateBased` conferral

@@ -668,7 +668,7 @@ theorem okAnnihilation : Conferral.check annihilation = [] := by decide
 
 /-- The −1/−1 counter's definition: its per-counter boost and its once-per-holder rule. -/
 theorem okM1m1CounterDefinition :
-    Definition.check
+    RegistryDefinition.check
       (.counter m1m1Counter [boost (.down 1) (.down 1), annihilation])
       = [] := by
   decide

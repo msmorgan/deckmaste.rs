@@ -31,8 +31,8 @@ def Conferral.checkIn (drs : DRS) : Conferral → List Refusal
 def Conferral.check (c : Conferral) : List Refusal := c.checkIn (DRS.ofList [])
 
 /-- The context a registry definition's conferrals are read in: empty, and with no Source when
-the definition's conferrals have none (`Definition.controllingDesignation?`) [CR#725.2,726.2]. -/
-def Definition.conferralContext (d : Definition) : DRS :=
+the definition's conferrals have none (`RegistryDefinition.controllingDesignation?`) [CR#725.2,726.2]. -/
+def RegistryDefinition.conferralContext (d : RegistryDefinition) : DRS :=
   { DRS.ofList [] with sourceless := d.controllingDesignation?.isSome }
 
 def ConferralRule.check (r : ConferralRule) : List Refusal :=
@@ -41,7 +41,7 @@ def ConferralRule.check (r : ConferralRule) : List Refusal :=
   e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
     (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2
 
-def Definition.check : Definition → List Refusal
+def RegistryDefinition.check : RegistryDefinition → List Refusal
   | .counter kind confers =>
     let k := kind.holder
     let hErr := if k == .object || k == .player then [] else [.definitionHolder k]

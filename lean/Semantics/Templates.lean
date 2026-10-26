@@ -990,7 +990,7 @@ semantic_template statEdit (axis : CharacteristicStat) (delta : Delta Amount) :
   | .down amount => .stat .loses axis amount
   | .set amount => .stat .sets axis amount
 /-- What one +X/+Y counter confers [CR#122.1a]: "+X/+Y" to its bearer [CR#613.4c]. A counter
-definition's conferral is per counter (`Definition.counter`), so the deltas read no count. -/
+definition's conferral is per counter (`RegistryDefinition.counter`), so the deltas read no count. -/
 semantic_template boost (power toughness : Delta Amount) : Conferral :=
   .property (.characteristicChange .this [statEdit .power power, statEdit .toughness toughness])
 /-- What one keyword counter confers [CR#122.1b]: its bearer gains the keyword [CR#613.1f], named

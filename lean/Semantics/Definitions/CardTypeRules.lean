@@ -3,14 +3,14 @@ import Semantics.Definitions.Actions
 /-!
 # Semantics.Definitions.CardTypeRules
 
-What each card type confers on the objects of that type: one `Definition.cardType` row per
+What each card type confers on the objects of that type: one `RegistryDefinition.cardType` row per
 declared card type (`Semantics.Definitions.CardTypes`). The value carries the type's own fields;
 the conferrals live here, above `Semantics.Templates`, because a conferral holds abilities, which
 hold card types. Each row writes the permission to cast or play a card of the type from its
 owner's hand; the creature, planeswalker and battle rows add what their type rules give those
 permanents in combat, the results of damage dealt to them, and their state-based actions.
 
-A row is read with `this` bound to the object of the type, as a `Definition`'s conferrals are, so
+A row is read with `this` bound to the object of the type, as a `RegistryDefinition`'s conferrals are, so
 a rule the CR states of "a creature" writes `this`.
 -/
 
@@ -78,7 +78,7 @@ creature is a Combatant, a quality and not an ability [CR#113.12]; it can attack
 controller has controlled it continuously since their most recent turn began [CR#302.6]; damage
 dealt to it is marked on it [CR#120.3e]; and the toughness and lethal-damage state-based actions
 apply to it [CR#704.5f,704.5g]. -/
-def creatureType : Definition :=
+def creatureType : RegistryDefinition :=
   .cardType .creature
     [ castableFrom yourHand asSorcery, combatant, creatureCanAttack, creatureCanBlock,
       summoningSicknessAttack, summoningSicknessActivation, creatureDamageMarking, toughnessZero,
@@ -114,7 +114,7 @@ def loyaltyZero : Conferral :=
 /-- [CR#306.1] A planeswalker card may be cast from its owner's hand as a sorcery; it enters with
 loyalty [CR#306.5b], can be attacked [CR#306.6], loses loyalty to damage [CR#120.3c], and the
 loyalty state-based action applies to it [CR#704.5i]. -/
-def planeswalkerType : Definition :=
+def planeswalkerType : RegistryDefinition :=
   .cardType .planeswalker
     [ castableFrom yourHand asSorcery, planeswalkerLoyalty, planeswalkerCanBeAttacked,
       planeswalkerLoyaltyDamage, loyaltyZero ]
@@ -163,7 +163,7 @@ def battleProtector : Conferral :=
 defense [CR#310.4b], can be attacked [CR#310.5], loses defense to damage [CR#120.3h], the
 non-Siege state-based action applies to it [CR#704.5w,310.8], and its controller chooses its
 protector as it enters [CR#310.9a]. -/
-def battleType : Definition :=
+def battleType : RegistryDefinition :=
   .cardType .battle
     [ castableFrom yourHand asSorcery, battleDefense, battleCanBeAttacked, battleDefenseDamage,
       battleDefenseZero, battleProtector ]
@@ -171,30 +171,30 @@ def battleType : Definition :=
 /-! ## The other card types -/
 
 /-- [CR#301.1] An artifact card may be cast from its owner's hand as a sorcery. -/
-def artifactType : Definition := .cardType .artifact [castableFrom yourHand asSorcery]
+def artifactType : RegistryDefinition := .cardType .artifact [castableFrom yourHand asSorcery]
 
 /-- [CR#305.1] "A player who has priority may play a land card from their hand during a main
 phase of their turn when the stack is empty." -/
-def landType : Definition := .cardType .land [playableFrom yourHand asSorcery]
+def landType : RegistryDefinition := .cardType .land [playableFrom yourHand asSorcery]
 
 /-- [CR#303.1] An enchantment card may be cast from its owner's hand as a sorcery. -/
-def enchantmentType : Definition := .cardType .enchantment [castableFrom yourHand asSorcery]
+def enchantmentType : RegistryDefinition := .cardType .enchantment [castableFrom yourHand asSorcery]
 
 /-- [CR#304.1] "A player who has priority may cast an instant card from their hand." -/
-def instantType : Definition := .cardType .instant [castableFrom yourHand asInstant]
+def instantType : RegistryDefinition := .cardType .instant [castableFrom yourHand asInstant]
 
 /-- [CR#307.1] A sorcery card may be cast from its owner's hand as a sorcery. -/
-def sorceryType : Definition := .cardType .sorcery [castableFrom yourHand asSorcery]
+def sorceryType : RegistryDefinition := .cardType .sorcery [castableFrom yourHand asSorcery]
 
 /-- [CR#308.1] A kindred card is cast and resolves by its other card type, so kindred confers
 nothing of its own. -/
-def kindredType : Definition := .cardType .kindred []
+def kindredType : RegistryDefinition := .cardType .kindred []
 
 /-- [CR#309.2c] "Dungeon cards are not permanents. They can't be cast." -/
-def dungeonType : Definition := .cardType .dungeon []
+def dungeonType : RegistryDefinition := .cardType .dungeon []
 
 /-- Every card type's row, in the declared order (`cardTypes`). -/
-def cardTypeDefinitions : List Definition :=
+def cardTypeDefinitions : List RegistryDefinition :=
   [ creatureType, artifactType, landType, enchantmentType, instantType, sorceryType,
     planeswalkerType, battleType, kindredType, dungeonType ]
 

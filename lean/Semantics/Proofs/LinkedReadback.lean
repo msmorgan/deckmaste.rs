@@ -272,7 +272,7 @@ theorem okRelated :
 /-- The relation definitions the registry declares check clean, and a nameless one is
 refused. -/
 theorem okRelationDefinition :
-    (Definition.check (.relation haunting), Definition.check (.relation (.named "")))
+    (RegistryDefinition.check (.relation haunting), RegistryDefinition.check (.relation (.named "")))
       = ([], [.definitionNamed]) := by
   decide
 

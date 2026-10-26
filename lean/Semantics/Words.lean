@@ -50,7 +50,7 @@ inductive Stat where
 permanent type [CR#110.4], the characteristic stats its objects have [CR#302.4,306.5,310.4],
 and whether its cards are instant or sorcery cards [CR#110.4a]. A card names a declared card
 type (`Semantics.Definitions.CardTypes`), never the raw structure: `spelled` refuses it. What a
-card type confers on its objects is not a field; it is the type's `Definition.cardType` row. -/
+card type confers on its objects is not a field; it is the type's `RegistryDefinition.cardType` row. -/
 structure CardType where
   /-- The word the type line prints. -/
   name : String
@@ -614,7 +614,7 @@ inductive DefinedSlots where
 /-- A counter's kind [CR#122.1]: the NAME of the counter declaration that defines it, verbatim
 (`p1p1Counter`, `flyingCounter`, `chargeCounter`). "Counters with the same name or description
 are interchangeable" [CR#122.1], so the name is all a kind is. What a counter of the kind does
-is its Registry Definition (`Definition.counter`: its conferrals). The kind carries what the
+is its Registry Definition (`RegistryDefinition.counter`: its conferrals). The kind carries what the
 counter is placed on, an object unless the declaration says a player [CR#122.1]. Each kind is its
 own declaration in `Semantics.Definitions.Counters`, and the constructor is an internal
 expansion, so a card names a declared kind or none: a +1/+1 counter [CR#122.1a] and a keyword

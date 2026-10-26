@@ -3,7 +3,7 @@ import Semantics.Definitions.Actions
 /-!
 # Semantics.Definitions.SubtypeRules
 
-What a subtype's type rule confers on the objects of that subtype: a `Definition.subtype` row per
+What a subtype's type rule confers on the objects of that subtype: a `RegistryDefinition.subtype` row per
 subtype whose rules define behavior. The `Subtype` value (`Semantics.Definitions.Subtypes`) is a
 leaf over primitives and carries no conferrals; the rows live here, above `Semantics.Templates`,
 as the card types' rows do (`Semantics.Definitions.CardTypeRules`). A row is read with `this`
@@ -47,7 +47,7 @@ def siegeDefenseZero : Conferral :=
 /-- [CR#310.12a,310.12b,704.5v] A Siege's protector is an opponent of its controller, it is
 exiled and may be cast transformed when its last defense counter is removed, and it is put into
 its owner's graveyard at defense 0 once no ability of it waits to leave the stack. -/
-def siegeDefinition : Definition :=
+def siegeDefinition : RegistryDefinition :=
   .subtype siege [siegeProtector, siegeLastCounter, siegeDefenseZero]
 
 /-! ## Saga -/
@@ -71,7 +71,7 @@ as its controller's precombat main phase begins if it has one or more chapter ab
 turn-based action, no effect [CR#703.1,609.1]), and is sacrificed once its lore counters reach its
 final chapter number, unless it is the source of a chapter ability that has triggered but not yet
 left the stack. -/
-def sagaDefinition : Definition :=
+def sagaDefinition : RegistryDefinition :=
   .subtype saga
     [ .ability (.static (onlyUnless (entersWithCounters thisSaga 1 (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
@@ -85,6 +85,6 @@ def sagaDefinition : Definition :=
         (sacrifice thisSaga) ]
 
 /-- Every subtype row, in declaration order. -/
-def subtypeDefinitions : List Definition := [siegeDefinition, sagaDefinition]
+def subtypeDefinitions : List RegistryDefinition := [siegeDefinition, sagaDefinition]
 
 end Semantics.Definitions

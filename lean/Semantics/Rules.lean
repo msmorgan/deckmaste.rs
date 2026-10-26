@@ -84,7 +84,7 @@ A card type, counter kind, designation label, relation label or subtype is a sel
 catalog value (`Semantics.Definitions`) carrying its own columns, a card type's permanence and
 stats, a counter's holder and a designation's scope; the record here adds only what the value
 cannot hold, the conferrals. -/
-inductive Definition where
+inductive RegistryDefinition where
   /-- A counter [CR#122.1]: its kind, which carries what holds it, and what it does to its bearer.
 
   The kind is the declaration's own name; the registry supplies it from the name the declaration
@@ -100,7 +100,7 @@ inductive Definition where
   scoped to the permanent that holds the counters, applies once per holder per check [CR#704.3],
   and may read counts, its own kind's included: the +1/+1 and −1/−1 annihilation rule on the
   −1/−1 counter [CR#704.5q,122.3] (ruling 2026-10-10). The reading is the model's; the checker
-  checks each conferral once, in the empty binding context (`Definition.check`), and computes no
+  checks each conferral once, in the empty binding context (`RegistryDefinition.check`), and computes no
   multiplicity. A counter whose rule makes one or more of it create a single effect — a shield,
   stun or finality counter [CR#122.1c,122.1d,122.1h] — writes no conferral today; giving it one
   needs a reading this one is not. -/
@@ -117,7 +117,7 @@ inductive Definition where
   The conferrals are the designation's inherent abilities, the monarch's two and the
   initiative's three triggered abilities [CR#725.2,726.2]: no object has them, so they have no
   source, and each is controlled by the player who held the designation when it triggered, an
-  exception to [CR#113.8]. That reading is the row's (`Definition.controllingDesignation?`), as a
+  exception to [CR#113.8]. That reading is the row's (`RegistryDefinition.controllingDesignation?`), as a
   counter row's once-per-counter reading is, so an `ability` conferral here is the same
   `Ability` a card prints; the checker reads the row's conferrals with no source to name
   (`DRS.sourceless`), and refuses "this" in them. -/
@@ -139,13 +139,13 @@ source: a designation's own, controlled by the player who held it as each trigge
 [CR#725.2,726.2], an exception to [CR#113.8]. `none` for every other definition, whose
 conferrals are abilities of the object or player they are conferred on, controlled as their
 source is [CR#113.8]. -/
-def Definition.controllingDesignation? : Definition → Option DesignationLabel
+def RegistryDefinition.controllingDesignation? : RegistryDefinition → Option DesignationLabel
   | .designation label .. => some label
   | _ => none
 
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a
 counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its
-`Subtype`, a designation's or relation's its label. The `Definition` above is a separate record
+`Subtype`, a designation's or relation's its label. The `RegistryDefinition` above is a separate record
 the registry holds under the name; the name never expands to it (ruling 2026-10-10, retiring the `Definition.*Term`
 projections that read the term back out of the record). -/
 
