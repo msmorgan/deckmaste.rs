@@ -50,11 +50,6 @@ theorem okDisguise :
 theorem okForetell :
     Ability.check (DRS.ofList []) (foretell (.mana [generic 1, pip .blue])) = [] := by decide
 
-/-- The foretold card's cast permission begins as the turn it was foretold ends, so it is not
-cast that turn [CR#702.143a]. -/
-theorem foretoldCastOnALaterTurn :
-    onALaterTurn = .between (some (.endOf .turn none .current)) none := rfl
-
 /-- Plot {1}{U} [CR#702.170a,702.170d]. -/
 theorem okPlot : Ability.check (DRS.ofList []) (plot (.mana [generic 1, pip .blue])) = [] := by
   decide

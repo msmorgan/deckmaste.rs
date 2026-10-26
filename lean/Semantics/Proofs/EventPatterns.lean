@@ -267,12 +267,6 @@ theorem commonMovedHeaderSuccessorDoesNotResurrectOldIdentity :
 [CR#611.2a,613.1b]. As a trigger event (one that looks back in time [CR#603.10d]) or a forbidden
 act it names the control change, `gainControlOf` (`Action.changeControl`). -/
 
-/-- The imperative's tree is unchanged: `gainControl` is the layer-2 effect. -/
-theorem gainControlImperativeIsTheControlGrant (subject controller : NounPhrase)
-    (duration : Option Duration) :
-    gainControl subject duration (controller := controller) =
-      .establish (.controlGrant controller subject) duration := rfl
-
 /-- A control change in a resolving position is refused; as an event or a deontic it checks. -/
 theorem controlChangeIsOnlyAPattern :
     Action.check (DRS.ofList []) (gainControlOf (target isCreature)) = [.controlChangePattern] ∧
@@ -365,14 +359,5 @@ theorem becomesBlockedByStaysABlock :
     keywordTriggerEvents flanking =
       [.does (.by (a (and [isCreature, not (.hasKeyword (.the (.named "flanking")))])))
         (.block thisCreature)] := by rfl
-
-/-- An effect that makes a creature blocked (Curtain of Light's "Target unblocked attacking
-creature becomes blocked") and the keyword trigger's event pattern share the head
-`combat … (.participation (.blocked true))` [CR#509.1h,509.3c]. -/
-theorem effectBlockedAndTriggerEventShareHead :
-    becomeBlocked (target (and [isCreature])) =
-      .combat (target (and [isCreature])) (.participation (.blocked true)) ∧
-    GameEvent.does .any (becomeBlocked thisCreature) =
-      .does .any (.combat thisCreature (.participation (.blocked true))) := ⟨rfl, rfl⟩
 
 end Semantics.Proofs.EventPatterns

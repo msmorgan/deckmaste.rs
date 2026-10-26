@@ -31,10 +31,8 @@ end
 
 /-- "<subject> doesn't untap during [<whose>] untap step" forbids the `untap` Definition's Deed,
 so it and a "can't untap" pattern constrain the same Deed. -/
-theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) (whose : Option NounPhrase) :
-    doesntUntap subject whose = duringUntapStep whose (cant any (untap subject)) ∧
-      (untap subject).namedDeed = some (.action "untap") :=
-  ⟨rfl, rfl⟩
+theorem doesntUntapForbidsTheUntapDeed (subject : NounPhrase) :
+    (untap subject).namedDeed = some (.action "untap") := rfl
 
 /-- The stun counter's replacement effect [CR#122.1d]: "If a permanent with a stun counter on it
 would become untapped, instead remove a stun counter from it." -/
@@ -48,16 +46,10 @@ counter's replacement watches, so on a tapped permanent with both the untap can'
 stun replacement can't apply to it [CR#614.17c], and the stun counter stays; as a replacement
 it would instead be ordered against the stun counter's [CR#616.1]. -/
 theorem doesntUntapIsNoStunReplacement :
-    doesntUntap thisPermanent none = duringUntapStep none (cant any (untap thisPermanent)) ∧
-      (untap thisPermanent).namedDeed =
+    (untap thisPermanent).namedDeed =
         (untap (a (and [isPermanent, hasCounter (some stunCounter)]))).namedDeed ∧
       Ability.check (DRS.ofList []) stunReplacement = [] :=
-  ⟨rfl, rfl, by decide⟩
-
-/-- "Untap <subject> during [<whose>] untap step" is the `must` Template over the `untap`
-Definition. -/
-theorem untapDuringIsMust (subject : NounPhrase) (whose : Option NounPhrase) :
-    untapDuring subject whose = duringUntapStep whose (must any (untap subject)) := rfl
+  ⟨rfl, by decide⟩
 
 /-- The four untap-step cards are written with `untapDuring`, so each expands through `must`. -/
 theorem untapStepCardsUseUntapDuring :
@@ -71,12 +63,8 @@ theorem untapStepCardsUseUntapDuring :
 it: it is the "doesn't untap" prohibition, holding only if you so choose. Untapping stays the
 default [CR#502.3]. -/
 theorem mayDeclineUntapIsChosenProhibition (subject : NounPhrase) (whose : Option NounPhrase) :
-    mayDeclineUntap subject whose
-        = duringUntapStep whose (onlyIfSo (cant any (untap subject)) (.soChooses you)) ∧
-      mayDeclineUntap subject whose ≠ duringUntapStep whose (can any (untap subject)) := by
-  refine ⟨rfl, fun h => ?_⟩
-  injection h with h
-  cases h
+    mayDeclineUntap subject whose ≠ duringUntapStep whose (can any (untap subject)) := by
+  intro h; injection h with h; cases h
 
 /-- The choice is a player's: "if this artifact so chooses" is refused. -/
 theorem soChoosesNeedsAPlayer :

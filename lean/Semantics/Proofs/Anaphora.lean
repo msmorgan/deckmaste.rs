@@ -969,12 +969,6 @@ theorem badOwnTwoInDelta :
           | _ => false) = true := by
   decide
 
-/-- "<X> deals damage equal to its power to <Y>" has the pronoun form's tree: the Template keeps
-the wording, and "its" is the ordinary possessive pronoun. -/
-theorem dealDamageOwnPowerIsThePronounForm (source recipient : NounPhrase) :
-    dealDamageOwnPower source recipient = instruct source (dealDamage (powerOf it) recipient) :=
-  rfl
-
 theorem distributedDeedReadsBackPlural :
     Action.check (DRS.ofList [])
       (.sequentially

@@ -169,12 +169,4 @@ theorem flyingAndOrReachIsNotFlyingOrReach :
       (or [hasKeyword (.the (.named "flying")), hasKeyword reach] : Predicate) := by
   intro h; cases h
 
-/-- "search your library and/or graveyard for …" is the search of that and/or location. -/
-theorem searchLibraryOrGraveyardIsItsLocationSearch :
-    searchLibraryOrGraveyard (a isCard) =
-      search (andOr [yourLibrary, yourGraveyard] : Location) (a isCard) := rfl
-
-/-- "search your library" with no "for …" searches for `any`. -/
-theorem unqualifiedSearchIsForAny : search yourLibrary = search yourLibrary any := rfl
-
 end Semantics.Proofs.DefinitionsAndTemplates

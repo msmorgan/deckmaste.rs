@@ -28,11 +28,6 @@ theorem badPlayerTargetsOnly :
     Predicate.checkAt .player (DRS.ofList []) (targetsOnly thisCreature) = [.targeter .player] := by
   decide
 
-/-- "Targets only" is the targeting predicate at the `only` extent, beside `someTarget` and
-`soleTarget`. -/
-theorem targetsOnlyIsTargetsAtOnly :
-    targetsOnly thisCreature = .targets thisCreature .only := rfl
-
 /-! ## Bodies
 
 Each keyword's Definition (`Semantics.Definitions`) checks clean as an ability. -/

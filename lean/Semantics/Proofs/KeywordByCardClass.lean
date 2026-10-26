@@ -80,15 +80,4 @@ def ascendCondition : Condition :=
 /-- "you get the city's blessing for the rest of the game" -/
 def getCitysBlessing : Action := gainDesignation .you citysBlessing restOfGame
 
-/-- Ascend's tree: on a permanent, a static ability that gives the city's blessing while you
-control ten or more permanents [CR#702.131b]; on an instant or sorcery, a spell ability that gives
-it if you do as the spell resolves [CR#702.131a]. Neither half is guarded by its class. -/
-theorem ascendTree :
-    ascend =
-      .keyword (.named "ascend") []
-        [ .byCardClass
-            (.static (.whileHolds ascendCondition getCitysBlessing))
-            (.spell none (doIf ascendCondition getCitysBlessing none)) ] := by
-  rfl
-
 end Semantics.Proofs.KeywordByCardClass

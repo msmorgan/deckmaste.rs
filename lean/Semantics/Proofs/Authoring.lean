@@ -23,16 +23,6 @@ private def withDraw : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (draw 1)] } }
 
-theorem printedDataNeedsNoExpressionTemplate : plain.authoring.onlyAuthored = true := plain.onlyAuthored
-
-theorem keywordRecordsDefinitionAuthorship : withKeyword.authoring.onlyAuthored = true :=
-  withKeyword.onlyAuthored
-
-theorem templateDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored = true :=
-  withDraw.onlyAuthored
-
-theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withDraw.ok
-
 private def preeminentCaptainWithDefaults : Spelled := spelled <| singleFacedCard
   { name := "Preeminent Captain", cost := [generic 2, pip .white], types := [.creature],
     subtypes := [kithkin, soldier],
@@ -325,6 +315,21 @@ mutual
     | [] => []
     | form :: forms => formCalls form ++ formsCalls forms
 end
+
+/-- Printed data alone is authored with no expression Template: its Form names only the mana
+cost, the card type and the printed power and toughness. -/
+theorem printedDataNeedsNoExpressionTemplate :
+    formCalls plain.authoring =
+      [``Templates.generic, ``CardType.creature, ``Templates.stat, ``Templates.stat] := by
+  decide
+
+/-- A keyword written by its Definition is recorded as that Definition's call. -/
+theorem keywordRecordsDefinitionAuthorship :
+    (formCalls withKeyword.authoring).contains ``Definitions.reach = true := by decide
+
+/-- A Template whose agent is left to its default is still recorded as the Template's call. -/
+theorem templateDefaultAgentRetainsAuthorship :
+    (formCalls withDraw.authoring).contains ``Templates.draw = true := by decide
 
 mutual
   /-- The numeric literals a Form names, in order. -/

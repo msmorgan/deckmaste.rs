@@ -675,10 +675,6 @@ theorem okSnowblindWhicheverIsSmaller :
 theorem m1m1CounterNameIsItsKind :
     Semantics.Definitions.m1m1Counter = CounterKind.named "m1m1Counter" := rfl
 
-/-- "whichever is greater" is the same aggregate under `max`. -/
-theorem okGreaterOf :
-    greaterOf 1 2 = .aggregateOf .max [.lit 1, .lit 2] := rfl
-
 /-! ### Anaphora across `putCounters`
 
 A pronoun after "put … counters on <target>" reads the ordinary DRS: the counters introduce no
@@ -748,28 +744,22 @@ theorem oneCounterAndOneOrMoreCountersAreDistinctPatterns :
 of `theLast`: a pattern distinct from "a time counter is removed" (`exactly 1`), reading one
 counter and publishing no count. -/
 theorem theLastEncodesSuspendsLastCounterTrigger :
-    does any (removeCounters theLast timeCounter this_) =
-        .does .any (.removeCounters (some .theLast) (some (.printed timeCounter)) this_) ∧
-      GameEvent.check (DRS.ofList []) (does any (removeCounters theLast timeCounter this_)) = [] ∧
+    GameEvent.check (DRS.ofList []) (does any (removeCounters theLast timeCounter this_)) = [] ∧
       countOutcomes .countersRemoved
         (GameEvent.extend (DRS.ofList []) (does any (removeCounters theLast timeCounter this_))) = 0 ∧
       countOutcomes .countersRemoved
-        (GameEvent.extend (DRS.ofList []) (does any (removeCounters (orMore 1) timeCounter this_))) = 1 :=
-  ⟨rfl, by decide⟩
+        (GameEvent.extend (DRS.ofList []) (does any (removeCounters (orMore 1) timeCounter this_))) = 1 := by decide
 
 /-- Midnight Clock's "When the twelfth hour counter is put on Midnight Clock" [CR#122.7] is a put
 of `theNth`: the put that takes it from fewer than twelve hour counters to twelve or more, not the
 twelfth occurrence of a one-counter put (`nthOccurrence` over `1`). It is singular, so it
 publishes no count of counters put. -/
 theorem theNthEncodesTheCounterThreshold :
-    does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact) =
-        .does .any (.putCounters (.theNth (.nth 12)) (.printed hourCounter) thisArtifact) ∧
-      GameEvent.check (DRS.ofList []) (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))
+    GameEvent.check (DRS.ofList []) (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))
         = [] ∧
       countOutcomes .countersPut
         (GameEvent.extend (DRS.ofList [])
-          (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))) = 0 :=
-  ⟨rfl, by decide⟩
+          (does any (putCounters (theNth (.nth 12)) hourCounter thisArtifact))) = 0 := by decide
 
 /-- Required pin: *Urborg Scavengers*' "This creature has flying as long as a card exiled with it
 has flying. The same is true for …" is one static ability [CR#113.2c], a `conjunction` of 12

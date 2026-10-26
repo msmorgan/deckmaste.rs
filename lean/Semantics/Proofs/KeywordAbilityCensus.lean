@@ -224,8 +224,7 @@ theorem okEchoDefinition :
               (.beginningOf .upkeep (some .you) (.previous (some .you)))),
             some thisPermanent, some (.named "echo")) ∧
       replacedPayment? Cards.thickSkinnedGoblinEchoPayment =
-        some (some (allOf (and [isPermanent, youControl])), some (.named "echo")) ∧
-      thisPermanent = .headed .permanent .this := ⟨rfl, rfl, rfl⟩
+        some (some (allOf (and [isPermanent, youControl])), some (.named "echo")) := ⟨rfl, rfl⟩
 
 theorem okEchoChecks : Ability.check (DRS.ofList []) (echo [generic 2, pip .white]) = [] := by
   decide

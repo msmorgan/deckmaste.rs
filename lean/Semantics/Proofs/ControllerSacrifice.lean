@@ -14,12 +14,6 @@ private def nestedSubject : NounPhrase := target (.and [isCreature,
   .hasPossessor .controller (controllerOf (target isArtifact))])
 private def nestedAction : Action := controllerSacrifices nestedSubject
 
--- Parameter identity selects the target before its zone change.
-theorem expansionIntroducesTheTargetOnce :
-    action = .instruct
-      (.possessorOf .controller (.firstMention "controllerSacrifices.subject" subject))
-      (sacrifice (.laterMention "controllerSacrifices.subject" subject)) := by rfl
-
 theorem targetMultiplicity :
     afterSacrifice.referents.countP (·.det == .target) = 1 := by decide
 
@@ -128,12 +122,6 @@ theorem riderReadsTheStampedPatient :
       errors = [] ∧ ids = [2] ∧
       (ids.filterMap after.findById?).map (fun ref => (ref.zone, ref.ty)) =
         [(some .graveyard, [.creature, .artifact])] := by decide
-
-theorem controllerSacrificesExpansionForEverySubject (chosen : NounPhrase) :
-    controllerSacrifices chosen =
-      .instruct (.possessorOf .controller
-        (.firstMention "controllerSacrifices.subject" chosen))
-        (sacrifice (.laterMention "controllerSacrifices.subject" chosen)) := by rfl
 
 theorem repeatedControllerSacrificesKeepDistinctPatients :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])

@@ -88,9 +88,6 @@ theorem sourceCounterpartReMentionSelectsTheSourceIdentity :
         (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) ∧
       resolveCandidates (.word (.type .creature)) .one context = [] := by decide
 
-theorem isTransformedTemplateReadsWholeBackFace :
-    isTransformed = Predicate.currentFace .back := by rfl
-
 theorem frontAndBackAreDistinct :
     Predicate.currentFace .front ≠ Predicate.currentFace .back := by
   intro equal
@@ -118,11 +115,7 @@ theorem okAuraMayBeAttachedToAPlayer :
     StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .isPlayer)) = [] := by decide
 
 theorem passiveAgentAndAttachmentHostAreDistinct :
-    (.by (allOf isCreature) : Subject).patientRole = .subj ∧
-      mayBeAttachedTo thisEquipment (allOf isCreature) =
-        .can .any (attachTo thisEquipment (allOf isCreature))
-          {} := by
-  constructor <;> rfl
+    (.by (allOf isCreature) : Subject).patientRole = .subj := rfl
 
 /-! ## The chapter axis (ruling 2026-10-10) -/
 

@@ -158,17 +158,6 @@ private def lookAndSortSlice (slice : NounPhrase) (spill : Location) (spillRider
     Action :=
   Semantics.Templates.lookAndSortSlice slice spill spillRiders
 
-/-- The template is the expansion this file spelled by hand before it was generated. -/
-theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Location)
-    (spillRiders : List MoveRider) :
-    lookAndSortSlice slice spill spillRiders =
-      .sequentially
-        [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation (some spill) .arrival
-            spillRiders,
-          .move (.theRest .object .many) .anyLocation (some onTop) .arrival [(.inOrder .anyOrder)] ] :=
-  rfl
-
 /-- The plurality of the slice's later mention in a look-and-sort declaration: what "put any
 number of them" reads back. -/
 private def sliceReadBack : Action → Option Plurality

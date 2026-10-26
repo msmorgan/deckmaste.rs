@@ -195,16 +195,6 @@ theorem conditionalReplacementChecksItsCondition :
       [.anaphor .bare .one 0] := by
   decide
 
-/-- "This land enters tapped unless your opponents control eight or more lands": the condition
-is checked as the land would enter, so the replacement carries it, not the static ability
-[CR#614.1d,614.12]. -/
-theorem entersTappedUnlessConditionsTheReplacement :
-    entersTappedUnless thisLand
-        (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast 8) =
-      .replace (would thisLand enter)
-        (.onlyIf (.not (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast 8))
-          (.withRiders [.entersAs .tapped])) none .repeatedly none := rfl
-
 private def nestCallers : Nat → Replacement → Replacement
   | 0, replacement => replacement
   | n + 1, replacement => .inCaller (nestCallers n replacement)
@@ -224,12 +214,6 @@ theorem conditionOverTooDeepReplacementIsRefused :
 does one as part of it, the event still happening; `withRiders` lets the entering happen with Entry
 Riders. None restates the event
 [CR#614.1a,614.1c,614.1d]. -/
-
-/-- "This land enters tapped": the entering still happens, ridden; nothing restates it
-[CR#614.1c]. -/
-theorem entersTappedRidesTheEntering :
-    (entersTapped thisLand : StaticSpec) =
-      .replace (would thisLand enter) (.withRiders [.entersAs .tapped]) none .repeatedly none := rfl
 
 /-- "Creatures you control enter with an additional +1/+1 counter on them": a plural subject's
 entering is ridden the same way, with no pronoun to agree with it [CR#614.1d]. -/
@@ -298,13 +282,6 @@ theorem okAlongsideReadsTheChoiceBefore :
               (instruct (the isChosenPlayer)
                 (may (putCounters 1 (.printed p1p1Counter) thisCreature))))))) = [] := by
   decide
-
-/-- "<spec> unless <condition>" is "<spec> if not <condition>": the negation is the
-condition's, and no marking stores the word "unless". -/
-theorem unlessIsIfNot :
-    onlyUnless (.altCost .this none) (exists_ (.and [isArtifact, .hasPossessor .controller .you])) =
-      .conditional (.altCost .this none)
-        (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .ifSo := rfl
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :

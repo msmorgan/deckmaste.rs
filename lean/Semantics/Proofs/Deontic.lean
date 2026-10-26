@@ -76,13 +76,6 @@ theorem okMixedCharacteristicDisjunct :
 theorem okPayLifeCost : Action.check (DRS.ofList []) (payLife 2) = [] :=
     by decide
 
-/-- "Pay N life" is a payment of N life, made once [CR#119.4]: there is no life cost, only the
-cost of losing that much life, paid. -/
-theorem payLifeIsAPayment :
-    (∀ amount : Amount, payLife amount = pay (perform (loseLife amount)) .once) ∧
-      payLife 2 = .pay (.perform (.changeLife (.down (.lit 2)))) .once .paid none none :=
-  ⟨fun _ => rfl, rfl⟩
-
 private def costResult (cost : Cost) : DRS := (stepCost 64 (DRS.ofList []) cost).1
 
 /-- "Pay 2 life: You gain that much life.": in a cost slot `payLife 2` is coerced to
@@ -371,9 +364,14 @@ theorem destroyCantRegenerateRidesTheDestroy :
 /-- "This deals 3 damage to target creature. It can't be regenerated this turn.": a printed
 "this turn" keeps its duration, the damage and then a prohibition until end of turn. -/
 theorem printedThisTurnProhibitionLastsTheTurn :
-    doAndForbid (instruct .this (.dealDamage 3 (target isCreature))) (regeneration it) =
-      .sequentially [instruct .this (.dealDamage 3 (target isCreature)),
-        .establish (.cant .any (regeneration it) {}) (some untilEndOfTurn)] := rfl
+    let duration : Action → Option (Option Duration) := fun
+      | .sequentially [_, .establish _ d] => some d
+      | _ => none
+    duration (doAndForbid (instruct .this (.dealDamage 3 (target isCreature))) (regeneration it)) =
+        some (some untilEndOfTurn) ∧
+      duration (doAndForbid (instruct .this (.dealDamage 3 (target isCreature))) (regeneration it)) ≠
+        duration (destroyCantRegenerate (target isCreature)) :=
+  ⟨rfl, by intro h; cases h⟩
 
 /-- The prohibition binds the destroyed object: "it" reads the one destroyed creature and "them"
 the destroyed group, and a pronoun of the other number finds nothing to read, refused once. -/

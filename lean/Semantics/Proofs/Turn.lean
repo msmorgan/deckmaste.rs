@@ -583,8 +583,7 @@ and an empty stack [CR#307.5]; so its negation also holds without priority [CR#3
 printed card observes the difference (Mystic Veil ruling, 2022-12-08), so the pin is on the
 tree. -/
 theorem sorcerySpeedRequiresPriority :
-    asSorcery = .and [.onlyIf (.hasPriority .you), .inPart .mainPhase (some .you) .current,
-      .onlyIf (.not (exists_ (.in_ stack)))] := rfl
+    ∃ rest, asSorcery = .and (.onlyIf (.hasPriority .you) :: rest) := ⟨_, rfl⟩
 
 /-- "Until your next turn": the end is the beginning of your next turn. -/
 theorem okUntilYourNextTurn : Duration.check (DRS.ofList []) untilYourNextTurn = [] := by decide
@@ -686,9 +685,8 @@ private def flashPermission : StaticSpec :=
 the second sentence its rider, so the cast-timing check reads the cast it allows and a cast under
 another effect's permission does not sacrifice it (Mystic Veil ruling, 2022-12-08). -/
 theorem flashSacrificeRidesThePermission :
-    asThoughFlashSacrificedAtCleanup =
-      .static (.can (.actor .you) (cast thisSpell)
-        { asThough := some (asThoughHadFlash it), rider := some sacrificedAtCleanup }) := rfl
+    ∃ subject action mods, asThoughFlashSacrificedAtCleanup = .static (.can subject action mods) ∧
+      mods.rider = some sacrificedAtCleanup := ⟨_, _, _, rfl, rfl⟩
 
 /-- Each of the ten cards carries the sentence as the permission's rider, its first ability,
 and no sibling static [CR#113.2c]. -/

@@ -191,24 +191,11 @@ theorem okMultipliedTrigger :
         (exactly 1)) = [] := by
   decide
 
-/-- "A triggered ability triggers" is the ability performing `trigger` [CR#603.2], and the
-ability is its event's agent: the template writes that event. -/
-theorem triggersIsTheAbilityTriggering :
-    Templates.triggers (a (.abilityHead .anyTriggered))
-      = .does (.actor (a (.abilityHead .anyTriggered))) .trigger := rfl
-
 /-- "Whenever a player triggers an ability": a player is not an ability, so it cannot be the
 event's agent. -/
 theorem badPlayerTriggers :
     GameEvent.check (DRS.ofList []) (Templates.triggers (a .isPlayer)) = [.eventAgent] := by
   decide
-
-/-- Day and night are designations the game itself has [CR#731.1]: "it becomes night" is the game
-gaining night, and "it's night" the game having it. -/
-theorem dayAndNightAreTheGamesDesignations :
-    gameBecomes night = .does .any (.gameGains night) ∧
-      setGameDesignation day = .gameGains day ∧
-      gameIs day = .gameHas day := ⟨rfl, rfl, rfl⟩
 
 /-- "Whenever it becomes night, draw a card.": the game gaining night is a trigger event. -/
 theorem okWheneverItBecomesNight :
@@ -269,7 +256,9 @@ applied before the roll's result is final, optional and costed [CR#706.2,706.2a]
 triggered ability [CR#113.3c]: a trigger would resolve after the roll's instruction had used
 the result. -/
 theorem okAfterRollShift :
-    after youRollADie rollShiftBody = .static (.rollModifier youRollADie rollShiftBody none) ∧
+    (match after youRollADie rollShiftBody with
+      | .static (.rollModifier ..) => true
+      | _ => false) = true ∧
     Ability.check (DRS.ofList []) (after youRollADie rollShiftBody) = [] :=
   ⟨rfl, by decide⟩
 

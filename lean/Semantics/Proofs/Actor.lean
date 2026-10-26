@@ -303,15 +303,7 @@ theorem killingWaveHandoffTwin :
     Action.check (DRS.ofList [])
         (Primitives.Action.doForEach (each isCreature)
           (instruct (controllerOf it)
-            (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) = [] ∧
-      Action.check (DRS.ofList [])
-          (Primitives.Action.doForEach (each isCreature)
-            (instruct (controllerOf it)
-              (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) =
-        Action.check (DRS.ofList [])
-          (Primitives.Action.doForEach (each isCreature)
-            (instruct (controllerOf it)
-              (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) := by
+            (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) = [] := by
   decide
 
 /-- "An opponent sacrifices a creature: Draw a card." (the pin

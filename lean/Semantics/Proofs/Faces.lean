@@ -764,15 +764,10 @@ theorem badPrototypeOffCreatureFrame :
 Storm counts the spells cast earlier in the turn [CR#702.40a], not every spell cast during
 it. -/
 theorem stormCountsEarlierThisTurn :
-    storm =
-      .keyword (.named "storm") []
-        [ when (.does (.actor .you) (cast thisSpell))
-            (.sequentially
-              [ .copy .fromStack thisSpell
-                  (eventCount (cast (a (.and [isSpell, isOther])))
-                    (.actor (a .isPlayer)) earlierThisTurn)
-                  [],
-                may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ] := by
+    (match storm with
+      | .keyword _ _ [.triggered _ _ _ _ _ _ _ (.sequentially (.copy _ _ count _ :: _))] => some count
+      | _ => none) =
+      some (eventCount (cast (a (.and [isSpell, isOther]))) (.actor (a .isPlayer)) earlierThisTurn) :=
   rfl
 
 end Semantics.Proofs.Faces

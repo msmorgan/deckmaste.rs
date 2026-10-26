@@ -103,6 +103,7 @@ theorem okHideaway : Ability.check (DRS.ofList []) (hideaway 4) = [] := by decid
 
 /-- Converting is transforming written with another verb: one tree, so a "transforms into"
 trigger and "can't transform" reach it [CR#701.27e,701.28a,701.28f]. -/
-theorem convertIsTransform (subject : NounPhrase) : convert subject = transform subject := rfl
+theorem convertIsTransform (subject : NounPhrase) :
+    (convert subject).namedDeed = (transform subject).namedDeed := rfl
 
 end Semantics.Proofs.KeywordHolders

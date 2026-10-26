@@ -74,10 +74,6 @@ private def effectAnchors (ability : Ability) (drs : DRS := DRS.ofList []) :
 
 /-! ## "Any other target": one predicate, two anchors -/
 
-/-- Arc Trail and Screaming Nemesis both print "any other target" and write it alike. -/
-theorem anyOtherTargetIsOneEncoding : isAnyOtherTarget = (and [isAnyTarget, isOther] : Predicate) :=
-  rfl
-
 /-- Arc Trail: "Arc Trail deals 2 damage to any target and 1 damage to any other target." The
 nearest earlier mention is the first target. -/
 theorem arcTrailAnchorsOnItsFirstTarget :

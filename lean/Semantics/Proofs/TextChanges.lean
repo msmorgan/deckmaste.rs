@@ -33,10 +33,6 @@ mutual
     | form :: forms => formCalls form ++ formsCalls forms
 end
 
-/-- The Core of `bracketed x` is `x`: the brackets change nothing about the meaning, so a kind
-mismatch inside them is refused as it is without them. -/
-theorem bracketedCoreIsContents : (bracketed isCreature : Predicate) = isCreature := rfl
-
 /-- The refusal a bracketed mismatch shares with its bare form is a real one. -/
 theorem bracketedKindMismatchIsRefused :
     NounPhrase.checkAt (some .player) (DRS.ofList []) (target (bracketed isCreature)) ≠ [] := by

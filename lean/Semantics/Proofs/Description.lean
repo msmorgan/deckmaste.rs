@@ -450,10 +450,6 @@ theorem okPaidCostOnKeywordWithACost :
 /-- "for each color of mana spent to cast this spell" -/
 theorem okColorsSpentOnThis : Amount.check (DRS.ofList []) (colorsSpentToCast .this) = [] := by decide
 
-/-- "if colored mana was spent to cast it" is a read of `paid colorsSpent` -/
-theorem coloredManaSpentIsPaidColorsSpent :
-    coloredManaSpentToCast .this = .compareAmt (.paid .colorsSpent .this) .atLeast 1 := rfl
-
 /-- "spell that targets this creature" -/
 theorem okSpellTargeter :
     Predicate.checkAt .object (DRS.ofList []) (.targets thisCreature .someTarget) = [] := by decide

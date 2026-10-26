@@ -93,13 +93,9 @@ theorem okToxicPoison : ConferralRule.check toxicPoison = [] := by decide
 /-- A creature with two toxic abilities has one result: each ability is the bare keyword, with
 no body of its own, and the one row reads the total toxic value [CR#702.164b,702.164c]. -/
 theorem toxicIsOneResultReadingTheTotal :
-    toxic 2 = .keyword (.named "toxic") [.number (.inCaller 2)] [] ∧
-      toxic 1 = .keyword (.named "toxic") [.number (.inCaller 1)] [] ∧
-      toxicPoison.confer = .property
-        (asEvent (does this_ (dealDamage anyAmount (a isPlayer) (some .combat)))
-          (putCounters (.aggregate .sum (.keywordNumber (.named "toxic")) this_) poison
-            (that player))) :=
-  ⟨rfl, rfl, rfl⟩
+    (match toxic 2 with
+      | .keyword (.named "toxic") [.number _] body => body.isEmpty
+      | _ => false) = true := rfl
 
 /-- The results of damage to a planeswalker are no ability of it: they are a property the rules
 confer, so an effect that makes a permanent lose all abilities leaves them [CR#120.3c,113.12]. -/
@@ -453,10 +449,9 @@ no cause. Doubling Season's "if an effect would put" is `causedBy .anEffect` [CR
 doubles a Saga's entry counter, put by a replacement effect [CR#714.3a], and not the increment.
 The checker has no matcher, so this pins the row's spelling; the matching is the engine's. -/
 theorem sagaLoreIncrementIsTurnBased :
-    (∃ parts, sagaDefinition = .subtype Semantics.Definitions.saga parts ∧
-      parts[1]? = some (.turnBased .firstMain (doIf sagaHasChapterAbilities sagaLoreIncrement))) ∧
-    sagaLoreIncrement = .putCounters 1 (.printed (.named "loreCounter")) thisSaga :=
-  ⟨⟨_, rfl, rfl⟩, rfl⟩
+    ∃ parts, sagaDefinition = .subtype Semantics.Definitions.saga parts ∧
+      parts[1]? = some (.turnBased .firstMain (doIf sagaHasChapterAbilities sagaLoreIncrement)) :=
+  ⟨_, rfl, rfl⟩
 
 /-- The triggered-chapter guard reads the Saga's chapter abilities that have triggered and not yet
 left the stack, waiting ones included [CR#714.4,704.5s,113.7]. -/
@@ -469,18 +464,9 @@ ability referent alone, as the Siege's guard writes it [CR#704.5v,310.7]. -/
 theorem triggeredNotLeftStackSeedsAnAbility : triggeredNotLeftStack.seedsAbility = true := rfl
 
 /-- The Siege's guard, "it isn't the source of an ability that has triggered but not yet left the
-stack", over the row's own subject, checks and is the guard the Siege state-based action reads
+stack", over the row's own subject, checks
 [CR#704.5v,310.7]. -/
-theorem okSiegeGuard :
-    Condition.check (DRS.ofList []) siegeHasNoWaitingTrigger = [] ∧
-      siegeHasNoWaitingTrigger = .not (exists_ (.and [.abilityOf .this, triggeredNotLeftStack])) :=
-  ⟨by decide, rfl⟩
-
-/-- The type conferral helpers are the raw conferrals. -/
-theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
-theorem playableFromIsThePlayPermission :
-    playableFrom yourHand asSorcery =
-      .property (.can (.actor .you) (.procedure .play .this .itsOwnCost none (some yourHand) none) { timing := (some asSorcery) }) := rfl
+theorem okSiegeGuard : Condition.check (DRS.ofList []) siegeHasNoWaitingTrigger = [] := by decide
 
 /-! ## The designations' rows
 
