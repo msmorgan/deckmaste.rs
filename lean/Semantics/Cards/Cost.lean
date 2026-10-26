@@ -71,7 +71,7 @@ theorem okSistersOfStoneDeathRecall : Ability.check (DRS.ofList []) sistersOfSto
 /-- Synod Sanctum -/
 def synodSanctumReturn : Ability :=
   activated (compound [[generic 2], sacrifice thisArtifact])
-    (returnToBattlefield (allOf exiledWithThisArtifact) [(under you)])
+    (returnToBattlefield (allOf (cardIn (exiledWith thisArtifact))) [(under you)])
 theorem okSynodSanctumReturn : Ability.check (DRS.ofList []) synodSanctumReturn = [] := by decide
 
 def coldStorage : Spelled := spelled <| singleFacedCard
@@ -79,7 +79,7 @@ def coldStorage : Spelled := spelled <| singleFacedCard
     text :=
       [ activated [generic 3] (exile (target (and [isCreature, youControl]))),
         activated (sacrifice thisArtifact)
-          (returnToBattlefield (each (and [isCreature, exiledWithThisArtifact]))
+          (returnToBattlefield (each (and [isCreature, cardIn (exiledWith thisArtifact)]))
             [(under you)]) ] }
 
 def barlsCage : Ability :=

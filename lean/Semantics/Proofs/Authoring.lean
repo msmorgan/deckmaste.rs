@@ -344,7 +344,7 @@ private def coldStorageWritten : Spelled := spelled <| .singleFaced
       text :=
         [ activated (mana [generic 3]) (exile (target (and [isCreature, youControl]))),
           activated (perform (sacrifice thisArtifact))
-            (returnToBattlefield (each (and [isCreature, exiledWithThisArtifact]))
+            (returnToBattlefield (each (and [isCreature, cardIn (exiledWith thisArtifact)]))
               [(under you)]) ] } }
 
 theorem tokenBundleCoercionIsWritten (t : CharacteristicBundle) (n : Amount) :

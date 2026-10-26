@@ -386,7 +386,7 @@ theorem okCommanderCreaturesYouOwn : Predicate.checkAt .object (DRS.ofList []) c
 
 /-- Idol of Endurance -/
 def creatureSpellFromAmongExiled : NounPhrase :=
-  fromAmong (exactly 1) (and [isCreature, isSpell]) (allOf (and [isCard, exiledWithThisArtifact]))
+  fromAmong (exactly 1) (and [isCreature, isSpell]) (allOf (cardIn (exiledWith thisArtifact)))
 theorem okCreatureSpellFromAmongExiled :
     NounPhrase.checkAt (some .object) (DRS.ofList []) creatureSpellFromAmongExiled = [] := by decide
 

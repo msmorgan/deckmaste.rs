@@ -96,8 +96,6 @@ semantic_template theMonarch : NounPhrase := the (.and [isPlayer, .hasDesignatio
 /-- "the player who has the initiative": only one player can have it at a time [CR#726.3]. -/
 semantic_template theInitiativeHolder : NounPhrase :=
   the (.and [isPlayer, .hasDesignation initiative none])
-/-- "a card exiled with this artifact" -/
-semantic_template exiledWithThisArtifact : Predicate := .in_ (.exiledWith thisArtifact)
 /-- "[a player]'s party" [CR#700.8]. -/
 semantic_template partyOf (player : NounPhrase) : NounPhrase :=
   .oneEachOf partyRoles (allOf (.and [isCreature, .hasPossessor .controller player]))

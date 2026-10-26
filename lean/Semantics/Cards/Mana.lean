@@ -1007,10 +1007,15 @@ def gauntletOfPower : Spelled := spelled <| singleFacedCard
           (instruct (controllerOf (that land)) (addMana 1 ofTheChosenColor)) ] }
 
 /-- Chrome Mox -/
-def chromeMoxMana : Ability :=
-  activated tapSymbol
-    (addMana 1 (ofAnyColorOf (the exiledWithThisArtifact)))
-theorem okChromeMoxMana : Ability.check (DRS.ofList []) chromeMoxMana = [] := by decide
+def chromeMoxMana : Spelled := spelled <| singleFacedCard
+  { name := "Chrome Mox", cost := some [], types := [.artifact],
+    text :=
+      [ imprint
+          (when (does thisArtifact enter)
+            (may (exile (a (and [non isArtifact, non isLand, cardIn yourHand]))))),
+        activated tapSymbol
+          (addMana 1 (ofAnyColorOf (the (and [was (exile which), isCard])))) ] }
+theorem okChromeMoxMana : chromeMoxMana.card.check = [] := chromeMoxMana.ok
 
 /-- Fellwar Stone -/
 def fellwarStone : Spelled := spelled <| singleFacedCard
@@ -1026,7 +1031,7 @@ def iceCauldronNotedMana : Ability :=
     (compound [tapSymbol,
       (removeCounters (exactly 1) chargeCounter thisArtifact)])
     (addMana 1 (ofTheLastNotedType thisArtifact)
-      [spendOnly [toCast exiledWithThisArtifact]])
+      [spendOnly [toCast (cardIn (exiledWith thisArtifact))]])
 theorem okIceCauldronNotedMana : Ability.check (DRS.ofList []) iceCauldronNotedMana = [] := by decide
 
 /-- Firemind Vessel -/

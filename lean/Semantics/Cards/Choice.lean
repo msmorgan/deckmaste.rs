@@ -391,7 +391,7 @@ theorem okEscapeToTheWilds : Action.check (DRS.ofList []) escapeToTheWilds = [] 
 def museVesselPlay : Ability :=
   activated [generic 1]
     (sequentially
-      [ choose (a exiledWithThisArtifact),
+      [ choose (a (cardIn (exiledWith thisArtifact))),
         establishThroughout (can you (play (that card))) thisTurn ])
 theorem okMuseVesselPlay : Ability.check (DRS.ofList []) museVesselPlay = [] := by decide
 
