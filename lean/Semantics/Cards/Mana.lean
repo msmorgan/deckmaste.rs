@@ -796,7 +796,7 @@ def collectedCompany : Spelled := spelled <| singleFacedCard
           [ lookAt (topSlice 6),
             putOntoBattlefield (fromAmong (upTo 2)
                                   (and [isCreature, hasManaValue .atMost 3]) them),
-            putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]) ] }
+            putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]) ] }
 
 /-- Soldevi Adnate -/
 def soldeviAdnate : Spelled := spelled <| singleFacedCard

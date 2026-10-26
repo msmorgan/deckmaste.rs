@@ -1546,7 +1546,7 @@ def sphinxOfUthuun : Spelled := spelled <| singleFacedCard
             [ reveal (topSlice 5),
               instruct anOpponent (separateIntoPiles them 2),
               putInto onePile hand,
-              putInto (theOther .pile) graveyard ]) ],
+              putInto theOther graveyard ]) ],
     power := stat 5, toughness := stat 6 }
 
 /-- Marit Lage -/

@@ -985,6 +985,20 @@ def zoneOfGroup (k : Kind) (pl : Plurality) (drs : DRS) : Option Zone :=
   restGroup k pl drs >>= (·.zone)
 def tyOfGroup (k : Kind) (pl : Plurality) (drs : DRS) : List CardType :=
   (restGroup k pl drs).elim [] (·.ty)
+/-- The kind "the rest" (`.many`) or "the other" (`.one`) reads, from the text: for "the other",
+the group of the current distributive member first; else the newest visible part a selection
+took (`det == .part`); else the newest selection in the current selection scope. -/
+def DRS.restKind? (pl : Plurality) (drs : DRS) : Option Kind :=
+  let distributive : Option Kind :=
+    if pl.isOne then
+      (drs.distributiveSubject.filter drs.isVisible).bind fun member =>
+        ((drs.findById? member).bind (·.memberOf)).bind fun groupId =>
+          (drs.findById? groupId).map (·.kind)
+    else none
+  distributive.orElse fun _ =>
+    ((drs.visibleReferents.find? fun b => !b.linked && b.det == .part).map (·.kind)).orElse
+      fun _ => (drs.selectionEvidence.find? (·.scope == drs.selectionScope)).map (·.kind)
+
 def anchorTyOk (t : CardType) : List CardType → Bool
   | [] => true
   | ts => ts.contains t

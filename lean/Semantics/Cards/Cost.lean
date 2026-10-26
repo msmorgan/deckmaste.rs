@@ -979,7 +979,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| singleFacedCard
             [ reveal (topSlice 4),
               instruct anOpponent (separateIntoPiles them 2),
               putInto onePile hand,
-              putInto (theOther .pile) graveyard ]) ],
+              putInto theOther graveyard ]) ],
     power := stat 4, toughness := stat 4 }
 
 def opt : Spelled := spelled <| singleFacedCard

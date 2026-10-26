@@ -139,7 +139,7 @@ def grimContest : Spelled := spelled <| singleFacedCard
           [ choose (both (target (and [isCreature, youControl]))
                          (target (and [isCreature, anOpponentControls]))),
             instruct (eachOf (those creature))
-              (dealDamage (toughnessOf it) (theOther .object)) ]) ] }
+              (dealDamage (toughnessOf it) theOther) ]) ] }
 
 /-- Beastie Beatdown: "Choose target creature you control and target creature an opponent
 controls. / Delirium — If there are four or more card types among cards in your graveyard, put
@@ -207,12 +207,12 @@ def greenSunsTwilight : Spelled := spelled <| singleFacedCard
             replace
               (sequentially
                 [ putInto (those .card) hand,
-                  putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ])
+                  putInto theRest onBottom (riders := [inOrder .randomOrder]) ])
               (doIf (compareAmt (letter .x) .atLeast 5)
                 (instead (sequentially
                   [ putInto (thePlural (and [isCard, isChosen]))
                       (Templates.Location.or [battlefield, hand]),
-                    putInto (theRest .object) onBottom (riders := [inOrder .randomOrder]) ]))) ])
+                    putInto theRest onBottom (riders := [inOrder .randomOrder]) ]))) ])
       ] }
 theorem okGreenSunsTwilight : greenSunsTwilight.card.check = [] := greenSunsTwilight.ok
 
@@ -441,7 +441,7 @@ def murmursFromBeyond : Spelled := spelled <| singleFacedCard
           [ reveal (topSlice 3),
             instruct anOpponent (choose (someOf (exactly 1) them)),
             putInto (that card) graveyard,
-            putInto (theRest .object) hand ]) ] }
+            putInto theRest hand ]) ] }
 
 /-- Helica Glider -/
 def helicaGlider : Spelled := spelled <| singleFacedCard
@@ -1181,7 +1181,7 @@ def callerOfTheHunt : Spelled := spelled <| singleFacedCard
 
 /-- Duneblast -/
 def duneblast : Action :=
-  sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)]
+  sequentially [choose (counted (upTo 1) isCreature), destroy theRest]
 theorem okDuneblast : Action.check (DRS.ofList []) duneblast = [] := by decide
 /-- Boreas Charger -/
 def boreasChargerChoice : Action := choose (a opponentWithMoreLands)
@@ -1193,7 +1193,7 @@ def boreasChargerSpell : Action :=
       search yourLibrary (counted (exactlyOf theDifference) plains),
       reveal (those card),
       putOntoBattlefieldTapped (someOf (exactly 1) (those card)),
-      putInto (theRest .object) hand ]
+      putInto theRest hand ]
 theorem okBoreasChargerSpell : Action.check (DRS.ofList []) boreasChargerSpell = [] := by decide
 
 /-- Sandstone Oracle -/
@@ -1268,7 +1268,7 @@ def communeWithTheGods : Spelled := spelled <| singleFacedCard
       [ spell (sequentially
           [ reveal (topSlice 5),
             may (putInto (fromAmong (exactly 1) (or [isCreature, isEnchantment]) them) hand),
-            putInto (theRest .object) graveyard ]) ] }
+            putInto theRest graveyard ]) ] }
 
 /-- Nautiloid Ship -/
 def nautiloidShipTrigger : Ability :=
@@ -1570,7 +1570,7 @@ def stickTogether : Action :=
       instruct eachPlayer (choose
         (counted (upTo 1)
           (and [isCreature, wizard, controlledBy they]))),
-      instruct eachPlayer (sacrifice (theRest .object)) ]
+      instruct eachPlayer (sacrifice theRest) ]
 theorem okStickTogether : Action.check (DRS.ofList []) stickTogether = [] := by decide
 
 /-- Disciple of Caelus Nin: "starting with you" overrides the default APNAP choice order

@@ -334,7 +334,7 @@ theorem badEachOfTheRest :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice 4), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival []),
-          exile (.eachOf (theRest .object)) ]) = [.groupMention] := by
+          exile (.eachOf theRest) ]) = [.groupMention] := by
   decide
 
 /-- "If a creature you control would die this turn, exile it instead." -/
@@ -462,7 +462,7 @@ theorem badAgentChooseTheRest :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice 4), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival []),
-          instruct (a (.isOpponentOf .you)) (.choose none (theRest .object) .openly none) ])
+          instruct (a (.isOpponentOf .you)) (.choose none theRest .openly none) ])
             = [.choiceClause] := by
   decide
 

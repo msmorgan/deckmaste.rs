@@ -1006,7 +1006,7 @@ semantic_definition hideaway (amount : Amount) : Ability :=
         (sequentially
           [ lookAt (topSlice (.inCaller amount)),
             exileFaceDown (someOf (oneThrough 1) them),
-            .move (theRest .object) .anyLocation onBottom .arrival
+            .move theRest .anyLocation onBottom .arrival
               [.inOrder .randomOrder],
             establishThroughout
               (.conjunction none

@@ -550,7 +550,7 @@ def riddlesInTheDark : Spelled := spelled <| singleFacedCard
             separateIntoPiles them 2 [.faceDown, .faceUp],
             instruct anOpponent (choose onePile),
             putInto (that .pile) hand,
-            putInto (theOther .pile) graveyard ]) ] }
+            putInto theOther graveyard ]) ] }
 
 /-- Fortune's Favor -/
 def fortunesFavor : Spelled := spelled <| singleFacedCard
@@ -560,7 +560,7 @@ def fortunesFavor : Spelled := spelled <| singleFacedCard
           [ instruct (target isOpponent) (lookAt (topSlice 4)),
             instruct they (separateIntoPiles them 2 [.faceDown, .faceUp]),
             putInto onePile hand,
-            putInto (theOther .pile) graveyard ]) ] }
+            putInto theOther graveyard ]) ] }
 
 /-- Curator of Destinies -/
 def curatorOfDestinies : Spelled := spelled <| singleFacedCard
@@ -575,7 +575,7 @@ def curatorOfDestinies : Spelled := spelled <| singleFacedCard
               separateIntoPiles them 2 [.faceDown, .faceUp],
               instruct anOpponent (choose onePile),
               putInto (that .pile) hand,
-              putInto (theOther .pile) graveyard ]) ],
+              putInto theOther graveyard ]) ],
     power := stat 5, toughness := stat 5 }
 
 /-- Atris, Oracle of Half-Truths -/
@@ -590,7 +590,7 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| singleFacedCard
             [ instruct (target isOpponent) (lookAt (topSlice 3)),
               instruct they (separateIntoPiles them 2 [.faceDown, .faceUp]),
               putInto onePile hand,
-              putInto (theOther .pile) graveyard ]) ],
+              putInto theOther graveyard ]) ],
     power := stat 3, toughness := stat 2 }
 
 /-- Garruk Relentless // Garruk, the Veil-Cursed -/

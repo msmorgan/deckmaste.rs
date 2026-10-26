@@ -25,7 +25,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| singleFacedCard
                   [ reveal
                       (fromAmong (exactly 1) (or [hasColor .blue, isArtifact]) them),
                     putInto (that card) hand ]),
-              putInto (theRest .object) onBottom (riders := [(inOrder .randomOrder)]) ]),
+              putInto theRest onBottom (riders := [(inOrder .randomOrder)]) ]),
         activated
           (compound [[generic 5, pip .blue], tapSymbol,
                       (sacrifice thisArtifact)])
@@ -156,7 +156,7 @@ def deathOrGlory : Spelled := spelled <| singleFacedCard
           [ separateIntoPiles
               (allOf (and [isCreature, in_ yourGraveyard])) 2,
             exile (pileOfChoice anOpponent),
-            returnToBattlefield (theOther .pile) ]) ] }
+            returnToBattlefield theOther ]) ] }
 
 /-- Steam Augury -/
 def steamAugury : Spelled := spelled <| singleFacedCard
@@ -167,7 +167,7 @@ def steamAugury : Spelled := spelled <| singleFacedCard
             separateIntoPiles them 2,
             instruct anOpponent (choose onePile),
             putInto (that .pile) hand,
-            putInto (theOther .pile) graveyard ]) ] }
+            putInto theOther graveyard ]) ] }
 
 /-- Do or Die -/
 def doOrDie : Spelled := spelled <| singleFacedCard

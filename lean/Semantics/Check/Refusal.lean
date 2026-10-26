@@ -99,7 +99,9 @@ inductive Refusal where
   | damageDealtInScope
   | groupSizeInScope (found : Nat)
   | differenceInScope (found : Nat)
-  | theRestFits (k : Kind)
+  /-- "the rest" (`.many`) or "the other" (`.one`) finds no part or group to be the remainder
+  of. -/
+  | theRestFits (plurality : Plurality)
   /-- A bare "another"/"other" of kind `k` finds no Contrast Anchor compatible with its head in
   kind and Card Type (`DRS.contrastAnchor?`). -/
   | contrastAnchor (k : Kind)

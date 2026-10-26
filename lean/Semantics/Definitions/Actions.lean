@@ -206,7 +206,7 @@ semantic_definition fightEachOther (pair : NounPhrase) : Action :=
   .ownScope (some (.action "fight" .performs))
     (doIf (is (.firstMention "fightEachOther.pair" (.inCaller pair)) isCreature)
       (instruct (eachOf (.laterMention "fightEachOther.pair" (.inCaller pair)))
-        (.dealDamage (powerOf it) (theOther .object)))
+        (.dealDamage (powerOf it) theOther))
       none)
 /-- "reveal <cards>" (`Definition`, [CR#701.20]). -/
 semantic_definition reveal (cards : NounPhrase) : Action :=
@@ -349,7 +349,7 @@ semantic_definition discover (amount : Amount) : Action :=
     [ exile (.run .top (and [non isLand, fits]) (libraryOf .actor)),
       .withContinuation .optional (castWithoutPaying (that .card) fits) none
         (putInto (that .card) hand),
-      .move (theRest .object) .anyLocation onBottom .arrival
+      .move theRest .anyLocation onBottom .arrival
         [(.inOrder .randomOrder)] ])
 /-- "<performer> incubates N" (`Definition`, [CR#701.53a,701.53b]). -/
 semantic_definition incubate (amount : Amount) : Action :=
@@ -391,7 +391,7 @@ semantic_definition manifestDread : Action :=
     (sequentially
     [ .expose .lookAt (.cards (.slice .top 2 (libraryOf .actor))),
       manifest (someOf (exactly 1) them),
-      putInto (theRest .object) graveyard ])
+      putInto theRest graveyard ])
 /-- "support N" (`Definition`, [CR#701.41a]). -/
 semantic_definition support (amount : Amount) : Action :=
   .ownScope (some (.action "support"))

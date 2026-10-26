@@ -215,16 +215,16 @@ def afterChoiceMade : DRS := actionResult (DRS.ofList []) (choose (counted (upTo
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okChoiceRestStands :
-    NounPhrase.checkAt (some .object) afterChoiceMade (theRest .object) = [] := by decide
+    NounPhrase.checkAt (some .object) afterChoiceMade theRest = [] := by decide
 
 def afterChoiceRestDisposed : DRS :=
   actionResult (DRS.ofList [])
-    (.sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)])
+    (.sequentially [choose (counted (upTo 1) isCreature), destroy theRest])
 
 /-- "Choose up to one creature. Destroy the rest. Destroy the rest." -/
 theorem badChoiceRestDisposedTwice :
-    NounPhrase.checkAt (some .object) afterChoiceRestDisposed (theRest .object)
-      = [.theRestFits .object] := by
+    NounPhrase.checkAt (some .object) afterChoiceRestDisposed theRest
+      = [.theRestFits .many] := by
   decide
 
 theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
@@ -251,8 +251,8 @@ theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
     let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf (.isOpponentOf .you))).1
     let after := actionResult before
       (.sequentially [choose (a (.isOpponentOf .you)), choose (counted (upTo 1) isCreature),
-        destroy (theRest .object)])
-    NounPhrase.checkAt (some .object) after (theRest .object) = [.theRestFits .object] ∧
+        destroy theRest])
+    NounPhrase.checkAt (some .object) after theRest = [.theRestFits .many] ∧
       countParts .object after = 0 ∧ countChoice .player after = 1 ∧
       (after.findById? 1).map (·.payload) = some (.player true) ∧
       (after.findById? 0).map (fun ref => (ref.kind, ref.plur)) =
@@ -266,7 +266,7 @@ def upToOneTheyControl : NounPhrase :=
 def distributedRestOfOwnChoice : Action :=
   .sequentially
     [ instruct (each .isPlayer) (choose upToOneTheyControl),
-      instruct (each .isPlayer) (sacrifice (theRest .object)) ]
+      instruct (each .isPlayer) (sacrifice theRest) ]
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." The
 party selection repeats a choice for each listed creature type and player [CR#700.8d]. This
@@ -280,7 +280,7 @@ def afterDistributedChoice : DRS :=
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 theorem okDistributedRestStands :
-    NounPhrase.checkAt (some .object) afterDistributedChoice (theRest .object) = [] := by decide
+    NounPhrase.checkAt (some .object) afterDistributedChoice theRest = [] := by decide
 
 def afterDistributedRestSacrificed : DRS := actionResult (DRS.ofList []) distributedRestOfOwnChoice
 
@@ -288,8 +288,8 @@ def afterDistributedRestSacrificed : DRS := actionResult (DRS.ofList []) distrib
 sacrifices the rest.": the per-agent rest closes the partitives it spent, so no rest stands to
 spend again. -/
 theorem badDistributedRestDisposedTwice :
-    NounPhrase.checkAt (some .object) afterDistributedRestSacrificed (theRest .object)
-      = [.theRestFits .object] := by
+    NounPhrase.checkAt (some .object) afterDistributedRestSacrificed theRest
+      = [.theRestFits .many] := by
   decide
 
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
@@ -325,7 +325,7 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
     let tapping := tap (allOf isCreature)
     let sequence := Action.sequentially
       [tapping, instruct (each .isPlayer) (choose upToOneTheyControl),
-        instruct (each .isPlayer) (sacrifice (theRest .object))]
+        instruct (each .isPlayer) (sacrifice theRest)]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 5).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
@@ -337,7 +337,7 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
 theorem distributedSacrificeConsumesTheOuterRemainder :
     let sequence := Action.sequentially
       [choose (counted (upTo 1) isCreature),
-        instruct (each .isPlayer) (sacrifice (theRest .object))]
+        instruct (each .isPlayer) (sacrifice theRest)]
     let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 3).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =

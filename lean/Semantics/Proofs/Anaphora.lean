@@ -596,7 +596,7 @@ theorem okTheRestAfterCoordinatedParts :
         [ reveal (topSlice 4),
           putInto (andOr [fromAmong (exactly 1) isCreature them,
             fromAmong (exactly 1) isLand them]) hand,
-          putInto (theRest .object) graveyard ]) = [] := by decide
+          putInto theRest graveyard ]) = [] := by decide
 
 /-- "Look at the top three cards of your library. Put one of them and one of them into your hand
 and the other into your graveyard." -/
@@ -605,7 +605,7 @@ theorem okTheOtherAfterCoordinatedParts :
       (.sequentially
         [ lookAt (topSlice 3),
           putInto (and [someOf (exactly 1) them, someOf (exactly 1) them]) hand,
-          putInto (theOther .object) graveyard ]) = [] := by decide
+          putInto theOther graveyard ]) = [] := by decide
 
 /-- "you and this creature" publishes both participants and the group they make up. -/
 theorem youAndPublishesBothParticipants :
@@ -750,25 +750,52 @@ def afterAnUpToChoice : DRS := actionResult (DRS.ofList []) (choose (counted (up
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterAPartition :
-    NounPhrase.checkAt (some .object) afterAnUpToChoice (theRest .object) = [] := by decide
+    NounPhrase.checkAt (some .object) afterAnUpToChoice theRest = [] := by decide
 
 /-- "Destroy the rest." -/
 theorem badRestWithoutAPartition :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (theRest .object) = [.theRestFits .object] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) theRest = [.theRestFits .many] := by decide
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterCountedChoice :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)]) = [] := by
+      (.sequentially [choose (counted (upTo 1) isCreature), destroy theRest]) = [] := by
   decide
 
 /-- "Choose any number of target creatures. Destroy the rest." -/
 theorem badRestAfterTargetChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target anyNumber) isCreature), destroy (theRest .object)])
-      = [.theRestFits .object] := by
+        [choose (.described (.target anyNumber) isCreature), destroy theRest])
+      = [.theRestFits .many] := by
   decide
+
+/-- In Fact or Fiction, after "Put one pile into your hand", the referent `theOther` mints has
+kind `.pile`. -/
+theorem theOtherReadsThePileKind :
+    let before := actionResult (DRS.ofList [])
+      (sequentially
+        [ reveal (topSlice 5),
+          instruct anOpponent (separateIntoPiles them 2),
+          putInto onePile hand ])
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause before) .obj true theOther
+    errors = [] ∧ (ids.head?.bind after.findById?).map (·.kind) = some .pile := by decide
+
+/-- In Impulse, after "Put one of them into your hand", `restKind? .many` reads `.object` from the
+partitive. -/
+theorem theRestReadsThePartKind :
+    let after := actionResult (DRS.ofList [])
+      (sequentially [lookAt (topSlice 4), putInto (someOf (exactly 1) them) hand])
+    DRS.restKind? .many (nextClause after) = some .object := by decide
+
+/-- In Grim Contest, inside `eachOf (those creature)`, `restKind? .one` reads `.object` from the
+distributive pair's group. -/
+theorem theOtherReadsTheDistributiveGroup :
+    let chosen := actionResult (DRS.ofList [])
+      (choose (both (target (and [isCreature, youControl]))
+                    (target (and [isCreature, anOpponentControls]))))
+    let (inside, _, _) := stepNounPhrase 64 (nextClause chosen) .subj true (eachOf (those creature))
+    DRS.restKind? .one inside = some .object := by decide
 
 def afterALook : DRS := actionResult (DRS.ofList []) (lookAt (topSlice 1))
 

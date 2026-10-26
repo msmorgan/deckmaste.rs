@@ -686,10 +686,10 @@ semantic_template thisAbility : NounPhrase := .headed .ability .this
 semantic_template thisCard : NounPhrase := .headed .card .this
 semantic_template thisToken : NounPhrase := .headed .token .this
 semantic_template thisEmblem : NounPhrase := .headed .emblem .this
-/-- "the rest of them" -/
-semantic_template theRest (kind : Kind) : NounPhrase := .theRest kind .many
-/-- "the other pile": the one remaining after a choice among two. -/
-semantic_template theOther (kind : Kind) : NounPhrase := .theRest kind .one
+/-- "the rest [of them]" -/
+semantic_template theRest : NounPhrase := .theRest .many
+/-- "the other [one]", "the other [pile]": the one remaining after a choice among two. -/
+semantic_template theOther : NounPhrase := .theRest .one
 /-- "N of <group>" -/
 semantic_template someOf (quantity : Quantity) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) none group
@@ -1398,7 +1398,7 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
         spill .arrival spillRiders,
-      .move (theRest .object) .anyLocation onTop .arrival
+      .move theRest .anyLocation onTop .arrival
         [(.inOrder .anyOrder)] ]
 /-- "<subject> gets +P/+T [until …]" as an action. -/
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)

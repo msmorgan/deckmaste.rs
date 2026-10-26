@@ -396,7 +396,9 @@ mutual
     one member, read by `Agreement.holdsAmong`: a group has different names only if each member
     has a name [CR#201.2b]. -/
     | agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase)
-    | theRest (kind : Kind) (plurality : Plurality)
+    /-- "the rest" (`.many`) and "the other" (`.one`); the kind is that of the part or group the
+    text took from, read by the checker. -/
+    | theRest (plurality : Plurality)
     | pileOf (count : SliceCount) (by_ : Option NounPhrase)
     /-- A pronoun or demonstrative: what it reaches for and its grammatical number. -/
     | pro (reach : Reach) (plurality : Plurality)

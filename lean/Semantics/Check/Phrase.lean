@@ -115,7 +115,7 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   | _ + 1, .designated _ _ => some .object
   | _ + 1, .described _ p => p.kind?
   | _ + 1, .pro r _ => some r.kind
-  | _ + 1, .theRest k _ => some k
+  | _ + 1, .theRest _ => none
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -127,6 +127,7 @@ def NounPhrase.kindIn (drs : DRS) (d : Kind) (np : NounPhrase) (fuel : Nat := 32
   | _ + 1, .actor => (actorShape? drs).elim .player (·.kind)
   | _ + 1, .which => (drs.relativeBinder.bind drs.findById?).elim d (·.kind)
   | _ + 1, .refl pl => ((firstReflexive pl drs).map (·.kind)).getD d
+  | _ + 1, .theRest pl => (drs.restKind? pl).getD d
   | _ + 1, n => n.kind?.getD d
 termination_by structural fuel
 
@@ -331,7 +332,7 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
   | _ + 1, .described d _ => d.plur
   | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
-  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
+  | _ + 1, .theRest pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
   -- A slice is its count of cards from each owner's pile: one when both are one. Its size is
   -- read through its Definition argument: `mill (.lit 1)` writes `.inCaller (.lit 1)`, one card
   -- as `topSlice (.lit 1)` is [CR#701.17a]; "the top card of each player's library" is one per
@@ -737,7 +738,7 @@ def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
   match fuel, noun with
   | n + 1, .inCaller body => body.restContext? (enterCaller drs) n
   | n + 1, .firstMention _ body => body.restContext? drs n
-  | _ + 1, .theRest kind plurality => some (kind, plurality, drs)
+  | _ + 1, .theRest plurality => some ((drs.restKind? plurality).getD .object, plurality, drs)
   | _, _ => none
 
 def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
@@ -3275,15 +3276,17 @@ def stepOps : Nat → StepOps
           let rid := drs2.nextId
           let drs3 := drs2.push ref role inArgSlot
           (drs3, [rid], e1 ++ e2 ++ refuse (!roles.isEmpty) .nonEmpty)
-        | .theRest k pl =>
+        | .theRest pl =>
+          let k := (drs.restKind? pl).getD .object
           let ok := theRestFits k pl drs
           let zn := zoneOfGroup k pl drs
           let ty := tyOfGroup k pl drs
-          let payload := if k == .player then .player false else match zn, ty with | z, t => .object t z none none none
+          let payload := if k == .pile then .pile zn none none else if k == .player then .player false
+            else .object ty zn none none none
           let ref : Referent := { det := .the, plur := pl, payload }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
-          (drs', [rid], if ok then [] else [.theRestFits k])
+          (drs', [rid], if ok then [] else [.theRestFits pl])
         | .possessorOf axis subj =>
           let (read, ids, e1) := ops.np { drs with characteristicRead := true } .other false subj
           let drs1 := { read with characteristicRead := drs.characteristicRead }

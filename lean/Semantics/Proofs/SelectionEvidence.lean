@@ -33,28 +33,28 @@ private def afterOptionalSubset : DRS :=
 
 theorem optionalSubsetKeepsItsGroupWithoutTheSelectedCard :
     Action.check fiveCards optionalSubset = [] ∧
-      NounPhrase.check afterOptionalSubset (.theRest .object .many) = [] ∧
+      NounPhrase.check afterOptionalSubset (.theRest .many) = [] ∧
       countParts .object afterOptionalSubset = 0 ∧
       countOnes .object afterOptionalSubset = 0 ∧
       Predicate.checkAt .object afterOptionalSubset .notChosen = [.choiceInScope .object] := by decide
 
 theorem missingSelectionIsStillRefused :
     Predicate.checkAt .object (DRS.ofList []) .notChosen = [.choiceInScope .object] ∧
-      NounPhrase.check fiveCards (.theRest .object .many) = [.theRestFits .object] := by decide
+      NounPhrase.check fiveCards (.theRest .many) = [.theRestFits .many] := by decide
 
 theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
     let context := fiveCards.recordSelection .object (some 999) false
-    NounPhrase.check context (.theRest .object .many) = [.theRestFits .object] ∧
+    NounPhrase.check context (.theRest .many) = [.theRestFits .many] ∧
       NounPhrase.check
         (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional
             (.expose .reveal (.cards (.someOf (.counted (.range (some 1) (some 1))) none
               (.slice .top 5 (.zone .library none)))) ) none none)).1
-        (.theRest .object .many) = [.theRestFits .object] := by decide
+        (.theRest .many) = [.theRestFits .many] := by decide
 
 theorem optionalSubsetCannotPromiseOneRemainingCard :
     theOtherOk .object afterOptionalSubset = false ∧
-      NounPhrase.check afterOptionalSubset (.theRest .object .one) = [.theRestFits .object] := by decide
+      NounPhrase.check afterOptionalSubset (.theRest .one) = [.theRestFits .one] := by decide
 
 theorem selectionEvidenceFollowsExplicitCallerScope :
     let chosen := (DRS.ofList []).recordSelection .object none true

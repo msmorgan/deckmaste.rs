@@ -78,13 +78,13 @@ theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrat
 def impulse : Action :=
   sequentially
     [ lookAt (topSlice 4), putInto (someOf (exactly 1) them) hand,
-      putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+      putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]
 theorem okImpulse : Action.check (DRS.ofList []) impulse = [] := by decide
 
 def anticipate : Action :=
   sequentially
     [ lookAt (topSlice 3), putInto (someOf (exactly 1) them) hand,
-      putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+      putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]
 theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 
 /-- Flow State: "Look at the top three cards of your library. Put one of them into your hand and
@@ -102,12 +102,12 @@ def flowState : Spelled := spelled <| singleFacedCard
             replace
               (sequentially
                 [ putInto (someOf (exactly 1) them) hand,
-                  putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])
+                  putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ])
               (doIf (thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
                                     (a (and [isSorcery, cardIn yourGraveyard]))))
                 (instead (sequentially
                   [ putInto (someOf (exactly 2) them) hand,
-                    putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]))) ]) ] }
+                    putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]))) ]) ] }
 theorem okFlowState : flowState.card.check = [] := flowState.ok
 
 /-- In *Flow State*'s replacement, "them" reads the three cards looked at (referent 1, in the
@@ -117,7 +117,7 @@ theorem flowStateThemAndTheRestReadTheCardsLookedAt :
     let looked := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice 3))).1
     let replaced := (stepAction 512 .preEvent .obj looked (sequentially
       [ putInto (someOf (exactly 1) them) hand,
-        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ])).1
+        putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ])).1
     let instantAndSorcery := thereAre (both (a (and [isInstant, cardIn yourGraveyard]))
       (a (and [isSorcery, cardIn yourGraveyard])))
     let start := nextClause (replacementStart looked replaced)
@@ -136,10 +136,10 @@ the bottom of your library in any order": the replacement reads what the replace
 theorem selfReplacementReadsWhatTheReplacedActionRead :
     let putOne := sequentially
       [ putInto (someOf (exactly 1) them) hand,
-        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+        putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]
     let putTwo := sequentially
       [ putInto (someOf (exactly 2) them) hand,
-        putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
+        putInto theRest onBottom (riders := [(inOrder .anyOrder)]) ]
     let looked := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice 3))).1
     let replaced := (stepAction 512 .preEvent .obj looked putOne).1
     let start := nextClause (replacementStart looked replaced)
@@ -152,13 +152,13 @@ theorem selfReplacementReadsWhatTheReplacedActionRead :
 def revealFourPartition : Action :=
   sequentially
     [ reveal (topSlice 4), putInto (someOf (exactly 1) (those card)) hand,
-      putInto (theRest .object) graveyard ]
+      putInto theRest graveyard ]
 theorem okRevealFourPartition : Action.check (DRS.ofList []) revealFourPartition = [] := by decide
 
 def exileFourOfThem : Action :=
   sequentially
     [ lookAt (topSlice 8), exile (someOf (exactly 4) them),
-      putInto (theRest .object) onTop (riders := [(inOrder .anyOrder)]) ]
+      putInto theRest onTop (riders := [(inOrder .anyOrder)]) ]
 theorem okExileFourOfThem : Action.check (DRS.ofList []) exileFourOfThem = [] := by decide
 
 def sylvanScrying : Action :=
@@ -279,7 +279,7 @@ def writeIntoBeingPlacement : Action :=
   sequentially
     [ lookAt (topSlice 2),
       manifestPlacement (someOf (exactly 1) them),
-      putInto (theOther .object) (or [onTop, onBottom]) ]
+      putInto theOther (or [onTop, onBottom]) ]
 theorem okWriteIntoBeingPlacement : Action.check (DRS.ofList []) writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
@@ -664,7 +664,7 @@ theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by 
 def codecrackerHoundLook : Action :=
   sequentially
     [ lookAt (topSlice 2), putInto (someOf (exactly 1) them) hand,
-      putInto (theOther .object) graveyard ]
+      putInto theOther graveyard ]
 theorem okCodecrackerHoundLook : Action.check (DRS.ofList []) codecrackerHoundLook = [] := by decide
 
 def oneOfTheTopTwo : NounPhrase := someOf (exactly 1) (topSlice 2)
@@ -702,7 +702,7 @@ def factOrFiction : Spelled := spelled <| singleFacedCard
           [ reveal (topSlice 5),
             instruct anOpponent (separateIntoPiles them 2),
             putInto onePile hand,
-            putInto (theOther .pile) graveyard ]) ] }
+            putInto theOther graveyard ]) ] }
 
 def unsummon : Action := returnToHand (target isCreature)
 theorem okUnsummon : Action.check (DRS.ofList []) unsummon = [] := by decide

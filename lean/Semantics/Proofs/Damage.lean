@@ -105,10 +105,10 @@ theorem fightEachOtherIsReadBackThisWay :
 "the other" of three coordinated creatures is not one creature. -/
 theorem fightEachOtherNeedsAPair :
     Action.check (DRS.ofList []) (fightEachOther (target isCreature)) =
-      [.plural, .groupMention, .theRestFits .object] ∧
+      [.plural, .groupMention, .theRestFits .one] ∧
     Action.check (DRS.ofList []) (sequentially
       [ choose (.and [target isCreature, target isCreature, target isCreature]),
-        fightEachOther (those creature) ]) = [.theRestFits .object] := by decide
+        fightEachOther (those creature) ]) = [.theRestFits .one] := by decide
 
 /-- A creature that fights itself deals damage to itself equal to twice its power [CR#701.14c].
 Two target slots with no restriction between them can name one creature [CR#601.2c], and the
@@ -127,7 +127,7 @@ pair's Card Types (a group once the clause has read it of each member); the anap
 by its "other", so it names nothing unique (owner ruling 2026-10-24). -/
 theorem theOtherIsTheMembersCounterpart :
     let reciprocal := instruct (eachOf (those creature))
-      (dealDamage (powerOf it) (theOther .object))
+      (dealDamage (powerOf it) theOther)
     let after :=
       (stepAction 64 .postEvent .obj (DRS.ofList []) (sequentially [fightPair, reciprocal])).1
     Action.check (DRS.ofList []) (sequentially [fightPair, reciprocal]) = [] ∧
@@ -137,7 +137,7 @@ theorem theOtherIsTheMembersCounterpart :
       instruct (eachOf (those creature))
         (dealDamage (powerOf it) (the (and [isCreature, isOther])))]) = [.uniquifying] ∧
     Action.check (DRS.ofList []) (instruct (each isCreature)
-      (dealDamage (powerOf it) (theOther .object))) = [.theRestFits .object] := by decide
+      (dealDamage (powerOf it) theOther)) = [.theRestFits .one] := by decide
 
 /-- Quenchable Fire's delayed trigger is unconditional: once it triggers, paying {U} no longer
 stops it. Until it would trigger, "that player or that planeswalker's controller" may take a
@@ -475,18 +475,18 @@ theorem okRestAfterPart :
       (.sequentially
         [ lookAt (topSlice 4),
           putInto (someOf (exactly 1) them) hand,
-          putInto (theRest .object) graveyard ]) = [] := by
+          putInto theRest graveyard ]) = [] := by
   decide
 
 /-- "Put the rest into your graveyard." -/
 theorem badRestWithoutGroup :
-    Action.check (DRS.ofList []) (putInto (theRest .object) graveyard) = [.theRestFits .object] := by decide
+    Action.check (DRS.ofList []) (putInto theRest graveyard) = [.theRestFits .many] := by decide
 
 /-- "Look at the top four cards of your library. Put the rest on the bottom." -/
 theorem badRestWithoutPart :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice 4), putInto (theRest .object) onBottom])
-      = [.theRestFits .object] := by
+      (.sequentially [lookAt (topSlice 4), putInto theRest onBottom])
+      = [.theRestFits .many] := by
   decide
 
 theorem badRestDisposedTwice :
@@ -494,15 +494,15 @@ theorem badRestDisposedTwice :
       (.sequentially
         [ lookAt (topSlice 4),
           putInto (someOf (exactly 1) them) hand,
-          putInto (theRest .object) onBottom,
-          putInto (theRest .object) graveyard ]) = [.theRestFits .object] := by
+          putInto theRest onBottom,
+          putInto theRest graveyard ]) = [.theRestFits .many] := by
   decide
 
 theorem badRestOverTwoAnnouncements :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, youDontControl]))),
-          putInto (theRest .object) graveyard ]) = [.theRestFits .object] := by
+          putInto theRest graveyard ]) = [.theRestFits .many] := by
   decide
 
 /-- "This creature deals 2 damage to each opponent." -/
