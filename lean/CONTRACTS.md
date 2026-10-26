@@ -1310,17 +1310,26 @@ A `semantic_template` or `semantic_definition` takes ordinary Lean parameters, p
 caller's scope (`CallerSplice.close`, from `CallerScope`): the body the caller wrote
 reads the caller's referents, and a parameterized body (`α → β`) receives the
 receiving declaration's subjects through its noun parameters. Every other parameter
-is substituted as written. A Definition wraps each argument it reads in `inCaller`
+is substituted as written. A Definition reads its arguments through `inCaller`
 (`CallerScope.caller`: `NounPhrase.inCaller`, `Amount.inCaller`, `Action.inCaller`, …
-for every phrase type that can be an argument) and binds a referent argument at its
-first mention with `firstMention`, reading it back with `laterMention`
-("Binding identity and a keyword body's own scope" above). The Binding Identity is named
-`<declaration>.<parameter>` (`destroy.subject`, `fight.other`), and the identity is outermost:
+for every phrase type that can be an argument). For bare `NounPhrase` parameters the
+elaborator generates `firstMention` at the first textual occurrence and `laterMention`
+at every later one, with `inCaller` inside each identity wrapper
+("Binding identity and a keyword body's own scope" above). An explicitly written
+`NounPhrase.inCaller p` opts that occurrence out and remains unchanged; `search.for_`
+and `searchZonesOf.for_` deliberately retain this spelling pending an owner decision.
+The other `X.inCaller` wrappers, performer identities and non-parameter identities remain
+hand-written. Hand-written identities naming a noun parameter are refused ("parameter
+identity is generated"); a bare parameter passed to an ordinary helper such as `p.plur`
+is refused because wrapping it would change what that helper reads. Binders introduced
+inside a body are untouched. The Binding Identity is named
+`<last declaration name component>.<parameter>` (`Action.devour` gives `devour.subject`),
+and the identity is outermost:
 `firstMention id (inCaller arg)`, `laterMention id (inCaller arg)`, since the identity is the
 declaration's and only the argument is read in the caller. Where a mention stands in the body
 never changes a role the caller can see (`leaveOwnScope`, below), so "Target creature fights
 target creature. Tap it." reads the fight's source (`fightSourceIsSelectedBySubjectPriority`). A Template that names one
-argument twice does the same (`dealDamageOwnPower`, `controllerSacrifices`). An argument
+argument twice writes its own identities (`dealDamageOwnPower`, `controllerSacrifices`). An argument
 is therefore selected once, at its textual first use, however often the body names it,
 and two identical argument expressions remain two selections. An Amount argument is
 an expression read wherever the body writes it, so it observes outcomes introduced

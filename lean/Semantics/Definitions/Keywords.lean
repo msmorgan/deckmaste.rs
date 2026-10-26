@@ -545,7 +545,7 @@ too ("each creature sacrificed this way" and "creatures it devoured" both read i
 sort, as `devour` is the keyword ability. -/
 semantic_definition Action.devour (subject : NounPhrase) : Action :=
   .ownScope (some (.ofAbility (.named "devour")))
-    (sacrifice (.firstMention "devour.subject" (.inCaller subject)))
+    (sacrifice subject)
 /-- Devour's definition over the permanents `quality` describes, counted by the variant's head
 noun `head`: "As this object enters, you may sacrifice any number of [quality] permanents. This
 permanent enters with N +1/+1 counters on it for each [head] sacrificed this way." Devour counts

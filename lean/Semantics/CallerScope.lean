@@ -5,8 +5,10 @@ import Semantics.Abilities
 
 Caller-scope wrapping (`inCaller`) for `Definition` arguments in Semantics v3
 (`docs/decisions/semantics-v3.md` §1.4, §2). `withBindings`, `CaptureInput`, and
-`Amount.parameter` are retired; parameter identity uses `firstMention` and `laterMention`
-(`BindingId`).
+`Amount.parameter` are retired. Definition `NounPhrase` parameter identities (`BindingId`)
+are generated as outermost `firstMention` / `laterMention` around `inCaller`; a written
+`NounPhrase.inCaller p` opts that occurrence out. Templates and performer identities remain
+hand-written, as do the other `X.inCaller` wrappers.
 -/
 
 namespace Semantics

@@ -172,6 +172,69 @@ elab "caller_splice_type% " type:term : term => do
 def isAuthored (env : Environment) (name : Name) : Bool :=
   definitionAttribute.hasTag env name || templateAttribute.hasTag env name
 
+private def acceptsParameterIdentity (env : Environment) (fn : Expr) : Bool :=
+  match fn with
+  | .const name _ =>
+    isAuthored env name || match env.find? name with
+      -- Data constructors (including `Option.some`) store semantic arguments without
+      -- inspecting them, just as the semantic syntax constructors do.
+      | some (.ctorInfo _) => true
+      | _ => false
+  | _ => false
+
+-- Keep application order and authored calls intact: reducing here would erase the boundary
+-- between a semantic use and an ordinary helper that inspects a parameter's syntax.
+private partial def bindParameters (env : Environment) (parameters : List (FVarId × String))
+    (body : Expr) (acceptsIdentity : Bool := true) : StateT (List FVarId) TermElabM Expr := do
+  match body with
+  | .fvar parameter =>
+    let some (_, identity) := parameters.find? (·.1 == parameter) | return body
+    unless acceptsIdentity do
+      throwError "NounPhrase parameter requires a semantic constructor or authored declaration"
+    let seen ← get
+    let mention := if seen.contains parameter then `Semantics.NounPhrase.laterMention
+      else `Semantics.NounPhrase.firstMention
+    set (parameter :: seen)
+    return mkApp2 (mkConst mention) (mkStrLit identity)
+      (mkApp (mkConst `Semantics.NounPhrase.inCaller) body)
+  | .app fn arg =>
+    if body.isAppOfArity `Semantics.NounPhrase.inCaller 1 && arg.isFVar then
+      return body
+    if body.isAppOfArity `Semantics.NounPhrase.firstMention 2 ||
+        body.isAppOfArity `Semantics.NounPhrase.laterMention 2 ||
+        body.isAppOfArity `Semantics.Primitives.NounPhrase.firstMention 2 ||
+        body.isAppOfArity `Semantics.Primitives.NounPhrase.laterMention 2 then
+      if let .lit (.strVal identity) := body.getAppArgs[0]! then
+        if parameters.any (·.2 == identity) then
+          throwError "parameter identity is generated: {identity}"
+    let acceptsArgument := acceptsParameterIdentity env body.getAppFn
+    return .app (← bindParameters env parameters fn acceptsIdentity)
+      (← bindParameters env parameters arg acceptsArgument)
+  | .lam name type value info =>
+    return .lam name type (← bindParameters env parameters value) info
+  | .letE name type value rest nondep =>
+    return .letE name type (← bindParameters env parameters value)
+      (← bindParameters env parameters rest) nondep
+  | .mdata data value =>
+    return .mdata data (← bindParameters env parameters value acceptsIdentity)
+  | .proj name index value =>
+    return .proj name index (← bindParameters env parameters value false)
+  | _ => return body
+
+/-- Generate a Definition's noun-parameter Binding Identities after ordinary elaboration.
+An explicitly written `NounPhrase.inCaller p` opts that occurrence out. -/
+elab "bind_parameters% " declaration:str body:term : term <= expected => do
+  let value ← Term.elabTermEnsuringType body expected
+  Term.synthesizeSyntheticMVarsNoPostponing
+  let value ← instantiateMVars value
+  let mut parameters := []
+  for localDecl in ← getLCtx do
+    unless localDecl.isImplementationDetail do
+      if (← whnf localDecl.type).isConstOf `Semantics.NounPhrase then
+        parameters := parameters ++ [(localDecl.fvarId,
+          s!"{declaration.getString}.{localDecl.userName}")]
+  return (← (bindParameters (← getEnv) parameters value).run []).1
+
 /-- Declare one named semantic expansion, preserving ordinary Lean binders, with its generated
 lexical context and splice schema. The caller tags it a definition or a template. -/
 private def elabAuthoredDecl (mods : TSyntax ``Parser.Command.declModifiers)
@@ -277,7 +340,16 @@ syntax (name := semanticTemplateDecl) declModifiers "semantic_template " declId
 elab_rules : command
   | `($mods:declModifiers semantic_definition $name:declId
       $signature:optDeclSig $value:declVal) => do
+    unless value.raw.isOfKind ``Parser.Command.declValSimple do
+      throwErrorAt value "A Definition uses `:=` with one expansion body"
+    let declarationName := (⟨name.raw[0]⟩ : TSyntax `ident).getId
+    let identityPrefix := Syntax.mkStrLit declarationName.getString!
+    let body : Term := ⟨value.raw[1]⟩
+    let body ← `(term| bind_parameters% $identityPrefix $body)
+    let value := ⟨value.raw.setArg 1 body.raw⟩
     elabAuthoredDecl mods name signature value
+    -- A failed body may have recovered to `sorry`; do not diagnose its missing scope too.
+    if ← MonadLog.hasErrors then return
     let identifier : TSyntax `ident := ⟨name.raw[0]⟩
     let declaration ← resolveGlobalConstNoOverload identifier
     liftTermElabM do

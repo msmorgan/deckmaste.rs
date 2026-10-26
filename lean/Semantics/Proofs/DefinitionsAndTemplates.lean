@@ -18,6 +18,44 @@ run_cmd do
       Authoring.templateAttribute.hasTag env ``Semantics.Templates.dealDamageOwnPower do
     throwError "Definition and Template declarations must retain their explicit categories"
 
+/-- error: parameter identity is generated: manualParameterIdentity.subject -/
+#guard_msgs in
+semantic_definition manualParameterIdentity (subject : NounPhrase) : Action :=
+  .ownScope none (.setStatus .tapped
+    (.firstMention "manualParameterIdentity.subject" (.inCaller subject)))
+
+/-- error: NounPhrase parameter requires a semantic constructor or authored declaration -/
+#guard_msgs in
+semantic_definition inspectingParameter (subject : NounPhrase) : Action :=
+  .ownScope none (.draw (.exactlyOf (if subject.plur == .one then 1 else 2)))
+
+theorem destroyBindsItsSubject (subject : NounPhrase) :
+    destroy subject =
+      .ownScope (some (.action "destroy"))
+        (.move (.firstMention "destroy.subject" (.inCaller subject)) (.zone .battlefield none)
+          graveyard .departure []) := rfl
+
+theorem harnessBindsItsSubject (subject : NounPhrase) :
+    harness subject =
+      .ownScope (some (.action "harness"))
+        (doIf (not (is (.firstMention "harness.subject" (.inCaller subject))
+          (hasDesignation harnessed)))
+          (gainDesignation (.laterMention "harness.subject" (.inCaller subject)) harnessed) none) := rfl
+
+theorem fightBindsOtherAndKeepsTheSource (other : NounPhrase) :
+    fight other =
+      .ownScope (some (.action "fight" .performs))
+        (doIf (and [
+          is (.firstMention "fight.other" (.inCaller other)) isCreature,
+          is (.firstMention "fight.source" .actor) isCreature])
+          (.simultaneously [
+            .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
+              (.laterMention "fight.other" (.inCaller other)),
+            instruct (.laterMention "fight.other" (.inCaller other))
+              (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (.inCaller other)))
+                (.laterMention "fight.source" .actor))])
+          none) := rfl
+
 theorem okAirbendOne :
     (airbend (target isCreature)).check (DRS.ofList []) = [] := by decide
 

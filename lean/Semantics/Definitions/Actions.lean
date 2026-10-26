@@ -18,8 +18,8 @@ open Semantics.Templates
 /-- "attach <subject> to <host>" (`Definition`, [CR#701.3a]). -/
 semantic_definition attachTo (subject host : NounPhrase) : Action :=
   .ownScope (some (.action "attach"))
-    (.attachment .attached (.firstMention "attachTo.subject" (.inCaller subject))
-      (some (.firstMention "attachTo.host" (.inCaller host))))
+    (.attachment .attached subject
+      (some host))
 /-- "create <count> <token> [riders]": the tokens are put onto the battlefield, entering under
 their creator's control (`Definition`, [CR#701.7a,111.2]). -/
 semantic_definition create (count : Amount) (token : TokenSpec) (riders : List MoveRider := []) :
@@ -29,7 +29,7 @@ semantic_definition create (count : Amount) (token : TokenSpec) (riders : List M
 /-- "counter <subject>": one labeled stack-to-graveyard move (`Definition`, [CR#701.6a]). -/
 semantic_definition counter (subject : NounPhrase) : Action :=
   .ownScope (some (.action "counter"))
-    (.move (.firstMention "counter.subject" (.inCaller subject)) (.zone .stack none)
+    (.move subject (.zone .stack none)
       (some (.zone .graveyard none))
       .arrival [])
 
@@ -40,21 +40,21 @@ semantic_definition cast (subject : NounPhrase) (from_ : Option Location := none
     (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "cast"))
-    (.procedure .cast (.firstMention "cast.subject" (.inCaller subject)) payment.inCaller
+    (.procedure .cast subject payment.inCaller
       (resulting.map .inCaller) (from_.map .inCaller) none)
 /-- "play <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.18a]). -/
 semantic_definition play (subject : NounPhrase) (from_ : Option Location := none)
     (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "play"))
-    (.procedure .play (.firstMention "play.subject" (.inCaller subject)) payment.inCaller
+    (.procedure .play subject payment.inCaller
       (resulting.map .inCaller) (from_.map .inCaller) none)
 /-- "activate <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.2a]). -/
 semantic_definition activate (subject : NounPhrase) (from_ : Option Location := none)
     (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "activate"))
-    (.procedure .activate (.firstMention "activate.subject" (.inCaller subject))
+    (.procedure .activate subject
       payment.inCaller (resulting.map .inCaller) (from_.map .inCaller) none)
 /-- "<subject> resolves" (`Definition`, [CR#608.1,608.2]): the resolution of a spell or ability.
 No player pays for, casts it from a zone or chooses its result, so the payment, origin and
@@ -71,55 +71,55 @@ slot only, which a replacement's would-clause has not. A countered spell's move 
 caused by no resolution [CR#701.6a], so none of the three applies to it. -/
 semantic_definition resolve (subject : NounPhrase) : Action :=
   .ownScope (some (.action "resolve"))
-    (.procedure .resolve (.firstMention "resolve.subject" (.inCaller subject)) .itsOwnCost none
+    (.procedure .resolve subject .itsOwnCost none
       none none)
 /-- "destroy <subject>" (`Definition`, [CR#701.8]). -/
 semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
-    (.move (.firstMention "destroy.subject" (.inCaller subject)) (.zone .battlefield none)
+    (.move subject (.zone .battlefield none)
       graveyard .departure [])
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
-    (.move (.firstMention "exile.subject" (.inCaller subject)) .anyLocation exileZone
+    (.move subject .anyLocation exileZone
       .arrival [])
 /-- "exile <subject> face down" (`Definition`, [CR#701.13,406.3]). -/
 semantic_definition exileFaceDown (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
-    (.move (.firstMention "exileFaceDown.subject" (.inCaller subject)) .anyLocation
+    (.move subject .anyLocation
       exileZone .arrival
       [.faceDown exiledFaceDown])
 /-- "exile <subject> with N <kind> counters on it" (`Definition`, [CR#701.13]). -/
 semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Action :=
   .ownScope (some (.action "exile"))
-    (.move (.firstMention "exileWithCounters.subject" (.inCaller subject)) .anyLocation
+    (.move subject .anyLocation
       exileZone .arrival
       [.withCounters (.inCaller amount) kind .fresh])
 /-- "sacrifice <subject>" (`Definition`, [CR#701.21]). -/
 semantic_definition sacrifice (subject : NounPhrase) : Action :=
   .ownScope (some (.action "sacrifice"))
-    (.move (.firstMention "sacrifice.subject" (.inCaller subject)) (.zone .battlefield none)
+    (.move subject (.zone .battlefield none)
       graveyard .departure [])
 /-- "transform <subject> [into <face>]" (`Definition`, [CR#701.27]): `into` is what a "transforms
 into" trigger watches, a characteristic the object has immediately after [CR#701.27e]. -/
 semantic_definition transform (subject : NounPhrase) (into : Option Predicate := none) : Action :=
   .ownScope (some (.action "transform"))
-    (.turnOver (.firstMention "transform.subject" (.inCaller subject)) (into.map .inCaller))
+    (.turnOver subject (into.map .inCaller))
 /-- "meld <subject> into <name>" (`Definition`, [CR#701.42]). -/
 semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))
-    (.move (.firstMention "meldInto.subject" (.inCaller subject)) .anyLocation battlefield
+    (.move subject .anyLocation battlefield
       .arrival [.entersMelded into])
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a]. -/
 semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
-    (.move (.firstMention "manifestPlacement.subject" (.inCaller subject)) .anyLocation
+    (.move subject .anyLocation
       battlefield .arrival [])
 /-- "tap <subject>" (`Definition`, [CR#701.26a]). -/
 semantic_definition tap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "tap"))
-    (.setStatus .tapped (.firstMention "tap.subject" (.inCaller subject)))
+    (.setStatus .tapped subject)
 /-- "the regeneration of <subject>": a regeneration shield's application, "remove all damage
 marked on it and tap it. If it's an attacking or blocking creature, remove it from combat"
 [CR#701.19a], the deed "can't be regenerated" forbids. Activating or casting what creates a
@@ -127,17 +127,17 @@ shield is not regenerating (`regenerate`, [CR#701.19c]) (`Definition`). -/
 semantic_definition regeneration (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))
     (sequentially
-      [ clearDamage (.firstMention "regeneration.subject" (.inCaller subject)),
+      [ clearDamage subject,
         instruct
-          (.possessorOf .controller (.laterMention "regeneration.subject" (.inCaller subject)))
-          (tap (.laterMention "regeneration.subject" (.inCaller subject))),
+          (.possessorOf .controller subject)
+          (tap subject),
         doIf
           (or
-            [ is (.laterMention "regeneration.subject" (.inCaller subject))
+            [ is subject
                 (.inCombat .attackerOf none),
-              is (.laterMention "regeneration.subject" (.inCaller subject))
+              is subject
                 (.inCombat .blockerOf none) ])
-          (removeFromCombat (.laterMention "regeneration.subject" (.inCaller subject)))
+          (removeFromCombat subject)
           none ])
 /-- "Destroy <subject>. It can't be regenerated." / "… They can't be regenerated.": the
 regeneration the prohibition forbids is of the object or objects just destroyed, and the
@@ -149,7 +149,7 @@ semantic_template destroyCantRegenerate (subject : NounPhrase) : Action :=
 to the graveyard (`Definition`, [CR#701.9a]). -/
 semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
-    (.move (.firstMention "discard.subject" (.inCaller subject)) (.zone .hand (some .actor))
+    (.move subject (.zone .hand (some .actor))
       graveyard .arrival [])
 /-- A bare "shuffle": the performer's own library (`Definition`, [CR#701.24a]). -/
 semantic_definition shuffle : Action :=
@@ -158,7 +158,7 @@ semantic_definition shuffle : Action :=
 /-- "untap <subject>" (`Definition`, [CR#701.26b]). -/
 semantic_definition untap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "untap"))
-    (.setStatus .untapped (.firstMention "untap.subject" (.inCaller subject)))
+    (.setStatus .untapped subject)
 /-- "<performer> mills <amount> cards": from the performer's own library (`Definition`,
 [CR#701.17a]). -/
 semantic_definition mill (amount : Amount) : Action :=
@@ -169,29 +169,31 @@ semantic_definition mill (amount : Amount) : Action :=
 watches ("Whenever one or more nonland cards are milled") (`Definition`, [CR#701.17a,701.17c]). -/
 semantic_definition millCards (cards : NounPhrase) : Action :=
   .ownScope (some (.action "mill"))
-    (.move (.firstMention "millCards.cards" (.inCaller cards))
+    (.move cards
       library graveyard .arrival [])
 /-- "search <whose> graveyard, hand, and library for <for_>", the owner written once
-(`Definition`, [CR#701.23]). -/
+(`Definition`, [CR#701.23]). The `for_` parameter is deliberately unbound: its explicit
+`inCaller` opts out of generated identity. Whether the search selection should be bound
+is an open owner question; this preserves the existing expansion. -/
 semantic_definition searchZonesOf (whose : NounPhrase) (for_ : NounPhrase) : Action :=
   .ownScope (some (.action "search"))
     (.search
       (and
-        [ .zone .graveyard (some (.firstMention "searchZonesOf.whose" (.inCaller whose))),
-          .zone .hand (some (.laterMention "searchZonesOf.whose" (.inCaller whose))),
-          .zone .library (some (.laterMention "searchZonesOf.whose" (.inCaller whose))) ])
+        [ .zone .graveyard (some whose),
+          .zone .hand (some whose),
+          .zone .library (some whose) ])
       (.inCaller for_))
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
 semantic_definition fight (other : NounPhrase) : Action :=
   .ownScope (some (.action "fight" .performs))
     (doIf (and [
-      is (.firstMention "fight.other" (.inCaller other)) isCreature,
+      is other isCreature,
       is (.firstMention "fight.source" .actor) isCreature])
       (.simultaneously [
         .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
-          (.laterMention "fight.other" (.inCaller other)),
-        instruct (.laterMention "fight.other" (.inCaller other))
-          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (.inCaller other)))
+          other,
+        instruct other
+          (.dealDamage (.statOf (.stat .power) other)
             (.laterMention "fight.source" .actor))])
       none)
 /-- "<pair> fight each other": the two-creature form of fight, spelled as the rule's own sentence,
@@ -204,20 +206,20 @@ per mention, so if both target slots name one creature, each slot deals its powe
 slot and the creature takes twice its power [CR#701.14c]; no separate case is written. -/
 semantic_definition fightEachOther (pair : NounPhrase) : Action :=
   .ownScope (some (.action "fight" .performs))
-    (doIf (is (.firstMention "fightEachOther.pair" (.inCaller pair)) isCreature)
-      (instruct (eachOf (.laterMention "fightEachOther.pair" (.inCaller pair)))
+    (doIf (is pair isCreature)
+      (instruct (eachOf pair)
         (.dealDamage (powerOf it) theOther))
       none)
 /-- "reveal <cards>" (`Definition`, [CR#701.20]). -/
 semantic_definition reveal (cards : NounPhrase) : Action :=
   .ownScope (some (.action "reveal"))
-    (.expose .reveal (.cards (.firstMention "reveal.cards" (.inCaller cards))))
+    (.expose .reveal (.cards cards))
 /-- "shuffle <subject> into its owner's library": the move, then the shuffle of that library,
 which happens even if nothing moved (`Definition`, [CR#701.24c,701.24d]). -/
 semantic_definition shuffleInto (subject : NounPhrase) : Action :=
   .ownScope (some (.action "shuffle"))
     (sequentially
-      [ .move (.firstMention "shuffleInto.subject" (.inCaller subject)) .anyLocation
+      [ .move subject .anyLocation
           (some (.zone .library none))
           .arrival [],
         .shuffle (.zone .library none) ])
@@ -231,7 +233,7 @@ semantic_definition vote (disclosure : Disclosure := .openly)
 semantic_definition voteStartingWith (first : NounPhrase) (disclosure : Disclosure)
     (ballot : Ballot) : Action :=
   .ownScope (some (.action "vote"))
-    (.vote (some (.firstMention "voteStartingWith.first" (.inCaller first))) disclosure
+    (.vote (some first) disclosure
       ballot.inCaller none)
 /-- "scry N" (`Definition`, [CR#701.22a]): the performer's own library. -/
 semantic_definition scry (amount : Amount) : Action :=
@@ -282,28 +284,28 @@ semantic_definition monstrosity (amount : Amount) : Action :=
 kind of counter on it, put as many of that kind on it as it already has. -/
 semantic_definition doubleCounters (on : NounPhrase) : Action :=
   .ownScope (some (.action "double"))
-    (.doForEachKind .counterKind (some (.firstMention "doubleCounters.on" (.inCaller on)))
+    (.doForEachKind .counterKind (some on)
       .counterKind
-      (putCounters (.statOf .boundCounter (.laterMention "doubleCounters.on" (.inCaller on)))
-        .bound (.laterMention "doubleCounters.on" (.inCaller on))))
+      (putCounters (.statOf .boundCounter on)
+        .bound on))
 semantic_definition exchangeCards (left right : NounPhrase) : Action :=
   .ownScope (some (.action "exchange"))
     (.exchange
-      (.cardsAcross (.firstMention "exchangeCards.left" (.inCaller left))
-        (.firstMention "exchangeCards.right" (.inCaller right))))
+      (.cardsAcross left
+        right))
 semantic_definition exchangeControl (left right : NounPhrase) : Action :=
   .ownScope (some (.action "exchange"))
     (.exchange
-      (.controlOf (.firstMention "exchangeControl.left" (.inCaller left))
-        (.firstMention "exchangeControl.right" (.inCaller right))))
+      (.controlOf left
+        right))
 semantic_definition exchangeLifeTotals (parties : NounPhrase) : Action :=
   .ownScope (some (.action "exchange"))
-    (.exchange (.lifeTotals (.firstMention "exchangeLifeTotals.parties" (.inCaller parties))))
+    (.exchange (.lifeTotals parties))
 semantic_definition exchangeTextBoxes (left right : NounPhrase) : Action :=
   .ownScope (some (.action "exchange"))
     (.establish
-      (.textChange (.firstMention "exchangeTextBoxes.left" (.inCaller left))
-        (.exchangeWith (.firstMention "exchangeTextBoxes.right" (.inCaller right))))
+      (.textChange left
+        (.exchangeWith right))
       none)
 semantic_definition exchangeValues (left right : Amount) : Action :=
   .ownScope (some (.action "exchange"))
@@ -313,14 +315,14 @@ semantic_definition exchangeZones (left right : Location) : Action :=
     (.exchange (.zones (.inCaller left) (.inCaller right)))
 semantic_definition exileFrom (subject : NounPhrase) (from_ : Location) : Action :=
   .ownScope (some (.action "exile"))
-    (.move (.firstMention "exileFrom.subject" (.inCaller subject)) (.inCaller from_)
+    (.move subject (.inCaller from_)
       exileZone .arrival [])
 /-- "exile <subject> from <from_> face down" (`Definition`, [CR#701.13,406.3]): a move that names
 its origin, so an ability whose cost or effect makes it functions only in that zone
 [CR#113.6m]. -/
 semantic_definition exileFaceDownFrom (subject : NounPhrase) (from_ : Location) : Action :=
   .ownScope (some (.action "exile"))
-    (.move (.firstMention "exileFaceDownFrom.subject" (.inCaller subject)) (.inCaller from_)
+    (.move subject (.inCaller from_)
       exileZone .arrival [.faceDown exiledFaceDown])
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
 semantic_definition revealHand : Action :=
@@ -337,7 +339,7 @@ semantic_definition collectEvidence (amount : Amount) : Action :=
 semantic_definition castWithoutPaying (subject : NounPhrase) (resulting : Option Predicate) :
     Action :=
   .ownScope (some (.action "cast"))
-    (.procedure .cast (.firstMention "castWithoutPaying.subject" (.inCaller subject))
+    (.procedure .cast subject
       .withoutPaying
       (resulting.map Predicate.inCaller)
       none none)
@@ -375,15 +377,15 @@ semantic_definition waterbend (cost : Cost) : Action :=
 semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (sequentially
-    [ .turnFaceDown (.firstMention "manifest.subject" (.inCaller subject)) faceDownCreature,
-      .move (.laterMention "manifest.subject" (.inCaller subject)) .anyLocation battlefield .arrival
+    [ .turnFaceDown subject faceDownCreature,
+      .move subject .anyLocation battlefield .arrival
         [(.faceDown faceDownCreature)] ])
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
 semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (sequentially
-    [ .turnFaceDown (.firstMention "cloak.subject" (.inCaller subject)) faceDownWardedCreature,
-      .move (.laterMention "cloak.subject" (.inCaller subject)) .anyLocation battlefield .arrival
+    [ .turnFaceDown subject faceDownWardedCreature,
+      .move subject .anyLocation battlefield .arrival
         [(.faceDown faceDownWardedCreature)] ])
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
 semantic_definition manifestDread : Action :=
@@ -431,7 +433,7 @@ singular loop referent. -/
 semantic_definition airbend (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend"))
     (sequentially
-      [ exile (.firstMention "airbend.subject" (.inCaller subject)),
+      [ exile subject,
         .doForEach (allOf (and [.isCard, .did { subj := .any
                                                 action := exile .which
                                                 within := some .thisWay }]))
@@ -445,55 +447,55 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
 semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "double"))
-    (get (.firstMention "doublePower.subject" (.inCaller subject))
-      (.up (powerOf (.laterMention "doublePower.subject" (.inCaller subject)))) (.up 0)
+    (get subject
+      (.up (powerOf subject)) (.up 0)
       duration)
 /-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
 (`Definition`, [CR#701.10b,701.10c]). -/
 semantic_definition doublePowerAndToughness (subject : NounPhrase)
     (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "double"))
-    (get (.firstMention "doublePowerAndToughness.subject" (.inCaller subject))
-      (.up (powerOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
-      (.up (toughnessOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
+    (get subject
+      (.up (powerOf subject))
+      (.up (toughnessOf subject))
       duration)
 /-- "double <subject>'s toughness": it gets +0/+X, X its toughness (`Definition`,
 [CR#701.10b,701.10c]). -/
 semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "double"))
-    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up 0)
-      (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
+    (get subject (.up 0)
+      (.up (toughnessOf subject))
       duration)
 /-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
 semantic_definition triplePowerAndToughness (subject : NounPhrase)
     (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "triple"))
-    (get (.firstMention "triplePowerAndToughness.subject" (.inCaller subject))
+    (get subject
       (.up
         (times 2
-          (powerOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
+          (powerOf subject)))
       (.up
         (times 2
-          (toughnessOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
+          (toughnessOf subject)))
       duration)
 /-- "triple <subject>'s power": it gets +X/+0, X twice its power (`Definition`,
 [CR#701.11b,701.11c]). -/
 semantic_definition triplePower (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "triple"))
-    (get (.firstMention "triplePower.subject" (.inCaller subject))
-      (.up (times 2 (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
+    (get subject
+      (.up (times 2 (powerOf subject)))
       (.up 0) duration)
 /-- "triple <subject>'s toughness": it gets +0/+X, X twice its toughness (`Definition`,
 [CR#701.11b,701.11c]). -/
 semantic_definition tripleToughness (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
   .ownScope (some (.action "triple"))
-    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up 0)
+    (get subject (.up 0)
       (.up
         (times 2
-          (toughnessOf (.laterMention "tripleToughness.subject" (.inCaller subject)))))
+          (toughnessOf subject)))
       duration)
 /-- "double <performer>'s life total" (`Definition`, [CR#701.10d]), written as that total's set
 [CR#119.5]. -/
@@ -585,8 +587,8 @@ only its eventual application carries the Regenerate label (`Definition`, [CR#70
 semantic_definition regenerate (subject : NounPhrase) : Action :=
   .ownScope none
     (.establish (.replace
-      (.would .any (destroy (.firstMention "regenerate.subject" (.inCaller subject))))
-      (instead (regeneration (.laterMention "regenerate.subject" (.inCaller subject))))
+      (.would .any (destroy subject))
+      (instead (regeneration subject))
       none .nextTimeOnly none) thisTurn)
 
 /-! ## Keyword actions -/
@@ -636,13 +638,13 @@ semantic_definition detain (subject : NounPhrase) : Action :=
   .ownScope (some (.action "detain"))
     (establishThroughout
       (.conjunction none
-        [ cant (actor (.firstMention "detain.subject" (.inCaller subject))) (.attack none),
-          cant (actor (.laterMention "detain.subject" (.inCaller subject))) (.block .any),
+        [ cant (actor subject) (.attack none),
+          cant (actor subject) (.block .any),
           cant .any
             (activate (allOf
                 (and
                   [ .abilityHead .anyActivated,
-                    .abilityOf (.laterMention "detain.subject" (.inCaller subject)) ]))) ])
+                    .abilityOf subject ]))) ])
       untilYourNextTurn)
 semantic_definition earthbend (amount : Amount) : Action :=
   .ownScope (some (.action "earthbend"))
@@ -666,7 +668,7 @@ semantic_definition endure (amount : Amount) : Action :=
         (create 1 (creatureTokenOf (.inCaller amount) (.inCaller amount) [.white] [spirit]))))
 semantic_definition exert (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exert"))
-    (.skipUntap (.firstMention "exert.subject" (.inCaller subject)) 1)
+    (.skipUntap subject 1)
 semantic_definition faceAVillainousChoice (first second : Action) : Action :=
   .ownScope (some (.action "faceAVillainousChoice"))
     (chooseOne (.inCaller first) (.inCaller second))
@@ -679,19 +681,19 @@ semantic_definition forage : Action :=
 ability, "your next turn" [CR#701.15a,109.5], as detain's. -/
 semantic_definition goad (subject : NounPhrase) : Action :=
   .ownScope (some (.action "goad"))
-    (gainDesignation (.firstMention "goad.subject" (.inCaller subject)) goaded
+    (gainDesignation subject goaded
       untilYourNextTurn)
 semantic_definition harness (subject : NounPhrase) : Action :=
   .ownScope (some (.action "harness"))
     (doIf
       (not
-        (is (.firstMention "harness.subject" (.inCaller subject))
+        (is subject
           (hasDesignation harnessed)))
-      (gainDesignation (.laterMention "harness.subject" (.inCaller subject)) harnessed)
+      (gainDesignation subject harnessed)
       none)
 semantic_definition heal (subject : NounPhrase) : Action :=
   .ownScope (some (.action "heal"))
-    (clearDamage (.firstMention "heal.subject" (.inCaller subject)))
+    (clearDamage subject)
 semantic_definition investigate : Action :=
   .ownScope (some (.action "investigate")) (create 1 clueToken)
 semantic_definition populate : Action :=
@@ -707,7 +709,10 @@ semantic_definition recruit : Action :=
         doIf (not (is (the (and [isCard, was (discard which) thisWay])) isLand))
           (create 1 (creatureToken 1 1 [.white] [human, soldier]))
           none ])
-/-- "search <scope>", or "search <scope> for <for_>" (`Definition`, [CR#701.23a]). -/
+/-- "search <scope>", or "search <scope> for <for_>" (`Definition`, [CR#701.23a]).
+The `for_` parameter is deliberately unbound: its explicit `inCaller` opts out of generated
+identity. Whether the search selection should be bound is an open owner question; this
+preserves the existing expansion. -/
 semantic_definition search (scope : Location) (for_ : NounPhrase := any) : Action :=
   .ownScope (some (.action "search"))
     (.search (.inCaller scope) (.inCaller for_))
@@ -716,7 +721,7 @@ semantic_template searchLibraryOrGraveyard (for_ : NounPhrase) : Action :=
   search (andOr [yourLibrary, yourGraveyard]) for_
 semantic_definition suspect (subject : NounPhrase) : Action :=
   .ownScope (some (.action "suspect"))
-    (gainDesignation (.firstMention "suspect.subject" (.inCaller subject)) suspected)
+    (gainDesignation subject suspected)
 /-- "The Ring tempts you": the Ring emblem if you have none, then you choose a creature you
 control as your Ring-bearer (`Definition`, [CR#701.54a,701.54c]). The emblem's abilities count
 the times the Ring has tempted you by the deed's own steps, `tempting`. -/

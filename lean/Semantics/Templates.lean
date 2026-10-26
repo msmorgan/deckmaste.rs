@@ -6,10 +6,10 @@ import Semantics.CallerScope
 
 Phrasing helpers (`Template`s, `semantic_template`) for `semantics-v3`
 (`docs/decisions/semantics-v3.md` §§1–3). A Template expands transparently in the caller's DRS
-scope and uses `firstMention` / `laterMention` whenever a `NounPhrase` parameter is mentioned more
-than once before a zone change. Templates are spelled over primitives and other Templates and
-name no catalog item and no card type: the layering is Primitives → Templates → Definitions →
-Cards. A phrasing helper that names a card type or a catalog entry ("this creature", "your party")
+scope and writes `firstMention` / `laterMention` by hand whenever a `NounPhrase` parameter is
+mentioned more than once before a zone change; only Definitions generate parameter identities.
+Templates are spelled over primitives and other Templates and name no catalog item and no card type:
+the layering is Primitives → Templates → Definitions → Cards. A phrasing helper that names a card type or a catalog entry ("this creature", "your party")
 lives above it, in `Semantics.Definitions.Phrasings`, and one that needs a composite Definition in
 `Semantics.Definitions.Actions` or `Semantics.Definitions.Keywords`.
 -/
