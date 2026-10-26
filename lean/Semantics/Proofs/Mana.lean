@@ -57,7 +57,7 @@ theorem badEmptyManaCost :
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Action.check (DRS.ofList [])
-      (doIfDone (exile (a (and [isCreature, youControl]))) (some (putInto it battlefield))) = [] := by
+      (doIfDone (exile (a (and [isCreature, youControl]))) (some (returnToBattlefield it))) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/

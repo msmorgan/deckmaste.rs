@@ -659,7 +659,7 @@ def danceOfTheDead : Spelled := spelled <| singleFacedCard
         when (does thisAura enter)
           (sequentially
             [ swapsEnchantForLinkedEntry,
-              putInto (enchanted (.ofType .card .creature)) battlefield
+              putOntoBattlefield (enchanted (.ofType .card .creature))
                 (riders := [entersAs .tapped, under you]),
               attachTo thisAura it,
               sacrificedWhenItLeaves thisAura ])

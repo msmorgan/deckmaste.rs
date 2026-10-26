@@ -115,7 +115,7 @@ theorem badDeadCreatureRead :
 theorem okParticipialDiscardedCard :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (putInto (the (and [was (discard which), isCard])) battlefield)) = [] := by
+        (returnToBattlefield (the (and [was (discard which), isCard])))) = [] := by
   decide
 
 /-- "Exile target creature. Reveal it. Return the exiled card to the battlefield." A deed stamps
@@ -126,7 +126,7 @@ theorem deedsAccumulateOnAReferent :
     let exiled := fun (deed : Predicate) (between : List Action) =>
       Action.check (DRS.ofList [])
         (.sequentially ([exile (target isCreature)] ++ between ++
-          [putInto (the (and [deed, isCard])) battlefield]))
+          [returnToBattlefield (the (and [deed, isCard]))]))
     exiled (was (exile which)) [reveal it] = [] ∧
       exiled (was (reveal which)) [reveal it] = [] ∧
       exiled (was (reveal which)) [] =
@@ -137,7 +137,7 @@ theorem deedsAccumulateOnAReferent :
 theorem badParticipialWrongVerb :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (putInto (the (and [was (sacrifice which), isCard])) battlefield))
+        (returnToBattlefield (the (and [was (sacrifice which), isCard]))))
       = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
 
@@ -145,7 +145,7 @@ theorem badParticipialWrongVerb :
 theorem badParticipialWrongNoun :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isArtifact)))
-        (putInto (the (and [was (sacrifice which), isCreature])) battlefield))
+        (returnToBattlefield (the (and [was (sacrifice which), isCreature]))))
       = [.participialDescription (.deed (.action "sacrifice")) 0] := by
   decide
 
@@ -154,7 +154,7 @@ theorem badParticipialAmbig :
       (activatedAbility
         (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
             isCreature))])
-        (putInto (the (and [was (sacrifice which), isCard])) battlefield))
+        (returnToBattlefield (the (and [was (sacrifice which), isCard]))))
       = [.participialDescription (.deed (.action "sacrifice")) 2] := by
   decide
 
@@ -162,7 +162,7 @@ theorem okBareCardRead :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isCreature)))
         (.sequentially
-          [exile (target isCreature), delay atTheEndStep (putInto (that .card) battlefield)]))
+          [exile (target isCreature), delay atTheEndStep (returnToBattlefield (that .card))]))
       = [] := by
   decide
 

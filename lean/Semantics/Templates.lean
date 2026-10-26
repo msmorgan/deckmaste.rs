@@ -1162,9 +1162,9 @@ semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (am
   zoneChange subject battlefield .anyLocation
     [(.under who), (.withCounters amount (.printed kind) .fresh)]
 /-- "put <subject> [from <from_>] onto the battlefield" -/
-semantic_template putOntoBattlefield (subject : NounPhrase) (from_ : Option Location := none) :
-    Action :=
-  zoneChange subject battlefield (from_.getD .anyLocation) []
+semantic_template putOntoBattlefield (subject : NounPhrase) (from_ : Option Location := none)
+    (riders : List MoveRider := []) : Action :=
+  zoneChange subject battlefield (from_.getD .anyLocation) riders
 /-- "put <subject> [from <from_>] onto the battlefield attached to <host>" [CR#303.4i] -/
 semantic_template putOntoBattlefieldAttachedTo (subject host : NounPhrase)
     (from_ : Option Location := none) : Action :=
