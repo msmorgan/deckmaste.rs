@@ -3067,7 +3067,7 @@ def stepOps : Nat → StepOps
             let drs' := if inArgSlot then ids.foldl (fun d rid => d.recordMention rid role true) drs else drs
             (drs', ids, [])
         | .pro reach plur =>
-          let winners := resolveCandidates reach plur drs inArgSlot
+          let winners := resolvePronoun reach plur drs inArgSlot
           match winners with
           | [w] =>
             let drs1 := drs.recordMention w.id role inArgSlot reach.isBarePronoun

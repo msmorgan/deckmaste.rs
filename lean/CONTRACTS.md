@@ -335,6 +335,10 @@ exclusions use `Location.not`; a shuffle names a library or a face-down pile, as
 can be [CR#701.24a], so "if you shuffled your graveyard this way" is refused (`shuffleZone`) and
 "shuffle the exiled cards" is not (`exiledPileCanBeShuffled`). A cast may leave its spell
 unspecified, which introduces no spell reference.
+A shuffle removes the shuffled referents from scope, except that the ones a move took out of the
+battlefield, a graveyard, exile or the stack are kept in `DRS.shuffledLastKnown` and are found by a
+characteristic read ("its mana value") by their last known information, as *Zoyowa's Justice*
+needs [CR#608.2h,701.24a]; no other read reaches them.
 
 `Proofs/Lookback.lean` checks participant isolation, retained references, source and
 shuffle-zone validation, and event-fact preservation through modifiers. These are

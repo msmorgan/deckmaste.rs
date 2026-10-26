@@ -58,11 +58,11 @@ theorem ownStatStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
     NounPhrase.checkAt (some .object) { referents := subject :: rs } it = [] := by
   let subject := { creatureBinding with clause := clause, role := .subj, id := id }
   let drs : DRS := { referents := subject :: rs }
-  change (let winners := resolveCandidates .bare .one drs
+  change (let winners := resolvePronoun .bare .one drs
     (match winners with
     | [w] => (drs.recordMention w.id .other false true, [w.id], ([] : List Refusal))
     | _ => (drs, [], [Refusal.anaphor .bare .one winners.length])).2.2) ++ [] = []
-  rw [ownStatIdentityStableForEveryOuterContext rs clause id older]
+  rw [resolvePronoun, ownStatIdentityStableForEveryOuterContext rs clause id older]
   rfl
 
 -- P16: a true tie in grammatical role and clause remains a refusal.
@@ -357,11 +357,11 @@ theorem ownStatActionStableForEveryOuterContext (rs : List Referent) (clause id 
     NounPhrase.checkAt (some .object)
       (powerAfter { referents := rs, currentClause := clause, nextId := id }) it = [] := by
   let after := powerAfter { referents := rs, currentClause := clause, nextId := id }
-  change (let winners := resolveCandidates .bare .one after
+  change (let winners := resolvePronoun .bare .one after
     (match winners with
     | [w] => (after.recordMention w.id .other false true, [w.id], ([] : List Refusal))
     | _ => (after, [], [Refusal.anaphor .bare .one winners.length])).2.2) ++ [] = []
-  rw [ownStatActionIdentityStableForEveryOuterContext rs clause id older fresh]
+  rw [resolvePronoun, ownStatActionIdentityStableForEveryOuterContext rs clause id older fresh]
   rfl
 
 end Semantics.Proofs.ReferenceScopes

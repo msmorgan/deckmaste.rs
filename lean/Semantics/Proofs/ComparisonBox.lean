@@ -82,7 +82,7 @@ private theorem comparisonErrors (n : Nat) (drs : DRS) :
 
 private theorem proStep (n : Nat) (drs : DRS) :
     (stepOps (n + 1)).np drs .other false (.pro .bare .one) =
-      let winners := resolveCandidates .bare .one drs
+      let winners := resolvePronoun .bare .one drs
       match winners with
       | [w] => (drs.recordMention w.id .other false true, [w.id], [])
       | _ => (drs, [], [.anaphor .bare .one winners.length]) := by rfl
@@ -106,7 +106,7 @@ private theorem powerOnCandidate (n : Nat) (rs : List Referent) (clause id : Nat
   change resolveCandidates .bare .one {
     referents := candidate clause id :: rs, characteristicRead := true,
     currentClause := current, nextId := next, relativeKind := kind } = _ at winners
-  rw [powerErrors, proStep, winners]
+  rw [powerErrors, proStep, resolvePronoun, winners]
   simp [DRS.recordMention, DRS.findById?, candidate]
   exact ⟨rfl, rfl⟩
 

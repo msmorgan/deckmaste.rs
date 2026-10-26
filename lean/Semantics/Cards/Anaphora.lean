@@ -838,6 +838,21 @@ theorem okSawInHalf :
       (stepAction 64 .postEvent .obj (DRS.ofList []) sawInHalfBody).1.resolvedIds = [1] := by
   decide
 
+/-- Zoyowa's Justice: "The owner of target artifact or creature with mana value 1 or greater
+shuffles it into their library. Then that player discovers X, where X is its mana value." The
+shuffle randomizes the card [CR#701.24a], so no later "it" names it as a card in the library, but
+"its mana value" reads the permanent by its last known information, as it was moved out of a
+public zone into a hidden one [CR#608.2h] (`DRS.shuffledLastKnown`). -/
+def zoyowasJusticeBody : Action :=
+  sequentially
+    [ instruct (ownerOf (target (and [or [isArtifact, isCreature], hasManaValue .atLeast 1])))
+        (shuffleInto it),
+      instruct (that player) (discover (statOf (.stat .manaValue) it)) ]
+def zoyowasJustice : Spelled := spelled <| singleFacedCard
+  { name := "Zoyowa's Justice", cost := [generic 1, pip .red], types := [.instant],
+    text := [spell zoyowasJusticeBody] }
+theorem okZoyowasJustice : zoyowasJustice.card.check = [] := zoyowasJustice.ok
+
 /-- Tuktuk Scrapper: "Whenever this creature or another Ally you control enters, you may destroy
 target artifact. If that artifact is put into a graveyard this way, this creature deals damage to
 that artifact's controller equal to the number of Allies you control." The target is chosen as the

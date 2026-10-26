@@ -528,6 +528,11 @@ structure DRS where
   /-- The referents among `historicalReferentIds` are read by their Last Known Information, as
   the permanents they were before they left the battlefield [CR#608.2h]. -/
   readsLastKnown : Bool := false
+  /-- Objects a shuffle randomized after a move took them out of a public zone, kept as they
+  were last known: a characteristic read finds one where no current referent fits ("shuffles it
+  into their library. Then … where X is its mana value") [CR#608.2h,701.24a]. No other read
+  reaches them. -/
+  shuffledLastKnown : List Referent := []
   /-- The origin a grounded "this way" lookback took from the Zone Change it reads back, handed to
   its move that writes none (`DRS.thisWayRecordedOrigin`) [CR#608.2c]. -/
   handedOrigin : Option Zone := none
@@ -1439,6 +1444,21 @@ def participialRead (plur : Option Plurality) (found : List Referent) :
     | [(true, _)] => if alternatives then .ok found else .error found.length
     | _ => .error sites.length
 
+/-- The objects a shuffle randomized (`DRS.shuffledLastKnown`) that a characteristic read of
+`r` finds by their last known information [CR#608.2h,701.24a]; none outside a characteristic
+read. -/
+def shuffledLastKnownCandidates (r : Reach) (pl : Plurality) (drs : DRS) : List Referent :=
+  if drs.characteristicRead then drs.shuffledLastKnown.filter (reachesCharacteristic r pl)
+  else []
+
+/-- The antecedents a pronoun resolves to: `resolveCandidates`, or, where none is found, the
+objects a shuffle randomized that a characteristic read finds (`shuffledLastKnownCandidates`). -/
+def resolvePronoun (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
+    List Referent :=
+  match resolveCandidates r pl drs inArgSlot with
+  | [] => shuffledLastKnownCandidates r pl drs
+  | live => live
+
 /-- How many winning antecedents `r` resolves to in `drs`; a read is sound at `1`. -/
 def countReach (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) : Nat :=
   (resolveCandidates r pl drs inArgSlot).length
@@ -1626,11 +1646,23 @@ def filterContext (keep : Referent → Bool) (drs : DRS) : DRS :=
   { drs with referents := drs.referents.filter fun b =>
       !drs.isVisible b.id || keep b }
 
+/-- Whether a referent a shuffle randomizes was moved there out of a public zone, so that its
+last known information stands [CR#608.2h]. -/
+def leftPublicZone (b : Referent) : Bool :=
+  match b.payload with
+  | .object _ _ (some st) _ _ =>
+    st.zoneChange.any fun zc => zc.origin.any fun z =>
+      z == .battlefield || z == .graveyard || z == .exile || z == .stack
+  | _ => false
+
 def afterShuffle (drs : DRS) : DRS :=
   let refs := drs.referents.filter survivesShuffle
   let keptIds := refs.map (·.id)
+  let lastKnown := (drs.referents.filter fun b => !survivesShuffle b && leftPublicZone b).map
+    fun b => { b with idents := [] }
   { drs with
     referents := refs
+    shuffledLastKnown := drs.shuffledLastKnown ++ lastKnown
     pendingRoles := drs.pendingRoles.filter (fun p => keptIds.elem p.1)
     resolvedIds := drs.resolvedIds.filter keptIds.elem }
 
