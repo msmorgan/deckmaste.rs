@@ -34,7 +34,7 @@ destination as `handOf (ownerOf it)` (or giving `returnToHand` and its siblings 
 possessor read after the subject), so "that player" reads the owner and each card above checks.
 The move already steps its subject before its destination, so a "that player" inside the subject
 still reads an earlier player: *Noetic Scales*' pin
-(`Proofs/CorpusRecency.lean` `noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer`) already
+(`Proofs/DrtRecency.lean` `noeticScalesRawDemonstrativeSelectsTheUpkeepPlayer`) already
 checks the owner-written spelling. Settle, before implementing: whether the owner is introduced
 for every move to an owned zone or only where the text writes "its owner's", and how a plural
 ("return all creatures to their owners' hands") introduces the owners.

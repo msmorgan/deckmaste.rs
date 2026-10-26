@@ -2,7 +2,7 @@ import Semantics.Definitions
 
 open Semantics.Templates Semantics.Definitions
 
-namespace Semantics.Proofs.CorpusRecency
+namespace Semantics.Proofs.DrtRecency
 
 -- Eriette introduces the Aura before the permanent it becomes attached to.
 -- Mentioning the Aura again in the mana-value comparison preserves its identity.
@@ -240,4 +240,4 @@ theorem unpredictableCycloneRawDemonstrativeSelectsNewlyExiledCard :
     refs.map (·.zone) = [some .exile] ∧
       refs.map (·.id) = ((headerFreshReferents (nextClause cycledContext) cycloneAfter).filter (·.zone == some .exile)).map (·.id) := by decide
 
-end Semantics.Proofs.CorpusRecency
+end Semantics.Proofs.DrtRecency

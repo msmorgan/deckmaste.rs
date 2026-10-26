@@ -938,7 +938,7 @@ theorem okOwnPowerWithoutNewMention :
   decide
 
 /-- "Target creature gets +1/+1": the shared subject is read once by the stat change.
-`GetsBothDeltas.selectedPtSubjectHasStableIdentity` pins that subject's identity. -/
+`GetsPt.selectedPtSubjectHasStableIdentity` pins that subject's identity. -/
 theorem okOwnReadsOneInDelta :
     Action.check (DRS.ofList [])
       (establishFor (target isCreature)
@@ -949,7 +949,7 @@ theorem okOwnReadsOneInDelta :
 
 /-- "Both target creature and target artifact get +1/+1", the shared subject read as "it":
 ambiguous between the two, refused once. The corresponding modern shape is also pinned by
-`GetsBothDeltas.ambiguousSingularPtSubjectIsRefused`. -/
+`GetsPt.ambiguousSingularPtSubjectIsRefused`. -/
 theorem badSharedSubjectTwoInDelta :
     Action.check (DRS.ofList [])
       (establishFor (both (target isCreature) (target isArtifact))

@@ -3,7 +3,7 @@ import Semantics.Check.Card
 import Semantics.Cards.Keyword
 
 /-!
-# Semantics.Proofs.KeywordAbilityCensus
+# Semantics.Proofs.KeywordBodies
 
 The keyword abilities `semantics-v2-keyword-ability-census` bodied from vocabulary that already
 existed: saddle and teamwork over a group bounded by its total power (`SliceCount.totalling`, as
@@ -15,7 +15,7 @@ and vigilance the same way; their pins follow the census's.
 
 open Semantics Semantics.Templates Semantics.Definitions
 
-namespace Semantics.Proofs.KeywordAbilityCensus
+namespace Semantics.Proofs.KeywordBodies
 
 /-- "Tap any number of other untapped creatures you control with total power 2 or greater: This
 permanent becomes saddled until end of turn. Activate only as a sorcery." [CR#702.171a,702.171b] -/
@@ -355,4 +355,4 @@ theorem badThatMuchDoesNotReadCostLife :
         spell (gainLife thatMuch)]
       = [.quantOutcomeInScope 0] := by decide
 
-end Semantics.Proofs.KeywordAbilityCensus
+end Semantics.Proofs.KeywordBodies

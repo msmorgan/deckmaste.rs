@@ -632,7 +632,7 @@ the others are bodiless because their rule is the game's, written as a row. A ke
 is stated about its own object has a body even where it modifies a game procedure: vigilance's
 "attacking doesn't cause creatures with vigilance to tap" [CR#702.20b] is a cause-qualified
 prohibition of that tap [CR#508.1f], so `vigilance`'s body states it.
-`Proofs/KeywordAbilityCensus.lean` pins each of these bodiless (`intentionallyBodiless`).
+`Proofs/KeywordBodies.lean` pins each of these bodiless (`intentionallyBodiless`).
 `craft` and `enlist` are bodiless too, but not by design: each waits on vocabulary its ticket
 names (`lean-v3-craft-materials`, `lean-v3-enlist-optional-attack-cost`).
 

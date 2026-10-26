@@ -21,7 +21,7 @@ things:
 
 - **The keyword-ability deeds.** `Deed.ofAbility` covers devour [CR#702.82b]
   (`Definitions/Keywords.lean:512`), crew and saddle [CR#702.122b,702.171c]
-  (`Check/Phrase.lean:191-192`), and cycling (`Proofs/CorpusRecency.lean:222`). A label-only
+  (`Check/Phrase.lean:191-192`), and cycling (`Proofs/DrtRecency.lean`). A label-only
   header has no place for them, and `participialAgentOk` reads them (`Check/Phrase.lean:293`).
 - **The Core Deeds' stamps.** Targeting, drawing and gaining control stamp referents
   (`Check/Phrase.lean:2571,3994,4542`), so "the targeted creature" and "the drawn card" read back

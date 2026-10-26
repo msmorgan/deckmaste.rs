@@ -4,7 +4,7 @@ import Semantics.Check.Card
 open Semantics Semantics.Templates Semantics.Definitions
 
 /-!
-# Semantics.Proofs.KeywordActionResidues
+# Semantics.Proofs.KeywordActions
 
 The shapes the last bodyless keyword actions needed (`semantics-v2-keyword-action-residues`): a
 part bounded by a summed stat, a run of library cards, a double-faced token, a face-down entry, a
@@ -12,7 +12,7 @@ cost whose generic mana tapping can pay, a rules procedure carried out during re
 named emblem. Each keyword action's Definition checks clean, and each shape has a refusal pin.
 -/
 
-namespace Semantics.Proofs.KeywordActionResidues
+namespace Semantics.Proofs.KeywordActions
 
 /-- "Collect evidence 3" [CR#701.59a]. -/
 theorem okCollectEvidence : Action.check (DRS.ofList []) (collectEvidence 3) = [] := by decide
@@ -140,4 +140,4 @@ theorem okLearn : Action.check (DRS.ofList []) learn = [] := by decide
 /-- "Empower Jace 1" [CR#701.71a]: the chosen Jace token is "it". -/
 theorem okEmpowerJace : Action.check (DRS.ofList []) (empowerJace 1) = [] := by decide
 
-end Semantics.Proofs.KeywordActionResidues
+end Semantics.Proofs.KeywordActions

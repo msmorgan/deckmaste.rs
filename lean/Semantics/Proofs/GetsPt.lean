@@ -12,7 +12,7 @@ import Semantics.Proofs.Helpers
 
 open Semantics Semantics.Templates Semantics.Definitions
 
-namespace Semantics.Proofs.GetsBothDeltas
+namespace Semantics.Proofs.GetsPt
 
 /-- "<subject> gets +P/+T" is one characteristic change, the subject written once, with one
 stat edit per delta: a change by an amount raises or lowers, a set sets [CR#613.4b,613.4c]. -/
@@ -507,4 +507,4 @@ theorem subjectRepeatedInEachPartIsSteppedEachTime :
         3 := by
   decide
 
-end Semantics.Proofs.GetsBothDeltas
+end Semantics.Proofs.GetsPt
