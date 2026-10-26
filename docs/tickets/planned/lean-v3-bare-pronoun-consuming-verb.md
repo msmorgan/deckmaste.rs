@@ -26,7 +26,9 @@ are admitted (scratch `#eval`, 2026-10-22):
 | "Destroy target creature. Tap it." | `.sequentially [destroy (target isCreature), .setStatus .tapped it]` | `[]` |
 
 Each `it` resolves to an object in a hand or a graveyard, which tap and sacrifice cannot act on
-[CR#701.26a,701.21a]. This is text-decidable: the zone the text moved the object to is known
+[CR#701.26a,701.21a]. **These three rows are probe evidence only (revised 2026-10-25, Q20): no
+Vintage-legal card prints any of them, so none is kept as a pin** (see "Pins" below for the real
+cards that replace them). This is text-decidable: the zone the text moved the object to is known
 (a text-decidable zone, not runtime visibility, so it stays on the checker's side of the engine
 boundary).
 
@@ -47,9 +49,8 @@ the stepper; no STOP is needed.
   to the slot's carrier (`Reach.atSlot`, `slotZoneOk`, `Check/Words.lean:1062`; `reaches`, `:1215`).
   Referents whose known current zone contradicts the slot are filtered out; a referent of unknown
   zone is kept (runtime visibility stays the engine's).
-- Pin the three rows above as refused, add an accepted pin for a bare `it` whose referent is on
-  the battlefield (a permanent the text put or left there), and give `badHiddenCost`
-  (`Proofs/Turn.lean:60`) back its bare `it`.
+- Pin the resolution on real cards, not the three invented rows (see "Pins" below), and rewrite
+  `badHiddenCost` (`Proofs/Turn.lean:60`) as the Gyome pin.
 
 ## Added 2026-10-25: retire `itPermanent` (Atraxa audit triage)
 
@@ -61,21 +62,93 @@ and delete the Template:
   ability, sacrifice it." A probe on 2026-10-25 found that bare `it` here resolves to the
   targeting spell and checks `[]` today, a wrong reading. After the narrowing (sacrifice is a
   move from the battlefield) it must resolve to the source. Add the pin
-  `frostWalkerSacrificesItself` asserting the resolved id is the source's.
+  `frostWalkerSacrificesItself` asserting the resolved id is the source's (see "Pins" below).
+  Cards that print the same text (same shape, same gap today): *Phantasmal Bear*, *Skulking
+  Ghost*, *Tar Pit Warrior*, *Gossamer Phantasm*, *Illusionary Servant* ("When this creature
+  becomes the target of a spell or ability, sacrifice it.") and *Myriad Construct* ("When this
+  creature becomes the target of a spell, sacrifice it and create a number of 1/1 colorless
+  Construct artifact creature tokens equal to its power."). Only Frost Walker is spelled in
+  `lean/Semantics/Cards` today (`grep -rn 'becomes the target\|target thisCreature'
+  lean/Semantics/Cards`); add none of the others, and respell any of them found there with a bare
+  `it`.
 - `Cards/Choice.lean:1306` and `Cards/Anaphora.lean:585`, *Soul Ransom*: "This Aura's controller
   sacrifices it". Pins `okSoulRansomRansom` (`Cards/Anaphora.lean:586`),
   `possessiveDeicticIsReadableByIt` (`:593`), `possessiveDescribedBaseUnchanged` (`:606`) stay
   green.
-- `Proofs/Turn.lean:62`, `badHiddenCost` (already listed above).
+- `Proofs/Turn.lean:60-66`, `badHiddenCost`: rewritten as the Gyome pin (see "Pins" below); it no
+  longer spells `itPermanent` nor asserts a refusal.
 
 If a site still needs `.atSlot` after the narrowing, keep the Template, STOP and report the site.
+
+## Pins (revised 2026-10-25, Q20)
+
+Oracle text below is from `data/derived/cards.jsonl`. Every resolution pin asserts the resolved
+referent id (`(stepAction 64 .postEvent .obj (DRS.ofList []) body).1.resolvedIds = [..]`, as
+`okSawInHalf` in `Cards/Anaphora.lean` does), and names in its docstring which object the id is
+(read the id off a scratch `#eval`, never guess it); an empty `[]` check alone is not a pin.
+
+Retired (never added): the three invented refusal rows in the table above ("Return a creature to
+its owner's hand: Tap it.", the same with "Sacrifice it.", "Destroy target creature. Tap it.").
+No Vintage-legal card prints them. They stay in this ticket as probe evidence only.
+
+Correct-resolution pins (pass today, must stay green after the narrowing), each a spelled card in
+`Cards/Anaphora.lean` or `Cards/Trigger.lean` beside its neighbours:
+
+- *Gyome, Master Chef*: "{1}, Sacrifice a Food: Target creature gains indestructible until end of
+  turn. Tap it." The "it" is the **target**, not the sacrificed Food (a graveyard card tap cannot
+  act on [CR#701.26a]). Pin: an activated ability with cost `{1}` and `sacrifice (a food)`
+  (`Cards/Anaphora.lean:870` spells `a food`), effect `sequentially [<target gains indestructible
+  until end of turn>, .setStatus .tapped it]`; assert it checks `[]` and the resolved id is the
+  target's. **`badHiddenCost` (`Proofs/Turn.lean:60-66`) is rewritten as this pin**: delete the
+  unprinted row and its `itPermanent` and put the Gyome pin, with that name's docstring replaced
+  by the card's text, in its place (`Proofs/Turn.lean` or `Cards/`, one place only).
+- *Prosperity Tycoon*: "{2}, Sacrifice a token: This creature gains indestructible until end of
+  turn. Tap it." The "it" is the **source** (this creature), not the sacrificed token. Pin the
+  activated ability with `sacrifice (a token)`, resolved id = the source's.
+- *Grimgrin, Corpse-Born*: "Sacrifice another creature: Untap Grimgrin and put a +1/+1 counter on
+  it." The "it" is **Grimgrin**, not the sacrificed creature. Pin the activated ability, resolved
+  id = Grimgrin's. It stays green through the `putCounters` narrowing below.
+
+Fails today, passes after the narrowing:
+
+- *Frost Walker*: `frostWalkerSacrificesItself` (already named above): resolved id is the
+  source's. The cards that share its text and shape (*Phantasmal Bear*, *Skulking Ghost*, *Tar
+  Pit Warrior*, *Gossamer Phantasm*, *Illusionary Servant*, *Myriad Construct*, listed above) are
+  fixed by the same narrowing; they get no separate pin unless already spelled.
+
+## The `putCounters` slot (decided 2026-10-25, Q20)
+
+*Segmented Wurm*: "Whenever this creature becomes the target of a spell or ability, put a -1/-1
+counter on it." *Angelic Cub*: "Whenever this creature becomes the target of a spell or ability
+for the first time each turn, put a +1/+1 counter on it. As long as this creature has three or
+more +1/+1 counters on it, it has flying." A probe found the bare "it" in "put a … counter on it"
+resolves to the **targeting spell**: a gap of the same kind as Frost Walker's.
+
+Fix: the `putCounters` arm of the action stepper (`Check/Phrase.lean:4113`, `| .putCounters amt
+ks on =>`) narrows a bare pronoun in `on` so it cannot reach an object on the stack, guarded by
+`if drs.actionPattern then … else …` like every narrowing here.
+
+- It is **not** battlefield-only: counters go on objects in any zone [CR#122.1] (for example
+  *Vamping Vampire*'s "put a stall counter on it" is put on a plotted, exiled card), so a
+  battlefield carrier would break that. Only the stack is taken out.
+- Add a `SlotCarrier` constructor for it (`Check/Words.lean:432`, `permanent | card | spell`; add
+  `| offStack`) with `slotZoneOk .offStack zn = !onStackZone zn` (`Check/Words.lean:1100`; an
+  unknown zone is kept, as the first Work bullet says), and give every other `match` on
+  `SlotCarrier` its arm (`lake build --wfail` finds them). Narrow with the `NounPhrase.narrowBareTo
+  .offStack` helper of the card-carrier section below.
+- Pins: *Segmented Wurm* and *Angelic Cub*, each spelled in full (`Cards/Trigger.lean`, beside
+  Frost Walker), the trigger being `when (does (a (or [isSpell, abilityHead .anyOnStack]))
+  (target thisCreature))` as Frost Walker's, with Angelic Cub's `for the first time each turn`
+  limit and flying clause kept if the bench can write them (if it cannot, spell the first
+  sentence as a fragment and say why in the docstring); each asserts the resolved id of "it" is
+  the source's, not the spell's. Both fail today and pass after.
 
 **Pattern and lookback moves do not narrow.** A pattern's patient is read after the event
 (`did (.move it (graveyardOf .you) (some battlefield) …)`, "if it entered from your graveyard",
 reads the permanent as it is now). Guard every narrowing in this ticket with
 `if drs.actionPattern then subj else …`; without it `lookingBackAtAnEntryKeepsTheCurrentReferent`
-(`Proofs/DrtCards.lean:177`) fails. Refusal rows of this ticket report the narrowed reach
-(`.atSlot .permanent`), not `.bare`.
+(`Proofs/DrtCards.lean:177`) fails. Any refusal this ticket's code produces
+reports the narrowed reach (`.atSlot .permanent`, `.atSlot .offStack`), not `.bare`.
 
 ## Added 2026-10-25: narrow to the card carrier and retire `itCard`
 
