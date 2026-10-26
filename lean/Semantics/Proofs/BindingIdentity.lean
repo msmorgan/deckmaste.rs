@@ -169,68 +169,30 @@ theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Loc
           .move (.theRest .object .many) .anyLocation (some onTop) .arrival [(.inOrder .anyOrder)] ] :=
   rfl
 
-private def scryBy (amount : Amount) : Action :=
-  .ownScope (some (.action "scry")) (lookAndSortSlice (.slice .top amount (libraryOf .actor)) onBottom [(.inOrder .anyOrder)])
+/-- The plurality of the slice's later mention in a look-and-sort declaration: what "put any
+number of them" reads back. -/
+private def sliceReadBack : Action → Option Plurality
+  | .ownScope _ (.sequentially [_, .move (.someOf _ _ readBack@(.laterMention _ _)) _ _ _ _, _]) =>
+      some readBack.plur
+  | _ => none
 
 /-- "Scry 1." -/
-theorem okScryOne : Action.check (DRS.ofList []) (scryBy 1) = [] := by decide
+theorem okScryOne : Action.check (DRS.ofList []) (scry 1) = [] := by decide
 
 /-- "Scry 2." -/
-theorem okScryTwo : Action.check (DRS.ofList []) (scryBy 2) = [] := by decide
+theorem okScryTwo : Action.check (DRS.ofList []) (scry 2) = [] := by decide
 
 /-- Scry 1's read back is singular: "that card". -/
-theorem scryOneReadsThatCard :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top 1 (libraryOf .actor))).plur
-      = .one := by decide
+theorem scryOneReadsThatCard : sliceReadBack (scry 1) = some .one := by decide
 
 /-- Scry 2's read back is plural: "those cards". -/
-theorem scryTwoReadsThoseCards :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top 2 (libraryOf .actor))).plur
-      = .many := by decide
+theorem scryTwoReadsThoseCards : sliceReadBack (scry 2) = some .many := by decide
 
 /-- "Surveil 2." [CR#701.25a] -/
-theorem okSurveilTwo :
-    Action.check (DRS.ofList [])
-      (.ownScope (some (.action "surveil")) (lookAndSortSlice (.slice .top 2 (libraryOf .actor)) graveyard []))
-      = [] := by decide
+theorem okSurveilTwo : Action.check (DRS.ofList []) (surveil 2) = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
-theorem okFatesealTwo :
-    Action.check (DRS.ofList [])
-      (.ownScope (some (.action "fateseal")) (lookAndSortSlice (.slice .top 2 (libraryOf (a (.isOpponentOf .you)))) onBottom
-          [(.inOrder .anyOrder)]))
-      = [] := by decide
-
-/-! ## Connive
-
-"Connive N" [CR#701.50a,701.50d]: the permanent's controller draws N cards, discards N cards,
-and puts a +1/+1 counter on the permanent for each nonland card discarded this way. The
-loop includes a single discarded card without forming a singular partitive phrase. -/
-
-private def conniveDiscards (discarded : NounPhrase) : Action :=
-  .sequentially
-    [ discard (.firstMention "conniveDiscards.discarded" discarded),
-      .doForEach (allOf (.and [.not isLand, .isCard,
-        .did { subj := .any, action := discard .which, within := some .thisWay }]))
-        (.putCounters 1 (.printed p1p1Counter) (that .permanent)) ]
-
-private def conniveBy (amount : Amount) : Action :=
-  .ownScope (some connive) (instruct (controllerOf .actor)
-    (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)]))
-
-/-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
-theorem okConniveOne : Action.check (DRS.ofList []) (conniveBy 1) = [] := by decide
-
-/-- "Target creature connives 2." [CR#701.50d]: the action is handed to the creature. -/
-theorem okConniveTwoHandedToTarget :
-    Action.check (DRS.ofList []) (instruct (target isCreature) (conniveBy 2)) = [] := by decide
-
-/-- The discarded cards are read back with the discard's number: one card for connive 1,
-several for connive 2. -/
-theorem conniveReadsTheDiscardsNumber :
-    ((NounPhrase.laterMention "d" (counted (.exactlyOf 1) .isCard)).plur,
-     (NounPhrase.laterMention "d" (counted (.exactlyOf 2) .isCard)).plur) =
-      (.one, .many) := by decide
+theorem okFatesealTwo : Action.check (DRS.ofList []) (fateseal 2) = [] := by decide
 
 /-! ## Regenerate
 

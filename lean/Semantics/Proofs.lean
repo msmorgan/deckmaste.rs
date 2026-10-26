@@ -9,6 +9,7 @@ import Semantics.Proofs.BindingIdentity
 import Semantics.Proofs.CallerScope
 import Semantics.Proofs.CardFidelity
 import Semantics.Proofs.CharacteristicEdits
+import Semantics.Proofs.CheckerCore
 import Semantics.Proofs.Choice
 import Semantics.Proofs.ComparisonBox
 import Semantics.Proofs.Composition

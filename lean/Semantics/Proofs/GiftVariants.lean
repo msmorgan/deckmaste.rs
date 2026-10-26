@@ -19,36 +19,6 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GiftVariants
 
-/-- "its gift cost" -/
-def giftCost : LinkSource := .byKeyword (.named "gift")
-
-/-- "if its gift cost was paid, the chosen player <effect>" [CR#702.174b] -/
-def handed (effect : Action) : Action :=
-  doIf (costWasPaid giftCost none .this) (instruct (the isChosenPlayer) effect)
-
-/-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
-def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
-
-/-- Gift's term with its effect, as the declaration builds it [CR#702.174a,702.174b]. On a
-permanent, "if its gift cost was paid" is the trigger's intervening "if" clause, so the ability
-does not trigger when no gift was promised [CR#603.4]. -/
-def gift (effect : Action) : Ability :=
-  .keyword (.named "gift") []
-    [ costPart,
-      .byCardClass
-        (when (does thisPermanent enter)
-          (if_ := some (costWasPaid giftCost none .this))
-          (instruct (the isChosenPlayer) effect))
-        (.spell none (handed effect)) ]
-
-/-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/
-def giftACard : Ability := gift (draw 1)
-
-/-- "Gift a tapped Fish": the chosen player creates a tapped 1/1 blue Fish creature token
-[CR#702.174f]. -/
-def giftATappedFish : Ability :=
-  gift (createTappedToken (creatureToken 1 1 [.blue] [fish]))
-
 /-- Both variants check with no class context. -/
 theorem okVariantsCheck :
     (Ability.check (DRS.ofList []) giftACard, Ability.check (DRS.ofList []) giftATappedFish) = ([], []) := by
@@ -89,7 +59,7 @@ def triggerCondition? : Ability → Option (Option Condition)
 intervening "if" clause, so with no gift promised it does not trigger at all
 [CR#702.174b,603.4]. -/
 theorem declaredGiftTriggerHasInterveningIf :
-    triggerCondition? (Semantics.Definitions.gift (draw 1))
+    triggerCondition? (gift (draw 1))
       = some (some (keywordCostPaid (.named "gift") this_)) := by
   rfl
 

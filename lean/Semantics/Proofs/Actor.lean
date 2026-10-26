@@ -651,63 +651,32 @@ theorem badForEachLossThatMuch :
 /-! ## A permanent can be handed an action
 
 The rules instruct a permanent itself to explore or endure [CR#701.44a,701.63a]; the handoff
-takes a permanent as well as a player. Inside it `theActor` is the permanent, and the steps the
-rule gives "that permanent's controller" are handed on to `controllerOf theActor`, inside which
-`theActor` is the controller and the permanent stays in view as "that permanent". An
-object-performed deed
-written with no handoff to a permanent is performed by the source permanent. -/
+takes a permanent as well as a player. Inside it `theActor` is the permanent. The `explore` and
+`endure` Definitions bind it at their first mention of the performer, hand the steps the rule
+gives "that permanent's controller" on to `controllerOf` it, and read the permanent back by that
+identity, not by a "that permanent" anaphor. An object-performed deed written with no handoff to
+a permanent is performed by the source permanent. -/
 
-/-- The `explore` declaration's body [CR#701.44a]: the exploring permanent's controller reveals
-the top card of their library; a land goes to its owner's hand, otherwise "that permanent" gets
-a +1/+1 counter and the card may go to the graveyard. `perm` is how the body names the exploring
-permanent. -/
-private def exploreBody (perm : NounPhrase) : Action :=
-  instruct (controllerOf theActor) (.sequentially
-    [ .expose .reveal (.cards (.slice .top 1 (libraryOf theActor))),
-      .doIf (.matches (that .card) isLand) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival [])
-        (some (.sequentially
-          [ .putCounters 1 (.printed p1p1Counter) perm,
-            .withContinuation .optional
-              (.move (that .card) .anyLocation (some (.zone .graveyard none)) .arrival []) none none ])) ])
-
-/-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
-private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
-  .ownScope (some explore) (exploreBody perm)
-
-/-- `endure N` as defined [CR#701.63a]: the enduring permanent's controller chooses between
-the counters on "that permanent" and the Spirit token. -/
-private def literalEndure (n : Nat) : Action :=
-  .ownScope (some endure) (instruct (controllerOf theActor)
-      (.chooseModes (.range (some 1) (some 1))
-        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
-          (none, none, create 1 (.written (creatureToken n n [.white] [spirit]))) ]))
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/
 theorem okExploreHandedToTargetCreature :
-    Action.check (DRS.ofList []) (instruct (target isCreature) literalExplore) = [] := by
+    Action.check (DRS.ofList []) (instruct (target isCreature) explore) = [] := by
   decide
 
-/-- Deadeye Tracker's "This creature explores.": `this` introduces nothing, so the handoff puts
-the permanent in view for "that permanent". -/
+/-- Deadeye Tracker's "This creature explores.": `this` introduces nothing; the handoff names
+the permanent the body binds. -/
 theorem okExploreHandedToThisCreature :
-    Action.check (DRS.ofList []) (instruct thisCreature literalExplore) = [] := by
-  decide
-
-/-- The owner's spelling "that creature" reaches the permanent too, handed to a target creature
-or to "this creature". -/
-theorem okExploreReadsThatCreature :
-    Action.check (DRS.ofList []) (instruct (target isCreature) (literalExplore (that (.type .creature)))) = [] ∧
-      Action.check (DRS.ofList []) (instruct thisCreature (literalExplore (that (.type .creature)))) = [] := by
+    Action.check (DRS.ofList []) (instruct thisCreature explore) = [] := by
   decide
 
 /-- "This creature endures 1." (the testing card Endure Handoff Probe) -/
 theorem okEndureHandedToThisCreature :
-    Action.check (DRS.ofList []) (instruct thisCreature (literalEndure 1)) = [] := by
+    Action.check (DRS.ofList []) (instruct thisCreature (endure 1)) = [] := by
   decide
 
 /-- "Each creature you control explores.": a group of permanents, each exploring in turn. -/
 theorem okExploreHandedToEachCreature :
-    Action.check (DRS.ofList []) (instruct (each isCreature) literalExplore) = [] := by
+    Action.check (DRS.ofList []) (instruct (each isCreature) explore) = [] := by
   decide
 
 /-- Inside a handoff to a permanent `theActor` is that permanent: "target creature draws a card"
@@ -717,13 +686,6 @@ theorem actorInPermanentHandoffIsThePermanent :
         = [.kindMismatch .player .object] ∧
       Action.check (DRS.ofList []) (instruct (target isCreature) (instruct (controllerOf theActor) (draw 1)))
         = [] := by
-  decide
-
-/-- Explore handed to a player: the body asks for its performer's controller, which a player
-does not have, and "that permanent" has no antecedent. -/
-theorem badExploreHandedToOpponent :
-    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) literalExplore)
-      = [.possessorKind .controller .player, .anaphor (.word .permanent) .one 0] := by
   decide
 
 /-- Printed "Adapt 2" on a permanent's own ability: an instruction about "this permanent", the
@@ -736,10 +698,10 @@ theorem bareAdaptIsTheControllers :
       causedPerformer (DRS.ofList []) explore = .object := by
   decide
 
-/-- A bare "explore" and "endure 1" default to the source permanent the same way: `theActor` in the
-body is "this permanent", and "that permanent" reads it. -/
+/-- A bare "explore" and "endure 1" default to the source permanent the same way: `theActor` in the body
+is "this permanent", which the body binds and reads back. -/
 theorem okBareExploreAndEndureDefaultToThis :
-    Action.check (DRS.ofList []) literalExplore = [] ∧ Action.check (DRS.ofList []) (literalEndure 1) = [] := by
+    Action.check (DRS.ofList []) explore = [] ∧ Action.check (DRS.ofList []) (endure 1) = [] := by
   decide
 
 /-! ### A player performer is refused by the deed's own body

@@ -18,7 +18,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.LinkedChoiceReadback
 
 /-- "its gift cost" -/
-def gift : LinkSource := .byKeyword (.named "gift")
+def giftCost : LinkSource := .byKeyword (.named "gift")
 
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
@@ -30,13 +30,13 @@ def chosenDraws : Action := instruct (the isChosenPlayer) (draw 1)
 player draws a card." The cost is its intervening "if" clause [CR#702.174b,702.174e,603.4]. -/
 def permanentHalf : Ability :=
   when (does thisPermanent enter)
-    (if_ := some (costWasPaid gift none .this))
+    (if_ := some (costWasPaid giftCost none .this))
     chosenDraws
 
 /-- Gift's spell half: "If this spell's gift cost was paid, the chosen player draws a card."
 [CR#702.174b,113.3a] -/
 def spellHalf : Ability :=
-  .spell none (doIf (costWasPaid gift none .this) chosenDraws)
+  .spell none (doIf (costWasPaid giftCost none .this) chosenDraws)
 
 /-- Required pin: after gift's cost, "the chosen player" reads the opponent chosen as it was paid
 [CR#702.174a,607.2d]. -/
@@ -76,26 +76,22 @@ theorem okBothHalvesReadChosenPlayer :
     Ability.checkText (DRS.ofList []) [costPart, permanentHalf, spellHalf] = [] := by
   decide
 
-/-- Gift's definition: its cost, then its two halves as a `byCardClass` pair. -/
-def giftBody : Ability :=
-  .keyword (.named "gift") [] [costPart, .byCardClass permanentHalf spellHalf]
-
-/-- Gift's definition holding its cost and both halves is carried on a permanent card. -/
+/-- Gift's declaration (`giftACard`), its cost and both halves, is carried on a permanent card. -/
 theorem okPermanentClassReadsChosenPlayer :
     Card.check
       (.singleFaced
         { characteristics :=
             { name := some "", cost := some [generic 2], types := [.creature],
-              text := [giftBody], power := stat 1, toughness := stat 1 } }) = [] := by
+              text := [giftACard], power := stat 1, toughness := stat 1 } }) = [] := by
   decide
 
-/-- Gift's definition holding its cost and both halves is carried on an instant card. -/
+/-- Gift's declaration (`giftACard`), its cost and both halves, is carried on an instant card. -/
 theorem okSpellClassReadsChosenPlayer :
     Card.check
       (.singleFaced
         { characteristics :=
             { name := some "", cost := some [generic 2], types := [.instant],
-              text := [giftBody] } }) = [] := by
+              text := [giftACard] } }) = [] := by
   decide
 
 /-- Required pin: inside gift's own body, the halves read its cost's choice
