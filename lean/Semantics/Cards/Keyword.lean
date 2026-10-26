@@ -355,7 +355,7 @@ def enchantedBecomesVanilla (colors : List Color) (subtype : Subtype) (power tou
   conjunction [ allAbilityLoss (enchanted creature),
       qualityChange it .sets
         (bundle { characteristics := { colors, types := [.creature], subtypes := [subtype] } }),
-      getsPt it (setTo (.lit power)) (setTo (.lit toughness)) ]
+      getsBase it (.lit power) (.lit toughness) ]
 
 def frogify : Spelled := spelled <| singleFacedCard
   { name := "Frogify", cost := [generic 1, pip .blue], types := [.enchantment],

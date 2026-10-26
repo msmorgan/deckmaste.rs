@@ -680,7 +680,7 @@ semantic_definition encore (cost : Cost) : Ability :=
     [ activatedOnlyDuring
         (.compound [.inCaller cost, .perform (exileFrom thisCard yourGraveyard)])
         (sequentially
-          [ .doForEach (each isOpponent)
+          [ .doForEach eachOpponent
               (sequentially
                 [ create 1 (copyOf this_),
                   establishThroughout (must thatToken (.attack (some (that player)))) thisTurn ]),

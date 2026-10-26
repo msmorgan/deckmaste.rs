@@ -744,8 +744,8 @@ semantic_definition theRingTemptsYou : Action :=
                         [ isCreature,
                           hasPower .greater
                             (powerOf
-                              (a (and [isCreature, hasDesignation ringBearer, youControl]))) ])))
-                  (block (allOf (and [isCreature, hasDesignation ringBearer, youControl])))),
+                              (a ringBearers)) ])))
+                  (block (allOf ringBearers))),
               static
                 (onlyWhile
                   (abilityGrant this_
@@ -758,7 +758,7 @@ semantic_definition theRingTemptsYou : Action :=
                     (whenever
                       (does (by_ (a isCreature)) (block (a ringBearers)))
                       (atNext .endOfCombat
-                        (instruct (controllerOf (that creature)) (sacrifice (that creature))))))
+                        (controllerSacrifices (that creature)))))
                   (compareAmt timesTempted .atLeast 3)),
               static
                 (onlyWhile
