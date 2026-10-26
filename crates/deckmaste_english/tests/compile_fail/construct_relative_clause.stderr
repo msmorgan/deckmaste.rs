@@ -1,7 +1,0 @@
-error[E0451]: fields `marker` and `body` of struct `RelativeClause` are private
- --> tests/compile_fail/construct_relative_clause.rs:6:22
-  |
-6 |     RelativeClause { marker, body }
-  |                      ^^^^^^  ^^^^ private field
-  |                      |
-  |                      private field

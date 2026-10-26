@@ -1,7 +1,0 @@
-use deckmaste_english::syntax::WithAttributeCoordination;
-
-fn requires_deserialize<T: for<'de> serde::Deserialize<'de>>() {}
-
-fn main() {
-    requires_deserialize::<WithAttributeCoordination>();
-}

@@ -151,10 +151,8 @@ launches the client:
   canonical normalized hub recovered from Oracle text and persisted as RON in
   today's card, token, and rules-table containers, plus its macro layer (sugar
   desugars at load; the explicit form is always the meaning).
-- **`deckmaste_spelling`** — the intermediate ⇄ English relation, built on
-  *frames*: English templates with
-  typed holes. The frames compile into the lexicon that matches real card text
-  and reconstructs the corresponding macro invocations and arguments.
+- **`deckmaste_spelling`** — a stub crate reserved for the intermediate ⇄
+  English relation; its first implementation was removed along with v1 English.
 - **`deckmaste_lowering`** — the one-way compile from intermediate form to the
   engine's types. Generated as an exact mirror at the fork, it doubles as the
   divergence ledger: every arm that stops being an identity carries its
@@ -184,8 +182,9 @@ launches the client:
 
 **Language infrastructure**
 
-- **`deckmaste_english`** — the English grammar for Oracle text; its own
-  section below.
+- **`deckmaste_syntax`**, **`deckmaste_lexical_source_v4`** and
+  **`deckmaste_english_v4`** — the English grammar for Oracle text; its own
+  section below. (The first-attempt `deckmaste_english` was retired.)
 - **`macro_ron`** / **`macro_ron_derive`** — the RON macro-expansion layer the
   intermediate grammar is built on.
 - **`macro_ron_lsp`** — a small language server for the repo's RON card files.
@@ -240,31 +239,25 @@ below.
 
 ---
 
-## The English grammar (`deckmaste_english`)
+## The English grammar (`deckmaste_english_v4`)
 
-`deckmaste_english` parses Oracle text into a genuine grammatical syntax tree —
+The first-attempt `deckmaste_english` crate and its `cargo xtask english` tools
+have been retired; the grammar lives in `deckmaste_syntax`,
+`deckmaste_lexical_source_v4` and `deckmaste_english_v4`, measured by
+`cargo xtask english-v4`. The grammar parses Oracle text into a genuine grammatical syntax tree —
 constituency structure, not keyword-spotting. A chart parser produces a packed
 forest; parts of speech are selected by the grammar slots they fill rather than
 assigned by a lexer (Magic overloads its vocabulary too heavily for tagging —
 "exile" is a noun and a verb, "target" a verb, a noun, and an adjective); and
 legitimate ambiguity stays packed and visible instead of being decided by rule
 order. Unknown vocabulary and not-yet-covered text are retained explicitly
-rather than guessed at. Two contracts govern the crate (both recorded in
+rather than guessed at. One contract governs the grammar (recorded in
 `docs/decisions/`):
 
 - **English clauses are structural.** Dependency, valency, voice, modality,
   and attachment are parsed as English before any Magic meaning attaches. The
   tree is a syntax of English card text, not a semantic encoding wearing an
   English costume.
-- **Every production ships its inverse.** A grammar slice lands only together
-  with its exact renderer inverse: `cargo xtask english roundtrip` re-renders
-  the grammar's normalized, name-bearing input and requires byte equality. The
-  round-trip gate is a losslessness check; the recovery census separately says
-  how much of that input became grammatical structure.
-
-A family of `cargo xtask english` commands (`inspect`, `bracket`, `shapes`,
-`unknown`, `lint`, `roundtrip`) exposes parses, coverage, and uncovered
-phrases over the card corpus.
 
 The grammar is evolving from handwritten to **derived**. Today each construction
 family is written twice — a parse path and a render path held in

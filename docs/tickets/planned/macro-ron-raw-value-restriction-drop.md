@@ -34,8 +34,8 @@ from that point on. The comment now says so.
 The capture only fires for a type that deserializes through ron's private
 raw-value newtype. Nothing in the graph the restricted entry reads
 (`Card` / `Token` / `Predicate` and their descendants) carries a `RawValue`.
-The `RawValue`-bearing types are `MacroDef`, frames, params,
-`deckmaste_spelling::lexicon` and `deckmaste_migrations::todo_card` — all read
+The `RawValue`-bearing types are `MacroDef`, frames, params
+and `deckmaste_migrations::todo_card` — all read
 through free entries.
 
 ## What makes it live

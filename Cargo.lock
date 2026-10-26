@@ -480,32 +480,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_construction_compiler"
-version = "0.1.0"
-dependencies = [
- "deckmaste_features",
- "prettyplease",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 2.0.117",
- "trybuild",
-]
-
-[[package]]
-name = "deckmaste_constructions_macro"
-version = "0.1.0"
-dependencies = [
- "deckmaste_construction_compiler",
- "deckmaste_features",
- "proc-macro2",
- "ron",
- "serde",
- "trybuild",
-]
-
-[[package]]
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
@@ -543,24 +517,6 @@ dependencies = [
  "slotmap",
  "tempfile",
  "thiserror",
-]
-
-[[package]]
-name = "deckmaste_english"
-version = "0.1.0"
-dependencies = [
- "deckmaste_catalogs",
- "deckmaste_construction_compiler",
- "deckmaste_constructions_macro",
- "deckmaste_data",
- "deckmaste_features",
- "hashbrown 0.15.5",
- "proptest",
- "ron",
- "serde",
- "strum",
- "thiserror",
- "trybuild",
 ]
 
 [[package]]
@@ -732,17 +688,6 @@ dependencies = [
 [[package]]
 name = "deckmaste_spelling"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "deckmaste_catalogs",
- "deckmaste_english",
- "deckmaste_plugin",
- "deckmaste_semantics",
- "macro_ron",
- "ron",
- "serde",
- "thiserror",
-]
 
 [[package]]
 name = "deckmaste_syntax"
@@ -915,12 +860,6 @@ dependencies = [
  "wasip2",
  "wasip3",
 ]
-
-[[package]]
-name = "glob"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "half"
@@ -1636,15 +1575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_spanned"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
 name = "sha2"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1783,12 +1713,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "target-triple"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3a6bfce3d99adfa72d24750a61f782f3036a81e7f86d8841ee1326deaebd171"
-
-[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1799,15 +1723,6 @@ dependencies = [
  "once_cell",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "termcolor"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
-dependencies = [
- "winapi-util",
 ]
 
 [[package]]
@@ -1838,60 +1753,6 @@ checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
 dependencies = [
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "toml"
-version = "1.1.4+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aace63f4bbcdfc2c965b059de67119c89c4017a70d633be6c104910f67056f5"
-dependencies = [
- "indexmap",
- "serde_core",
- "serde_spanned",
- "toml_datetime",
- "toml_parser",
- "toml_writer",
- "winnow",
-]
-
-[[package]]
-name = "toml_datetime"
-version = "1.1.1+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3165f65f62e28e0115a00b2ebdd37eb6f3b641855f9d636d3cd4103767159ad7"
-dependencies = [
- "serde_core",
-]
-
-[[package]]
-name = "toml_parser"
-version = "1.1.3+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d38ac1cf9b95face32296c0a3ede1fdc270627c9d9c02a7274dd6d960dc4d56"
-dependencies = [
- "winnow",
-]
-
-[[package]]
-name = "toml_writer"
-version = "1.1.2+spec-1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
-
-[[package]]
-name = "trybuild"
-version = "1.0.120"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e605bf6b39357663d8ba4e984f8be8da8df6bb32e81031d6889024ea8fd68e4"
-dependencies = [
- "glob",
- "serde",
- "serde_derive",
- "serde_json",
- "target-triple",
- "termcolor",
- "toml",
 ]
 
 [[package]]
@@ -2217,12 +2078,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
-name = "winnow"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b97319f7b8343df12cc98938e5c3eb436064524c8d2b4e30a1d3a36eecdf81"
-
-[[package]]
 name = "wit-bindgen"
 version = "0.51.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2326,7 +2181,6 @@ dependencies = [
  "deckmaste_catalogs",
  "deckmaste_core",
  "deckmaste_data",
- "deckmaste_english",
  "deckmaste_english_v4",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
@@ -2336,7 +2190,6 @@ dependencies = [
  "deckmaste_plugin",
  "deckmaste_semantics",
  "deckmaste_semantics_v2",
- "deckmaste_spelling",
  "deckmaste_syntax",
  "flate2",
  "libc",
@@ -2352,7 +2205,6 @@ dependencies = [
  "sha2",
  "syn 2.0.117",
  "tempfile",
- "thiserror",
 ]
 
 [[package]]

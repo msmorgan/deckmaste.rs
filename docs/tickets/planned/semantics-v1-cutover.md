@@ -5,16 +5,18 @@ needs: [semantics-v3-parity]
 per [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).**
 Delete the `v1` set (`deckmaste_semantics`, `deckmaste_lowering`,
 `deckmaste_legacy_render`, `deckmaste_plugin` with `deck.rs` and
-`provenance.rs` rehomed, `idris/`, `plugins/builtin`, `plugins/canon`, and the
-`deckmaste_spelling` splice machinery; `deckmaste_semantics_v2`,
+`provenance.rs` rehomed, `idris/`, `plugins/builtin`, and `plugins/canon`;
+the `deckmaste_spelling` splice machinery and v1 `deckmaste_english` are
+already retired, and `deckmaste_spelling` is now a stub crate;
+`deckmaste_semantics_v2`,
 `plugins_v2/canon/`, and `plugins_v2/builtin/` are retired in
 `semantics-v3-dsl-and-plugins`, and `deckmaste_lexical_source` was retired in
 `english-v4-cutover-v3`), rename `deckmaste_semantics_v3` to
 `deckmaste_semantics`, `deckmaste_lowering_v3` to `deckmaste_lowering`, and
 `plugins_v3/` to `plugins/`, drop the symlink, and re-point
 `deckmaste_migrations`. Coordinate with `idris-retirement` and
-`english-v4-final-suffix-cutover` (which deletes legacy v1 `deckmaste_english`,
-drops `_v4` suffixes, and moves `catalogs/*.ron` into `plugins/` metadata).
+`english-v4-final-suffix-cutover` (which drops `_v4` suffixes and moves
+`catalogs/*.ron` into `plugins/` metadata).
 Standard constraints apply.
 
 The Idris card gate retires here with Idris itself (user ruling,

@@ -57,7 +57,7 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 - No word enumerated by the CR as a catalog item (including all `[CR#701.1]` keyword actions) may
   appear directly in grammar declarations (`schema` or `production`); vocabulary and complement
   frames live in the domain catalogs of `deckmaste_lexical_source_v4` (and later `plugins_v3/`).
-- No new work in the legacy `deckmaste_english` stack.
+- v1 `deckmaste_english` and its xtask tools are gone; do not recreate them.
 
 ## Crate fates (semantics_v3 and english_v4)
 
@@ -70,11 +70,13 @@ Authorities: `docs/decisions/semantics-v3.md` and `docs/decisions/english-v4.md`
   `deckmaste_construction_v3*`, and `deckmaste_lexical_source`.
 - Deletion-bound at parity (`semantics-v1-cutover` and `english-v4-final-suffix-cutover`):
   `deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
-  (`deck.rs` and `provenance.rs` rehomed), `deckmaste_english` (v1),
-  `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, `deckmaste_features`,
+  (`deck.rs` and `provenance.rs` rehomed), `deckmaste_features`,
   `idris/`, `plugins/builtin`, `plugins/canon`, after which the `_v4` suffixes on
-  `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are dropped. Never copy v2/v3/v4 work
-  back into v1, and add no new v1 registries.
+  `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are dropped
+  (`english-v4-final-suffix-cutover`). v1 `deckmaste_english`,
+  `deckmaste_construction_compiler`, `deckmaste_constructions_macro` and xtask's v1 `english` and
+  `macro` tools are already gone, and `deckmaste_spelling` is a stub crate (no implementation).
+  Never copy v2/v3/v4 work back into v1, and add no new v1 registries.
 
 ## Terminology
 

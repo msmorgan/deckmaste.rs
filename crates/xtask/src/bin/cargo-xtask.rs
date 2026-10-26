@@ -10,7 +10,6 @@ use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
 use xtask::derive_cards::DeriveCardsArgs;
-use xtask::english::EnglishArgs;
 use xtask::english_v4::EnglishV4Args;
 use xtask::expansions::ExpansionsArgs;
 use xtask::extract::ExtractArgs;
@@ -20,14 +19,13 @@ use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
 use xtask::lean::LeanArgs;
 use xtask::lexical::LexicalArgs;
-use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
 use xtask::scryfall_snapshot::ScryfallSnapshotArgs;
 use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
 
-/// Workspace automation for cards, English parsing, generation, validation,
+/// Workspace automation for cards, English census, generation, validation,
 /// and CR-citation tasks.
 #[derive(Debug, Parser)]
 #[command(name = "cargo xtask", bin_name = "cargo xtask")]
@@ -68,16 +66,11 @@ enum Cmd {
     Graduate(GraduateArgs),
     /// Check / bless / diff / list / show CR citations.
     Cite(CiteArgs),
-    /// Inspect parsed Oracle text and audit unresolved English phrases.
-    English(EnglishArgs),
     /// Stratify the corpus and run the English v4 census.
     #[command(name = "english-v4")]
     EnglishV4(EnglishV4Args),
     /// Analyze supported raw Oracle text against the independent lexicon.
     Lexical(LexicalArgs),
-    /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
-    /// the gates and sweeps that read the frame set against real cards.
-    Macro(MacroArgs),
     /// The anaphora-soundness gate: re-emit each expanded card as a raw
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
@@ -106,7 +99,6 @@ fn main() -> anyhow::Result<()> {
         Cmd::Resolve(args) => xtask::resolve::run(&args),
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
-        Cmd::English(args) => xtask::english::run(args),
         Cmd::EnglishV4(args) => {
             let mut stdout = std::io::stdout().lock();
             xtask::english_v4::run(&args, &mut stdout)
@@ -115,7 +107,6 @@ fn main() -> anyhow::Result<()> {
             let mut stdout = std::io::stdout().lock();
             xtask::lexical::run(&args, &mut stdout)
         }
-        Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::Lean(args) => xtask::lean::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),

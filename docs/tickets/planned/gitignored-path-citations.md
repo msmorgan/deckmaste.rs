@@ -2,17 +2,13 @@
 needs: []
 ---
 
-**Tracked code cites gitignored `docs/superpowers/…` paths — 3 files, 4
-sites, one printed at runtime.** Flagged by macro-frames round 2's Task 3
+**Tracked code cites gitignored `docs/superpowers/…` paths — 1 site
+remaining.** (The runtime-printed site and the `deckmaste_spelling` test sites
+went with `retire-v1-english-and-spelling`.) Flagged by macro-frames round 2's Task 3
 review; all predate that round and sat outside its declared scope
 (recorded in the round-2 ledger, "Corrected line numbers" note).
 
-- `crates/xtask/src/macros/pilot.rs:134` — the worst: the
-  `G5_FINDINGS_FILE` constant holds a gitignored path and is **printed
-  into gate output on failure**, directing users to a file absent from
-  any fresh checkout.
 - `crates/macro_ron/src/frames.rs:47`
-- `crates/deckmaste_spelling/tests/pilot.rs:22` and `:122`
 
 Line numbers are as of round-2 exit — re-grep at claim time:
 `rg 'docs/superpowers|docs/memory' crates plugins`.
@@ -21,9 +17,7 @@ Line numbers are as of round-2 exit — re-grep at claim time:
 
 Per the comments-state-what-code-cannot genre: inline the fact the
 comment actually needs, or re-point at a tracked doc
-(`docs/decisions/…`). For `pilot.rs`, replace the printed pointer with
-the inline divergence explanation the gate already computes (or a
-tracked doc), so failure output is self-sufficient in a fresh checkout.
+(`docs/decisions/…`).
 
 ## Guard
 

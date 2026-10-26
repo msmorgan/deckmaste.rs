@@ -217,6 +217,6 @@ Rather than reactive blocker recon across 32,828 cards, the entire Vintage-legal
    - Repoint `xtask` and workspace consumers at `deckmaste_english_v4`.
    - Delete `deckmaste_english_v3` (recording the migrated obligations and named retirement reasons for the wave test suite), `deckmaste_construction_v3*`, and `deckmaste_lexical_source`. `plugins_v2/builtin/` and its reader `deckmaste_macro_def` are not deleted here: they stay until `semantics-v3-dsl-and-plugins`, because `xtask` still reads them.
 4. **Cutover 2 (`english-v4-final-suffix-cutover`):** After `semantics-v1-cutover` retires the legacy v1 consumers and renames `plugins_v3/` → `plugins/`:
-   - Delete legacy suffixless `deckmaste_english`, `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, and `deckmaste_features`.
+   - Delete legacy `deckmaste_features`. (Legacy suffixless `deckmaste_english`, `deckmaste_construction_compiler` and `deckmaste_constructions_macro` were deleted earlier by `retire-v1-english-and-spelling`.)
    - Drop all `_v4` suffixes (`deckmaste_english_v4` → `deckmaste_english`, `deckmaste_lexical_source_v4` → `deckmaste_lexical_source`; `deckmaste_syntax` already has its final unversioned name).
    - Move the `catalogs/*.ron` lexical declarations into `plugins/` declaration metadata.

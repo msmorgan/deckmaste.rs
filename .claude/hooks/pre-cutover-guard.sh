@@ -18,15 +18,6 @@ path=$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.path /
 [ -n "$path" ] || exit 0
 
 case "$path" in
-  */crates/deckmaste_english/*)
-    key="deckmaste_english"
-    why="LEGACY (v1); deletion-bound at english-v4-final-suffix-cutover. deckmaste_english_v4 supersedes this parser. Put new architecture and features in deckmaste_english_v4. Touch this crate only to keep current users functioning or to enable cutover — never as a parallel long-term implementation, and never by copying the v4 design back here for parity." ;;
-  */crates/deckmaste_construction_compiler/*)
-    key="deckmaste_construction_compiler"
-    why="LEGACY; deletion-bound at english-v4-final-suffix-cutover. The english-v4 stack (deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4) replaces it. Do not home new English infrastructure here." ;;
-  */crates/deckmaste_constructions_macro/*)
-    key="deckmaste_constructions_macro"
-    why="LEGACY; deletion-bound at english-v4-final-suffix-cutover. The english-v4 stack (deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4) replaces it. Do not home new English infrastructure here." ;;
   */crates/deckmaste_legacy_render/*)
     key="deckmaste_legacy_render"
     why="LEGACY; deletion-bound at semantics-v1-cutover, and deckmaste_migrations must shed its dependency on it by then. Do not build new work on this crate." ;;

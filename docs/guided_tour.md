@@ -34,10 +34,9 @@ English parser and spelling relation. From here the term macro-expands and
 lowers into the smaller core vocabulary the engine executes. The crate map in
 [Architecture](../README.md#architecture) shows those projections.
 
-The English-side projection checks losslessness: `cargo xtask english roundtrip`
-renders every supported face back to the same normalized Oracle bytes. The
-recovery census separately records how much of that text became structure rather
-than a preserved unknown span. Recovery coverage and executable-card coverage
+The English-side projection is measured by the English-v4 census
+(`cargo xtask english-v4 strata`), which records how much of that text became
+structure rather than a preserved unknown span. Recovery coverage and executable-card coverage
 turn “reading the card explains the card” into two card-by-card measurements.
 
 ## Rules live in shared systems

@@ -12,11 +12,8 @@ members = [
     "crates/deckmaste_core",
     "crates/deckmaste_data",
     "crates/deckmaste_engine",
-    "crates/deckmaste_english",
     "crates/deckmaste_features",
     "crates/deckmaste_macro_def",
-    "crates/deckmaste_construction_compiler",
-    "crates/deckmaste_constructions_macro",
     "crates/deckmaste_spelling",
     "crates/deckmaste_syntax",
     "crates/deckmaste_legacy_render",
@@ -80,9 +77,6 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # overrides only take effect from the workspace root manifest, which is why
 # they live here.
 [profile.dev.package.deckmaste_migrations]
-opt-level = 2
-
-[profile.dev.package.deckmaste_english]
 opt-level = 2
 
 # Optimize the v4 chart parser, packed forest, and round-trip verification.

@@ -1,7 +1,0 @@
-error[E0451]: fields `first` and `rest` of struct `CoordinatedNounPhrase` are private
- --> tests/compile_fail/construct_coordinated_noun_phrase.rs:6:29
-  |
-6 |     CoordinatedNounPhrase { first, rest }
-  |                             ^^^^^  ^^^^ private field
-  |                             |
-  |                             private field
