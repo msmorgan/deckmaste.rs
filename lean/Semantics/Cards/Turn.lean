@@ -448,10 +448,6 @@ def teleport : Spelled := spelled <| singleFacedCard
       [ spell (establishThroughout (cant any (block (target isCreature))) thisTurn)
           (timing := duringPart .declareAttackers none) ] }
 
-/-- Dazzling Beauty's cast window; its targeted effect and delayed "next turn's upkeep" draw
-need machinery outside this ticket. -/
-def dazzlingBeautyCastRestriction : Timing := duringPart .declareBlockers none
-
 /-- Thawing Glaciers -/
 def thawingGlaciers : Spelled := spelled <| singleFacedCard
   { name := "Thawing Glaciers", types := [.land],
