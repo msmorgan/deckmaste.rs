@@ -51,6 +51,8 @@ Four fragments pass the default `RollWatch` raw. Drop the argument (it defaults 
 
 ## 3. A Template that mentions its parameter twice without a binding
 
+**Moved 2026-10-25** to [lean-v3-binding-across-or-arms](../planned/lean-v3-binding-across-or-arms.md): the spelling below is refused (`bindingIdentity`) because the two mentions sit in different `.or` arms.
+
 `objectsOfPlayer` (`Templates.lean:479-480`) writes `player` twice. ADR
 `docs/decisions/semantics-v3.md` §2.2 binds a Template parameter mentioned more than once. Write
 
