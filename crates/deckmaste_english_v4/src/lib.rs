@@ -5,21 +5,29 @@
 //! lexemes. Vocabulary and Subcategorization Frames come from the lexical
 //! environment the caller binds it with.
 
+use std::sync::LazyLock;
+
 use deckmaste_lexical::Lexicon;
+use deckmaste_lexical_source_v4::data_text;
 use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::FrameCatalog;
 use deckmaste_syntax::Grammar;
 use deckmaste_syntax::LoadError;
 
-/// The Oracle English grammar data file.
-pub const GRAMMAR: &str = include_str!("../grammar/english.ron");
+/// The Oracle English grammar data file: compiled in for release and wasm
+/// builds, read from `grammar/english.ron` at run time in dev builds, so a
+/// grammar edit needs no rebuild ([`deckmaste_lexical_source_v4::data_text!`]).
+///
+/// # Panics
+/// On first use of a dev build, naming the path, if the file is unreadable.
+pub static GRAMMAR: LazyLock<String> = data_text!("grammar/english.ron");
 
 /// Parses the Oracle English grammar data file.
 ///
 /// # Errors
 /// Malformed grammar data.
 pub fn grammar() -> Result<Grammar, LoadError> {
-    Grammar::from_ron_str(GRAMMAR)
+    Grammar::from_ron_str(&GRAMMAR)
 }
 
 /// Binds the Oracle English grammar to a lexical environment.
@@ -68,15 +76,15 @@ pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(7);
 
 /// The tracked deferral list: units at or below the completed Stratum left
 /// unread on purpose, each owned by a ticket (`census::deferrals`).
-pub const DEFERRED: &str = include_str!("../deferred.txt");
+pub static DEFERRED: LazyLock<String> = data_text!("deferred.txt");
 
 /// The tracked list of declined units: Reserved List cards whose
-/// construction is unique to them and costly to support (`census::declined`).
-pub const DECLINED: &str = include_str!("../declined.txt");
+/// construction is unique to them and costly to support (`census::declined`). Loaded like [`GRAMMAR`].
+pub static DECLINED: LazyLock<String> = data_text!("declined.txt");
 
 /// The tracked Editorial Corrections the census reads in place of Oracle text
-/// (`corpus::editorial_corrections`).
-pub const EDITORIAL_CORRECTIONS: &str = include_str!("../corrections.txt");
+/// (`corpus::editorial_corrections`). Loaded like [`GRAMMAR`].
+pub static EDITORIAL_CORRECTIONS: LazyLock<String> = data_text!("corrections.txt");
 
 /// The directory of the judgment set.
 #[must_use]

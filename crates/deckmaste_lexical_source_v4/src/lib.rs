@@ -7,10 +7,15 @@
 //! Category and Subcategorization Frames.
 
 mod build;
+#[macro_use]
+mod data_text;
 mod names;
 pub mod schema;
 
+pub use crate::data_text::read_data_file;
+
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::Category;
@@ -64,47 +69,48 @@ pub enum SourceError {
     Io { path: String, message: String },
 }
 
-/// Every data file of this crate, by path, embedded at build time.
-pub const FILES: [(&str, &str); 21] = [
+/// Every data file of this crate, by path: embedded at build time in release
+/// and wasm builds, read at run time in dev builds ([`data_text!`]).
+static FILES: [(&str, LazyLock<String>); 21] = [
     (
         CLOSED_CLASS,
-        include_str!("../lexicon/english/closed_class.ron"),
+        data_text!("lexicon/english/closed_class.ron"),
     ),
     (
         PREPOSITIONS,
-        include_str!("../lexicon/english/prepositions.ron"),
+        data_text!("lexicon/english/prepositions.ron"),
     ),
-    (VERBS, include_str!("../lexicon/english/verbs.ron")),
-    (NOUNS, include_str!("../lexicon/english/nouns.ron")),
+    (VERBS, data_text!("lexicon/english/verbs.ron")),
+    (NOUNS, data_text!("lexicon/english/nouns.ron")),
     (
         ADJECTIVES,
-        include_str!("../lexicon/english/adjectives.ron"),
+        data_text!("lexicon/english/adjectives.ron"),
     ),
-    (ADVERBS, include_str!("../lexicon/english/adverbs.ron")),
-    (TYPES, include_str!("../catalogs/types.ron")),
-    (SUBTYPES, include_str!("../catalogs/subtypes.ron")),
+    (ADVERBS, data_text!("lexicon/english/adverbs.ron")),
+    (TYPES, data_text!("catalogs/types.ron")),
+    (SUBTYPES, data_text!("catalogs/subtypes.ron")),
     (
         KEYWORD_ACTIONS,
-        include_str!("../catalogs/keyword_actions.ron"),
+        data_text!("catalogs/keyword_actions.ron"),
     ),
     (
         KEYWORD_ABILITIES,
-        include_str!("../catalogs/keyword_abilities.ron"),
+        data_text!("catalogs/keyword_abilities.ron"),
     ),
-    (ABILITY_WORDS, include_str!("../catalogs/ability_words.ron")),
-    (COUNTERS, include_str!("../catalogs/counters.ron")),
-    (DESIGNATIONS, include_str!("../catalogs/designations.ron")),
-    (STATUSES, include_str!("../catalogs/statuses.ron")),
-    (TURN_PARTS, include_str!("../catalogs/turn_parts.ron")),
-    (TOKENS, include_str!("../catalogs/tokens.ron")),
+    (ABILITY_WORDS, data_text!("catalogs/ability_words.ron")),
+    (COUNTERS, data_text!("catalogs/counters.ron")),
+    (DESIGNATIONS, data_text!("catalogs/designations.ron")),
+    (STATUSES, data_text!("catalogs/statuses.ron")),
+    (TURN_PARTS, data_text!("catalogs/turn_parts.ron")),
+    (TOKENS, data_text!("catalogs/tokens.ron")),
     (
         INTRODUCED_NAMES,
-        include_str!("../catalogs/introduced_names.ron"),
+        data_text!("catalogs/introduced_names.ron"),
     ),
-    (ANCHOR_WORDS, include_str!("../catalogs/anchor_words.ron")),
-    (VOTE_OPTIONS, include_str!("../catalogs/vote_options.ron")),
-    (CITED_NAMES, include_str!("../catalogs/cited_names.ron")),
-    (PLURAL_NAMES, include_str!("../catalogs/plural_names.ron")),
+    (ANCHOR_WORDS, data_text!("catalogs/anchor_words.ron")),
+    (VOTE_OPTIONS, data_text!("catalogs/vote_options.ron")),
+    (CITED_NAMES, data_text!("catalogs/cited_names.ron")),
+    (PLURAL_NAMES, data_text!("catalogs/plural_names.ron")),
 ];
 
 pub(crate) const CLOSED_CLASS: &str = "lexicon/english/closed_class.ron";
@@ -141,7 +147,7 @@ fn parse<T: DeserializeOwned>(path: &str) -> Result<T, SourceError> {
     let text = FILES
         .iter()
         .find(|(p, _)| *p == path)
-        .map(|(_, text)| *text)
+        .map(|(_, text)| text.as_str())
         .ok_or_else(|| SourceError::Invalid(format!("no data file {path}")))?;
     // Optional fields are written bare: `plural: "Elves"`, not `Some("Elves")`.
     ron::Options::default()
