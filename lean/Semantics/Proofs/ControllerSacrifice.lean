@@ -94,6 +94,18 @@ theorem controlGrantRecordsItsPatientIdentity :
     errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧
       refs.map (·.id) = (after.referents.filter (fun r => r.det == .target)).map (·.id) := by decide
 
+theorem controlGrantRecordsItsCausedEvent :
+    (stepAction 64 .postEvent .obj (DRS.ofList [])
+        (gainControl (target isCreature) (some untilEndOfTurn))).1.causedEvents =
+      [{ deed := some (.core .gainControl), zoneChange := none, verbs := [.controlChanged],
+         performer := some .player, patient := some .object }] := by decide
+
+theorem thisWayReadsOnlyTheDeedWritten :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ gainControl (target isCreature) untilEndOfTurn,
+          doIf (did you (draw anyAmount) thisWay) (tap it) ]) = [.thisWayUngrounded] := by decide
+
 private def existingTarget : Referent :=
   { det := .target, plur := .one,
     payload := .object [.creature, .artifact] (some .battlefield) none none (some 1) }

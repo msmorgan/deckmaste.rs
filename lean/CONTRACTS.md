@@ -294,7 +294,9 @@ same spell or ability caused, its costs included ("Counter target spell. If that
 this way, …" [CR#608.2c]; `thisWayReadsItsCostsEvent`), and is refused `thisWayUngrounded`
 otherwise, so "Draw a card. If you search your library this way, shuffle" is refused
 (`thisWayNamesNoEarlierEvent`). Each resolving or paid action a lookback can name
-(`Action.eventHeadOk`) records its event (`DRS.withCaused`, `DRS.causedEvents`): the Deed that
+(`Action.eventHeadOk`) records its event (`DRS.withCaused`, `DRS.causedEvents`); a control grant,
+which is an `establish` and no event head, records its own (`controlGrantRecordsItsCausedEvent`):
+the Deed that
 names it, the Zone Change it writes, its classes (`EventVerb`, for an event that names neither:
 damage dealt, life gained apart from life lost [CR#119.3]), its Actor's kind and the kind of what
 it moved or acted on. Paying a cost records a payment however the cost is written [CR#118.1], so
@@ -1507,6 +1509,9 @@ subject from_` (`gainControlOf`), with the player control is taken from when the
 (a trigger on control taken from a player looks back in time [CR#603.10d]). In a resolving position it is refused `controlChangePattern`: the instruction "gain
 control of" is `establish (controlGrant …)` [CR#611.2a,613.1b]. The pattern stamps its patient
 with `.core .gainControl`, as the grant does, so one Participial Description reads either.
+The grant records the same event the pattern names (`causedEvents`: the gain-control deed,
+class `controlChanged`, the grantee's kind as its Actor and the kind of what it takes), so
+'If you gain control of a creature this way' reads it (`controlGrantRecordsItsCausedEvent`).
 `Proofs/Counters.lean`, `Proofs/Anaphora.lean` and `Proofs/EventPatterns.lean` pin these.
 
 `partScope` expands to conditional applicability with `Condition.duringPart`.

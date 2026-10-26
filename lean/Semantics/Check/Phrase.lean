@@ -4565,9 +4565,15 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := stepTextChangeWith ops drs1 tc
           (drs2, e1 ++ e2)
         | .controlGrant player subj =>
-          let (drs1, _, e1) := ops.np drs .subj true player
+          let (drs1, pids, e1) := ops.np drs .subj true player
           let (drs2, ids, e2) := ops.np drs1 .obj true subj
-          (applyInPlaceStamp drs2 ids (some (.core .gainControl)), e1 ++ e2)
+          let kindOf (np : NounPhrase) (rids : List ReferentId) (dflt : Kind) : Kind :=
+            (rids.head?.bind drs2.findById?).map (·.kind) |>.getD (np.kindIn drs2 dflt)
+          let stamped := applyInPlaceStamp drs2 ids (some (.core .gainControl))
+          let gained := (Action.changeControl subj none).causedEvent
+            (some (kindOf player pids .player)) (some (kindOf subj ids .object))
+          (if drs.actionPattern then stamped
+            else { stamped with causedEvents := gained :: stamped.causedEvents }, e1 ++ e2)
         | .modeChoice mc => stepModeChangeWith ops drs mc
         | .cant subj action mods =>
           -- A cause-qualified prohibition steps its cause first, as `WouldClause.causedBy` does,
