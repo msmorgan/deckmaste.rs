@@ -215,7 +215,6 @@ semantic_template countOf (p : Predicate) : Amount := .countOf (.described .all 
 /-- "the greatest power among …s": the domain ranged over is all of them, closed after it. -/
 semantic_template aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate) : Amount :=
   .aggregate op axis (.described .all p)
-semantic_template random (q : Quantity) (p : Predicate) : NounPhrase := countedAtRandom q p
 /-! ## Locations -/
 
 semantic_template battlefield : Location := .zone .battlefield none
@@ -2157,12 +2156,6 @@ semantic_template ofColor (color : ColorTerm) : PipPaid := .ofColor color
 
 /-! ## Moves and occurrences -/
 
-/-- "<subject> moves from <from_> [to <to>]", observed on its `at_` side: the general zone change
-the worded moves (`die`, `enter`, `leave`, `putInto`, …) specialize [CR#400.7]. -/
-semantic_template move (subject : NounPhrase) (from_ : Location) (to : Option Location)
-    (at_ : ObservationPoint) (riders : List MoveRider := []) :
-    Action :=
-  .move subject from_ to at_ riders
 /-- "<pile>": one of the piles a separation made, as a place cards go. -/
 semantic_template thePile (pile : NounPhrase) : Location := .pile pile
 /-- "each" occurrence [of <player>'s]: each turn, each upkeep. -/
@@ -2246,8 +2239,6 @@ semantic_template entersAs (status : Status) : MoveRider := .entersAs status
 /-- "enters attacking [<defender>]" -/
 semantic_template entersAttacking (defender : Option NounPhrase) : MoveRider :=
   .entersAttacking defender
-/-- "attached to <host>", as an Aura put onto the battlefield enters [CR#303.4i] -/
-semantic_template entersAttachedTo (host : NounPhrase) : MoveRider := .attachedTo host
 /-- "with N <kind> counters on it" -/
 semantic_template withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark) :
     MoveRider :=
