@@ -1303,7 +1303,7 @@ def soulRansom : Spelled := spelled <| singleFacedCard
         activatedBy
           (repeatTimes 2
             (sequentially [choose (a (cardIn hand)), discard (that card)]))
-          (sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (draw 2)])
+          (sequentially [instruct (controllerOf thisAura) (sacrifice it), instruct they (draw 2)])
           yourOpponents ] }
 
 /-- Vraska's Scorn -/

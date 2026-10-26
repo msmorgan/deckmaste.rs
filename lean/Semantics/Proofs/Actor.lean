@@ -176,7 +176,7 @@ outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
     let caller : DRS :=
       (DRS.ofList [{ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    Action.check caller (.ownScope none (destroy it)) = [.anaphor .bare .one 0] ∧
+    Action.check caller (.ownScope none (destroy it)) = [.anaphor (.atSlot .permanent) .one 0] ∧
       Action.check caller (destroy it) = [] := by
   decide
 
@@ -186,7 +186,7 @@ of its abilities (`Ability.check` reads the body from an empty context), so a bo
 theorem keywordAbilityBodyCannotReadItsCard :
     let card : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
     Ability.check card (.keyword (.named "flying") [] [spell (destroy it)]) =
-        [.anaphor .bare .one 0] ∧
+        [.anaphor (.atSlot .permanent) .one 0] ∧
       Ability.check card (spell (destroy it)) = [] := by
   decide
 

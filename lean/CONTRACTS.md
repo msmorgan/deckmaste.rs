@@ -1314,8 +1314,9 @@ present-tense `doIf` condition (and a `doOnlyIf`'s postposed one) over a
 description that names no zone and no "card" ("if it's a creature") reads the
 permanent as it is, since Oracle text writes a departed object's information in
 the past tense ("if it was a creature"). A description that names a zone or "card"
-tests the object where it is: *Bioplasm*'s `is itCard isCreature` holds of the
-exiled creature card (`okBioplasmCardTest`). The checker does not evaluate a guard;
+tests the object where it is: *Bioplasm*'s `is it (and [isCard, isCreature])` holds of the
+exiled creature card, the bare pronoun narrowed to the card carrier its description
+demands [CR#109.2a] (`okBioplasmCardTest`). The checker does not evaluate a guard;
 this is what the lowering reads it as, and evaluating it is the engine's.
 
 Regeneration installation creates a next-time-this-turn destruction replacement.

@@ -733,6 +733,35 @@ def NounPhrase.ascribableIn (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
   | _ + 1, .actor => (actorShape? drs).any (·.ascribable)
   | _, _ => false
 
+/-- Whether a predicate requires a card [CR#109.2a]: `.isCard` itself or as a conjunct. -/
+def Predicate.demandsCard (p : Predicate) (fuel : Nat := 16) : Bool :=
+  match fuel, p with
+  | _ + 1, .isCard => true
+  | n + 1, .inCaller body => body.demandsCard n
+  | n + 1, .and ps => ps.any (·.demandsCard n)
+  | _, _ => false
+termination_by structural fuel
+
+/-- A bare pronoun read in a slot that demands `carrier`, narrowed to it
+(`semantics-v3.md` §1.5 `J1` item 4). -/
+def NounPhrase.narrowBareTo (carrier : SlotCarrier) (np : NounPhrase) (fuel : Nat := 16) :
+    NounPhrase :=
+  match fuel, np with
+  | _ + 1, .pro .bare pl => .pro (.atSlot carrier) pl
+  | n + 1, .inCaller body => .inCaller (body.narrowBareTo carrier n)
+  | n + 1, .firstMention id body => .firstMention id (body.narrowBareTo carrier n)
+  | n + 1, .laterMention id body => .laterMention id (body.narrowBareTo carrier n)
+  | _, np => np
+termination_by structural fuel
+
+/-- The carrier a move's written origin demands of its patient: a permanent on the
+battlefield [CR#109.2], or a card in a card zone [CR#109.2a]. -/
+def Location.originCarrier? (from_ : Location) : Option SlotCarrier :=
+  match from_.sort with
+  | some .battlefield => some .permanent
+  | some z => if isCardZone (some z) then some .card else none
+  | none => none
+
 def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
     Option (Kind × Plurality × DRS) :=
   match fuel, noun with
@@ -3517,6 +3546,7 @@ def stepOps : Nat → StepOps
             errs ++ refuse clause.within.isSome .unanchoredLookback)
         | .gameHas designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .matches subj pred =>
+          let subj := if pred.demandsCard then subj.narrowBareTo .card else subj
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let subjectKind := (ids.head?.bind drs1.findById?).map (·.kind)
           -- The subject of `is` is never the Contrast Anchor of its own "another".
@@ -3582,6 +3612,7 @@ def stepOps : Nat → StepOps
         | .not inner =>
           match inner with
           | .matches subj predicate =>
+            let subj := if predicate.demandsCard then subj.narrowBareTo .card else subj
             if subj.selfDefinedOk then
               let (subjectDrs, ids, e1) := ops.np drs .subj true subj
               let excluded := ids ++ subjectDrs.contrastExcluded
@@ -3760,6 +3791,7 @@ def stepOps : Nat → StepOps
           (drs3, e1 ++ e2 ++ e3 ++ refuse (to.plur == .one) .singular ++
             refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
         | .markDamage subj amt =>
+          let subj := if drs.actionPattern then subj else subj.narrowBareTo .permanent
           let (drs1, _, e1) := ops.np drs patientRole true subj
           let (drs2, e2) := ops.amt drs1 amt
           -- The damage marked, which a replacement of the marking reads back ("put that many
@@ -3781,10 +3813,12 @@ def stepOps : Nat → StepOps
           let (out, ids, errs) := ops.np drs patientRole true subj
           (out, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)))
         | .clearDamage subj | .turnOver subj none =>
+          let subj := if drs.actionPattern then subj else subj.narrowBareTo .permanent
           let (out, ids, errors) := ops.np drs patientRole true subj
           let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
           (out, errors ++ kindCheck .object (some kind))
         | .turnOver subj (some into) =>
+          let subj := if drs.actionPattern then subj else subj.narrowBareTo .permanent
           let (out, ids, errors) := ops.np drs patientRole true subj
           let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
           let (out, intoErrors) := ops.pred out into
@@ -3830,11 +3864,13 @@ def stepOps : Nat → StepOps
           let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.namedDeed else drs2
           (drs3, e1 ++ e2)
         | .setStatus _ subj =>
+          let subj := if drs.actionPattern then subj else subj.narrowBareTo .permanent
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let kind := (refIds.head?.bind drs1.findById?).map (·.kind) |>.getD (subj.kindIn drs1 .object)
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.namedDeed else drs1
           (drs2, e1 ++ kindCheck .object (some kind))
         | .combat subj upd =>
+          let subj := if drs.actionPattern then subj else subj.narrowBareTo .permanent
           let (drs1, _, e1) := ops.np drs patientRole true subj
           let (drs2, e2) := stepCombatUpdateWith ops drs1 upd
           (drs2, e1 ++ e2)
@@ -3957,6 +3993,9 @@ def stepOps : Nat → StepOps
           let readContext :=
             if drs.actionPattern && Location.readsDepartedPermanent from_ at_ handed then
               { drs with readsLastKnown := true } else drs
+          let subj := match from_.originCarrier? with
+            | some carrier => if drs.actionPattern then subj else subj.narrowBareTo carrier
+            | none => subj
           let (selected, refIds, e1) := ops.np readContext patientRole true subj
           let drs1 := { selected with
             readsLastKnown := drs.readsLastKnown
@@ -4120,6 +4159,7 @@ def stepOps : Nat → StepOps
             | .emblem .. => drs3
           (drs4, e1 ++ e2 ++ e3)
         | .putCounters amt ks on =>
+          let on := if drs.actionPattern then on else on.narrowBareTo .offStack
           let (drs1, e1) := ops.amt drs amt
           let (drs2, e2) := stepCounterKindSourceWith ops drs1 ks
           let (drs3, ids, e3) := ops.np drs2 patientRole true on

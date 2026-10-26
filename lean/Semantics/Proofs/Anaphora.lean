@@ -2,6 +2,7 @@ import Semantics.Check
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Proofs.Helpers
+import Semantics.Cards.Anaphora
 
 /-!
 # Semantics.Proofs.Anaphora
@@ -15,6 +16,20 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Anaphora
 
+
+/-- An unknown zone supplies no contradiction to any slot carrier; runtime applicability
+remains the engine's (`semantics-v3.md` §1.5 `J1` item 4). -/
+theorem unknownZoneRemainsAccessible (carrier : SlotCarrier) :
+    slotZoneOk carrier none = true := by
+  cases carrier <;> rfl
+
+/-- Bioplasm's "if it's a creature card" narrows the bare pronoun to the exiled card (`3`),
+then records creature type evidence on that same card [CR#109.2a]. -/
+theorem bareItInACardConditionReadsTheCard :
+    (resolveCandidates (.atSlot .card) .one (nextClause Semantics.Cards.bioplasmAfterExile)).map
+      (fun ref => (ref.id, ref.zone)) = [(3, some .exile)] ∧
+    (Semantics.Cards.bioplasmAfterTest.findById? 3).map (·.ty) = some [.creature] := by
+  decide
 
 /-- "Choose two — Draw a card; draw a card." [CR#700.2d] -/
 theorem identicalModesAllowed :
@@ -84,7 +99,7 @@ theorem badBothArmsAntecedent :
         [ may (gainLife 1)
             (some (create 1 (.written (creatureToken 1 1 [.white] [soldier]))))
             (some (create 2 (.written (creatureToken 1 1 [.white] [soldier])))),
-          .putCounters 1 (.printed p1p1Counter) it ]) = [.anaphor .bare .one 0] := by
+          .putCounters 1 (.printed p1p1Counter) it ]) = [.anaphor (.atSlot .offStack) .one 0] := by
   decide
 
 /-- "Put target creature onto the battlefield." -/

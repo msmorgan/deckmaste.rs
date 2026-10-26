@@ -45,15 +45,6 @@ theorem okActivatedCostAndEffect :
     Ability.check (DRS.ofList []) (activated (.perform (sacrifice (a isCreature))) (draw 1)) = [] := by
   decide
 
-/-- "Return a creature to its owner's hand: Tap it." The effect reads the returned creature
-(`semantics-v3.md` §0.1 item 4), but "it" in tap's slot reaches only a permanent, and a card in a
-hand is not one (§1.5 `J1` item 4). -/
-theorem badHiddenCost :
-    Ability.check (DRS.ofList [])
-      (activated (.perform (putInto (a isCreature) hand)) (.setStatus .tapped itPermanent))
-      = [.anaphor (.atSlot .permanent) .one 0] := by
-  decide
-
 /-- An effect reads the creature its cost returned to a hand: "the returned creature" has a
 textual antecedent, and whether its last known information is available is the engine's concern
 [CR#608.2h] (`semantics-v3.md` §0.1 item 4). -/
@@ -718,7 +709,7 @@ theorem riderReadsThePermittedCast :
       [ static flashPermission,
         static (whileHolds (did you (cast it) (within thisGame (some (not asSorcery))))
           (sacrifice it)) ] =
-      [.anaphor .bare .one 0, .anaphor .bare .one 0] ∧
+      [.anaphor .bare .one 0, .anaphor (.atSlot .permanent) .one 0] ∧
     StaticSpec.check (DRS.ofList []) (.can (.actor .you) (cast thisSpell)
       { rider := some (doIf (did you (cast it) thisWay) (draw 1)) }) = [] ∧
     Ability.checkText (DRS.ofList [])

@@ -30,7 +30,7 @@ theorem badTurnAPlayerFaceDown :
 /-- A special action whose action reads an anaphor with no antecedent is refused. -/
 theorem badSpecialActionUnboundAnaphor :
     StaticSpec.check (DRS.ofList []) (.specialAction none none (.mana [generic 1]) (.setStatus .faceUp it)) =
-      [.anaphor .bare .one 0] := by decide
+      [.anaphor (.atSlot .permanent) .one 0] := by decide
 
 /-- Morph {1}{U}: cast face down for {3}; turning it face up for {1}{U} is a special action,
 and its values revert as it turns [CR#702.37e,708.8]. -/

@@ -56,7 +56,7 @@ theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
 theorem wholeOwnedScopeWouldBeAmbiguous :
     Action.check (DRS.ofList [])
       (instruct (controllerOf nestedSubject) (sacrifice it)) =
-        [.anaphor .bare .one 2] := by decide
+        [.anaphor (.atSlot .permanent) .one 2] := by decide
 
 theorem sacrificeStampSelectsTheSameObject :
     (participialCandidates (.deed (.action "sacrifice")) (some .one) none false afterSacrifice).head?.map

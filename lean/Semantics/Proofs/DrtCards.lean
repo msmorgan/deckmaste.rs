@@ -140,7 +140,7 @@ would choose as it resolves, so "it" finds nothing [CR#601.2c,608.2c]. -/
 theorem badOtherwiseReadsIndefiniteThenArm :
     Action.check (DRS.ofList [])
       (.doIf (exists_ (and [isCreature, youControl])) (destroy (a isCreature))
-        (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by decide
+        (some (.setStatus .tapped it))) = [.anaphor (.atSlot .permanent) .one 0] := by decide
 
 /-- "A creature gets +2/+2 if its power is 2.": a creature the branch chooses as it resolves is
 not chosen when the condition is checked, so the condition cannot read it; only the branch's

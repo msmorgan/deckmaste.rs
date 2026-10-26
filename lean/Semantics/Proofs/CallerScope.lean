@@ -482,13 +482,13 @@ theorem callerConditionReadInItsOwnFrameLosesItsReferent :
       (.ownScope none (.replace (draw 1)
         (.onlyIf
           (.and [compareAmt (countOf isArtifact) .atLeast 3, .inCaller sacrificedACreature])
-          (.instead (.inCaller (returnToHand it graveyard)))))) = [.anaphor .bare .one 0] := by
+          (.instead (.inCaller (returnToHand it graveyard)))))) = [.anaphor (.atSlot .card) .one 0] := by
   decide
 
 /-- Read in the Definition's own scope instead, the caller's action names nothing. -/
 theorem callerReplacementActionReadHereNamesNothing :
     Action.check callerCreature (drawUnlessReplacedHere (instead (tap it))) =
-      [.anaphor .bare .one 0] := by
+      [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- Nor does the caller's condition. -/

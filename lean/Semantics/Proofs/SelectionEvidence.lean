@@ -233,7 +233,7 @@ theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
       StaticSpec.check (DRS.ofList [])
         (.characteristicChange (.headed (.type .planeswalker) .this)
           [.addedAbilities [.spell none (.clearDamage (.pro .bare .one))]]) =
-        [.anaphor .bare .one 0] := by decide
+        [.anaphor (.atSlot .permanent) .one 0] := by decide
 
 theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
     let spellClause := StaticSpec.cant (.by (.headed .spell .this))

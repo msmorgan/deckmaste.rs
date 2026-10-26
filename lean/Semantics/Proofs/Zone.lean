@@ -549,7 +549,7 @@ theorem badInterceptReplacementAntecedent :
             (instead
               (create 1 (.written (creatureToken 1 1 [.green] [soldier]))))
             (some thisTurn),
-          sacrifice it ]) = [.anaphor .bare .one 0] := by
+          sacrifice it ]) = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- "If you would draw a card, draw two cards instead." -/

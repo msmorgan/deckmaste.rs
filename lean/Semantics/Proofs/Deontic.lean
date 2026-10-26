@@ -657,7 +657,7 @@ theorem publishedEachDomainIsSingular :
     let barred := fun (creatures : NounPhrase) => Action.check (DRS.ofList [])
       (.sequentially [.establish (.cant (.actor creatures) (.block .any) {}) (some thisTurn),
         .setStatus .tapped it])
-    barred (each isCreature) = [] ∧ barred (allOf isCreature) = [.anaphor .bare .one 0] ∧
+    barred (each isCreature) = [] ∧ barred (allOf isCreature) = [.anaphor (.atSlot .permanent) .one 0] ∧
       Action.check (DRS.ofList [])
         (.sequentially [.setStatus .tapped (each isCreature), .setStatus .untapped it]) = [] := by
   decide

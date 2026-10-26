@@ -430,7 +430,7 @@ inductive NounWord where
   deriving DecidableEq, Repr
 
 inductive SlotCarrier where
-  | permanent | card | spell
+  | permanent | card | spell | offStack
   deriving DecidableEq, Repr
 
 /-- How a pronoun is written: what it reaches back for. -/

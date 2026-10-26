@@ -397,7 +397,7 @@ theorem badConditionAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ doOnlyIf (gainLife 2) (exists_ (and [isCreature, youControl])) none,
-          .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
+          .setStatus .tapped it ]) = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- "You may sacrifice a creature. If you don't, exile it." -/

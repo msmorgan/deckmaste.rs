@@ -358,7 +358,7 @@ theorem badOtherwiseReadsLeadingArm :
       (.doIf (exists_ (and [isCreature, youControl]))
         (create 1 (.written (creatureToken 1 1 [.black] [zombie])))
         (some (.setStatus .tapped it)))
-      = [.anaphor .bare .one 0] := by
+      = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- "If the creature with the greatest power is a Knight, it gets +2/+2 until end of turn;

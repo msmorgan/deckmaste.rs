@@ -306,12 +306,13 @@ theorem oneWayResultShift :
       = [] := by
   decide
 
-/-- "For each ability on the stack, put a counter of each kind on it on it": an ability on the
-stack is an object [CR#109.1], so it may hold counters. -/
-theorem abilityCounterRecipient :
+/-- The counter-placement slot excludes the stack (`semantics-v3.md` §1.5 `J1` item 4):
+"For each ability on the stack, put a counter of each kind on it on it" has no off-stack
+antecedent for its patient. The counter-kind read remains available. -/
+theorem abilityOnStackIsNotCounterRecipient :
     Action.check (DRS.ofList [])
       (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters 1 (.sameAs it) it))
-      = [] := by
+      = [.anaphor (.atSlot .offStack) .one 0] := by
   decide
 
 /-- "Remove a counter of each kind you have from you": a player has counters too [CR#122.1]. -/

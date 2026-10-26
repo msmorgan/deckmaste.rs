@@ -28,11 +28,11 @@ Claimed by Gix* and *Highcliff Felidar* the reference after the measure reads so
 theorem measuredDomainIsNotAnAntecedent :
     Action.check emptyContext
         (.sequentially [gainLife (countOf isCreature), .setStatus .tapped them]) =
-      [.anaphor .bare .many 0] ∧
+      [.anaphor (.atSlot .permanent) .many 0] ∧
     Action.check emptyContext
         (.sequentially [gainLife (aggregate .max (.stat .power) isCreature),
           .setStatus .tapped them]) =
-      [.anaphor .bare .many 0] := by decide
+      [.anaphor (.atSlot .permanent) .many 0] := by decide
 
 open Semantics.Templates Semantics.Definitions in
 /-- A target announced inside a measured domain survives its closure, being chosen as the spell or

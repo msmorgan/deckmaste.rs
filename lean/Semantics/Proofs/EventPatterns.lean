@@ -161,7 +161,7 @@ theorem playerIsNotAChangingObject :
     GameEvent.check (DRS.ofList []) (.does .any (.move .you .anyLocation none .arrival [])) =
       [.kindLte .player (.join .object .pile)] := by decide
 
-theorem explicitCardLocationIsRetained :
+theorem writtenCardLocationIsRetained :
     nounZone (DRS.ofList []) (a (.and [.isCard, isCreature, .in_ graveyard])) =
       some .graveyard := by decide
 

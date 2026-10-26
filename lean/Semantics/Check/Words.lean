@@ -1117,9 +1117,11 @@ def onFieldZone (z : Option Zone) : Bool := zoneIsB z .battlefield
 def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
 
 def slotZoneOk : SlotCarrier → Option Zone → Bool
+  | _, none => true
   | .permanent, zn => onFieldZone zn
   | .card, zn => isCardZone zn
   | .spell, zn => onStackZone zn
+  | .offStack, zn => !onStackZone zn
 
 /-- The stamp a deed leaves on an object it acts on where it is (`zone`); no deed, no stamp. -/
 def mkStamp : Option Deed → Option Zone → Option Stamp
@@ -1596,7 +1598,8 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
         currentClause := before.currentClause
         selectionScope := before.selectionScope
         pendingRoles  := addedPending ++ before.pendingRoles
-        resolvedIds   := before.resolvedIds
+        -- A caller argument's pronoun resolution remains observable after the scope handoff.
+        resolvedIds   := (after.resolvedIds ++ before.resolvedIds).eraseDups
         sourceTypes   := before.sourceTypes }
 
 /-- Close an own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,

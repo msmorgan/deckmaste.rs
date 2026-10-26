@@ -609,8 +609,66 @@ def frostWalker : Spelled := spelled <| singleFacedCard
     subtypes := [elemental],
     text :=
       [ when (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature))
-          (sacrifice itPermanent) ],
+          (sacrifice it) ],
     power := stat 4, toughness := stat 1 }
+
+/-- Frost Walker's "it" resolves to the source: its graveyard successor (`2`) records the
+battlefield source's id (`1`) in `movedFrom`, leaving the targeting spell or ability (`0`) alone. -/
+theorem frostWalkerSacrificesItself :
+    let out := (stepAction 64 .postEvent .obj
+      (nextClause (stepGameEvent 64 (DRS.ofList [])
+        (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature))).1)
+      (sacrifice it)).1
+    frostWalker.card.check = [] ∧ out.resolvedIds = [2] ∧
+      (out.findById? 2).map (fun ref => (ref.det, ref.zone, ref.movedFrom)) =
+        some (.self, some .graveyard, [1]) ∧
+      (out.findById? 0).bind (·.zone) = some .stack := by
+  decide
+
+/-- Segmented Wurm: "Whenever this creature becomes the target of a spell or ability, put a
+−1/−1 counter on it." -/
+def segmentedWurm : Spelled := spelled <| singleFacedCard
+  { name := "Segmented Wurm", cost := [generic 3, pip .red, pip .green], types := [.creature],
+    subtypes := [wurm],
+    text :=
+      [ whenever (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature))
+          (putCounters 1 m1m1Counter it) ],
+    power := stat 5, toughness := stat 5 }
+
+/-- Angelic Cub's trigger sentence: "Whenever this creature becomes the target of a spell or
+ability for the first time each turn, put a +1/+1 counter on it."
+Fragment: the conditional flying sentence needs preposed static-condition ordering; the
+`StaticSpec.conditional` stepper currently reads the grant's "it" before its antecedent in
+"As long as this creature has three or more +1/+1 counters on it". -/
+def angelicCub : Spelled := spelled <| singleFacedCard
+  { name := "Angelic Cub", cost := [generic 1, pip .white], types := [.creature],
+    subtypes := [cat, angel],
+    text :=
+      [ whenever
+          (nthOccurrence (.nth 1)
+            (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature)) (some .turn))
+          (putCounters 1 p1p1Counter it) ],
+    power := stat 1, toughness := stat 1 }
+
+/-- Segmented Wurm's "it" is the source (`1`), not the targeting spell or ability (`0`). -/
+theorem segmentedWurmPutsTheCounterOnItself :
+    segmentedWurm.card.check = [] ∧
+    (stepAction 64 .postEvent .obj
+      (nextClause (stepGameEvent 64 (DRS.ofList [])
+        (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature))).1)
+      (putCounters 1 m1m1Counter it)).1.resolvedIds = [1] := by
+  decide
+
+/-- Angelic Cub's trigger reads "it" as the source (`1`), not the targeting spell or ability
+(`0`); the trigger fragment keeps its first occurrence each turn. -/
+theorem angelicCubPutsTheCounterOnItself :
+    angelicCub.card.check = [] ∧
+    (stepAction 64 .postEvent .obj
+      (nextClause (stepGameEvent 64 (DRS.ofList [])
+        (nthOccurrence (.nth 1)
+          (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature)) (some .turn))).1)
+      (putCounters 1 p1p1Counter it)).1.resolvedIds = [1] := by
+  decide
 
 /-- Loaming Shaman -/
 def loamingShaman : Spelled := spelled <| singleFacedCard

@@ -51,7 +51,7 @@ theorem callerPronoun :
 theorem definitionCannotReadUnpassedCaller :
     (Action.sequentially [tap (target isCreature),
       .ownScope (some (.action "tap")) (.setStatus .tapped it)]).check (DRS.ofList []) =
-        [.anaphor .bare .one 0] := by decide
+        [.anaphor (.atSlot .permanent) .one 0] := by decide
 
 theorem templateKeepsSingleTarget :
     ((stepAction 64 .postEvent .obj (DRS.ofList [])

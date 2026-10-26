@@ -89,10 +89,6 @@ semantic_template this_ : NounPhrase := .this
 semantic_template it : NounPhrase := .pro .bare .one
 /-- "them" -/
 semantic_template them : NounPhrase := .pro .bare .many
-/-- "that card": the card slot's occupant. -/
-semantic_template itCard : NounPhrase := .pro (.atSlot .card) .one
-/-- "it": the permanent slot's occupant, as "sacrifice it" reads it. -/
-semantic_template itPermanent : NounPhrase := .pro (.atSlot .permanent) .one
 /-- "itself" / "himself" / "herself" -/
 semantic_template itself : NounPhrase := .refl .one
 /-- "themselves" -/

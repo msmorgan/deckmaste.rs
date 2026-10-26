@@ -156,7 +156,7 @@ theorem badJoinedHeaderReadback :
     Ability.check (DRS.ofList [])
       (when (does thisCreature enter)
         (joins := [⟨does (a (and [isCreature, youControl])) die, [], none, none⟩])
-        (.putCounters 1 p11 it)) = [.anaphor .bare .one 0] := by
+        (.putCounters 1 p11 it)) = [.anaphor (.atSlot .offStack) .one 0] := by
   decide
 
 /-- "Remove a +1/+1 counter from target creature." -/
@@ -318,7 +318,7 @@ theorem badSimultaneousReadsMayDeed :
     Action.check (DRS.ofList [])
       (.simultaneously
         [ may (create 1 (.written (creatureToken 1 1 [.green] [plant]))),
-          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 0] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor (.atSlot .offStack) .one 0] := by
   decide
 
 /-- "You may have this deal 2 damage and you gain that much life." -/
@@ -336,7 +336,7 @@ theorem badBatchTwoCreatesThenIt :
         [ .simultaneously
             [ create 1 (.written (creatureToken 1 1 [.green] [plant])),
               create 1 (.written (creatureToken 1 1 [.white] [soldier])) ],
-          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 2] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor (.atSlot .offStack) .one 2] := by
   decide
 
 theorem badBatchTwoOutcomesThenThatMuch :
@@ -360,7 +360,7 @@ theorem badDistributedCreationIt :
       (.sequentially
         [ instruct (each .isPlayer) (create 1
             (.written (creatureToken 1 1 [.green] [plant])) []),
-          (.putCounters 1 p11 it) ]) = [.anaphor .bare .one 0] := by
+          (.putCounters 1 p11 it) ]) = [.anaphor (.atSlot .offStack) .one 0] := by
   decide
 
 /-- "Put a +1/+1 counter on each of up to two target creatures." -/
@@ -546,7 +546,7 @@ theorem badBecomesNothing :
 theorem badOtherwiseReadsIfArm :
     Action.check (DRS.ofList [])
       (doOnlyIf (create 1 (.written (creatureToken 1 1 [.black] [zombie])))
-        (exists_ (and [isCreature, youControl])) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
+        (exists_ (and [isCreature, youControl])) (some (.setStatus .tapped it))) = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- "Create a 1/1 black Zombie creature token. Create two of those tokens." -/

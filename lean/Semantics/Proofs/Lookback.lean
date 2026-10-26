@@ -339,7 +339,7 @@ exiled creature (owner ruling 2026-10-22). -/
 theorem optionalBodyObjectEscapesOnlyToParticipialReads :
     Action.check (DRS.ofList [])
       (sequentially [may (exile (a (and [isCreature, youControl]))), tap it]) =
-      [.anaphor .bare .one 0] ∧
+      [.anaphor (.atSlot .permanent) .one 0] ∧
     Action.check (DRS.ofList [])
       (sequentially [ may (exile (a (and [isCreature, youControl]))),
         tap (the (and [isCard, was (exile which) thisWay])) ]) = [] := by

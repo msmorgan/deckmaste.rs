@@ -417,7 +417,7 @@ def opponentWithMoreLands : Predicate :=
 theorem okOpponentWithMoreLands : Predicate.checkAt .player (DRS.ofList []) opponentWithMoreLands = [] := by
   decide
 
-def bioplasmCardTest : Condition := is itCard isCreature
+def bioplasmCardTest : Condition := is it (and [isCard, isCreature])
 theorem okBioplasmCardTest : Condition.check (nextClause bioplasmAfterExile) bioplasmCardTest = [] := by decide
 
 /-- Blessed Respite -/
@@ -479,6 +479,7 @@ theorem bioplasmTypeTestPreservesExiledIdentity :
 theorem bioplasmTestRemarksType :
     (participialCandidates (.deed (.action "exile")) (some .one) none false bioplasmAfterTest).map (·.ty)
       = [[.creature]] := by decide
+/-- The narrowed bare read finds the exiled card, whose card carrier remains available. -/
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
@@ -582,7 +583,7 @@ theorem eachPlayerDoesNotIntroduceASeparateGroup :
 
 /-- Soul Ransom -/
 def soulRansomRansom : Action :=
-  sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (draw 2)]
+  sequentially [instruct (controllerOf thisAura) (sacrifice it), instruct they (draw 2)]
 theorem okSoulRansomRansom : Action.check (DRS.ofList []) soulRansomRansom = [] := by decide
 def thisAurasController : NounPhrase := controllerOf thisAura
 theorem okThisAurasController : NounPhrase.checkAt (some .player) (DRS.ofList []) thisAurasController = [] := by
@@ -780,7 +781,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| singleFacedCard
                                 ]))
                 (sequentially
                   [ instruct they (reveal (slice .top 1 (libraryOf they))),
-                    doIf (is itCard isPermanentCard) (putOntoBattlefield itCard) ]) ]) ],
+                    doIf (is it isPermanentCard) (putOntoBattlefield it) ]) ]) ],
     power := stat 6, toughness := stat 6 }
 
 /-- Kalitas, Bloodchief of Ghet: "{B}{B}{B}, {T}: Destroy target creature. If that creature dies
@@ -874,6 +875,53 @@ def tuktukScrapper : Spelled := spelled <| singleFacedCard
     power := stat 2, toughness := stat 2 }
 theorem okTuktukScrapper : tuktukScrapper.card.check = [] := tuktukScrapper.ok
 
+/-- Gyome, Master Chef: "{1}, Sacrifice a Food: Target creature gains indestructible until
+end of turn. Tap it." -/
+def gyomeProtectionCost : Cost := compound [mana [generic 1], perform (sacrifice (a food))]
+def gyomeProtectionBody : Action :=
+  sequentially [gain (target isCreature) indestructible untilEndOfTurn, .setStatus .tapped it]
+def gyomeProtection : Ability := activated gyomeProtectionCost gyomeProtectionBody
+
+/-- The bare "it" resolves to the target creature (`2`), not the sacrificed cost. -/
+theorem gyomeTapsItsTarget :
+    Ability.check (DRS.ofList []) gyomeProtection = [] ∧
+    (stepAction 64 .postEvent .obj
+      (nextClause (stepCost 64 (DRS.ofList []) gyomeProtectionCost).1)
+      gyomeProtectionBody).1.resolvedIds = [2] := by
+  decide
+
+/-- Prosperity Tycoon: "{2}, Sacrifice a token: This creature gains indestructible until end
+of turn. Tap it." -/
+def prosperityTycoonProtectionCost : Cost :=
+  compound [mana [generic 2], perform (sacrifice (a isToken))]
+def prosperityTycoonProtectionBody : Action :=
+  sequentially [gain thisCreature indestructible untilEndOfTurn, .setStatus .tapped it]
+def prosperityTycoonProtection : Ability :=
+  activated prosperityTycoonProtectionCost prosperityTycoonProtectionBody
+
+/-- The bare "it" resolves to the source, Prosperity Tycoon (`2`), not the sacrificed cost. -/
+theorem prosperityTycoonTapsItself :
+    Ability.check (DRS.ofList []) prosperityTycoonProtection = [] ∧
+    (stepAction 64 .postEvent .obj
+      (nextClause (stepCost 64 (DRS.ofList []) prosperityTycoonProtectionCost).1)
+      prosperityTycoonProtectionBody).1.resolvedIds = [2] := by
+  decide
+
+/-- Grimgrin, Corpse-Born: "Sacrifice another creature: Untap Grimgrin and put a +1/+1 counter
+on it." -/
+def grimgrinUntapCost : Cost := perform (sacrifice (a (and [isCreature, isOther])))
+def grimgrinUntapBody : Action :=
+  sequentially [untap thisCreature, putCounters 1 p1p1Counter it]
+def grimgrinUntap : Ability := activated grimgrinUntapCost grimgrinUntapBody
+
+/-- The bare "it" resolves to the source, Grimgrin (`2`), not the sacrificed cost. -/
+theorem grimgrinPutsTheCounterOnItself :
+    Ability.check (DRS.ofList []) grimgrinUntap = [] ∧
+    (stepAction 64 .postEvent .obj
+      (nextClause (stepCost 64 (DRS.ofList []) grimgrinUntapCost).1)
+      grimgrinUntapBody).1.resolvedIds = [2] := by
+  decide
+
 /-- Insatiable Appetite: "You may sacrifice a Food. If you do, target creature gets +5/+5 until end
 of turn. Otherwise, that creature gets +3/+3 until end of turn." Both arms' targets are chosen as
 the spell is cast, whichever arm later runs [CR#601.2c,115.1], so "Otherwise, that creature" reads
@@ -947,7 +995,7 @@ theorem laterSpellAbilitiesReadEarlierTargets :
 /-- Only targets pass on: an earlier spell ability's other mentions stay in it. -/
 theorem laterSpellAbilitiesDoNotReadEarlierNonTargets :
     Ability.checkText (DRS.ofList [])
-        [spell (tap (a isCreature)), spell (untap it)] = [.anaphor .bare .one 0] := by decide
+        [spell (tap (a isCreature)), spell (untap it)] = [.anaphor (.atSlot .permanent) .one 0] := by decide
 
 /-- A triggered or activated ability's target is still no ordinary antecedent in a later ability,
 which is linked to it at most [CR#607.1,607.2a]; and a spell's targets are its spell abilities'

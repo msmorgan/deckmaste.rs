@@ -120,14 +120,14 @@ checker refuses the unresolved `it`. -/
 theorem badModalReadsAcrossModes :
     Action.check (DRS.ofList [])
       (chooseModes (exactly 1) [destroy (target isArtifact), .setStatus .tapped it])
-      = [.anaphor .bare .one 0] := by
+      = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 theorem badReadsAfterModal :
     Action.check (DRS.ofList [])
       (.sequentially
         [ chooseModes (exactly 1) [destroy (target isArtifact), destroy (target isEnchantment)],
-          .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
+          .setStatus .tapped it ]) = [.anaphor (.atSlot .permanent) .one 0] := by
   decide
 
 /-- "you pay 1 life" -/
