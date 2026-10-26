@@ -191,15 +191,15 @@ theorem okCostedCumulativeUpkeep :
 /-- "… pays {1} for each artifact you control." -/
 theorem okForEachScaledMana :
     Cost.check (DRS.ofList [])
-      (Primitives.Cost.scaled (.mana [generic 1]) (forEach 1 (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
+      (scaled (.mana [generic 1]) (forEach 1 (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "Counter target spell unless its controller pays {2}." -/
 theorem badLiteralScaledMana :
-    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) 2) = [.forEachAmount] := by decide
+    Cost.check (DRS.ofList []) (scaled (.mana [generic 1]) 2) = [.forEachAmount] := by decide
 
 theorem badBareCountScaledMana :
-    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (countOf (.and [isArtifact, .hasPossessor .controller .you])))
+    Cost.check (DRS.ofList []) (scaled (.mana [generic 1]) (countOf (.and [isArtifact, .hasPossessor .controller .you])))
       = [.forEachAmount] := by
   decide
 

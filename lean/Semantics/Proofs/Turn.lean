@@ -313,7 +313,7 @@ theorem badDeicticTurnWithoutIntroducer :
 
 /-- "After this combat phase, there is an additional upkeep step." -/
 theorem okAdditionalUpkeep :
-    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .combat) 1 none) = [] := by
+    Action.check (DRS.ofList []) (addTurnPart .upkeep 1 (some .combat)) = [] := by
   decide
 
 /-- "Spells with the chosen name can't be cast." -/
@@ -356,7 +356,7 @@ theorem okEndingPhaseWindow :
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/
 theorem okAdditionalEndingPhase :
     Action.check (DRS.ofList [])
-      (Primitives.Action.addTurnPart .endingPhase (some .postcombatMain) 1 none) = [] := by
+      (addTurnPart .endingPhase 1 (some .postcombatMain)) = [] := by
   decide
 
 /-- "creature that could block each attacking creature" -/
@@ -475,30 +475,30 @@ theorem okSkipNextNestedAmountIntroducesLetterOnce :
 
 theorem okAdditionalPartAmountReadsSubject :
     Action.check [qualityB .color]
-      (Templates.instruct (target (.isOpponentOf .you)) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none))
+      (Templates.instruct (target (.isOpponentOf .you)) (addTurnPart .upkeep (lifeTotalOf they)))
       = [] := by
   decide
 
 theorem badAdditionalPartAmountReadsSubject :
     Action.check [qualityB .color]
-      (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none)
+      (addTurnPart .upkeep (lifeTotalOf they))
       = [.anaphor (.word .player) .one 0] := by
   decide
 
 theorem badAdditionalPartForwardSubject :
-    Action.check (DRS.ofList []) (Templates.instruct they (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none))
+    Action.check (DRS.ofList []) (Templates.instruct they (addTurnPart .upkeep (lifeTotalOf (target (.isOpponentOf .you)))))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Templates.instruct they (.draw
+      [addTurnPart .upkeep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw
           (.exactlyOf 1))])
       = [] := by
   decide
 
 theorem okAdditionalPartNestedAmountIntroducesLetterOnce :
     countLetter .x (actionResult (DRS.ofList [])
-      (Primitives.Action.addTurnPart .upkeep none (plus (.letter .x) (.letter .x)) none))
+      (addTurnPart .upkeep (plus (.letter .x) (.letter .x))))
       = 1 := by
   decide
 
@@ -523,10 +523,10 @@ theorem okUntapAmountIntroducesPlayer :
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :
     Action.check (nounResult (DRS.ofList []) (target (.isOpponentOf .you)))
-      (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none) = [] := by decide
+      (addTurnPart .upkeep (lifeTotalOf they)) = [] := by decide
 
 theorem badAdditionalPartWithoutSubjectOrOuterContext :
-    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none)
+    Action.check (DRS.ofList []) (addTurnPart .upkeep (lifeTotalOf they))
       = [.anaphor (.word .player) .one 0] := by decide
 
 /-- Nested amounts preserve the identities and kinds of their introduced targets. -/
@@ -545,8 +545,8 @@ theorem okSkipNextNestedAmountOrder :
 
 theorem okAdditionalPartNestedAmountOrder :
     let after := actionResult (DRS.ofList [])
-      (Primitives.Action.addTurnPart .upkeep none
-        (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))) none)
+      (addTurnPart .upkeep
+        (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 

@@ -313,46 +313,46 @@ theorem optionalTextChoiceIsPublished :
 player" from it, though assist's own Mana Substitute does [CR#702.132a,607.2d]. -/
 theorem badAssistChoiceNotPublishedToCard :
     Ability.checkText (DRS.ofList [])
-      [assist, Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))]
+      [assist, spell (instruct (the isChosenPlayer) (draw 1))]
       = [.choiceRef .theChoice .player 0] := by decide
 
 /-- A card with assist and its own printed player choice: the chosen player is the printed
 choice, not a second one assist's keyword body brings. -/
 theorem okAssistBesidePrintedChoice :
     Ability.checkText (DRS.ofList [])
-      [assist, Primitives.Ability.spell none (choose anOpponent),
-        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
+      [assist, spell (choose anOpponent),
+        spell (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
 
 /-- A player choice an earlier ability announced is read by a later one only as "the chosen
 player" [CR#607.2d]: a bare "they" is not it, whether or not the choice is optional. -/
 theorem badTheyDoesNotReadEarlierChoice :
     Ability.checkText (DRS.ofList [])
-      [Primitives.Ability.spell none (may (choose anOpponent)),
-        Primitives.Ability.spell none (instruct they (draw 1))]
+      [spell (may (choose anOpponent)),
+        spell (instruct they (draw 1))]
       = [.anaphor (.word .player) .one 0] := by decide
 
 /-- Gift's choice is a cost's: it stays inside gift, so a printed ability reads no "chosen player"
 from it [CR#702.174a,607.2d]. -/
 theorem badGiftChoiceNotPublishedToCard :
     Ability.checkText (DRS.ofList []) [giftACard,
-        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))]
+        spell (instruct (the isChosenPlayer) (draw 1))]
       = [.choiceRef .theChoice .player 0] := by decide
 
 /-- Gift beside a printed player choice: "the chosen player" reads that one alone. -/
 theorem okGiftBesidePrintedChoice :
-    Ability.checkText (DRS.ofList []) [giftACard, Primitives.Ability.spell none (choose anOpponent),
-        Primitives.Ability.spell none (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
+    Ability.checkText (DRS.ofList []) [giftACard, spell (choose anOpponent),
+        spell (instruct (the isChosenPlayer) (draw 1))] = [] := by decide
 
 /-- A bare "them" after gift reads no opponent gift chose. -/
 theorem badThemDoesNotReadGiftOpponent :
     Ability.checkText (DRS.ofList []) [giftACard,
-        Primitives.Ability.spell none (instruct them (draw 1))]
+        spell (instruct them (draw 1))]
       = [.anaphor .bare .many 0, .kindMismatch .player .object] := by decide
 
 /-- The life a cost pays is no result a later ability reads: "that much" finds none. -/
 theorem badThatMuchDoesNotReadCostLife :
     Ability.checkText (DRS.ofList []) [activated (payLife 2) (draw 1),
-        Primitives.Ability.spell none (gainLife thatMuch)]
+        spell (gainLife thatMuch)]
       = [.quantOutcomeInScope 0] := by decide
 
 end Semantics.Proofs.KeywordAbilityCensus

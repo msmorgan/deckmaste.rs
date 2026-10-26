@@ -81,8 +81,8 @@ theorem nestedDescriptionMovesOnlyItsOwnReferentWithoutOuterContext :
 private def authoringWitness : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Controller sacrifice witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none
-        (controllerSacrifices (target (Primitives.Predicate.coord .and [isArtifact, isCreature])))] } }
+      text := [spell
+        (controllerSacrifices (target (and [isArtifact, isCreature])))] } }
 
 theorem compositionPassesTheAuthoringBoundary :
     authoringWitness.authoring.onlyAuthored = true := by decide

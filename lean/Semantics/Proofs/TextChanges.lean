@@ -58,7 +58,7 @@ bracketed action. -/
 private def bracketedSpell : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Bracket witness", types := [.sorcery], cost := some [generic 2],
-      text := [cleave [generic 1, pip .blue, pip .blue], Primitives.Ability.spell none (bracketed (draw 1))] } }
+      text := [cleave [generic 1, pip .blue, pip .blue], spell (bracketed (draw 1))] } }
 
 /-- The authoring tree of a bracketed card records the `bracketed` call, for lowering to read. -/
 theorem bracketedCardRecordsTheCall :
@@ -72,7 +72,7 @@ theorem bracketedCardCoreIsUnbracketed :
     bracketedSpell.card = (spelled <| .singleFaced
       { characteristics :=
         { name := "Bracket witness", types := [.sorcery], cost := some [generic 2],
-          text := [cleave [generic 1, pip .blue, pip .blue], Primitives.Ability.spell none (draw 1)] } }).card := by
+          text := [cleave [generic 1, pip .blue, pip .blue], spell (draw 1)] } }).card := by
   rfl
 
 /-- Cleave's Text Change on a spell that prints no brackets removes nothing and still checks. -/

@@ -83,13 +83,13 @@ private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Body witness", types := [.sorcery],
       text := [spell
-      (onChosen (target isCreature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
+      (onChosen (target isCreature) (fun chosen => setStatus .tapped chosen))] } }
 theorem suppliedBodyCanNameTheTemplateSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
 private def aliasedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Aliased body witness", types := [.sorcery],
       text := [spell
-      (withSubjectBody (target isCreature) (fun subject => Primitives.Action.setStatus .tapped subject))] } }
+      (withSubjectBody (target isCreature) (fun subject => setStatus .tapped subject))] } }
 theorem bodyTypeAliasesRetainParameterEvidence : aliasedBodyParameter.card.check = [] := aliasedBodyParameter.ok
 private def nestedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
@@ -147,7 +147,7 @@ theorem amountTemplatesCanReuseAValue :
     (repeatedValueSum .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
 theorem quantityParameterPreservesOneCardinality :
     ((quantityFor 1).plur) = .one := by decide
-theorem zonesAcceptTemplateOwners : (graveyardFor Primitives.NounPhrase.you).check (DRS.ofList []) = [] := by decide
+theorem zonesAcceptTemplateOwners : (graveyardFor you).check (DRS.ofList []) = [] := by decide
 theorem costsAcceptTemplateValues : (lifeCost 1).check (DRS.ofList []) = [] := by decide
 theorem staticSpecsAcceptTemplateValues :
     (powerBoost (target isCreature) .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
@@ -192,7 +192,7 @@ theorem templateUseRemainsInsideRepetition :
         (.move (target isCreature) .anyLocation (some graveyard) .arrival [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
     (Amount.countOf (forwardedSubject (counted (exactly 2) isCreature))).check (DRS.ofList []) = [] := by decide
-theorem forwardedYouRemainsThePayer : (forwardedSubject Primitives.NounPhrase.you).isYou = true := by decide
+theorem forwardedYouRemainsThePayer : (forwardedSubject you).isYou = true := by decide
 theorem forwardedOpponentIsNotThePayer : (forwardedSubject anOpponent).isYou = false := by decide
 
 theorem firstMentionUsesTextualOrder :

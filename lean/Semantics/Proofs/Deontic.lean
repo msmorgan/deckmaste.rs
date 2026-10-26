@@ -410,7 +410,7 @@ control." The gated cost sits at the deontic clause's own intro, which is where 
 introduced. -/
 theorem okGatedCostReadsPayer :
     StaticSpec.check [letterB .x]
-      (.gatedBy (Primitives.Cost.scaled (.mana [generic 1])
+      (.gatedBy (scaled (.mana [generic 1])
             (times (.letter .x)
               (countOf (.and [isCreature, isAttacking, .hasPossessor .controller they])))) (.actor (allOf isCreature)) (.attack none) {}) = [] := by
   decide
@@ -418,14 +418,14 @@ theorem okGatedCostReadsPayer :
 /-- "{X} for each attacking creature": the same scaled cost with no read. -/
 theorem okBareScaledCost :
     Cost.check [letterB .x]
-      (Primitives.Cost.scaled (.mana [generic 1]) (times (.letter .x) (countOf (.and [isCreature, isAttacking])))) = [] := by
+      (scaled (.mana [generic 1]) (times (.letter .x) (countOf (.and [isCreature, isAttacking])))) = [] := by
   decide
 
 /-- The same cost written on its own: outside the clause there is no payer to read, and a cost
 carries no agent context of its own. -/
 theorem badBareCostReadsPayer :
     Cost.check [letterB .x]
-      (Primitives.Cost.scaled (.mana [generic 1])
+      (scaled (.mana [generic 1])
         (times (.letter .x) (countOf (.and [isCreature, isAttacking, .hasPossessor .controller they]))))
       = [.anaphor (.word .player) .one 0] := by
   decide

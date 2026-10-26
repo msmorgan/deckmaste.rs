@@ -21,7 +21,7 @@ private def withKeyword : Spelled := spelled <| .singleFaced
 private def withDraw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (draw 1)] } }
+      text := [spell (draw 1)] } }
 
 private def preeminentCaptainWithDefaults : Spelled := spelled <| singleFacedCard
   { name := "Preeminent Captain", cost := [generic 2, pip .white], types := [.creature],
@@ -54,21 +54,21 @@ example : Spelled := spelled <| rawKeywordCard
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (instruct .you (draw 1))] } }
+      text := [spell (instruct .you (draw 1))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.ownScope (some (.action "destroy")) (.draw (.exactlyOf 1)))] } }
+      text := [spell (.ownScope (some (.action "destroy")) (.draw (.exactlyOf 1)))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none
+      text := [spell
         (.ownScope (some (.action "destroy")) (.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.ownScope] -/
@@ -76,7 +76,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (Primitives.Action.sequentially
+      text := [spell (sequentially
         [.ownScope (some (.action "destroy")) (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival []])])] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Replacement.instead] -/
@@ -134,7 +134,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.instant], subtypes := [.spell "Adventure"],
-      cost := some [generic 1], text := [Primitives.Ability.spell none (draw 1)] } }
+      cost := some [generic 1], text := [spell (draw 1)] } }
 
 /-- error: Unknown identifier `Semantics.Primitives.Subtype.of` -/
 #guard_msgs in
@@ -171,14 +171,14 @@ example : CardType := Semantics.Primitives.CardType.mk "Artifact" true [] false
 private def sorceryWith (action : Action) : Card := .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none action] } }
+      text := [spell action] } }
 
 private def withCatalogItems : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (putCounters 1 p1p1Counter (target isCreature)),
-        Primitives.Ability.spell none (gainDesignation you monarch),
-        Primitives.Ability.spell none (relate this_ haunting (target isCreature))] } }
+      text := [spell (putCounters 1 p1p1Counter (target isCreature)),
+        spell (gainDesignation you monarch),
+        spell (relate this_ haunting (target isCreature))] } }
 
 theorem catalogItemsRecordAuthorship : withCatalogItems.authoring.onlyAuthored = true :=
   withCatalogItems.onlyAuthored

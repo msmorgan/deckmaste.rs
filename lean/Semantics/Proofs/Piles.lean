@@ -319,7 +319,7 @@ theorem removeOwnCounterKinds :
     Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some (.sameAs .you)) .you) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
-    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) 1 none)
+    Action.check (DRS.ofList []) (addTurnPart .upkeep 1 (some .mainPhase))
       = [] := by
   decide
 

@@ -185,9 +185,9 @@ of its abilities (`Ability.check` reads the body from an empty context), so a bo
 "it" finds nothing, while the same ability written on the card reads the card's mention. -/
 theorem keywordAbilityBodyCannotReadItsCard :
     let card : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
-    Ability.check card (.keyword (.named "flying") [] [Primitives.Ability.spell none (destroy it)]) =
+    Ability.check card (.keyword (.named "flying") [] [spell (destroy it)]) =
         [.anaphor .bare .one 0] ∧
-      Ability.check card (Primitives.Ability.spell none (destroy it)) = [] := by
+      Ability.check card (spell (destroy it)) = [] := by
   decide
 
 /-! ## The actor outside a handoff is the controller -/
@@ -300,7 +300,7 @@ theorem heatWaveHandoffTwin :
 /-- Killing Wave: "For each creature, its controller sacrifices it unless they pay X life." -/
 theorem killingWaveHandoffTwin :
     Action.check (DRS.ofList [])
-        (Primitives.Action.doForEach (each isCreature)
+        (doForEach (each isCreature)
           (instruct (controllerOf it)
             (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) = [] := by
   decide
@@ -635,7 +635,7 @@ publishes its body's outcomes as a group; only the handoff carries the total. -/
 theorem badForEachLossThatMuch :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.doForEach (each (.isOpponentOf .you)) (instruct they (loseLife 1)),
+        [ doForEach (each (.isOpponentOf .you)) (instruct they (loseLife 1)),
           gainLife .thatMuch ]) = [.quantOutcomeInScope 0] := by
   decide
 
