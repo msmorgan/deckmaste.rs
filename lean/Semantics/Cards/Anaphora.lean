@@ -630,7 +630,7 @@ def hijack : Spelled := spelled <| singleFacedCard
   { name := "Hijack", cost := [generic 1, pip .red, pip .red], types := [.sorcery],
     text :=
       [ spell (sequentially
-          [ gainControl (target (or [isArtifact, isCreature])) untilEndOfTurn (controller := you),
+          [ gainControl (target (or [isArtifact, isCreature])) untilEndOfTurn,
             untap it,
             gainHaste it untilEndOfTurn ]) ] }
 
@@ -643,8 +643,7 @@ def zidaneTantalusThief : Spelled := spelled <| singleFacedCard
     text :=
       [ when (does thisCreature enter)
           (sequentially
-            [ gainControl (target (and [isCreature, anOpponentControls])) untilEndOfTurn
-                (controller := you),
+            [ gainControl (target (and [isCreature, anOpponentControls])) untilEndOfTurn,
               untap it,
               establishFor it [abilityGrant it lifelink, abilityGrant it haste]
                 untilEndOfTurn ]),

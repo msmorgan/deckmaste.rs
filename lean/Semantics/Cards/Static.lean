@@ -493,7 +493,7 @@ def blatantThievery : Spelled := spelled <| singleFacedCard
     types := [.sorcery],
     text :=
       [ spell (doForEach eachOpponent
-          (gainControl (target (controlledBy (that player))) (controller := you))) ] }
+          (gainControl (target (controlledBy (that player))))) ] }
 
 /-- "activated abilities of <p> can't be activated" -/
 def cantActivateAbilitiesOf (p : Predicate) : StaticSpec :=

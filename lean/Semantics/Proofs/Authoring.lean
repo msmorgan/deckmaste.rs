@@ -33,6 +33,21 @@ theorem templateDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored 
 
 theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withDraw.ok
 
+private def preeminentCaptainWithDefaults : Spelled := spelled <| singleFacedCard
+  { name := "Preeminent Captain", cost := [generic 2, pip .white], types := [.creature],
+    subtypes := [kithkin, soldier],
+    text :=
+      [ firstStrike,
+        whenever (does thisCreature attack)
+          (may (putOntoBattlefieldTappedAttacking
+            (a (and [soldier, isCreature, in_ yourHand])))) ],
+    power := stat 2, toughness := stat 2 }
+
+theorem templateDefaultsAreAuthored :
+    preeminentCaptainWithDefaults.authoring.onlyAuthored = true ∧
+    Cards.helmOfPossession.authoring.onlyAuthored = true :=
+  ⟨preeminentCaptainWithDefaults.onlyAuthored, Cards.helmOfPossession.onlyAuthored⟩
+
 private def rawKeywordCard : Card := .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],

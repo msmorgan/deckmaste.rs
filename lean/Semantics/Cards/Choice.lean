@@ -1022,7 +1022,7 @@ def helmOfPossession : Spelled := spelled <| singleFacedCard
           (gainControl (target isCreature)
             (forAsLongAs
               (and [ is thisArtifact youControl,
-                      is thisArtifact isTapped ])) (controller := you)) ] }
+                      is thisArtifact isTapped ]))) ] }
 
 def override : Spelled := spelled <| singleFacedCard
   { name := "Override", cost := [generic 2, pip .blue], types := [.instant],

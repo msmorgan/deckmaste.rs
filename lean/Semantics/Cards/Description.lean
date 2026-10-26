@@ -76,7 +76,7 @@ theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by de
 /-- Mind Flayer -/
 def mindFlayer : Action :=
   gainControl (target isCreature)
-    (forAsLongAs (is thisCreature youControl)) (controller := you)
+    (forAsLongAs (is thisCreature youControl))
 theorem okMindFlayer : Action.check (DRS.ofList []) mindFlayer = [] := by decide
 
 /-- Arc Lightning -/

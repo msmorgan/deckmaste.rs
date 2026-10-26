@@ -1179,7 +1179,7 @@ semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase)
 /-- "put <subject> onto the battlefield tapped and attacking [<defender>]"; with no defender
 named, its controller chooses [CR#508.4]. -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
-    (from_ : Location := .anyLocation) (defender : Option NounPhrase := none) : Action :=
+    (from_ : Location := wherever) (defender : Option NounPhrase := none) : Action :=
   zoneChange subject battlefield from_ [(.entersAs .tapped), (.entersAttacking defender)]
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
@@ -1452,11 +1452,14 @@ semantic_template preventAllBy (source : NounPhrase) (to : NounPhrase)
 semantic_template replaceNextEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
   .establish (.replace clause replacement none .nextTimeOnly none) duration
+/-- "whoever performs this action" -/
+semantic_template theActor : NounPhrase := .actor
+
 /-- "[<controller>] gain[s] control of <subject> [duration]": the performer by default, so "gain
 control of target creature" and "target player gains control of …" (`instruct`) read alike
 [CR#613.1b]. -/
 semantic_template gainControl (subject : NounPhrase) (duration : Option Duration := none)
-    (controller : NounPhrase := .actor) : Action :=
+    (controller : NounPhrase := theActor) : Action :=
   .establish (.controlGrant controller subject) duration
 /-- "gain control of <subject> [from <from_>]" as an event or a forbidden act: "whenever an
 opponent gains control of a permanent from you", a trigger that looks back in time [CR#603.10d],
@@ -1630,9 +1633,6 @@ semantic_template withContinuation (policy : ContinuationPolicy) (body : Action)
     (ifDid : Option Action := none) (ifNot : Option Action := none) : Action :=
   .withContinuation policy body ifDid ifNot
 /-! ## The performer and the handoff -/
-
-/-- "whoever performs this action" -/
-semantic_template theActor : NounPhrase := .actor
 
 /-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
 semantic_template instruct (performer : NounPhrase) (body : Action) : Action :=
