@@ -22,8 +22,8 @@ theorem normalizeTypes_ext (xs ys : List CardType)
   intro t ht
   simp only [h t ht]
 
-theorem pureWritten (ts : List CardType) :
-    (ts.map Predicate.hasType).foldr (fun p acc => mergeTypes (p.seedTy 31) acc) [] =
+private theorem pureWrittenAt (fuel : Nat) (ts : List CardType) :
+    (ts.map Predicate.hasType).foldr (fun p acc => mergeTypes (p.seedTy (fuel + 1)) acc) [] =
       normalizeTypes ts := by
   induction ts with
   | nil => rfl
@@ -34,9 +34,13 @@ theorem pureWritten (ts : List CardType) :
     intro u hu
     simp [normalizeTypes_mem, hu]
 
+theorem pureWritten (ts : List CardType) :
+    (ts.map Predicate.hasType).foldr (fun p acc => mergeTypes (p.seedTy 31) acc) [] =
+      normalizeTypes ts := pureWrittenAt 30 ts
+
 theorem pureSeed (ts : List CardType) :
     Predicate.seedTy (.and (ts.map Predicate.hasType)) = normalizeTypes ts := by
-  exact pureWritten ts
+  exact pureWrittenAt 62 ts
 
 theorem pureTypePermutation (xs ys : List CardType) (h : xs.Perm ys) :
     Predicate.seedTy (.and (xs.map Predicate.hasType)) =

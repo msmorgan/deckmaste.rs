@@ -334,7 +334,7 @@ private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPatt
  (applyZoneMove { selected.1 with readsLastKnown := drs.readsLastKnown, handedOrigin := drs.handedOrigin }
    selected.2.1 drs.scopeDeed (some .graveyard)).withCaused drs .postEvent moveBody := by
  cases drs with
- | mk => simp only at ordinary; subst ordinary; rfl
+ | mk => simp only at ordinary; subst ordinary; cases fuel <;> rfl
 
 private def argumentPrefix (fresh : Nat) (names : List BindingId) : List Referent :=
  [ { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },

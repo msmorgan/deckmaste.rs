@@ -1363,7 +1363,7 @@ the cost is itself one plain payment ("Ward—Pay 5 life", "unless you pay 1 lif
 payment, made once: `pay (payLife 5)` is `payLife 5`, never a payment of a payment. Its Reference
 Scope (`inCaller`), its scaling ("for each age counter") and the other parts of a compound cost
 are kept. -/
-def _root_.Semantics.Cost.asPaid (cost : Cost) (fuel : Nat := 16) : Cost :=
+def _root_.Semantics.Cost.asPaid (cost : Cost) (fuel : Nat := 64) : Cost :=
   match fuel, cost with
   | _ + 1, .perform (.pay inner .once .paid none none) => inner
   | n + 1, .inCaller body => .inCaller (body.asPaid n)

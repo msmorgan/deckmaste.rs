@@ -9,14 +9,14 @@ Count and payload metadata for ordered groups and selections from them.
 
 namespace Semantics
 
-def Amount.exact (amount : Amount) (fuel : Nat := 32) : Option Nat :=
+def Amount.exact (amount : Amount) (fuel : Nat := 64) : Option Nat :=
   match fuel, amount with
   | n + 1, .inCaller body => body.exact n
   | _ + 1, .lit (.ofNat n) => some n
   | _, _ => none
 termination_by structural fuel
 
-def Quantity.exact (quantity : Quantity) (fuel : Nat := 32) : Option Nat :=
+def Quantity.exact (quantity : Quantity) (fuel : Nat := 64) : Option Nat :=
   match fuel, quantity with
   | n + 1, .inCaller body => body.exact n
   | _ + 1, .range (some low) (some high) => if low == high then some low else none

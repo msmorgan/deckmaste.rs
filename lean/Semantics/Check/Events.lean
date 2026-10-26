@@ -49,7 +49,7 @@ def Action.eventHeadOk (e : Action) : Bool := e.headGate Action.eventHead
 
 /-- Whether an event-capable action carries a quantity or magnitude that `TallyMode.quantity`
 can sum (`semantics-v3.md` §3.8). -/
-def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
+def Action.eventHasMagnitude (e : Action) (fuel : Nat := 64) : Bool :=
   match fuel, e with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .ownScope _ body => body.eventHasMagnitude n
@@ -65,7 +65,7 @@ structure EventFacts where
   deriving Repr, BEq
 
 /-- Event properties: whether the event carries a magnitude a tally can sum. -/
-def GameEvent.facts (ev : GameEvent) (fuel : Nat := 16) : EventFacts :=
+def GameEvent.facts (ev : GameEvent) (fuel : Nat := 64) : EventFacts :=
   match fuel, ev with
   | 0, _ => {}
   | n + 1, .inCaller body => body.facts n
@@ -75,7 +75,7 @@ def GameEvent.facts (ev : GameEvent) (fuel : Nat := 16) : EventFacts :=
   | _ + 1, .chapterMark .. | _ + 1, .stateBasedActionsChecked => {}
 termination_by structural fuel
 
-def GameEvent.scopeBody (ev : GameEvent) (fuel : Nat := 16) : GameEvent :=
+def GameEvent.scopeBody (ev : GameEvent) (fuel : Nat := 64) : GameEvent :=
   match fuel, ev with
   | 0, body => body
   | n + 1, .inCaller body => body.scopeBody n

@@ -24,7 +24,7 @@ def StaticSpec.scopeBody (s : StaticSpec) (fuel : Nat := 64) : StaticSpec :=
   | _, b => b
 termination_by structural fuel
 
-def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPhrase :=
+def Action.canonicalPatient (action : Action) (fuel : Nat := 64) : Option NounPhrase :=
   match fuel, action with
   | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
   | _ + 1, .move subject .. | _ + 1, .setStatus _ subject

@@ -100,7 +100,7 @@ theorem exhaustedTraversalRefuses :
       [.recursionLimit] := by decide
 
 theorem exhaustedWrapperRefuses :
-    (stepLocationWith (stepOps 64) (DRS.ofList []) hand 0).2 =
+    (stepLocationWith (stepOps 0) (DRS.ofList []) hand).2 =
       [.recursionLimit] := by decide
 
 /-! ## Put and return

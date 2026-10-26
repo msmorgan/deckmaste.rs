@@ -4,7 +4,7 @@ import Semantics.Check.CardFacts
 
 namespace Semantics
 
-def Predicate.seedTy (p : Predicate) (fuel : Nat := 32) : List CardType :=
+def Predicate.seedTy (p : Predicate) (fuel : Nat := 64) : List CardType :=
   match fuel, p with
   | 0, _ => []
   | n + 1, .inCaller body => body.seedTy n
@@ -20,14 +20,14 @@ termination_by structural fuel
 
 /-- Look through private scopes for structural predicate facts only. Context-sensitive
 checking and introductions still traverse the original scopes. -/
-def Predicate.scopeBody (p : Predicate) (fuel : Nat := 32) : Predicate :=
+def Predicate.scopeBody (p : Predicate) (fuel : Nat := 64) : Predicate :=
   match fuel, p with
   | 0, _ => p
   | n+1, .inCaller body => body.scopeBody n
   | _+1, body => body
 termination_by structural fuel
 
-def Predicate.flattenOne (p : Predicate) (fuel : Nat := 32) : List Predicate :=
+def Predicate.flattenOne (p : Predicate) (fuel : Nat := 64) : List Predicate :=
   match fuel, p with
   | 0, _ => []
   | n+1, .inCaller p => p.flattenOne n
@@ -38,7 +38,7 @@ termination_by structural fuel
 
 def Predicate.flatten (ps : List Predicate) : List Predicate := ps.flatMap (fun p => p.flattenOne)
 
-def Predicate.negatable (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.negatable (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.negatable n
   | _ + 1, .isPlayer | _ + 1, .chosen _ | _ + 1, .qualityNoun _ none
@@ -48,7 +48,7 @@ termination_by structural fuel
 
 /-- Whether a keyword's quality is "each <value>" as a whole (`Predicate.eachKind`), so that the
 keyword is one ability per value [CR#702.16h,702.16i]. -/
-def Predicate.isEachKind (predicate : Predicate) (fuel : Nat := 8) : Bool :=
+def Predicate.isEachKind (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.isEachKind n
   | _ + 1, .eachKind _ _ => true
@@ -68,7 +68,7 @@ def KindAxis.eachQualities? : KindAxis → Option (List Predicate)
   | _ => none
 
 /-- The axis and domain of an "each <value>" quality. -/
-def Predicate.eachKindOf? (predicate : Predicate) (fuel : Nat := 8) :
+def Predicate.eachKindOf? (predicate : Predicate) (fuel : Nat := 64) :
     Option (KindAxis × Option NounPhrase) :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.eachKindOf? n
@@ -87,14 +87,14 @@ def Ability.keywordInstances? : Ability → Option (List (KeywordLabel × Predic
     | none => some [(label, quality)]
   | _ => none
 
-def Predicate.says (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.says (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body | n + 1, .not body => body.says n
   | n + 1, .and predicates => predicates.any (fun p => p.says n)
   | _, _ => true
 termination_by structural fuel
 
-def Amount.read (amount : Amount) (fuel : Nat := 32) : Bool :=
+def Amount.read (amount : Amount) (fuel : Nat := 64) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.read n
   | _ + 1, .lit _ | _ + 1, .arith _ _ _ | _ + 1, .thatMuch | _ + 1, .chosenNumber _
@@ -103,21 +103,21 @@ def Amount.read (amount : Amount) (fuel : Nat := 32) : Bool :=
   | _, _ => true
 termination_by structural fuel
 
-def Condition.isAnd (condition : Condition) (fuel : Nat := 32) : Bool :=
+def Condition.isAnd (condition : Condition) (fuel : Nat := 64) : Bool :=
   match fuel, condition with
   | n + 1, .inCaller body => body.isAnd n
   | _ + 1, .and _ => true
   | _, _ => false
 termination_by structural fuel
 
-def Condition.isOr (condition : Condition) (fuel : Nat := 32) : Bool :=
+def Condition.isOr (condition : Condition) (fuel : Nat := 64) : Bool :=
   match fuel, condition with
   | n + 1, .inCaller body => body.isOr n
   | _ + 1, .or _ => true
   | _, _ => false
 termination_by structural fuel
 
-def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.uniquifies n
   | _ + 1, .chosen _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
@@ -128,7 +128,7 @@ def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def Predicate.hasOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.hasOther (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.hasOther n
   | _ + 1, .other | _ + 1, .otherThan _ => true
@@ -136,7 +136,7 @@ def Predicate.hasOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def Predicate.hasBareOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.hasBareOther (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.hasBareOther n
   | _ + 1, .other => true
@@ -145,7 +145,7 @@ def Predicate.hasBareOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
 termination_by structural fuel
 
 /-- Whether a noun phrase's own description prints a bare "another"/"other". -/
-def NounPhrase.hasBareOther (np : NounPhrase) (fuel : Nat := 8) : Bool :=
+def NounPhrase.hasBareOther (np : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, np with
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .headed _ body =>
     body.hasBareOther n
@@ -160,7 +160,7 @@ def NounPhrase.namesOpponent : NounPhrase → Bool
 
 /-- The controller restriction a description states: `some true` for "you control", `some false`
 for "an opponent controls", "your opponents control" or "you don't control". -/
-def Predicate.controlFact (predicate : Predicate) (fuel : Nat := 32) : Option Bool :=
+def Predicate.controlFact (predicate : Predicate) (fuel : Nat := 64) : Option Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.controlFact n
   | _ + 1, .hasPossessor .controller .you => some true
@@ -172,7 +172,7 @@ termination_by structural fuel
 
 /-- Whether a description says that an opponent controls it ("an opponent controls", "your
 opponents control"); "you don't control" does not. -/
-def Predicate.opponentControls (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.opponentControls (predicate : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.opponentControls n
   | _ + 1, .hasPossessor .controller who => who.namesOpponent
@@ -207,7 +207,7 @@ def DRS.definiteAntecedents (drs : DRS) (predicate : Predicate) : List Referent 
       conjuncts.all ref.admitsConjunct
 
 /-- The Choice reference a description's "chosen" names, if it says "chosen". -/
-def Predicate.chosenRef? (predicate : Predicate) (fuel : Nat := 32) : Option ChoiceRef :=
+def Predicate.chosenRef? (predicate : Predicate) (fuel : Nat := 64) : Option ChoiceRef :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.chosenRef? n
   | _ + 1, .chosen ref => some ref

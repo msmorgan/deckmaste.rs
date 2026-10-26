@@ -104,7 +104,7 @@ def MoveRider.checkAll (drs : DRS) (riders : List MoveRider) : List Refusal :=
 [CR#404.2], and a made pile the face it was given. The cards exiled with a source have no face of
 their own: exiled cards are kept face up by default [CR#406.3], and those exiled with a source
 are face down only if its linked ability exiled them so [CR#406.6,607.2a]. -/
-def Location.face (drs : DRS) (loc : Location) (fuel : Nat := 8) : Option PileFace :=
+def Location.face (drs : DRS) (loc : Location) (fuel : Nat := 64) : Option PileFace :=
   match fuel, loc with
   | 0, _ => none
   | n + 1, .fromEnd _ _ inner => inner.face drs n

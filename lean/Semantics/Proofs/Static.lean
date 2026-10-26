@@ -205,8 +205,15 @@ theorem conditionOverTooDeepReplacementIsRefused :
     StaticSpec.check (DRS.ofList [])
       (replace (would you (draw 1))
         (doIf (is you (hasDesignation citysBlessing))
-          (nestCallers 9 (instead (draw 2))))) = [.recursionLimit] := by
+          (nestCallers 64 (instead (draw 2))))) = [.recursionLimit] := by
   decide
+
+/-- The former replacement-helper limit of eight no longer rejects a readable replacement. -/
+theorem conditionOverNineCallerWrappersIsAccepted :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would you (draw 1))
+        (doIf (is you (hasDesignation citysBlessing))
+          (nestCallers 9 (instead (draw 2))))) = [] := by decide
 
 /-! ### What a replacement makes of its event
 

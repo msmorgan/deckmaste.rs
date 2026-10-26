@@ -9,14 +9,14 @@ namespace Semantics
 private def localRefuse (ok : Bool) (refusal : Refusal) : List Refusal :=
   if ok then [] else [refusal]
 
-def Amount.nonZero (amount : Amount) (fuel : Nat := 32) : Bool :=
+def Amount.nonZero (amount : Amount) (fuel : Nat := 64) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.nonZero n
   | _ + 1, .lit n => n != 0
   | _, _ => true
 termination_by structural fuel
 
-def Quantity.nonZero (quantity : Quantity) (fuel : Nat := 32) : Bool :=
+def Quantity.nonZero (quantity : Quantity) (fuel : Nat := 64) : Bool :=
   match fuel, quantity with
   | n + 1, .inCaller body => body.nonZero n
   | _ + 1, .range _ (some 0) | _ + 1, .worth 0 => false
@@ -24,7 +24,7 @@ def Quantity.nonZero (quantity : Quantity) (fuel : Nat := 32) : Bool :=
   | _, _ => true
 termination_by structural fuel
 
-def Quantity.literal (quantity : Quantity) (fuel : Nat := 32) : Bool :=
+def Quantity.literal (quantity : Quantity) (fuel : Nat := 64) : Bool :=
   match fuel, quantity with
   | n + 1, .inCaller body => body.literal n
   | _ + 1, .range _ _ => true
@@ -62,7 +62,7 @@ def ManaHeld.localChecks (drs : DRS) : ManaHeld → List Refusal
     localRefuse (n == 1) (.outcomeInScope .manaAdded n)
   | .unspent _ => []
 
-def Amount.forEach (amount : Amount) (fuel : Nat := 32) : Bool :=
+def Amount.forEach (amount : Amount) (fuel : Nat := 64) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.forEach n
   | _ + 1, .arith .times _ _ => true
@@ -102,7 +102,7 @@ def CounterKindSource.localChecks (drs : DRS) : CounterKindSource → List Refus
 
 def counterHolderKind (kind : Kind) : Bool := Kind.lte kind (.join .object .player)
 
-def Amount.unit (amount : Amount) (fuel : Nat := 32) : Bool :=
+def Amount.unit (amount : Amount) (fuel : Nat := 64) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.unit n
   | _ + 1, .lit 1 => true
@@ -175,7 +175,7 @@ def ifDoneArmed : Option Action → Option Action → Bool
   | none, none => false
   | _, _ => true
 
-def Quantity.modesFit (quantity : Quantity) (count : Nat) (fuel : Nat := 32) : Bool :=
+def Quantity.modesFit (quantity : Quantity) (count : Nat) (fuel : Nat := 64) : Bool :=
   match fuel, quantity with
   | n + 1, .inCaller body => body.modesFit count n
   | _ + 1, .range none none => true

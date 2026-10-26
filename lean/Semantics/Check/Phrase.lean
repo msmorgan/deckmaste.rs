@@ -44,14 +44,14 @@ def DetPhrase.det : DetPhrase → Determiner
   | .the _ => .the
   | .count _ _ => .count
 
-def Amount.plur (a : Amount) (fuel : Nat := 16) : Plurality :=
+def Amount.plur (a : Amount) (fuel : Nat := 64) : Plurality :=
   match fuel, a with
   | n + 1, .inCaller body => body.plur n
   | _ + 1, .lit 1 | _ + 1, .theNth _ => .one
   | _, _ => .many
 termination_by structural fuel
 
-def Quantity.plur (q : Quantity) (fuel : Nat := 16) : Plurality :=
+def Quantity.plur (q : Quantity) (fuel : Nat := 64) : Plurality :=
   match fuel, q with
   | 0, _ => .many
   | n + 1, .inCaller body => body.plur n
@@ -71,7 +71,7 @@ def SliceCount.plur : SliceCount → Plurality
   | .counted q => q.plur
   | .whole | .totalling .. => .many
 
-def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
+def Predicate.kind? (p : Predicate) (fuel : Nat := 64) : Option Kind :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .not body => body.kind? n
@@ -98,7 +98,7 @@ termination_by structural fuel
 
 def Predicate.kindOr (d : Kind) (p : Predicate) : Kind := p.kind?.getD d
 
-def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
+def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 64) : Option Kind :=
   match fuel, np with
   | 0, _ => some .object
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.kind? n
@@ -119,7 +119,7 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   | _ + 1, _ => some .object
 termination_by structural fuel
 
-def NounPhrase.kindIn (drs : DRS) (d : Kind) (np : NounPhrase) (fuel : Nat := 32) : Kind :=
+def NounPhrase.kindIn (drs : DRS) (d : Kind) (np : NounPhrase) (fuel : Nat := 64) : Kind :=
   match fuel, np with
   | 0, _ => d
   | n + 1, .inCaller body => body.kindIn (enterCaller drs) d n
@@ -132,7 +132,7 @@ def NounPhrase.kindIn (drs : DRS) (d : Kind) (np : NounPhrase) (fuel : Nat := 32
 termination_by structural fuel
 
 private def NounPhrase.selectionKindOverride? (phrase : NounPhrase)
-    (fuel : Nat := 32) : Option Kind :=
+    (fuel : Nat := 64) : Option Kind :=
   match fuel, phrase with
   | 0, _ => none
   | n+1, .inCaller body | n+1, .firstMention _ body | n+1, .laterMention _ body =>
@@ -148,7 +148,7 @@ def NounPhrase.selectedKind (phrase : NounPhrase) (drs : DRS)
   | some kind => kind
   | none => ((ids.head?.bind drs.findById?).map (·.kind)).getD (phrase.kindIn drs .object)
 
-def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
+def Predicate.seedZone (p : Predicate) (fuel : Nat := 64) : Option Zone :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body => body.seedZone n
@@ -167,7 +167,7 @@ def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
   | _ + 1, _ => none
 termination_by structural fuel
 
-def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
+def Predicate.seedsToken (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | 0, _ => false
   | n + 1, .inCaller body => body.seedsToken n
@@ -181,7 +181,7 @@ Definition's own Reference Scope header (`Action.ownDeed?`), the one deed it per
 core deed a dedicated head is (drawing, targeting [CR#121.1,115.1]). A bare move, status change
 or creation names none: a keyword action is written as its Definition, and "put" and "return"
 are ordinary English for a Zone Change [CR#400.7]. -/
-def Action.namedDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
+def Action.namedDeed (inst : Action) (fuel : Nat := 64) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
   | n + 1, .inCaller body => body.namedDeed n
@@ -207,7 +207,7 @@ reads back the objects that deed or move acted on in scope (`participialCandidat
 [CR#400.7,607.1,607.1c,607.2a]. -/
 
 /-- Whether `np` is the relative pronoun `which`, however wrapped. -/
-def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 8) : Bool :=
+def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, np with
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body
   | n + 1, .headed _ body => body.isWhich n
@@ -217,7 +217,7 @@ termination_by structural fuel
 
 /-- The Zone Change an action writes, when it moves something into a zone: the origin, if one
 is written, and the destination [CR#400.7]. -/
-def Action.writtenZoneChange? (inst : Action) (fuel : Nat := 8) : Option (Option Zone × Zone) :=
+def Action.writtenZoneChange? (inst : Action) (fuel : Nat := 64) : Option (Option Zone × Zone) :=
   match fuel, inst with
   | n + 1, .inCaller body => body.writtenZoneChange? n
   | _ + 1, .move _ from_ (some to) _ _ => to.sort.map (from_.sort, ·)
@@ -243,7 +243,7 @@ def DidClause.anchor? (clause : DidClause) : Option ParticipialAnchor :=
   | some _ => none
 
 /-- A predicate's conjuncts, through `inCaller` and nested `and`. -/
-def Predicate.conjuncts (p : Predicate) (fuel : Nat := 8) : List Predicate :=
+def Predicate.conjuncts (p : Predicate) (fuel : Nat := 64) : List Predicate :=
   match fuel, p with
   | n + 1, .inCaller body => body.conjuncts n
   | n + 1, .and ps => ps.flatMap (·.conjuncts n)
@@ -304,7 +304,7 @@ def DetPhrase.participialNumber? : DetPhrase → Option (Option Plurality)
 
 /-- `p` with each anchoring relative clause that writes no span given the span its description
 supplies: stepped as "this way" is, it looks back over nothing further. -/
-def Predicate.withAnchorSpan (p : Predicate) (fuel : Nat := 8) : Predicate :=
+def Predicate.withAnchorSpan (p : Predicate) (fuel : Nat := 64) : Predicate :=
   match fuel, p with
   | n + 1, .inCaller body => .inCaller (body.withAnchorSpan n)
   | n + 1, .and ps => .and (ps.map (·.withAnchorSpan n))
@@ -326,7 +326,7 @@ def NounPhrase.det (np : NounPhrase) (fuel : Nat := 64) : Option Determiner :=
   | _, _ => none
 termination_by structural fuel
 
-def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
+def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 64) : Plurality :=
   match fuel, np with
   | 0, _ => .one
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
@@ -363,7 +363,7 @@ termination_by structural fuel
 def NounPhrase.perMemberOk (np : NounPhrase) : Bool :=
   np.det == some .each || np.det == some .all || np.plur == .one
 
-def NounPhrase.anchorPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.anchorPhrase (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.anchorPhrase n
   | n + 1, .or alternatives => alternatives.all (·.anchorPhrase n)
@@ -374,7 +374,7 @@ def NounPhrase.anchorPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.groupMention n
   | _ + 1, .laterMention _ body => body.plur != .one
@@ -394,7 +394,7 @@ def NounPhrase.countableGroup (phrase : NounPhrase) : Bool :=
 /-- The subject of an existential ("if there is a …", "if two or more creatures are tied …"): a
 plain or counted indefinite, a coordination of them ("an instant card and a sorcery card"), or
 an Agreement over a counted or targeted group. -/
-def NounPhrase.existentialMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.existentialMention (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.existentialMention n
   | _ + 1, .agree _ _ group => group.det == some .count || group.det == some .target
@@ -403,7 +403,7 @@ def NounPhrase.existentialMention (phrase : NounPhrase) (fuel : Nat := 32) : Boo
   | _, _ => false
 termination_by structural fuel
 
-def NounPhrase.pileMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.pileMention (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
   | n + 1, .laterMention _ body => body.pileMention n
@@ -411,7 +411,7 @@ def NounPhrase.pileMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def NounPhrase.partitiveBase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.partitiveBase (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.partitiveBase n
   | _ + 1, .laterMention .. => true
@@ -421,7 +421,7 @@ termination_by structural fuel
 
 /-- A group of players written by description, read as a whole: "all players", "your opponents"
 ("all" over a description of players). Each member holds alone what the group is said to hold. -/
-def NounPhrase.playerGroupMention (phrase : NounPhrase) (fuel : Nat := 8) : Bool :=
+def NounPhrase.playerGroupMention (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body =>
     body.playerGroupMention n
@@ -443,7 +443,7 @@ def Predicate.headIsPlaceless (p : Predicate) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def Predicate.explicitZone (predicate : Predicate) (fuel : Nat := 32) : Option Zone :=
+def Predicate.explicitZone (predicate : Predicate) (fuel : Nat := 64) : Option Zone :=
   match fuel, predicate with
   | n + 1, .inCaller body => body.explicitZone n
   | _ + 1, .in_ zone => zone.sort
@@ -470,7 +470,7 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
   | n + 1, .headed _ body => body.eventAgentOk n
@@ -480,14 +480,14 @@ def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def NounPhrase.tokenPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.tokenPhrase (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body => body.tokenPhrase n
   | _ + 1, .described (.count _ _) predicate | _ + 1, .described (.a _) predicate => predicate.seedsToken
   | _, _ => false
 termination_by structural fuel
 
-def TokenSpec.eventSourceOk (spec : TokenSpec) (fuel : Nat := 32) : Bool :=
+def TokenSpec.eventSourceOk (spec : TokenSpec) (fuel : Nat := 64) : Bool :=
   match fuel, spec with
   | n + 1, .inCaller body => body.eventSourceOk n
   | _ + 1, .copyOf source _ => source.tokenPhrase
@@ -678,6 +678,16 @@ def markFromCondition (before : DRS) (result : DRS × List Refusal) : DRS × Lis
       if r.id ≥ before.nextId then { r with fromCondition := true } else r }, result.2)
 
 structure StepOps where
+  /-- Remaining checker depth, also used by the recursive stepping helpers. -/
+  fuel : Nat
+  quantity : DRS → Quantity → DRS × List Refusal
+  timing : DRS → Timing → DRS × List Refusal
+  location : DRS → Location → DRS × List Refusal
+  would : DRS → WouldClause → DRS × List Refusal
+  replacement : DRS → Replacement → Bool → DRS × List Refusal
+  rider : DRS → MoveRider → DRS × List Refusal
+  tokenMetadata : DRS → TokenSpec → DRS × List CardType × List Refusal
+  deckTrait : DeckTrait → List Refusal
   pred : DRS → Predicate → DRS × List Refusal
   np   : DRS → GramRole → Bool → NounPhrase → DRS × List ReferentId × List Refusal
   amt  : DRS → Amount → DRS × List Refusal
@@ -701,17 +711,16 @@ def otherAnchorOkWith (ops : StepOps) (drs : DRS)
         anchorTyFits headTypes anchorTypes
       | _ => true
 
-def stepQuantityWith (ops : StepOps) (drs : DRS) (q : Quantity) (fuel : Nat := 8) : DRS × List Refusal :=
-  match fuel, q with
+def stepQuantityWith (ops : StepOps) (drs : DRS) (q : Quantity) : DRS × List Refusal :=
+  match ops.fuel, q with
   | 0, _ => (drs, [.recursionLimit])
-  | n + 1, .inCaller body =>
-    let (callerDrs, errs) := stepQuantityWith ops (enterCaller drs) body n
+  | _ + 1, .inCaller body =>
+    let (callerDrs, errs) := ops.quantity (enterCaller drs) body
     (leaveCaller drs callerDrs, errs)
   | _ + 1, .range (some lo) (some hi) => (drs, if lo ≤ hi then [] else [.wellFormedQ])
   | _ + 1, .range _ _ | _ + 1, .worth _ | _ + 1, .theLast => (drs, [])
   | _ + 1, .upToOf a | _ + 1, .exactlyOf a | _ + 1, .moreThanOf a => ops.amt drs a
-  | n + 1, .additional q => stepQuantityWith ops drs q n
-termination_by structural fuel
+  | _ + 1, .additional q => ops.quantity drs q
 
 def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
   | .nameOfCard _ => .quality .cardName
@@ -725,7 +734,7 @@ def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
 def stepUsageLimitWith (ops : StepOps) (drs : DRS) : UsageLimit → DRS × List Refusal
   | .mk times _ => ops.amt drs times
 
-def NounPhrase.ascribableIn (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.ascribableIn (drs : DRS) (noun : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, noun with
   | n + 1, .inCaller body => body.ascribableIn (enterCaller drs) n
   | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.ascribableIn drs n
@@ -734,7 +743,7 @@ def NounPhrase.ascribableIn (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
   | _, _ => false
 
 /-- Whether a predicate requires a card [CR#109.2a]: `.isCard` itself or as a conjunct. -/
-def Predicate.demandsCard (p : Predicate) (fuel : Nat := 16) : Bool :=
+def Predicate.demandsCard (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | _ + 1, .isCard => true
   | n + 1, .inCaller body => body.demandsCard n
@@ -744,7 +753,7 @@ termination_by structural fuel
 
 /-- A bare pronoun read in a slot that demands `carrier`, narrowed to it
 (`semantics-v3.md` §1.5 `J1` item 4). -/
-def NounPhrase.narrowBareTo (carrier : SlotCarrier) (np : NounPhrase) (fuel : Nat := 16) :
+def NounPhrase.narrowBareTo (carrier : SlotCarrier) (np : NounPhrase) (fuel : Nat := 64) :
     NounPhrase :=
   match fuel, np with
   | _ + 1, .pro .bare pl => .pro (.atSlot carrier) pl
@@ -762,7 +771,7 @@ def Location.originCarrier? (from_ : Location) : Option SlotCarrier :=
   | some z => if isCardZone (some z) then some .card else none
   | none => none
 
-def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
+def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 64) :
     Option (Kind × Plurality × DRS) :=
   match fuel, noun with
   | n + 1, .inCaller body => body.restContext? (enterCaller drs) n
@@ -770,7 +779,7 @@ def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
   | _ + 1, .theRest plurality => some ((drs.restKind? plurality).getD .object, plurality, drs)
   | _, _ => none
 
-def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
+def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, np with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
   | n + 1, .laterMention _ body | n + 1, .headed (.type _) body
@@ -1022,8 +1031,8 @@ def stepDurationWith (ops : StepOps) (drs : DRS) (d : Duration) : DRS × List Re
   | .forAsLongAs c => ops.cond (nextClause drs) c
   | .modifiesPrecedingAction => (drs, [])
 
-def stepTimingWith (ops : StepOps) (drs : DRS) (tm : Timing) (fuel : Nat := 8) : DRS × List Refusal :=
-  match fuel, tm with
+def stepTimingWith (ops : StepOps) (drs : DRS) (tm : Timing) : DRS × List Refusal :=
+  match ops.fuel, tm with
   | 0, _ => (drs, [.recursionLimit])
   | _ + 1, .inPart _ whose turn =>
     let (drs1, errors) := match whose with
@@ -1036,22 +1045,21 @@ def stepTimingWith (ops : StepOps) (drs : DRS) (tm : Timing) (fuel : Nat := 8) :
   | _ + 1, .anyTiming => (drs, [])
   | _ + 1, .relativeToEvent _ ev | _ + 1, .whileDoing ev => ops.ev drs ev
   | _ + 1, .onlyIf c => ops.cond drs c
-  | n + 1, .not t =>
-    let (_, errs) := stepTimingWith ops drs t n
+  | _ + 1, .not t =>
+    let (_, errs) := ops.timing drs t
     (drs, errs)
-  | n + 1, .and ts =>
+  | _ + 1, .and ts =>
     ts.foldl (fun (d, es) t =>
-      let (d', e') := stepTimingWith ops d t n
+      let (d', e') := ops.timing d t
       (d', es ++ e')) (drs, [])
   -- Each alternative is stepped from the enclosing context, as a Condition's are, and only what
   -- every alternative introduces is kept (`commonHeaderContext`): one alternative's participant
   -- is no antecedent of the text after them (`semantics-v3.md` §1.3).
-  | n + 1, .or ts =>
+  | _ + 1, .or ts =>
     let (branches, errors) := ts.foldl (fun (branches, es) t =>
-      let (d', e') := stepTimingWith ops drs t n
+      let (d', e') := ops.timing drs t
       (branches ++ [d'], es ++ e')) ([], [])
     (commonHeaderContext drs branches, errors)
-termination_by structural fuel
 
 def stepLookbackSpanWith (ops : StepOps) (drs : DRS) (sp : LookbackSpan) : DRS × List Refusal :=
   match sp with
@@ -1078,16 +1086,16 @@ def stepZoneOwnerWith (ops : StepOps) (drs : DRS) (whose : Option NounPhrase) :
       refuse (actual == .player) (.kindMismatch .player actual)
     (drs', errs ++ kindErrors)
 
-def stepLocationWith (ops : StepOps) (drs : DRS) (z : Location) (fuel : Nat := 8) :
+def stepLocationWith (ops : StepOps) (drs : DRS) (z : Location) :
     DRS × List Refusal :=
-  match fuel, z with
+  match ops.fuel, z with
   | 0, _ => (drs, [.recursionLimit])
-  | n + 1, .inCaller body =>
-    let (callerDrs, errs) := stepLocationWith ops (enterCaller drs) body n
+  | _ + 1, .inCaller body =>
+    let (callerDrs, errs) := ops.location (enterCaller drs) body
     (leaveCaller drs callerDrs, errs)
   | _ + 1, .zone _ whose => stepZoneOwnerWith ops drs whose
-  | n + 1, .fromEnd _ ordinal loc =>
-    let (out, errs) := stepLocationWith ops drs loc n
+  | _ + 1, .fromEnd _ ordinal loc =>
+    let (out, errs) := ops.location drs loc
     (out, errs ++ refuse ordinal.ok .ordinalNonZero)
   | _ + 1, .exiledWith src =>
     let (out, _, errors) := ops.np drs .other false src
@@ -1099,23 +1107,22 @@ def stepLocationWith (ops : StepOps) (drs : DRS) (z : Location) (fuel : Nat := 8
   | _ + 1, .anyLocation => (drs, [])
   -- A negated location ("from anywhere other than your graveyard") introduces nothing the text
   -- after it reads, as a negated Timing or Condition does (`semantics-v3.md` §1.3, box 3).
-  | n + 1, .not loc =>
-    let (_, errs) := stepLocationWith ops drs loc n
+  | _ + 1, .not loc =>
+    let (_, errs) := ops.location drs loc
     (drs, errs)
   -- Alternative locations are stepped each from the enclosing context and keep only what every
   -- alternative introduces (`commonHeaderContext`), as alternative Conditions do; joined ones
   -- ("and", "and/or") are stepped in order.
-  | n + 1, .coord .or locs =>
+  | _ + 1, .coord .or locs =>
     let (branches, errs) := locs.foldl (fun (branches, es) loc =>
-      let (d', e') := stepLocationWith ops drs loc n
+      let (d', e') := ops.location drs loc
       (branches ++ [d'], es ++ e')) ([], [])
     (commonHeaderContext drs branches, errs ++ refuse (locs.length >= 2) .atLeastTwoZones)
-  | n + 1, .coord _ locs =>
+  | _ + 1, .coord _ locs =>
     let (out, errs) := locs.foldl (fun (d, es) loc =>
-      let (d', e') := stepLocationWith ops d loc n
+      let (d', e') := ops.location d loc
       (d', es ++ e')) (drs, [])
     (out, errs ++ refuse (locs.length >= 2) .atLeastTwoZones)
-termination_by structural fuel
 
 private def attachmentHostKindCheck (word : Option AttachWord) (kind : Kind) : List Refusal :=
   refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)) ++
@@ -1201,7 +1208,7 @@ private def eventActionRefusals (action : Action) : List Refusal :=
 
 /-- The classes of the event `inst` names (`EventVerb`), read through a keyword action's own
 Reference Scope and its deed to the event its expansion performs. -/
-def Action.eventVerbs (inst : Action) (fuel : Nat := 16) : List EventVerb :=
+def Action.eventVerbs (inst : Action) (fuel : Nat := 64) : List EventVerb :=
   match fuel, inst with
   | 0, _ => []
   | n + 1, .inCaller body | n + 1, .ownScope _ body => body.eventVerbs n
@@ -1273,7 +1280,7 @@ def Action.causedEvent (inst : Action) (performer patient : Option Kind) : Cause
 them: a keyword action's own Reference Scope, its deed, then the event its expansion performs
 ("sacrifice a creature": the sacrifice and the creature's move from the battlefield to a graveyard
 [CR#701.21a]). -/
-def Action.eventLayers (action : Action) (fuel : Nat := 8) : List Action :=
+def Action.eventLayers (action : Action) (fuel : Nat := 64) : List Action :=
   match fuel, action with
   | 0, _ => []
   | n + 1, .inCaller body => body.eventLayers n
@@ -1335,7 +1342,7 @@ def newlyCaused (before after : DRS) : List CausedEvent :=
 
 /-- The events `ev` triggers on, as a `triggering` lookback reads them back: an action event's,
 with its Actor's kind when its subject names one [CR#603.2]. -/
-def GameEvent.triggerEvents (ev : GameEvent) (fuel : Nat := 8) : List CausedEvent :=
+def GameEvent.triggerEvents (ev : GameEvent) (fuel : Nat := 64) : List CausedEvent :=
   match fuel, ev with
   | 0, _ => []
   | n + 1, .inCaller body | n + 1, .nthOccurrence _ _ body | n + 1, .causes _ body =>
@@ -1385,7 +1392,7 @@ def eventOrdinalRefusals : Option (Ordinal × Option Period) → List Refusal
     per.toList.flatMap fun period => refuse period.eventOrdinalOk (.eventOrdinalPeriod period)
 
 /-- Whether a move writes no origin ("is put into a graveyard"): its origin is anywhere. -/
-def Location.writesNoOrigin (loc : Location) (fuel : Nat := 16) : Bool :=
+def Location.writesNoOrigin (loc : Location) (fuel : Nat := 64) : Bool :=
   match fuel, loc with
   | n + 1, .inCaller body => body.writesNoOrigin n
   | _ + 1, .anyLocation => true
@@ -1585,24 +1592,23 @@ def stepCausingWith (ops : StepOps) (drs : DRS) (c : Causing) : DRS × List Refu
   | .event ev => ops.ev drs ev
   | .anEffect => (drs, [])
 
-def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : Nat := 8) : DRS × List Refusal :=
-  match fuel, wc with
+def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) : DRS × List Refusal :=
+  match ops.fuel, wc with
   | 0, _ => (drs, [.recursionLimit])
   | _ + 1, .would subj action =>
     stepActionClauseWith ops drs subj action .preEvent Action.eventHeadOk true
-  | n + 1, .wouldAny cs =>
+  | _ + 1, .wouldAny cs =>
     let (branches, errors) := cs.foldl (fun (branches, errors) c =>
-      let (out, errs) := stepWouldClauseWith ops drs c n
+      let (out, errs) := ops.would drs c
       (branches ++ [out], errors ++ errs)) ([], [])
     (commonHeaderContext drs branches, errors)
-  | n + 1, .causedBy cause clause =>
+  | _ + 1, .causedBy cause clause =>
     let (drs1, errors) := stepCausingWith ops drs cause
-    let (drs2, clauseErrors) := stepWouldClauseWith ops drs1 clause n
+    let (drs2, clauseErrors) := ops.would drs1 clause
     (drs2, errors ++ clauseErrors)
-  | n + 1, .nthOccurrence ordinal per clause =>
-    let (out, errors) := stepWouldClauseWith ops drs clause n
+  | _ + 1, .nthOccurrence ordinal per clause =>
+    let (out, errors) := ops.would drs clause
     (out, errors ++ eventOrdinalRefusals (some (ordinal, per)))
-termination_by structural fuel
 
 def stepCombatParticipationWith (ops : StepOps) (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
   match cp with
@@ -1794,7 +1800,7 @@ def Subtype.isAttachment (subtype : Subtype) : Bool :=
 
 /-- Whether an action, seen through its scope wrappers, attaches something [CR#701.3a]: "can't be
 enchanted" forbids an Aura's becoming attached. -/
-def Action.attaches (action : Action) (fuel : Nat := 16) : Bool :=
+def Action.attaches (action : Action) (fuel : Nat := 64) : Bool :=
   match fuel, action with
   | n + 1, .inCaller body | n + 1, .ownScope _ body => body.attaches n
   | _ + 1, .attachment .attached _ _ => true
@@ -1833,7 +1839,7 @@ end
 
 /-- The phrase naming what a clause that removes Attachments removes them from: the grant's
 subject, or the host a prohibition on attaching names. -/
-def StaticSpec.attachmentHost? (spec : StaticSpec) (fuel : Nat := 16) : Option NounPhrase :=
+def StaticSpec.attachmentHost? (spec : StaticSpec) (fuel : Nat := 64) : Option NounPhrase :=
   match fuel, spec with
   | n + 1, .inCaller body => body.attachmentHost? n
   | _ + 1, .characteristicChange subject _ => some subject
@@ -1846,7 +1852,7 @@ termination_by structural fuel
 
 /-- Whether a description names Attachments only: an Aura, Equipment or Fortification, or the
 attachment side of an attachment ("attached to it") [CR#701.3a]. -/
-def Predicate.namesAttachments (p : Predicate) (fuel : Nat := 16) : Bool :=
+def Predicate.namesAttachments (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | _ + 1, .hasSubtype subtype => subtype.isAttachment
   | _ + 1, .attachment .attachment _ _ => true
@@ -1857,7 +1863,7 @@ def Predicate.namesAttachments (p : Predicate) (fuel : Nat := 16) : Bool :=
 termination_by structural fuel
 
 /-- The hosts a description's "attached to …" names. -/
-def Predicate.attachmentHosts (p : Predicate) (fuel : Nat := 16) : List NounPhrase :=
+def Predicate.attachmentHosts (p : Predicate) (fuel : Nat := 64) : List NounPhrase :=
   match fuel, p with
   | _ + 1, .attachment .attachment _ (some host) => [host]
   | n + 1, .inCaller body => body.attachmentHosts n
@@ -1871,7 +1877,7 @@ creature"), and likewise "this Equipment" and "this Fortification" [CR#702.16n].
 names Attachments ("Auras", "Auras and Equipment you control"), and an "attached to …" in it
 reads the host back by an anaphor ("attached to it", "attached to those artifacts"), never a
 fresh mention [CR#702.16p]. -/
-def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 16) : Bool :=
+def NounPhrase.namesAttachmentsOf (subject host : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, subject with
   | n + 1, .inCaller body => body.namesAttachmentsOf host n
   | _ + 1, .headed (.subtype subtype) .this =>
@@ -1908,13 +1914,13 @@ def closeModalBox (before after : DRS) : DRS :=
     actionPattern := before.actionPattern
     groupSizeScope := before.groupSizeScope }
 
-def checkDeckTraitWith (ops : StepOps) (trait : DeckTrait) (fuel : Nat := 32) : List Refusal :=
-  match fuel, trait with
+def checkDeckTraitWith (ops : StepOps) (trait : DeckTrait) : List Refusal :=
+  match ops.fuel, trait with
   | 0, _ => [.recursionLimit]
   | _ + 1, .aCharacteristic predicate =>
     (ops.pred (DRS.ofList []) predicate).2 ++ kindCheck .object predicate.kind?
-  | n + 1, .anyOf traits =>
-    refuse (!traits.isEmpty) .nonEmpty ++ traits.flatMap (fun t => checkDeckTraitWith ops t n)
+  | _ + 1, .anyOf traits =>
+    refuse (!traits.isEmpty) .nonEmpty ++ traits.flatMap (fun t => ops.deckTrait t)
   | _, _ => []
 
 def checkDeckConditionWith (ops : StepOps) (condition : DeckCondition) : List Refusal :=
@@ -2102,7 +2108,7 @@ def stepRollRowListWith (ops : StepOps) (drs : DRS) (rows : List RollRow) : DRS 
     (d2, es ++ e1 ++ refuse q.nonZero .nonZeroQ ++ refuse q.literal .quantLiteral ++ e2))
       (drs, [])
 
-def Action.hasRepeatedPayment (action : Action) (fuel : Nat := 32) : Bool :=
+def Action.hasRepeatedPayment (action : Action) (fuel : Nat := 64) : Bool :=
   match fuel, action with
   | n + 1, .inCaller body | n + 1, .ownScope _ body =>
     body.hasRepeatedPayment n
@@ -2269,13 +2275,13 @@ def stepCopySourceWith (ops : StepOps) (drs : DRS) (source : NounPhrase) :
   let (read, ids, errors) := ops.np { drs with characteristicRead := true } .other false source
   ({ read with characteristicRead := drs.characteristicRead }, ids, errors)
 
-private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : MoveRider) : DRS × List Refusal :=
-  match fuel with
+def stepMoveRiderWith (ops : StepOps) (drs : DRS) (r : MoveRider) : DRS × List Refusal :=
+  match ops.fuel with
   | 0 => (drs, [.recursionLimit])
-  | fuel + 1 =>
+  | _ + 1 =>
    match r with
   | .inCaller body =>
-    let (out, errors) := stepMoveRiderFuel ops fuel (enterCaller drs) body
+    let (out, errors) := ops.rider (enterCaller drs) body
     (leaveCaller drs out, errors)
   | .entersAs _ | .entersTransformed | .entersMelded _ | .faceDown _ | .inOrder _ => (drs, [])
   | .entersAttacking (some defn) =>
@@ -2300,13 +2306,8 @@ private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : Move
       (.kindLte hostKind (.join .object .player)))
   | .not body =>
     -- Nothing under the negation is an antecedent.
-    let (_, errs) := stepMoveRiderFuel ops fuel drs body
+    let (_, errs) := ops.rider drs body
     (drs, errs ++ refuse drs.actionPattern .riderNegationPattern)
-
-termination_by structural fuel
-
-def stepMoveRiderWith (ops : StepOps) (drs : DRS) (r : MoveRider) : DRS × List Refusal :=
-  stepMoveRiderFuel ops 64 drs r
 
 def stepMoveRiderListWith (ops : StepOps) (drs : DRS) (mrs : List MoveRider) : DRS × List Refusal :=
   mrs.foldl (fun (d, es) mr =>
@@ -2316,7 +2317,7 @@ def stepMoveRiderListWith (ops : StepOps) (drs : DRS) (mrs : List MoveRider) : D
 /-- Whether `action` brings a permanent onto the battlefield, read through the wrappers that keep
 its event: a move there, or a token's creation [CR#111.1,614.1c]. Only an entering carries Entry
 Riders. -/
-def Action.isEntering (action : Action) (fuel : Nat := 8) : Bool :=
+def Action.isEntering (action : Action) (fuel : Nat := 64) : Bool :=
   match fuel, action with
   | 0, _ => false
   | _ + 1, .move _ _ to _ _ => to.bind (·.sort) == some .battlefield
@@ -2328,7 +2329,7 @@ termination_by structural fuel
 
 /-- Whether `action` is a delayed triggered ability, bare or under a condition with no other
 arm: what a Resolution Delayed Trigger creates [CR#608.3g]. -/
-def Action.createsDelayedTrigger (action : Action) (fuel : Nat := 8) : Bool :=
+def Action.createsDelayedTrigger (action : Action) (fuel : Nat := 64) : Bool :=
   match fuel, action with
   | 0, _ => false
   | _ + 1, .delay .. => true
@@ -2337,7 +2338,7 @@ def Action.createsDelayedTrigger (action : Action) (fuel : Nat := 8) : Bool :=
 termination_by structural fuel
 
 /-- Whether every event `clause` names is an entering. -/
-def WouldClause.isEntering (clause : WouldClause) (fuel : Nat := 8) : Bool :=
+def WouldClause.isEntering (clause : WouldClause) (fuel : Nat := 64) : Bool :=
   match fuel, clause with
   | 0, _ => false
   | _ + 1, .would _ action => action.isEntering
@@ -2348,7 +2349,7 @@ termination_by structural fuel
 /-- Whether `rider` is a Pile Placement, which only a card put into a zone other than the
 battlefield carries: its order there [CR#401.4], or its exile face down as a card with no
 characteristics [CR#406.3]. -/
-def MoveRider.isPilePlacement (rider : MoveRider) (fuel : Nat := 8) : Bool :=
+def MoveRider.isPilePlacement (rider : MoveRider) (fuel : Nat := 64) : Bool :=
   match fuel, rider with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .not body => body.isPilePlacement n
@@ -2385,34 +2386,32 @@ if one is written, in a new clause after it, as `sequentially` reads its next st
 reads what the action did; `withRiders` reads its riders, which must be
 Entry Riders over an entering; `onlyIf` reads its condition, then its body in a new clause after
 it, as `doIf` reads its then-branch. A caller's replacement is read in its caller's scope. -/
-def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesEntering : Bool)
-    (fuel : Nat := 8) : DRS × List Refusal :=
-  match fuel, r with
+def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesEntering : Bool) : DRS × List Refusal :=
+  match ops.fuel, r with
   | 0, _ => (drs, [.recursionLimit])
-  | n + 1, .inCaller body =>
-    let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body replacesEntering n
+  | _ + 1, .inCaller body =>
+    let (callerDrs, errs) := ops.replacement (enterCaller drs) body replacesEntering
     (leaveCaller drs callerDrs, errs)
   | _ + 1, .instead action | _ + 1, .alongside action => ops.inst .postEvent .obj drs action
-  | n + 1, .before action body =>
+  | _ + 1, .before action body =>
     let (drs1, e1) := ops.inst .postEvent .obj drs action
     match body with
     | none => (drs1, e1)
     | some body =>
-      let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesEntering n
+      let (drs2, e2) := ops.replacement (nextClause drs1) body replacesEntering
       (drs2, e1 ++ e2)
   | _ + 1, .withRiders riders =>
     let (out, errs) := stepMoveRiderListWith ops drs riders
     (out, errs ++ refuse replacesEntering .riddenEntering ++
       refuse (!riders.any (fun rider => rider.isPilePlacement)) .entryRidersOnly)
-  | n + 1, .onlyIf condition body =>
+  | _ + 1, .onlyIf condition body =>
     let (drs1, e1) := ops.cond drs condition
     let drs1 := markReplacementDomain drs drs1
-    let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesEntering n
+    let (drs2, e2) := ops.replacement (nextClause drs1) body replacesEntering
     -- An existential's domain is read in the replacement and closed after it, as `doIf` closes
     -- it (`semantics-v3.md` §1.3, box 2).
     ({ drs2 with referents := drs2.referents.filter fun ref =>
         !ref.existentialDomain || drs.referents.any (·.id == ref.id) }, e1 ++ e2)
-termination_by structural fuel
 
 def stepCharacteristicsWith (ops : StepOps) (drs : DRS) (c : Characteristics) : DRS × List Refusal :=
   let (out, errs) := [c.power, c.toughness, c.loyalty, c.defense].foldl
@@ -2429,12 +2428,11 @@ def stepCharacteristicBundleWith (ops : StepOps) (drs : DRS)
     let (d', e) := stepWrittenQualityWith ops d q
     (d', es ++ e ++ q.shape)) (out, errs)
 
-def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
-    (fuel : Nat := 64) : DRS × List CardType × List Refusal :=
-  match fuel, ts with
+def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec) : DRS × List CardType × List Refusal :=
+  match ops.fuel, ts with
   | 0, _ => (drs, [], [.recursionLimit])
-  | n + 1, .inCaller body =>
-    let (out, types, errors) := stepTokenSpecMetadataWith ops (enterCaller drs) body n
+  | _ + 1, .inCaller body =>
+    let (out, types, errors) := ops.tokenMetadata (enterCaller drs) body
     (leaveCaller drs out, types, errors)
   | _ + 1, .written bundle =>
     let (out, errors) := stepCharacteristicBundleWith ops drs bundle
@@ -2463,7 +2461,6 @@ def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
       | first :: rest => rest.foldl (fun acc (ref : Referent) => commonTypes acc ref.ty) first.ty
     let (out, exceptionErrors) := stepCopyExceptListWith ops selected exceptions
     (out, types, errors ++ exceptionErrors)
-termination_by structural fuel
 
 def stepCreationSpecMetadataWith (ops : StepOps) (drs : DRS)
     (spec : CreationSpec) : DRS × List CardType × List Refusal :=
@@ -2486,10 +2483,9 @@ def stepPlayPaymentWith (ops : StepOps) (drs : DRS) (pay : PlayPayment) : DRS ×
   | .payingInstead c | .plusAdditional c | .faceDown _ c | .transformed c =>
     let (paid, errs) := ops.cost drs c
     let pending := if paid.currentClause == drs.currentClause then drs.pendingRoles else []
-    let frames := if paid.scopeStack.length == drs.scopeStack.length then
-        List.zipWith (fun outer inner => { inner with callerPending := outer.callerPending })
-          drs.scopeStack paid.scopeStack
-      else paid.scopeStack
+    let frames := List.zipWith
+      (fun outer inner => { inner with callerPending := outer.callerPending })
+      drs.scopeStack paid.scopeStack
     ({ paid with pendingRoles := pending, scopeStack := frames }, errs)
 
 def stepDeltaWith (ops : StepOps) (drs : DRS) (d : Delta Amount) : DRS × List Refusal :=
@@ -2610,7 +2606,7 @@ def addedTargetContextWith (ops : StepOps) (drs : DRS) (description : Predicate)
 /-- The arms a Definition's body may take, each as one straight-line action: what it does if a
 player chooses to, or otherwise; if a condition holds, or otherwise. A Definition's body is read
 whole, as its bindings are, so its arms are the paths through it. -/
-def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
+def Action.arms (action : Action) (fuel : Nat := 64) : List Action :=
   match fuel, action with
   | n + 1, .sequentially steps =>
     let alternatives : List (List Action) := steps.map fun (step : Action) => step.arms n
@@ -2857,6 +2853,15 @@ def continuationStamped (before after : DRS) : List Referent :=
 
 def stepOps : Nat → StepOps
   | 0 => {
+      fuel := 0
+      quantity := fun drs _ => (drs, [.recursionLimit])
+      timing := fun drs _ => (drs, [.recursionLimit])
+      location := fun drs _ => (drs, [.recursionLimit])
+      would := fun drs _ => (drs, [.recursionLimit])
+      replacement := fun drs _ _ => (drs, [.recursionLimit])
+      rider := fun drs _ => (drs, [.recursionLimit])
+      tokenMetadata := fun drs _ => (drs, [], [.recursionLimit])
+      deckTrait := fun _ => [.recursionLimit]
       pred := fun drs _ => (drs, [.recursionLimit]),
       np   := fun drs _ _ _ => (drs, [], [.recursionLimit]),
       amt  := fun drs _ => (drs, [.recursionLimit]),
@@ -2870,6 +2875,15 @@ def stepOps : Nat → StepOps
   | fuel + 1 =>
     let ops := stepOps fuel
     {
+      fuel := fuel + 1
+      quantity := stepQuantityWith ops
+      timing := stepTimingWith ops
+      location := stepLocationWith ops
+      would := stepWouldClauseWith ops
+      replacement := fun drs replacement entering => stepReplacementWith ops drs replacement entering
+      rider := stepMoveRiderWith ops
+      tokenMetadata := stepTokenSpecMetadataWith ops
+      deckTrait := checkDeckTraitWith ops
       pred := fun drs p =>
         match p with
         | .inCaller body =>

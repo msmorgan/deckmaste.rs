@@ -1501,7 +1501,7 @@ end
 ("anywhere other than …") or anywhere; a "from anywhere" move is never a leaves-the-battlefield
 trigger [CR#603.6c]. Callers decide whether a move is observed on departure [CR#603.10a]
 (`Location.observedOnDeparture`). -/
-def Location.positiveZones? (loc : Location) (fuel : Nat := 16) : Option (List Location) :=
+def Location.positiveZones? (loc : Location) (fuel : Nat := 64) : Option (List Location) :=
   match fuel, loc with
   | 0, _ => none
   | n + 1, .inCaller body => body.positiveZones? n
@@ -1549,7 +1549,7 @@ namespace Semantics
 
 /-- The one zone a location is in, if it names one: a disjunction names a zone only when all its
 disjuncts name the same one ("on the top or bottom of your library"). -/
-def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
+def Location.sort (z : Location) (fuel : Nat := 64) : Option Zone :=
   match fuel, z with
   | 0, _ => none
   | n + 1, .inCaller body => body.sort n

@@ -357,11 +357,18 @@ structure Referent where
   so it projects out of the relative clause it is written in (`leaveRelative`). Its determiner
   (`.the`) decides every other read. -/
   attachmentHost  : Bool := false
+  /-- A resolving `choose` announced this target as a loop result. A target determiner alone
+  does not publish it: an ordinary mention or an optional branch stays local to the loop body
+  (`SelectionEvidence.ordinaryLocalsAndOptionalTargetsRemainClosed`; owner ruling 2026-10-25). -/
   announcedTargetResult : Bool := false
   /-- An object a "choose" announced or named as a target: what "the chosen creature" and "the
   chosen cards" read back (`Predicate.chosen`). A target is chosen as the spell is cast
   [CR#601.2c]; any other choice, while the effect applies [CR#608.2d]. -/
   chosenObject : Bool := false
+  /-- The loop body created this object after its event. A token mention is no creation, and a
+  later move replaces the create stamp [CR#400.7] without erasing the discourse fact that this
+  body created it. Loop abstraction retains its actual destination (`DrtCards`; owner ruling
+  2026-10-25). -/
   createdResult : Bool := false
   /-- Published to later abilities of the same text by the ability that acted on it
   (`Ability.textContext`): only a Participial Description with no span written reads it back,

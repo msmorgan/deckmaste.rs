@@ -12,6 +12,15 @@
 > `did`, `by`, `any`, `which`). The positional binding stack, its read windows and the
 > capture annotations that preceded the DRT checker are deleted.
 
+The checker's standard depth budget is 64. Every fuelled structural reader defaults to at
+least 64. Recursive stepping helpers use `StepOps.fuel` and recurse through its operations,
+so a quantity, timing, location, replacement, move rider or token description cannot start
+another independent depth allowance. Exhaustion refuses `recursionLimit`; the readers' fallback
+classifications never justify accepting a deeper term. No recursor or `SizeOf` is enabled on
+the mutual syntax block. `Proofs/CheckerFuel.lean` pins the kind, plurality, event-fact and
+number-slot reader boundaries, acceptance beyond the old helper limits, and mixed
+quantity/amount depth (owner ruling 2026-10-25).
+
 The Lean model is a prototype. Its authority is rules correctness and internal
 consistency, not compatibility with previous checker behavior. Tests that encode
 obsolete shapes or incorrect laws must be corrected with an explanation and
@@ -467,6 +476,16 @@ referent, for any outer context; `Proofs/DrtCards.lean` and `Proofs/DrtWitnesses
 pin corpus cards. These are reference-checking laws, not lowering or runtime
 object-identity proofs.
 
+Loop abstraction retains two per-referent discourse facts (owner ruling 2026-10-25):
+`announcedTargetResult` records what a resolving `choose` announced, and `createdResult` records
+what the body created after its event. A target determiner also occurs in ordinary local or
+optional mentions, which stay closed; token origin also occurs in a mere token mention, and a
+move replaces a create stamp [CR#400.7] while the creation remains a result of this body.
+`SelectionEvidence.ordinaryLocalsAndOptionalTargetsRemainClosed` and the creation-result pins in
+`Proofs/DrtCards.lean` establish these boundaries. `attachmentHost` is read only by `leaveRelative`
+to project a definite attachment host from its relative clause; its determiner decides its other
+reads. These flags are retained, rather than derived from current shape or moved off `Referent`.
+
 ## Controller as the subject of a sacrifice
 
 `controllerSacrifices subject` hands a `sacrifice` to the subject's controller:
@@ -618,6 +637,14 @@ looks of scry, surveil and fateseal with the slice's number, connive and airbend
 checked in its scope, Azog's amount read in the caller's view, a body that cannot read
 its caller, a keyword ability that cannot read its card). These are checker guarantees,
 not an execution proof.
+
+A play payment's cost returns with the enclosing scope stack's length unchanged. Its mentions
+are not arguments of the play: `stepPlayPaymentWith` restores each frame's `callerPending`
+from the matching incoming frame by `zipWith`, preserving the paid context's other frame fields.
+There is no unequal-length fallback. `Proofs/CheckerFuel.lean` pins scope balance for every cost
+constructor at zero, shallow and full fuel, across nested own/caller scopes, and pins restoration
+for all four cost-bearing payment forms without undoing caller-argument mutations
+(owner ruling 2026-10-25).
 
 ## Keyword abilities with no body
 
@@ -1519,7 +1546,7 @@ subject from_` (`gainControlOf`), with the player control is taken from when the
 control of" is `establish (controlGrant …)` [CR#611.2a,613.1b]. The pattern stamps its patient
 with `.core .gainControl`, as the grant does, so one Participial Description reads either.
 The grant records the same event the pattern names (`causedEvents`: the gain-control deed,
-class `controlChanged`, the grantee's kind as its Actor and the kind of what it takes), so
+the grantee's kind as its Actor and the kind of what it takes), so
 'If you gain control of a creature this way' reads it (`controlGrantRecordsItsCausedEvent`).
 `Proofs/Counters.lean`, `Proofs/Anaphora.lean` and `Proofs/EventPatterns.lean` pin these.
 
