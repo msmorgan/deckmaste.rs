@@ -69,7 +69,88 @@ and delete the Template:
 - `Proofs/Turn.lean:62`, `badHiddenCost` (already listed above).
 
 If a site still needs `.atSlot` after the narrowing, keep the Template, STOP and report the site.
-`itCard` (`Templates.lean:93`; Bioplasm `Cards/Anaphora.lean:420`, Vaevictis Asmadi `:784`) is
-not covered by this ruling: its carrier comes from a predicate ("if it's a creature card") or a
-card-zone origin, not from an action slot. Whether the stepper should narrow those too is an
-open owner question; leave `itCard` alone here.
+
+**Pattern and lookback moves do not narrow.** A pattern's patient is read after the event
+(`did (.move it (graveyardOf .you) (some battlefield) …)`, "if it entered from your graveyard",
+reads the permanent as it is now). Guard every narrowing in this ticket with
+`if drs.actionPattern then subj else …`; without it `lookingBackAtAnEntryKeepsTheCurrentReferent`
+(`Proofs/DrtCards.lean:177`) fails. Refusal rows of this ticket report the narrowed reach
+(`.atSlot .permanent`), not `.bare`.
+
+## Added 2026-10-25: narrow to the card carrier and retire `itCard`
+
+A bare `it` whose description demands "card", or the patient of a performed move whose written
+origin is a card zone, narrows to `.atSlot .card` [CR#109.2a], so `itCard` (`Templates.lean:92-93`)
+is retired. Built on a scratch copy on 2026-10-25; `lake build --wfail` passes (patch:
+`/tmp/claude-1000/-home-msmorgan-Projects-deckmaste-rs/4e5532ee-6640-4aad-9769-888a72f918d1/scratchpad/q12-itCard-narrowing.patch`).
+
+Add before `NounPhrase.restContext?` (`Check/Phrase.lean:735`):
+```lean
+/-- Whether a predicate requires a card [CR#109.2a]: `.isCard` itself or as a conjunct. -/
+def Predicate.demandsCard (p : Predicate) (fuel : Nat := 16) : Bool :=
+  match fuel, p with
+  | _ + 1, .isCard => true
+  | n + 1, .inCaller body => body.demandsCard n
+  | n + 1, .and ps => ps.any (·.demandsCard n)
+  | _, _ => false
+termination_by structural fuel
+
+/-- A bare pronoun read in a slot that demands `carrier`, narrowed to it
+(`semantics-v3.md` §1.5 `J1` item 4). -/
+def NounPhrase.narrowBareTo (carrier : SlotCarrier) (np : NounPhrase) (fuel : Nat := 16) :
+    NounPhrase :=
+  match fuel, np with
+  | _ + 1, .pro .bare pl => .pro (.atSlot carrier) pl
+  | n + 1, .inCaller body => .inCaller (body.narrowBareTo carrier n)
+  | n + 1, .firstMention id body => .firstMention id (body.narrowBareTo carrier n)
+  | n + 1, .laterMention id body => .laterMention id (body.narrowBareTo carrier n)
+  | _, np => np
+termination_by structural fuel
+
+/-- The carrier a move's written origin demands of its patient: a card zone, "card"
+[CR#109.2a]. -/
+def Location.originCarrier? (from_ : Location) : Option SlotCarrier :=
+  match from_.sort with
+  | some z => if isCardZone (some z) then some .card else none
+  | none => none
+```
+Narrow at:
+1. the `Condition.matches` arm (`Check/Phrase.lean:3510`), first line:
+   `let subj := if pred.demandsCard then subj.narrowBareTo .card else subj`;
+2. the `.not (.matches subj predicate)` arm (`:3575`), the same with `predicate`, before
+   `if subj.selfDefinedOk`;
+3. the `Action.move` arm (`:3941`), before `let (selected, refIds, e1) := ops.np readContext
+   patientRole true subj`:
+   ```lean
+   let subj := match from_.originCarrier? with
+     | some c => if drs.actionPattern then subj else subj.narrowBareTo c
+     | none => subj
+   ```
+
+Respell:
+- *Bioplasm* (`Cards/Anaphora.lean:420`, "If it's a creature card, …"): `def bioplasmCardTest :
+  Condition := is it (and [isCard, isCreature])`. Probed: it now marks the exiled card
+  (referent 3) a creature; bare `it` resolved to Bioplasm (referent 0) before.
+- *Vaevictis Asmadi, the Dire* (`:784`, "…then puts it onto the battlefield if it's a permanent
+  card"): `doIf (is it isPermanentCard) (putOntoBattlefield it)`. Probed: checks `[]`.
+- Delete `itCard` (`Templates.lean:92-93`).
+
+Docs: `lean/CONTRACTS.md:1303` ("*Bioplasm*'s `is itCard isCreature` …") → "`is it (and [isCard,
+isCreature])` … the bare pronoun narrowed to the card carrier its description demands
+[CR#109.2a]"; ADR `docs/decisions/semantics-v3.md` §1.5 `J1` item 4: a description demanding
+"card", and a performed move's written card-zone origin, narrow a bare pronoun; pattern and
+lookback moves do not.
+
+Pins:
+- Must stay green: `okBioplasmCardTest` (`Cards/Anaphora.lean:421`), `bioplasmTestKeepsCardSlot`
+  (`:482`; retitle its docstring to say the narrowed read finds the card),
+  `lookingBackAtAnEntryKeepsTheCurrentReferent` (`Proofs/DrtCards.lean:177`).
+- Rewritten: `callerConditionReadInItsOwnFrameLosesItsReferent` (`Proofs/CallerScope.lean:481-487`)
+  now expects `[.anaphor (.atSlot .card) .one 0]` instead of `[.anaphor .bare .one 0]`; the claim
+  (the referent is lost) is unchanged, and the payload names the carrier the slot demands.
+- Added, in `Proofs/Anaphora.lean`: `bareItInACardConditionReadsTheCard` (in Bioplasm,
+  `resolveCandidates (.atSlot .card) .one (nextClause bioplasmAfterExile)` is `[(3, some .exile)]`,
+  and after the condition referent 3 has `ty = [creature]`).
+
+Acceptance (both additions): `./lean/scripts/build` (`--wfail`); `grep -rn 'itCard\|itPermanent'
+lean/Semantics` is empty.

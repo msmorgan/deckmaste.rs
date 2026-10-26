@@ -111,8 +111,59 @@ Delete each; nothing calls them (`lean_references`, 2026-10-25):
   `Definitions/Keywords.lean:685` (encore), `:1264-1267` (myriad) and
   `Definitions/Actions.lean:705` (populate). Encore's `thatToken` readback and myriad's
   `.entersAttacking` rider must still check.
-- `createToken` and `createTappedToken` stay ("a tapped Fish" prints "tapped" before the noun).
-  Whether `createToken` should give way to a coercion is a separate owner question.
+- **`createToken`** (`Definitions/Actions.lean:572-574`, `create count (.written token)`) is
+  "create <count> <token>", the wording of `create` itself
+  (`create (count : Amount) (token : TokenSpec) (riders : List MoveRider := [])`,
+  `Definitions/Actions.lean:25-28`); it adds only `.written`, a default count and a swapped
+  argument order. Replace it with a coercion:
+  - Add `instance [AuthoringContext] : Coe CharacteristicBundle TokenSpec := ⟨written⟩` in
+    `Templates.lean` directly after the `written` Template (`:2100-2101`). No other coercion
+    into `TokenSpec` exists, and the predefined tokens (`foodToken`, `treasureToken`,
+    `clueToken`, `Definitions/Actions.lean:508,516,525`; `creatureToken`, `creatureTokenOf`,
+    `artifactCreatureToken`, `Definitions/Phrasings.lean:140-149`) are `CharacteristicBundle`s,
+    so they coerce.
+  - Rewrite every use: `createToken B` → `create 1 B`; `createToken B N` or
+    `createToken B (count := N)` → `create N B` (parenthesize a compound `N`). An anonymous
+    record `{ characteristics := … }` cannot coerce ("structure type expected TokenSpec"): write
+    `create 1 (written { … })` (or `create N (written { … })`). Re-indent a multi-line record so
+    its fields stay aligned; `Cards/Cost.lean:364-365` needs its `{` on its own line to parse.
+  - Sites ([n=…] a count other than 1; {} an anonymous record):
+    - `Cards/Anaphora.lean`: 310, 312, 314, 652, 711, 800
+    - `Cards/Choice.lean`: 24, 715[n=2]
+    - `Cards/Copy.lean`: 46{}
+    - `Cards/Cost.lean`: 50, 104[n=(letter .x)], 111, 261[n=3], 274[n=3], 364{} (re-indent), 637
+    - `Cards/Counters.lean`: 26, 274, 282, 1172, 1184
+    - `Cards/Damage.lean`: 335, 455[n=preventedThisWay], 856[n=thatMuch], 1439[n=2]
+    - `Cards/Deontic.lean`: 724{}
+    - `Cards/Description.lean`: 135[n=3], 222{}, 507[n=partySize], 515{}
+    - `Cards/Faces.lean`: 162, 356, 420, 606, 613{}
+    - `Cards/Keyword.lean`: 40, 75{}, 214, 292[n=groupSize]{}, 455[n=thatMuch], 546{}, 819{},
+      883, 1078[n=6], 1088{}, 1109[n=2]{}, 1149, 1163{}, 1325, 1567{}, 1596{}, 1807
+    - `Cards/Mana.lean`: 195[n=2]{}, 786, 1061
+    - `Cards/Piles.lean`: 137[n=(votesFor "numbers")]
+    - `Cards/Trigger.lean`: 178, 395{}, 477, 650, 779, 791, 800[n=2], 857[n=4], 992
+    - `Cards/Turn.lean`: 134[n=3]{}
+    - `Definitions/Actions.lean`: 670, 700, 712, 784{}
+    - `Definitions/Keywords.lean`: 216[n=(.inCaller amount)], 774[n=(.inCaller amount)], 836,
+      905, 908, 911, 1099, 1143
+    - `Proofs/Damage.lean`: 1250[n=preventedThisWay] (the count is on 1251)
+    - `Proofs/LinkedReadback.lean`: 468{}
+    - `Proofs/Lookback.lean`: 302, 313, 756
+  - Delete `createToken` with its docstring. The line numbers are as of `wmyykqnv`; the
+    Seraphic Greatsword and §5 edits above may shift `Cards/Keyword.lean` and
+    `Definitions/Actions.lean` lines, so find each site by `createToken`.
+  - Respell the two Templates that stay ("a tapped Fish" and "tapped and attacking" are their
+    own wordings) without raw constructors, same trees: `createTappedToken (token :
+    CharacteristicBundle) (count : Amount := 1) := create count token [entersAs .tapped]`
+    (`:576-578`) and `createTappedAttacking … := create count token [entersAs .tapped,
+    entersAttacking defender]` (`:580-581`, with the `defender` parameter added above).
+  - Add `tokenBundleCoercionIsWritten (t : CharacteristicBundle) (n : Amount) : create n t =
+    create n (written t) := rfl` to `Proofs/Authoring.lean` beside the coercion pins
+    (`:350-390`), and add the `CharacteristicBundle → TokenSpec` coercion, with the anonymous
+    record exception, to the coercion list in `lean/CONTRACTS.md:123-129`.
+  - Kernel terms are unchanged (`written` is `.written`), so every `ok…`, `decide` and `rfl` pin
+    stays green; only the retained `Authoring.Form` of spelled cards changes, and nothing asserts
+    it.
 
 ## 6. `exiledWithThisArtifact`
 
@@ -140,11 +191,6 @@ printed "card" where it is dropped:
   Transformation `:387`, Amphibian Downpour `:395`; "…with base power and toughness 1/1"):
   `getsPt it (setTo (.lit power)) (setTo (.lit toughness))` → `getsBase it (.lit power)
   (.lit toughness)` (`Templates.lean:1397`). Same tree.
-- `Definitions/Keywords.lean:1497` (reconfigure's unattach condition, "Activate only if this
-  permanent is attached to a creature" [CR#702.151a]):
-  `(is thisPermanent (.attachment .attachment none (some (a isCreature))))` →
-  `(is thisPermanent (attachedTo (a isCreature)))` (`Templates.lean:39`), if `attachedTo`
-  expands to that term; otherwise leave it and say so.
 - `theRingTemptsYou` (`Definitions/Actions.lean:727-773`):
   - `:751-752` write `and [isCreature, hasDesignation ringBearer, youControl]` twice for "your
     Ring-bearer" beside the local `ringBearers` (`:728`). "Ring-bearer" is a designation a
@@ -158,7 +204,8 @@ printed "card" where it is dropped:
 
 - `putInto`, `putOntoBattlefield`, `returnToBattlefield`, `returnToHand`, the fixed-rider
   `putOntoBattlefield*`/`returnToBattlefield*` Templates, `createToken`, `createTappedToken`,
-  `create`, Core `Action.move` and every checker module.
+  `create`, Core `Action.move` and every checker module. Reconfigure's body is
+  `lean-v3-keyword-body-spelling-gaps`'s, not this ticket's.
 - No card changes its printed verb except as listed. No pin is weakened.
 
 ## Pins
@@ -174,7 +221,6 @@ printed "card" where it is dropped:
   `okCreatureSpellFromAmongExiled`, `okSynodSanctumReturn`, `okMuseVesselPlay`,
   `okIceCauldronNotedMana`, `enchantedVanillaChangesOnlyItsAttachmentHost`
   (`Proofs/GetsBothDeltas.lean:260-264`), `okTheRingTemptsYou` (`Proofs/Keyword.lean:398`),
-  `reconfigureAnchorsOnTheSource` (`Proofs/ContrastAnchor.lean:107`), `Proofs/Keyword.lean:505`,
   `keywordBodiesKeepTheirActionDeeds` (`Proofs/Keyword.lean:551`).
 - Added: `persistReturnsWithACounter` and `undyingReturnsWithACounter` in `Proofs/Keyword.lean`,
   each a `decide` that the keyword's ability checks `[]`; `putTakesRiders` in
@@ -185,6 +231,6 @@ printed "card" where it is dropped:
 
 - `./lean/scripts/build` (`--wfail`), `cargo xtask lean check`.
 - `grep -rn 'putWith\|exiledWithThisArtifact\|createTokenCopy\|returnTo [^(]*battlefield'
-  lean/Semantics` and `grep -rnw 'random\|entersAttachedTo' lean/Semantics/Templates.lean` are
-  empty.
+  lean/Semantics` and `grep -rnw 'random\|entersAttachedTo' lean/Semantics/Templates.lean` and
+  `grep -rn '\bcreateToken\b' lean/Semantics` are empty.
 - CR citation gates.
