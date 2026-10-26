@@ -1,4 +1,5 @@
 import Semantics.Definitions
+import Semantics.Check.Card
 
 open Semantics Semantics.Templates Semantics.Definitions
 
@@ -189,5 +190,39 @@ theorem sourceDescriptionRecordsTheFlag :
       (bindFor .a .one .object (and [isSource, hasColor .red])).introducedAsSource = true ∧
       (bindFor .a .one .object isCreature).introducedAsSource = false := by
   decide
+
+private def departedSpell (origin : Zone := .stack) : Referent :=
+  { det := .target, plur := .one,
+    payload := .object [.instant] (some .graveyard)
+      (some (moveStamp (some (.action "counter")) (some origin) (some .graveyard))) none none }
+
+/-- A departed spell is readable as "spell" or a Spell Type only for information reads
+[CR#608.2h]; neither an action slot nor a Participial Description gets that exception. -/
+theorem departedSpellInformationReadOnly :
+    let ref := departedSpell
+    reachesCharacteristic (.word .spell) .one ref = true ∧
+      reachesCharacteristic (.word (.subtype (.spell "Arcane"))) .one ref = true ∧
+      reaches (.atSlot .spell) .one ref = false ∧
+      reaches (.word .spell) .one ref = false ∧
+      (participialCandidates (.deed (.action "counter")) (some .one) (some .spell) false
+        (DRS.ofList [ref])).isEmpty = true ∧
+      reachesCharacteristic (.word .spell) .one (departedSpell .hand) = false := by decide
+
+/-- Countering an already countered spell remains refused [CR#109.2b]. -/
+theorem badCounterDepartedSpell :
+    Action.check (DRS.ofList [])
+      (sequentially [counter (target isSpell), counter (that .spell)]) =
+        [.anaphor (.word .spell) .one 0] := by decide
+
+/-- A possessor read may explicitly name the departed spell [CR#608.2h]. -/
+theorem departedSpellsControllerIsReadable :
+    Action.check (DRS.ofList [])
+      (sequentially [counter (target isSpell),
+        instruct (controllerOf (that .spell)) (draw 1)]) = [] := by decide
+
+/-- A historical counter reads its departed spell; it performs no second counter [CR#608.2h]. -/
+theorem counteredThisWayReadsDepartedSpell :
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) (counter (target isSpell))).1
+    Condition.check (nextClause after) (did any (counter (that .spell)) thisWay) = [] := by decide
 
 end Semantics.Proofs.NounWords

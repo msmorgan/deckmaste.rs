@@ -355,12 +355,23 @@ checker guarantees; no engine history-query implementation is claimed.
 
 ## Reference resolution
 
+The former current-stack restriction on "spell" in characteristic and possessor reads is
+**superseded** (owner ruling 2026-10-24). `reachesCharacteristic` calls `stampedWordOk` with
+`characteristicRead := true`: "spell" and Spell Type words can read an object whose stamped
+Zone Change originated on the stack [CR#608.2h]. *Mana Drain*, *Spell Swindle* and
+*Essence Backlash* pin these reads. `participialCandidates` keeps the default false, and
+`slotZoneOk .spell` still requires the stack: countering the departed spell is refused.
+A historical counter pattern reads the spell that left its written stack origin, so
+"If that spell is countered this way" resolves its antecedent without performing a second counter.
+The unused `Location.face` and `zonePilesFixTheirFaces` pin are retired (owner ruling
+2026-10-25); `faceOfReach` and `Referent.face` still serve reference resolution.
+
 Every anaphoric `NounPhrase.pro` resolves against the visible referents of the
 current `DRS` (`resolveCandidates`, [Words.lean](Semantics/Check/Words.lean)). The
 accessibility filter (`J1`) admits a referent that no open Reference Scope masks
 (`DRS.visibleReferents`) and that the reach accepts (`reaches`: number, sort, carrier
 word and stamp; `reachesCharacteristic` while a characteristic is read, so a departed
-permanent's last known characteristics stay readable). A bare pronoun (`.bare`,
+permanent's or spell's last known characteristics and possessors stay readable). A bare pronoun (`.bare`,
 `.atSlot _`) then follows `D′`: in a direct argument slot it excludes the current
 clause's mentions (`J2`, `DRS.isClauseMate` over `pendingRoles`), keeps the nearest
 clause and the highest grammatical role (`GramRole.rank`: subject, object, other), and
@@ -432,7 +443,8 @@ way" and "the creature put onto the battlefield this way" read one creature
 (`returnedAndPutReadTheReturnedCard`, `returnedCreatureReadsThePermanentItIs`,
 `zoneChangeReadsItsWrittenOrigin`), of its number, named by the other conjuncts' Head Noun
 (`card`, a battlefield location as "permanent", Card Types: `stampedWordOk`) and in the zones
-they name now. "Card" reads the zone the object is in now; a Card Type or "permanent" reads the
+they name now. "Spell" in a Participial Description still requires the stack. "Card" reads
+the zone the object is in now; a Card Type or "permanent" reads the
 permanent it is, if it is on the battlefield now (one a move put there), or else the permanent it
 was when acted on, a departed one by its last known information [CR#608.2h], so "each permanent
 put into a graveyard this way" reads a destroyed permanent and no discarded card

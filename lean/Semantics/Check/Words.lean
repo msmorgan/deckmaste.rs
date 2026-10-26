@@ -1243,18 +1243,21 @@ def Reach.kind : Reach → Kind
 def stampedBy (v : Deed) (s : Stamp) : Bool := s.deeds.contains v
 
 /-- Whether `word` names a stamped object by what it was when its deed acted on it: a Card Type
-or "permanent" reads the permanent it is, if it is on the battlefield now (one a move put there:
-"the creature returned this way"), or else the permanent it was, a departed one by its last known
-information [CR#608.2h], while "card" and "spell" read the zone it is in now. -/
-def stampedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
-  | .ofType word t, st, ty, zn, og => stampedWordOk word st ty zn og && tyIs t ty
-  | .copied word, st, ty, zn, og => stampedWordOk word st ty zn og && isCopyOrigin og
-  | .type t, st, ty, zn, _ | .subtype (.of t _), st, ty, zn, _ =>
-    (st.wasField || onFieldZone zn) && tyIs t ty
-  | .card, _, _, zn, _ => isCardZone zn
-  | .spell, _, _, zn, _ | .subtype (.spell _), _, _, zn, _ => onStackZone zn
-  | .permanent, st, _, zn, _ => st.wasField || onFieldZone zn
-  | _, _, _, _, _ => false
+or "permanent" reads the permanent it is, if it is on the battlefield now, or the permanent it
+was. For characteristic and possessor reads only, "spell" also reads an object whose stamped
+Zone Change left the stack, by its last known information [CR#608.2h]. Participial Descriptions
+keep the current-zone requirement for "spell", as for "card". -/
+def stampedWordOk (word : NounWord) (st : Stamp) (ty : List CardType) (zn : Option Zone)
+    (og : Option Origin) (characteristicRead : Bool := false) : Bool :=
+  match word with
+  | .ofType word t => stampedWordOk word st ty zn og characteristicRead && tyIs t ty
+  | .copied word => stampedWordOk word st ty zn og characteristicRead && isCopyOrigin og
+  | .type t | .subtype (.of t _) => (st.wasField || onFieldZone zn) && tyIs t ty
+  | .card => isCardZone zn
+  | .spell | .subtype (.spell _) =>
+    onStackZone zn || (characteristicRead && st.zoneChange.any (onStackZone ∘ ZoneChange.origin))
+  | .permanent => st.wasField || onFieldZone zn
+  | _ => false
 
 def stampIs (v : Deed) : Option Stamp → Bool
   | none => false
@@ -1284,14 +1287,15 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
 
-/-- A characteristic read may name a departed permanent by its former type, by its last known
+/-- A characteristic or possessor read may name a departed spell by its stack origin or a
+departed permanent by its former type, by its last known
 information [CR#608.2h], also after a later move ("exile it. If you do, create a token that's a
 copy of that creature"). This changes accessibility, not the referent's current zone. -/
 def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   reaches r pl b || match r, b.payload with
     | .word w, .object ty zn (some st) og _ =>
       b.det != .self && pl.isOne == b.plur.isOne && st.moved &&
-        stampedWordOk w { st with wasField := st.wasField || st.leftField } ty zn og
+        stampedWordOk w { st with wasField := st.wasField || st.leftField } ty zn og true
     | _, _ => false
 
 /-- Stage 2 (`J2`): whether `id` is a clause-mate co-argument in the current clause. -/

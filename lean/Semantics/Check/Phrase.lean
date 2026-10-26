@@ -3997,8 +3997,11 @@ def stepOps : Nat → StepOps
           -- A move that writes no origin reads the one a grounded "this way" lookback handed it
           -- (`handedOrigin`, `DRS.thisWayRecordedOrigin`), for its patient alone.
           let handed := if from_.writesNoOrigin then drs.handedOrigin else none
+          -- A historical counter reads the spell that left its written stack origin,
+          -- even though the move observes its arrival in the graveyard [CR#608.2h].
           let readContext :=
-            if drs.actionPattern && Location.readsDepartedPermanent from_ at_ handed then
+            if drs.actionPattern && (Location.readsDepartedPermanent from_ at_ handed ||
+                from_.sort == some .stack) then
               { drs with readsLastKnown := true } else drs
           let subj := match from_.originCarrier? with
             | some carrier => if drs.actionPattern then subj else subj.narrowBareTo carrier

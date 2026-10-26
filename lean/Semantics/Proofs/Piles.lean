@@ -153,14 +153,6 @@ theorem badPileFaceAsAStatus :
 A library, a graveyard, "that pile" and the cards exiled with a source are one `Pile`; a slice
 or a run of one is an ordered group of its objects, which stay in their zone [CR#700.3c]. -/
 
-/-- A library is kept face down [CR#401.2] and a graveyard face up [CR#404.2]. The cards exiled
-with a source fix no face: exiled cards are face up by default [CR#406.3], and "exiled with" is
-whatever the linked ability exiled, face up or face down [CR#406.6,607.2a]. -/
-theorem zonePilesFixTheirFaces :
-    [Location.face (DRS.ofList []) (.zone .library none), Location.face (DRS.ofList []) (.zone .graveyard none),
-      Location.face (DRS.ofList []) (.exiledWith .this)]
-      = [some .faceDown, some .faceUp, none] := by decide
-
 /-- "Exile the top card of your graveyard.": a graveyard is ordered too [CR#404.2]. -/
 theorem okSliceOfAGraveyard :
     Action.check (DRS.ofList []) (exile (.slice .top 1 (.zone .graveyard (some .you)))) = [] := by

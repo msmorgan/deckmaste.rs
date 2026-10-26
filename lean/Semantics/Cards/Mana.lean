@@ -1066,4 +1066,39 @@ def varchildsWarRidersUpkeep : Ability :=
     (instruct anOpponent (create 1 (creatureToken 1 1 [.red] [survivor])))
 theorem okVarchildsWarRidersUpkeep : Ability.check (DRS.ofList []) varchildsWarRidersUpkeep = [] := by decide
 
+/-- Mana Drain: "Counter target spell. At the beginning of your next main phase, add an
+amount of {C} equal to that spell's mana value." The delayed read names the departed spell
+[CR#608.2h]. -/
+def manaDrain : Spelled := spelled <| singleFacedCard
+  { name := "Mana Drain", cost := [pip .blue, pip .blue], types := [.instant],
+    text := [spell (sequentially
+      [ counter (target isSpell),
+        delay (beginningOf .mainPhase (some you) (nextTime (some you)))
+          (addMana (statOf (.stat .manaValue) (that .spell)) (manaOf [[.colorless]])) ])] }
+
+/-- Spell Swindle: "Counter target spell. If that spell is countered this way, create X Treasure
+tokens, where X is that spell's mana value." [CR#608.2h] -/
+def spellSwindle : Spelled := spelled <| singleFacedCard
+  { name := "Spell Swindle", cost := [generic 3, pip .blue, pip .blue], types := [.instant],
+    text := [spell (sequentially
+      [ counter (target isSpell),
+        doIf (did any (counter (that .spell)) thisWay)
+          (sequentially [create (letter .x) treasureToken,
+            define .x (statOf (.stat .manaValue) (that .spell))]) ])] }
+
+/-- Essence Backlash: "Counter target creature spell. Essence Backlash deals damage equal to
+that spell's power to its controller." Both information reads name the departed spell
+[CR#608.2h]. -/
+def essenceBacklash : Spelled := spelled <| singleFacedCard
+  { name := "Essence Backlash", cost := [generic 2, pip .blue, pip .red], types := [.instant],
+    text := [spell (sequentially
+      [ counter (target (and [isCreature, isSpell])),
+        instruct thisSpell (dealDamage (statOf (.stat .power) (that .spell)) (controllerOf it)) ])] }
+
+theorem okManaDrain : manaDrain.card.check = [] := manaDrain.ok
+
+theorem okSpellSwindle : spellSwindle.card.check = [] := spellSwindle.ok
+
+theorem okEssenceBacklash : essenceBacklash.card.check = [] := essenceBacklash.ok
+
 end Semantics.Cards
