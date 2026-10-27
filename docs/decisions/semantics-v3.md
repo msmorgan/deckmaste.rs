@@ -614,15 +614,52 @@ printed wording); lowering finds the link from the same resolution, and game-tim
 
 ## 4. Roadmap and Ticket Decomposition
 
-The transition to `semantics-v3` is decomposed into the following ordered tickets in `docs/tickets/planned/`:
+The transition to `semantics-v3` is decomposed into the following ordered tickets in `docs/tickets/planned/` and `docs/tickets/wip/`:
 
 1. **`lean-v3-action-clause-spine`**: Relocate the `v2` Lean tree to an inert reference directory `lean/archive/SemanticsV2/` (outside `lakefile.toml`), set `lakefile.toml` to build only the syntax root (`roots = ["Semantics"]`, `defaultTargets = ["Semantics"]`), and refactor `lean/Semantics/` AST (`Words.lean`, `Phrase.lean`, `Events.lean`, `Triggers.lean`, `Abilities.lean`, `Rules.lean`, `MacroParameters.lean`) to introduce `Subject` (`actor`, `any`, `by`), `AnyValue` (`any : α`), `NounPhrase.which`, `instruct(subj, action)`, `does(subj, action)` (collapsing 17 action `GameEvent` constructors), `would(subj, action)` + `instead`, `cant`/`must`/`may`/`gatedBy`, and `did(subj, action, within)` + `tally`. Absorbs `lean-constructor-collapse` and `plugins-v2-menace-bound-helper`.
 2. **`lean-v3-drt-checker`**: Port `lean/Semantics/Check/` from `lean/archive/SemanticsV2/Check/` onto the `v3` AST, replacing `Bindings`, positional stack addresses, `Window`, `withBindings`, `CaptureInput`, `Refusal.unusedCapture`, and `MoveProfile`/`StepProfile` with the clean-sheet `DRS` (`ReferentId`, `Referent`, `GramRole`, `pendingRoles`, `OwnScopeFrame`, nested DRS boxes, `StepPhase.preEvent` vs `.postEvent`, `J1` accessibility, `J2` clause-mates, Principle A reflexives `NounPhrase.refl`, `D′` bare-pronoun resolution, and `AC>R1` demonstrative resolution), and add `"Semantics.Check"` to `roots` in `lakefile.toml`. Absorbs `lean-checker-binding-ids`.
 3. **`lean-v3-definitions-and-templates`**: Port `lean/Semantics/Macros.lean`, `Macros/Primitives.lean`, `Macros/Declared.lean`, and `Authoring.lean` from `lean/archive/SemanticsV2/` onto the `v3` AST and `DRS` checker, enforcing the explicit `Definition` vs. `Template` split, promoting atomic CR §701 keyword actions to `Definition`s (`ownScope` + `inCaller`), stripping outer `ownScope` on intrinsic `.enact`, retiring the 9 hand-coded window macros, resolving `airbend` (`[CR#701.65a]`, absorbing `semantics-v2-per-member-handoff`) and `ripple` (`[CR#702.60a]`), and adding `"Semantics.Macros"` and `"Semantics.Macros.Declared"` back to `roots` in `lakefile.toml`.
 4. **`lean-v3-proofs-and-cards`**: Port `lean/Semantics/Proofs/` and `lean/Semantics/Cards/` once from `lean/archive/SemanticsV2/` onto the finished `semantics-v3` spine, checker, and macros, restore `defaultTargets = ["Semantics", "SemanticsCards", "SemanticsProofs"]` in `lakefile.toml`, prove the `D′` and `AC>R1` witness lemmas, flip the 6 resolved ambiguity pins, prove the 11 `AC>R1` corpus-recency witness pins, and **delete `lean/archive/SemanticsV2/`**.
-5. **`semantics-v3-dsl-and-plugins`**: Create `crates/deckmaste_semantics_v3` and `plugins_v3/` (including the `v3` DSL parser/emitter for `Definition(...)` and `Template(...)` files, `any`, and the unified spine), re-point `xtask` (`lean`, `facts`) at `v3`, and **delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/`** (`plugins_v2/builtin/` deletes once its readers, `deckmaste_macro_def`, xtask `expansions.rs` and `plugins_v2_declarations.rs`, are repointed at `plugins_v3/`). Absorbs `lean-macros-cutover`, `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
-6. **`plugins-v3-canon`** (targeting `plugins_v3/`): Author the full canon card and rules-table corpus in `plugins_v3/`, gate-checked by Lean, and retire the hand-written `lean/Semantics/Cards/` bench (`lean-hand-bench-retirement`).
-7. **`lowering-v3`** (building `crates/deckmaste_lowering_v3`) and **`semantics-v3-parity`** (comparing `v1` vs. `v3`), culminating in **`semantics-v1-cutover`** (retiring `v1` and renaming `_v3` to the canonical names).
+5. **`semantics-v3-peer-files-and-toposort`**: Implement loose-bundle DAG loading (`load_bundle`), Kahn's topological sort with lexicographically ordered ready queue (`BTreeSet` by declaration name), cycle reporting, Genuine Lean 4 `{ field := val, ... }` brace-and-comma declarations, authoring coercions (`elabDomainList`, bare colors/mana, bare nouns, keyword term/label dispatch), and auto-wrapping (`inCaller`, `firstMention`/`laterMention`, `.ownScope`, `Ability.keyword`).
+6. **`semantics-v3-dsl-and-plugins`**: Create `crates/deckmaste_semantics_v3` with the balanced-delimiter reader for the Genuine Lean 4 `{ field := val, ... }` DSL, re-point `xtask` (`lean`, `facts`) at `v3`, and **delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/`** (`plugins_v2/builtin/` deletes once its readers, `deckmaste_macro_def`, xtask `expansions.rs` and `plugins_v2_declarations.rs`, are repointed at `plugins_v3/`). Absorbs `lean-macros-cutover`, `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
+7. **`plugins-v3-canon`** (targeting `plugins_v3/`): Author the full canon card and rules-table corpus in `plugins_v3/`, gate-checked by Lean, and retire the hand-written `lean/Semantics/Cards/` bench (`lean-hand-bench-retirement`).
+8. **`lowering-v3`** (building `crates/deckmaste_lowering_v3`) and **`semantics-v3-parity`** (comparing `v1` vs. `v3`), culminating in **`semantics-v1-cutover`** (retiring `v1` and renaming `_v3` to the canonical names).
+
+### 4.4 One Language: Genuine Lean 4 with `{ field := val, ... }` Brace-and-Comma Declarations
+
+Rather than an ad-hoc, indentation-sensitive pseudo-DSL or separate RON catalog files, all definitions, rules, templates, and cards use **Genuine Lean 4 with `{ field := val, ... }` brace-and-comma blocks**:
+
+- **Command macros:** `action`, `keyword`, `ability_word`, `counter`, `designation`, `subtype`, `card_type`, `relation`, `token`, `sba`, `conferral`, `template`, `card`.
+- **100% Valid Lean 4:** Every declaration elaborates directly in Lean 4 and is verified by `lake build`. Because the syntax uses balanced delimiters (`{ ... }`, `[ ... ]`, `( ... )`) with zero significant whitespace, the Rust parser in `crates/deckmaste_semantics_v3` is a small ~250-line balanced-delimiter reader.
+- **Unified 3-layer declaration blocks:** A single self-contained block unifies:
+  1. *Layer 2 lexical catalog fields* (`lemma`, `plural`, `verbs`, `nouns`, `adjectives`, `determinatives`, `bound` matching `crates/deckmaste_lexical_source/src/schema.rs`),
+  2. *Layer 3 `spelling := "..."` string templates* (the foundation for the Construction Grammar `deckmaste_spelling` crate), and
+  3. *`semantics_v3` meaning* (`body`, `confers`, `rules`),
+  retiring separate files such as `Counters.lean` + `Proofs/Rules.lean` and `Subtypes.lean` + `SubtypeRules.lean`.
+- **No `rule:` data field:** CR citations live in standard `--` comments (e.g. `-- [CR#701.47a]`) checked by `cargo xtask cite`.
+- **Derived keyword parameters:** The `parameters:` field is omitted on `keyword`; parameters are derived directly from the declaration's typed parameter signature and `spelling`.
+
+### 4.5 Loose-Bundle Topological DAG Loading and Authoring Coercions
+
+1. **Loose-Bundle Architecture (`plugins_v3/builtin/` and `plugins_v3/canon/`):**
+   - Declarations and cards live in loose bundles of categorized `.lean` files (`plugins_v3/builtin/` for definitions, rules, registries, and templates; `plugins_v3/canon/` for printed cards).
+   - **Nothing about the filename or folder is semantically significant.** Bundle files omit `import`, `namespace`, or `open` headers; a file may contain one or many declarations of any category in any order.
+   - Both the Lean bundle loader (`load_bundle`) and the Rust loader (`deckmaste_semantics_v3`) walk all `.lean` files in a bundle directory, extract `(decl_name, referenced_idents)`, and topologically sort **individual declarations** via Kahn's algorithm with a lexicographically ordered ready queue (`BTreeSet` by declaration name), reporting exact dependency cycles if any exist.
+   - The working spike preserved on bookmark `archive-semantics-v3-peer-files-and-toposort` (`lean/Semantics/BundleSpike.lean` calling `load_bundle "../plugins_v3/builtin"` and `load_bundle "../plugins_v3/canon"`) proves cross-folder mutual dependencies, intra-file forward references, and cycle detection.
+
+2. **Auto-Wrapping:**
+   - **Auto-`inCaller`:** Every parameter whose type implements `CallerScope` (`Amount`, `Cost`, `Predicate`, `Location`, `Quantity`, `Condition`, `Action`, `TokenSpec`, `MoveRider`, `Ballot`, plus `Option α` and `List α`) is automatically wrapped in `CallerScope.caller`.
+   - **Auto-`firstMention` / `laterMention`:**
+     1. Generated for `NounPhrase` parameters in `action` / `keyword` (wrapping `inCaller p`, with explicit `inCaller p` as opt-out).
+     2. Generated for multi-mentioned `NounPhrase` parameters ($\ge 2$ occurrences) in `template` (without `inCaller`, eliminating manual sites in `duringNextTurnOf`, `lookAndSortSlice`, `controllerSacrifices`).
+     3. Generated for multi-mentioned `theActor` ($\ge 2$ occurrences) in `action` (eliminating manual `.firstMention` sites in `fight`, `explore`, `connive`, `endure`).
+   - **Auto-`.ownScope` + `.deed` and auto-`Ability.keyword` + `<name>.label`:** Automatically applied on `action` and `keyword` respectively, pre-registering the keyword label so self-references (e.g. `hasKeyword flying` inside `flying` `[CR#702.9b]`, `hasKeyword suspend` inside `suspend` `[CR#702.62a]`) resolve directly without raw `.named` string literals.
+
+3. **Four Authoring Coercions / Top-Down Elaborators:**
+   - **Domain list literals (`[...]`):** Intercepted by `elabDomainList` after macro expansion so expected element types flow top-down into each element (`Action → sequentially`, `Predicate → Predicate.and`, `Condition → Condition.and`, `StaticSpec → conjunction`, `Cost → mana` or `compound`, `Option (List α) → some [...]`).
+   - **Colors & generic mana:** Bare color templates (`white`, `blue`, `black`, `red`, `green`), `Coe Color ManaSymbol := ⟨pip⟩`, `OfNat ManaSymbol n := ⟨generic n⟩`, `Coe Color ColorOrColorless := ⟨.of⟩`.
+   - **Bare nouns:** `creature`, `artifact`, `enchantment`, `land`, `planeswalker`, `battle`, `instant`, `sorcery`, `kindred`, `card`, `permanent`, `player`, `token`, `spell` dispatched top-down by expected type (`Predicate` vs `NounWord` vs `CardType`), plus `this` → `this_`, `Coe Characteristics CharacteristicBundle`, `Coe StaticSpec Ability := ⟨static⟩`.
+   - **Keyword names:** Direct references in `KeywordTerm` and `KeywordLabel` slots for both parameterless and parameterized keywords and self-references.
 
 ---
 

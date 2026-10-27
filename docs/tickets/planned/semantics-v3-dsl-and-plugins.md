@@ -1,19 +1,19 @@
 ---
-needs: [lean-v3-proofs-and-cards, lean-v3-authoring-surface, lean-v3-checker-and-drt-fixes, lean-v3-rules-and-card-fidelity, lean-v3-keyword-bodies-and-catalog-sync, lean-v3-proofs-and-docs-alignment, lean-v3-template-twins, lean-v3-exchange-through-definitions, lean-v3-authoring-default-leaks, lean-v3-registry-definition-rename, lean-v3-definition-parameter-identities, lean-v3-deontic-head-gate, lean-v3-control-grant-caused-event, lean-v3-text-word-sort, lean-v3-departure-observation-battlefield-only, lean-v3-partitive-rest-reads-its-kind, lean-v3-bare-pronoun-consuming-verb, lean-v3-shuffle-keeps-last-known, lean-v3-deed-duplicates, lean-v3-checker-fuel-and-flags, lean-v3-checker-runtime-state-audit, lean-v3-doif-otherwise-reads-condition-mentions, lean-v3-compare-over-bound-reads-member]
+needs: [semantics-v3-peer-files-and-toposort]
 ---
 # Create deckmaste_semantics_v3 and plugins_v3 mirroring the proven Lean v3 specification
 
 **Build `crates/deckmaste_semantics_v3` and `plugins_v3/` from the proven
-`lean/Semantics/` v3 specification, with explicit `Definition(...)` and
-`Template(...)` file wrappers and the Unified Action-Clause Spine.** Fifth
+`lean/Semantics/` v3 specification, with Genuine Lean 4 `{ field := val, ... }`
+brace-and-comma declaration blocks and the Unified Action-Clause Spine.** Sixth
 implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)
-(§0, §§1–4). Supersedes the `v2`-specific cleanup tickets `lean-macros-cutover`,
-`plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates` (with
-the Lean-side `Templates.lean` / `Definitions.lean` consolidation completed in
-[`lean-v3-authoring-impl-2-templates-and-definitions`](lean-v3-authoring-impl-2-templates-and-definitions.md)).
+(§0, §§1–4). Follows [`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md),
+which establishes loose-bundle DAG loading and topological sorting into Lean.
+Supersedes the `v2`-specific cleanup tickets `lean-macros-cutover`,
+`plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
 Standard constraints apply.
 
-## Decisions already made (`docs/decisions/semantics-v3.md` §0, §§1–3)
+## Decisions already made (`docs/decisions/semantics-v3.md` §0, §§1–4)
 
 - **Lean-first authority:** `crates/deckmaste_semantics_v3` mirrors the proven
   `lean/Semantics/` v3 types (`Subject`, `AnyValue` / `any`, `NounPhrase.which`,
@@ -25,30 +25,28 @@ Standard constraints apply.
     `enterOwnScope` / `inCaller` / `leaveOwnScope`, `firstMention` /
     `laterMention` (`List ReferentId`), `StepPhase.preEvent` vs `.postEvent`,
     and the `J1`, `J2`, `D′`, and `AC>R1` resolution gates.
-- **`Definition(...)` vs. `Template(...)` DSL files in `plugins_v3/`:**
-  - Every file in `plugins_v3/` declares its role via its top-level wrapper
-    (`Definition(...)` vs `Template(...)`), never by directory path:
-    - `Definition(...)` wraps all CR §701 keyword actions (atomic and
-      composite), CR §702 keyword abilities, and registry definitions
-      (`CounterKind`, `Subtype`, `Designation`, `Relation`, `AbilityWord`,
-      `FlavorWord`, `TurnPart`, `Type`), expanding with `ownScope` + `inCaller` +
-      parameter identity (`firstMention`/`laterMention`).
-    - `Template(...)` wraps all reusable Oracle phrasing helpers and constructor
-      aliases, expanding transparently in the caller's DRS scope while emitting
-      `firstMention`/`laterMention` whenever a `NounPhrase` parameter is
-      mentioned $>1$ time before a zone change.
-  - Evaluate whether a small purpose-built `v3` DSL parser (`deckmaste_dsl_v3`)
-    replaces `macro_ron` so `Definition(...)`, `Template(...)`, polymorphic
-    `any`, `which`, bare numerals, and positional/named arguments parse and
-    format directly without RON's one-embed-per-enum and struct/vec injection
-    restrictions.
-- **`xtask lean` gates on `v3` and `v2` retirement (completed with [`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md)):**
-  - All `Template(...)` and `Definition(...)` declarations in `plugins_v3/` live
-    as loose peer files and are topologically sorted by declaration dependency
-    to emit Lean declarations in proving order for `cargo xtask lean check`
-    ([`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md);
-    `cargo xtask lean definitions` is retired per `docs/decisions/semantics-v3.md`
-    §2).
+- **One language: Genuine Lean 4 `{ field := val, ... }` brace-and-comma declarations:**
+  - Every declaration lives as a loose file in `plugins_v3/` (`plugins_v3/builtin/`
+    for definitions, rules, registries, and templates; `plugins_v3/canon/` for printed cards).
+  - Command macros: `action`, `keyword`, `ability_word`, `counter`, `designation`,
+    `subtype`, `card_type`, `relation`, `token`, `sba`, `conferral`, `template`, `card`.
+  - Every declaration uses `{ field := val, ... }` brace-and-comma blocks — 100% valid
+    Lean 4 checked by `lake build`, and zero-significant-whitespace so the Rust parser
+    in `deckmaste_semantics_v3` is a ~250-line balanced-delimiter reader.
+  - Self-contained declarations unify Layer 2 lexical catalog fields (`lemma`, `plural`,
+    `verbs`, `nouns`, `adjectives`, `determinatives`, `bound` matching
+    `crates/deckmaste_lexical_source/src/schema.rs`), Layer 3 `spelling := "..."` string
+    templates (the foundation for the CxG `deckmaste_spelling` crate), and `semantics_v3`
+    meaning (`body`, `confers`, `rules`) in a single declaration block (retiring separate
+    `Counters.lean` + `Proofs/Rules.lean`, `Subtypes.lean` + `SubtypeRules.lean`, etc.).
+  - No `rule:` data field — CR citations live in `--` comments (e.g. `-- [CR#701.47a]`) checked by
+    `cargo xtask cite`.
+  - No separate `parameters:` field on `keyword` — derived from the declaration's typed
+    parameter signature and `spelling`.
+- **Loose-bundle DAG loading and topological sorting:**
+  - Handled by Kahn's algorithm with a lexicographically ordered ready queue (`BTreeSet`
+    by declaration name), proven in `semantics-v3-peer-files-and-toposort`.
+- **`xtask lean` gates on `v3` and `v2` retirement:**
   - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
     this cutover (the pre-v4 `deckmaste_lexical_source` was deleted in
     `english-v4-cutover-v3`, and the MTG lexical catalogs move into

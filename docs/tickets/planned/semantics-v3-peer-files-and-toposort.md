@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-dsl-and-plugins]
+needs: [lean-v3-proofs-and-cards, lean-v3-authoring-surface, lean-v3-checker-and-drt-fixes, lean-v3-rules-and-card-fidelity, lean-v3-keyword-bodies-and-catalog-sync, lean-v3-proofs-and-docs-alignment, lean-v3-template-twins, lean-v3-exchange-through-definitions, lean-v3-authoring-default-leaks, lean-v3-registry-definition-rename, lean-v3-definition-parameter-identities, lean-v3-deontic-head-gate, lean-v3-control-grant-caused-event, lean-v3-text-word-sort, lean-v3-departure-observation-battlefield-only, lean-v3-partitive-rest-reads-its-kind, lean-v3-bare-pronoun-consuming-verb, lean-v3-shuffle-keeps-last-known, lean-v3-deed-duplicates, lean-v3-checker-fuel-and-flags, lean-v3-checker-runtime-state-audit, lean-v3-doif-otherwise-reads-condition-mentions, lean-v3-compare-over-bound-reads-member]
 ---
 # Peer loose files for Templates and Definitions with topological sort into Lean
 
@@ -10,17 +10,17 @@ proving order for Lean (`cargo xtask lean check`).** Standard constraints apply.
 ## Problem
 
 In the hand-layered Lean workbench (`lean/Semantics/`), authored declarations
-are partitioned across a fixed module import chain:
+were partitioned across a fixed module import chain:
 
 `Templates.lean` → `Definitions/Phrasings.lean` → `Definitions/Actions.lean` → `Definitions/Keywords.lean` → `Definitions/CardTypeRules.lean`
 
 Because Lean requires every referenced symbol to be declared earlier in the
-import graph (or earlier in the same file), this fixed module boundary gets in
+import graph (or earlier in the same file), this fixed module boundary got in
 the way of ergonomic authoring:
 
 1. **Templates split across four modules by what they call:** A `Template` that
    composes over a CR §701 `Definition` ([CR#701.1]) or CR §702 `Definition`
-   ([CR#702.1]) cannot live in `Templates.lean`. That forced a separate
+   ([CR#702.1]) could not live in `Templates.lean`. That forced a separate
    `Definitions/Phrasings.lean` module plus `/-! ## Templates over Definitions -/`
    sections inside `Definitions/Actions.lean` (`destroyCantRegenerate`,
    `exileUntilLeaves`, `mayCastExiled`, `controllerSacrifices`, `doesntUntap`,
@@ -28,78 +28,93 @@ the way of ergonomic authoring:
    and `Definitions/Keywords.lean` (`castWithSplice`, `hasProtectionFromEach`,
    `typedCycling`).
 2. **Action Definitions unable to reference Keyword Definitions:** Because
-   `Definitions/Actions.lean` is imported by `Definitions/Keywords.lean`, a
-   keyword action whose CR rule references a keyword ability cannot refer to
-   that keyword's `Definition` and must drop down to a raw `.named` string:
-   - `earthbend` (`Definitions/Actions.lean:445`, [CR#701.66a], *"Target land
-     you control becomes a 0/0 creature with haste…"*) writes
-     `gains (.named "haste") ...` instead of `gains haste ...`.
-   - `timeTravel` (`Definitions/Actions.lean:622`, [CR#701.56a], *"each
-     suspended card you own…"*) writes `withKeyword (.named "suspend")` instead
-     of `withKeyword suspend`.
-3. **Manual intra-file declaration ordering:** Authors must manually order
-   helper templates and definitions within each file before any caller that uses
+   `Definitions/Actions.lean` was imported by `Definitions/Keywords.lean`, a
+   keyword action whose CR rule references a keyword ability could not refer to
+   that keyword's `Definition` and had to drop down to a raw `.named` string:
+   - `earthbend` (`Definitions/Actions.lean:649`, [CR#701.66a], *"Target land
+     you control becomes a 0/0 creature with haste…"*) wrote
+     `.addedAbilities [keyword (.named "haste")]` instead of referencing `haste`
+     directly.
+   - `timeTravel` (`Definitions/Actions.lean:750`, [CR#701.56a], *"each
+     suspended card you own…"*) wrote `hasKeyword (.named "suspend")` instead
+     of referencing `suspend` directly.
+3. **Manual intra-file declaration ordering:** Authors had to manually order
+   helper templates and definitions within each file before any caller that used
    them.
 
 ## Design
 
-1. **Loose peer files (`Template(...)` and `Definition(...)`):**
-   - Every `Template` and every `Definition` (CR §701 keyword actions
-     [CR#701.1], CR §702 keyword abilities [CR#702.1], and
-     `RegistryDefinition`s for counters, subtypes, designations, relations,
-     card types, and flavor words) lives as a loose file in `plugins_v3/`.
-   - All `Template` and `Definition` files are peers in one flat declaration
-     namespace. A file's role is determined solely by its top-level wrapper
-     (`Template(...)` vs `Definition(...)`, `docs/decisions/semantics-v3.md`
-     §2), never by directory path or module layer:
-     - Any `Template` may reference any `Definition` or `Template`.
-     - Any `Definition` (including an action `Definition` such as `earthbend` or
-       `timeTravel`) may reference any other `Definition` (such as `haste` or
-       `suspend`) or `Template`.
+1. **Loose peer files in `plugins_v3/` (`plugins_v3/builtin/` and `plugins_v3/canon/`):**
+   - Declarations and cards live in loose bundles of categorized `.lean` files:
+     `plugins_v3/builtin/` for definitions, rules, registries, and templates;
+     `plugins_v3/canon/` for printed cards.
+   - **Nothing about the filename or the folder it is in is semantically significant.**
+     Loose bundle files have no `import`, `namespace`, or `open` headers; a file may
+     contain one or many declarations of any category, in any order.
+   - All files across the bundle directories are peers in one flat declaration
+     namespace:
+     - Any `template` may reference any `action`, `keyword`, registry definition, or other `template`.
+     - Any `action` or `keyword` may reference any other `keyword` (e.g. `earthbendSpike` referencing
+       `hasteSpike` directly, `timeTravelSpike` referencing `suspendSpike` directly), `action`,
+       registry definition, or `template`.
 2. **Declaration-level dependency graph and deterministic topological sort:**
-   - Each loose file defines its primary declaration identifier (plus any
-     companion term macro registered alongside a `Definition`, such as a
-     keyword ability's `KeywordLabel` constant or a registry declaration's
-     term/label constant) and references a set of free declaration identifiers
-     in its parameters and body.
-   - The `xtask` / `deckmaste_semantics_v3` Lean emitter constructs the
-     directed dependency graph across all peer `Template` and `Definition`
-     declarations:
-     - An edge `A → B` exists whenever declaration `B` references declaration
-       `A` (or a companion symbol provided by `A`).
-     - **Cycle refusal:** If the dependency graph contains a cycle, the loader /
-       emitter refuses with a diagnostic naming the exact cycle of declarations
-       and their file paths.
-     - **Deterministic topological order:** Declarations are sorted via Kahn's
-       algorithm using a lexicographically ordered ready queue (`BTreeSet` by
-       declaration name) so the emitted Lean declaration order is deterministic
-       and independent of filesystem traversal order.
-   - The emitter writes the topologically sorted `semantic_template` and
-     `semantic_definition` declarations into Lean so `cargo xtask lean check`
-     (`lake build --wfail`) elaborates and proves every declaration, rule row,
-     card, and theorem without hand-maintained module layering.
-3. **Retire the hand-layered Lean declaration modules and cross-layer workarounds:**
-   - Replace the hand-maintained `lean/Semantics/Templates.lean`,
-     `lean/Semantics/Definitions/Phrasings.lean`,
-     `lean/Semantics/Definitions/Actions.lean`,
-     `lean/Semantics/Definitions/Keywords.lean`,
-     `lean/Semantics/Definitions/CardTypeRules.lean`,
-     `lean/Semantics/Definitions/SubtypeRules.lean`, and
-     `lean/Semantics/Definitions/DesignationRules.lean` layering with the
-     topologically sorted output emitted from `plugins_v3/`.
-   - Re-spell `earthbend` ([CR#701.66a]) to reference `haste` directly and
-     `timeTravel` ([CR#701.56a]) to reference `suspend` directly instead of raw
-     `.named "..."` literals.
+   - Both the Lean bundle loader (`load_bundle`) and the Rust loader (`deckmaste_semantics_v3`)
+     walk all `.lean` files in a bundle directory, extract `(decl_name, referenced_idents)`, and
+     topologically sort **individual declarations** via Kahn's algorithm with a lexicographically
+     ordered ready queue (`BTreeSet` by declaration name).
+   - An edge `A → B` exists whenever declaration `B` references declaration `A` (or a companion
+     symbol registered by `A`, such as a keyword ability's `<name>.label` constant).
+   - **Cycle refusal:** If the dependency graph contains a cycle, the loader refuses with a diagnostic
+     naming the exact cycle of declarations and their file paths.
+   - **Deterministic topological order:** The emitted Lean declaration order is completely deterministic
+     and independent of filesystem traversal order.
+3. **One language: Genuine Lean 4 with `{ field := val, ... }` brace-and-comma blocks:**
+   - Command macros: `action`, `keyword`, `ability_word`, `counter`, `designation`, `subtype`,
+     `card_type`, `relation`, `token`, `sba`, `conferral`, `template`, `card`.
+   - Every declaration uses `{ field := val, ... }` brace-and-comma blocks — 100% valid Lean 4
+     checked by `lake build`, with zero-significant-whitespace so the Rust parser in
+     `deckmaste_semantics_v3` is a ~250-line balanced-delimiter reader.
+   - Self-contained declarations unify Layer 2 lexical catalog fields (`lemma`, `plural`, `verbs`,
+     `nouns`, `adjectives`, `determinatives`, `bound` matching
+     `crates/deckmaste_lexical_source/src/schema.rs`), Layer 3 `spelling := "..."` string templates
+     (foundation for `deckmaste_spelling`), and `semantics_v3` meaning (`body`, `confers`, `rules`)
+     in a single declaration block (retiring separate `Counters.lean` + `Proofs/Rules.lean`,
+     `Subtypes.lean` + `SubtypeRules.lean`, etc.).
+   - No `rule:` data field — CR citations live in `--` comments (e.g. `-- [CR#701.47a]`) checked by `cargo xtask cite`.
+   - No separate `parameters:` field on `keyword` — derived from the declaration's typed parameter
+     signature and `spelling`.
+4. **Auto-wrapping & four authoring coercions / top-down elaborators:**
+   - **Auto-`inCaller`:** Every parameter whose type implements `CallerScope` (`Amount`, `Cost`,
+     `Predicate`, `Location`, `Quantity`, `Condition`, `Action`, `TokenSpec`, `MoveRider`, `Ballot`,
+     plus `Option α` and `List α`) is automatically wrapped in `CallerScope.caller`.
+   - **Auto-`firstMention` / `laterMention`:** Generated automatically for:
+     1. `NounPhrase` parameters in `action` / `keyword` (wrapping `inCaller p`, with explicit
+        `inCaller p` as opt-out),
+     2. Multi-mentioned `NounPhrase` parameters ($\ge 2$ occurrences) in `template` (without
+        `inCaller`, eliminating manual sites in `duringNextTurnOf`, `lookAndSortSlice`,
+        `controllerSacrifices`), and
+     3. Multi-mentioned `theActor` ($\ge 2$ occurrences) in `action` (eliminating manual `.firstMention`
+        sites in `fight`, `explore`, `connive`, `endure`).
+   - **Auto-`.ownScope` + `.deed` on `action`** and **auto-`Ability.keyword` + pre-registered `<name>.label`
+     on `keyword`** (so self-references like `hasKeyword flying` inside `flying` and `hasKeyword suspend`
+     inside `suspend` resolve without `.named` strings).
+   - **Four authoring coercions / top-down elaborators:**
+     1. Domain list literals (`[...]`): top-down elaborator on expected type (`Action → sequentially`,
+        `Predicate → Predicate.and`, `Condition → Condition.and`, `StaticSpec → conjunction`,
+        `Cost → mana` or `compound`, `Option (List α) → some [...]`).
+     2. Colors & generic mana: bare color templates (`white`, `blue`, `black`, `red`, `green`),
+        `Coe Color ManaSymbol := ⟨pip⟩`, `OfNat ManaSymbol n := ⟨generic n⟩`,
+        `Coe Color ColorOrColorless := ⟨.of⟩`.
+     3. Bare nouns (`creature`, `artifact`, `enchantment`, `land`, `planeswalker`, `battle`, `instant`,
+        `sorcery`, `kindred`, `card`, `permanent`, `player`, `token`, `spell`) dispatched top-down by
+        expected type (`Predicate` vs `NounWord` vs `CardType`), plus `this` → `this_`,
+        `Coe Characteristics CharacteristicBundle`, `Coe StaticSpec Ability := ⟨static⟩`.
+     4. Keyword names in `KeywordTerm` and `KeywordLabel` slots (both parameterless and parameterized
+        keywords and self-references).
 
 ## Proof
 
-- Every `Template` and `Definition` in `plugins_v3/` loads as a peer loose file
-  with no module-layer partition between templates, phrasings, actions,
-  keywords, and registry definitions.
-- Dependency cycle detection is covered by a unit test that constructs a
-  two-declaration cycle and asserts the cycle diagnostic.
-- `earthbend` references `haste` and `timeTravel` references `suspend` with zero
-  raw `.named` workarounds.
-- `cargo xtask lean check` (`lake build --wfail`),
-  `cargo test -p deckmaste_semantics_v3 -p xtask`, and
-  `cargo clippy -p deckmaste_semantics_v3 -p xtask --tests -- -D warnings` pass.
+- Reference spike preserved on bookmark `archive-semantics-v3-peer-files-and-toposort` (`lean/Semantics/BundleSpike.lean` + sample loose files in `plugins_v3/builtin/` and `plugins_v3/canon/`).
+- Every `Template` and `Definition` currently in `lean/Semantics/Templates.lean` and `lean/Semantics/Definitions/*.lean` lives as a loose file in `plugins_v3/builtin/` and loads via `load_bundle "../plugins_v3/builtin"`, proving cross-folder mutual dependencies (`earthbend` referencing `haste`, `timeTravel` referencing `suspend`, `flyingCounter` referencing `flying`), intra-file forward references, and Kahn's topological sort.
+- Cycle detection is verified by unit test (`topoSortBundle` detects dependency cycles and returns an error naming the cycle declarations and file paths).
+- `cargo xtask lean check` exits 0 with zero errors and zero warnings.
