@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-peer-files-and-toposort]
+needs: [plugins-v3-builtin-primitives-and-templates]
 ---
 # A Template parameter mentioned in two arms of an `or` cannot be bound
 

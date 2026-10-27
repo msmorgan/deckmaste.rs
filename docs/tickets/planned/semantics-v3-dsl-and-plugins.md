@@ -1,14 +1,17 @@
 ---
-needs: [semantics-v3-peer-files-and-toposort]
+needs: [plugins-v3-builtin-primitives-and-templates]
 ---
 # Create deckmaste_semantics_v3 and plugins_v3 mirroring the proven Lean v3 specification
 
 **Build `crates/deckmaste_semantics_v3` and `plugins_v3/` from the proven
 `lean/Semantics/` v3 specification, with Genuine Lean 4 `{ field := val, ... }`
-brace-and-comma declaration blocks and the Unified Action-Clause Spine.** Sixth
-implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)
-(§0, §§1–4). Follows [`semantics-v3-peer-files-and-toposort`](semantics-v3-peer-files-and-toposort.md),
-which establishes loose-bundle DAG loading and topological sorting into Lean.
+brace-and-comma declaration blocks and the Unified Action-Clause Spine.** Follows the
+four-step migration of `Templates.lean` and `Definitions/*.lean` into `plugins_v3/builtin/`
+([`lean-v3-bundle-loader-and-dsl`](lean-v3-bundle-loader-and-dsl.md) →
+[`plugins-v3-builtin-keywords`](plugins-v3-builtin-keywords.md) →
+[`plugins-v3-builtin-actions-and-definitions`](plugins-v3-builtin-actions-and-definitions.md) →
+[`plugins-v3-builtin-primitives-and-templates`](plugins-v3-builtin-primitives-and-templates.md))
+in [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md) (§0, §§1–4).
 Supersedes the `v2`-specific cleanup tickets `lean-macros-cutover`,
 `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
 Standard constraints apply.
@@ -27,12 +30,13 @@ Standard constraints apply.
     and the `J1`, `J2`, `D′`, and `AC>R1` resolution gates.
 - **One language: Genuine Lean 4 `{ field := val, ... }` brace-and-comma declarations:**
   - Every declaration and card lives in its own individual `.lean` file in `plugins_v3/`:
+    - `plugins_v3/builtin/primitives/{action,ability,condition,cost,determiner,event,mana,noun,pile,predicate,pronoun,quantity,static,timing,zone}/<name>.lean`
     - `plugins_v3/builtin/definitions/{keyword_action,keyword_ability,counter,designation,relation,token,card_type,subtype/{creature,artifact,...}}/<name>.lean`
     - `plugins_v3/builtin/templates/{ability,ability_word,action,amount,condition,cost,determiner,duration,event,mana,noun,pile,predicate,pronoun,quantity,timing,zone}/<name>.lean`
     - `plugins_v3/builtin/rules/{sba,conferral,...}/<name>.lean`
-    - `plugins_v3/canon/cards/<name>.lean`
+    - `plugins_v3/canon/cards/<name>.lean` (hand-authored exemplar cards, one `.lean` file per card)
   - Folder and file names are for human organization only and carry no semantic significance to the loader.
-  - Command macros: `action`, `keyword`, `ability_word`, `counter`, `designation`,
+  - Command macros: `primitive`, `action`, `keyword`, `ability_word`, `counter`, `designation`,
     `subtype`, `card_type`, `relation`, `token`, `sba`, `conferral`, `template`, `card`.
   - Every declaration uses `{ field := val, ... }` brace-and-comma blocks — 100% valid
     Lean 4 checked by `lake build`, and zero-significant-whitespace so the Rust parser
@@ -47,9 +51,12 @@ Standard constraints apply.
     `cargo xtask cite`.
   - No separate `parameters:` field on `keyword` — derived from the declaration's typed
     parameter signature and `spelling`.
-- **Loose-bundle DAG loading and topological sorting:**
-  - Handled by Kahn's algorithm with a lexicographically ordered ready queue (`BTreeSet`
-    by declaration name), proven in `semantics-v3-peer-files-and-toposort`.
+- **Loose-bundle DAG loading, `(name, return_type)` overloading, and topological sorting:**
+  - Nodes in the declaration DAG are keyed by `(bare_name, return_type)` so shared words (`and`,
+    `or`, `not`, `target`, `did`, `was`, `doIf`, `replace`, `crew`, `saddle`, `devour`, `creature`,
+    etc.) can be declared once per return type without symbol-table collisions, dispatching top-down
+    by expected type and sorting via Kahn's algorithm with a lexicographically ordered ready queue
+    (`BTreeSet` by `(decl_name, return_type)`).
 - **`xtask lean` gates on `v3` and `v2` retirement:**
   - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
     this cutover (the pre-v4 `deckmaste_lexical_source` was deleted in

@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-peer-files-and-toposort]
+needs: [plugins-v3-builtin-primitives-and-templates]
 ---
 # Venture into the dungeon, dungeon cards and the initiative's venture triggers
 

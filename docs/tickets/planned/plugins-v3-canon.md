@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-dsl-and-plugins, semantics-v3-peer-files-and-toposort, semantics-v2-macro-bodies-keyword-actions, semantics-v2-macro-bodies-keyword-abilities, semantics-v2-macro-bodies-ability-words, semantics-v2-macro-bodies-turn-parts, lean-rules-tables]
+needs: [semantics-v3-dsl-and-plugins, plugins-v3-builtin-primitives-and-templates, semantics-v2-macro-bodies-keyword-actions, semantics-v2-macro-bodies-keyword-abilities, semantics-v2-macro-bodies-ability-words, semantics-v2-macro-bodies-turn-parts, lean-rules-tables]
 ---
 **Re-author `plugins/canon` and `plugins/builtin`'s cards, the seven
 predefined tokens, and the rules tables in `plugins_v3/canon` and

@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v3-peer-files-and-toposort]
+needs: [plugins-v3-builtin-primitives-and-templates]
 ---
 # Enlist: an optional cost to attack and its linked trigger
 

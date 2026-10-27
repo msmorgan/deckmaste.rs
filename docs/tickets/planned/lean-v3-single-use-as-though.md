@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-checker-and-drt-fixes, semantics-v3-peer-files-and-toposort]
+needs: [lean-v3-checker-and-drt-fixes, plugins-v3-builtin-primitives-and-templates]
 ---
 # A single-use "as though" statement
 
